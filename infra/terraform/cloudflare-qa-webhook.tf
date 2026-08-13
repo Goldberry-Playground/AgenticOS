@@ -57,22 +57,31 @@ resource "cloudflare_zero_trust_access_policy" "paperclip_webhook_allow_service_
 # app layer — this keeps least-privilege at the edge too). Signature verification
 # is still the plugin's job (HMAC).
 #
-# ⚠️ The plugin id is NOT stable across reinstalls (an earlier revision of this
-# comment claimed it was — that claim caused a full inbound-sync outage). Paperclip
-# has no in-place plugin update: every manifest change is delete+install, which
-# mints a NEW plugin id. The id is embedded in THREE places that must move
-# together: this variable (3 Access-app paths), the GitHub App's webhook URL, and
-# any workflow that POSTs the legacy per-repo path. Incident 2026-08-12/13
-# (GOL: github-sync inbound outage): the plugin was reinstalled → id rotated
-# f46075f1… → 3d337cf7… → all deliveries 302'd at the CF edge for ~20h and no
-# GitHub-created issue reached the board. After ANY github-sync reinstall, update
+# ⚠️ The plugin id is NOT stable across reinstalls. Paperclip has no in-place
+# plugin update: every manifest change is delete+install, which mints a NEW
+# plugin id. The id is embedded in THREE places that must move together: this
+# variable (3 Access-app paths), the GitHub App's webhook URL, and any workflow
+# that POSTs the legacy per-repo path. After ANY github-sync reinstall, update
 # this default, apply, and update the GitHub App webhook URL in the same change
-# window. Durable fix tracked as a stable alias route (see AgenticOS issue).
+# window. Durable fix tracked as a stable alias route (GOL-1394 leg 1).
+#
+# GROUND TRUTH (verified 2026-08-13, GOL-1393): the live installed id is
+# f46075f1-bfb9-441b-90ea-ab1976ef83ff (board DB `plugins`: status=ready,
+# installed_at 2026-06-30, single row — no other github-sync install exists).
+# A live GitHub-App-shaped POST to
+#   /api/plugins/f46075f1-.../webhooks/github-app  → 200 {"status":"success"}
+#   /api/plugins/3d337cf7-.../webhooks/github-app  → 302 (CF Access login)
+# i.e. f46075f1 is the ONLY id the edge + plugin actually serve. The
+# "id rotated to 3d337cf7 / 20h outage" narrative (PR #503) was a misdiagnosis:
+# 3d337cf7 exists nowhere. #503 merged that dead id into this default; this
+# change reverts it. DO NOT set this to a value absent from the `plugins` table
+# — apply would re-scope the Access bypass off the real path and silently sever
+# inbound. The GOL-1394 deploy-gate + dead-man probe now guard this class.
 
 variable "github_sync_plugin_id" {
-  description = "Installed github-sync-plugin id (ROTATES on every reinstall — see incident note above). Path-scopes its inbound webhook Access apps and must match the GitHub App webhook URL."
+  description = "Installed github-sync-plugin id (ROTATES on every reinstall — see incident note above). MUST match a live id in the board DB `plugins` table AND the GitHub App webhook URL. Verify with the GOL-1394 dead-man probe before applying."
   type        = string
-  default     = "3d337cf7-2e15-46bf-bef6-bade1115cf26"
+  default     = "f46075f1-bfb9-441b-90ea-ab1976ef83ff"
 }
 
 resource "cloudflare_zero_trust_access_application" "paperclip_plugin_webhook" {
