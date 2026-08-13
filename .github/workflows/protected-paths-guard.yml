@@ -1,0 +1,146 @@
+# Protected paths guard  —  GOL-1406 / GOL-1402 (org-wide spec, 2026-08-13).
+#
+# Sync-critical and gate-critical files require a HUMAN-applied `human-approved`
+# label to merge. A PR that touches any protected path without that label fails
+# this (required) check.
+#
+# Label-forgery defense: the `human-approved` label only counts if it was
+# applied by a HUMAN on the allowlist (reused from auto-approve.yml), verified
+# via the timeline API. A label applied by any bot/App identity — including our
+# own agenticos-developer App — does NOT count.
+#
+# Self-protection: `.github/workflows/**` is protected (covers this file and
+# auto-approve.yml), and the job runs on `pull_request_target` — i.e. from the
+# BASE branch definition with API-only access and no PR checkout — so a PR
+# cannot edit this workflow to neuter its own guard. Same philosophy as
+# auto-approve.yml's workflow_run trigger.
+#
+# ONE shared implementation, generated for every repo from
+# gen-protected-paths-guard.py; only PROTECTED_GLOBS differs per repo. Repo: AgenticOS
+name: Protected paths guard
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: protected-paths-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Protected paths guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce human-approved label on protected paths
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Human allowlist — a label applied by anyone NOT in this list
+            // (including bots/Apps) does not count. Mirrors auto-approve.yml.
+            const HUMAN_ALLOWLIST = ['EngineeringMoonBear'];
+            const APPROVAL_LABEL = 'human-approved';
+
+            // Protected globs for THIS repo. `.github/workflows/**` is shared
+            // across all repos and is self-protecting.
+            const PROTECTED_GLOBS = [
+                '.github/workflows/**',
+                'infra/terraform/cloudflare-qa-webhook.tf',
+                'packages/github-sync-plugin/**/manifest*',
+                'scripts/deploy-plugin.sh',
+                'infra/terraform/github-*.tf',
+            ];
+
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request.number;
+
+            // glob -> RegExp (supports **, *, and literals; '/' is literal)
+            function globToRe(g) {
+              let re = '^';
+              for (let i = 0; i < g.length; i++) {
+                const c = g[i];
+                if (c === '*') {
+                  if (g[i + 1] === '*') {
+                    i++;
+                    if (g[i + 1] === '/') { i++; re += '(?:.*/)?'; }
+                    else { re += '.*'; }
+                  } else {
+                    re += '[^/]*';
+                  }
+                } else if ('\\^$.|?+()[]{}/'.includes(c)) {
+                  re += '\\' + c;
+                } else {
+                  re += c;
+                }
+              }
+              return new RegExp(re + '$');
+            }
+            const matchers = PROTECTED_GLOBS.map(globToRe);
+
+            // Changed files (paginated).
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
+            const hits = files
+              .map(f => f.filename)
+              .filter(fn => matchers.some(re => re.test(fn)));
+
+            if (hits.length === 0) {
+              core.info('No protected paths touched by this PR — guard passes.');
+              return;
+            }
+            core.warning('Protected paths touched:\n  ' + hits.join('\n  '));
+
+            // Live label state (the event payload can be stale).
+            const liveLabels = await github.paginate(
+              github.rest.issues.listLabelsOnIssue,
+              { owner, repo, issue_number: number, per_page: 100 }
+            );
+            const hasLabel = liveLabels.some(l => l.name === APPROVAL_LABEL);
+
+            const ASK = 'Ask Josh to review and apply the `' + APPROVAL_LABEL + '` label.';
+
+            if (!hasLabel) {
+              core.setFailed(
+                'This PR changes protected paths but is not `' + APPROVAL_LABEL + '`.\n' + ASK
+              );
+              return;
+            }
+
+            // Label-forgery defense: the CURRENT human-approved label must have
+            // been applied by an allowlisted human. Walk the timeline in order
+            // and keep the last actor to (un)label human-approved.
+            const timeline = await github.paginate(
+              github.rest.issues.listEventsForTimeline,
+              { owner, repo, issue_number: number, per_page: 100 }
+            );
+            let approvedByHuman = false;
+            let lastActor = null;
+            for (const ev of timeline) {
+              const isLabel = ev.label && ev.label.name === APPROVAL_LABEL;
+              if (ev.event === 'labeled' && isLabel) {
+                const login = ev.actor && ev.actor.login;
+                const type = ev.actor && ev.actor.type;
+                lastActor = login;
+                approvedByHuman = HUMAN_ALLOWLIST.includes(login) && type !== 'Bot';
+              } else if (ev.event === 'unlabeled' && isLabel) {
+                lastActor = ev.actor && ev.actor.login;
+                approvedByHuman = false;
+              }
+            }
+
+            if (!approvedByHuman) {
+              core.setFailed(
+                'The `' + APPROVAL_LABEL + '` label was applied by `' + (lastActor || 'unknown') +
+                '`, who is not a human on the allowlist (' + HUMAN_ALLOWLIST.join(', ') + ').\n' +
+                'A label applied by a bot/App does not count. ' + ASK
+              );
+              return;
+            }
+
+            core.info('`' + APPROVAL_LABEL + '` applied by allowlisted human `' + lastActor + '` — guard passes.');
