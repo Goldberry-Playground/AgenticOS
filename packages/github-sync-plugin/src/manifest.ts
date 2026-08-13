@@ -171,7 +171,19 @@ const manifest: PaperclipPluginManifestV1 = {
   //   `failed`, so the next sweep sees the twin as `unmapped` and stops paging. `failed`
   //   is now purely actionable. Worker-code + mapping helper (reuses the existing table,
   //   no migration) — manifest surface unchanged bar version.
-  version: "0.14.2",
+  // 0.15.0 = inbound-CREATE reconcile sweep (GOL-1413). The inbound mirror-CREATE was
+  //   event-driven only: a GitHub-native issue got a Paperclip twin solely if its
+  //   webhook was delivered AND its handler survived — no feedback loop revisited one
+  //   born during an inbound-webhook outage (mirror-reconcile is outbound-only;
+  //   inbound-close-reconcile acts only on already-mapped issues). New hourly
+  //   `inbound-create-reconcile` job (jobs.schedule + jobs[] — manifest surface CHANGED,
+  //   MINOR bump) lists each bridged repo's recently-OPEN issues and re-drives the SAME
+  //   createMirrorIssue path the webhook uses for any open, non-Paperclip-origin,
+  //   unmapped issue — so a deliberately-induced inbound-webhook outage self-heals
+  //   within an hour (the DoD self-heal net; absorbs grove-sites#473 / GOL-1300).
+  //   Idempotent (pre-checks the mapping), capped per run (20 attempts), 14-day/5-page
+  //   window. Reuses issues.create + jobs.schedule — no new capability, no migration.
+  version: "0.15.0",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
@@ -243,6 +255,15 @@ const manifest: PaperclipPluginManifestV1 = {
       // Minute 51 — offset from mirror-reconcile (:23) and signoff-reconcile (:38) and
       // the top of the hour so no two hourly sweeps ever stack.
       schedule: "51 * * * *",
+    },
+    {
+      jobKey: "inbound-create-reconcile",
+      displayName: "Inbound-create reconcile",
+      description:
+        "Hourly sweep that creates missing Paperclip twins for GitHub issues whose inbound webhook never landed (disabled / mis-delivered / dropped handler). Lists each bridged repo's recently-open issues and re-drives the event-path mirror-create handler — same dedupe, label routing, and REST-fallback write — so a GitHub issue born during an inbound-webhook outage self-heals within an hour (GOL-1413). Idempotent; capped per run.",
+      // Minute 9 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
+      // inbound-close-reconcile (:51) and the top of the hour so no two sweeps stack.
+      schedule: "9 * * * *",
     },
   ],
   // Inbound endpoint. The workflow POSTs the GitHub issue-opened payload here;

@@ -7,12 +7,12 @@ var __export = (target, all) => {
 // src/worker.ts
 import { AsyncResource } from "node:async_hooks";
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
 function definePlugin(definition) {
   return Object.freeze({ definition });
 }
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
   BRAND: () => BRAND,
@@ -124,7 +124,7 @@ __export(external_exports, {
   void: () => voidType
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/util.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_) => {
@@ -258,7 +258,7 @@ var getParsedType = (data) => {
   }
 };
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/ZodError.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -376,7 +376,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -479,7 +479,7 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/errors.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function setErrorMap(map) {
   overrideErrorMap = map;
@@ -488,7 +488,7 @@ function getErrorMap() {
   return overrideErrorMap;
 }
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path: path2, errorMaps, issueData } = params;
   const fullPath = [...path2, ...issueData.path || []];
@@ -598,14 +598,14 @@ var isDirty = (x) => x.status === "dirty";
 var isValid = (x) => x.status === "valid";
 var isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/errorUtil.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path2, key) {
     this._cachedPath = [];
@@ -4053,7 +4053,7 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/constants.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/constants.js
 var COMPANY_STATUSES = ["active", "paused", "archived"];
 var DEFAULT_COMPANY_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 var MAX_COMPANY_ATTACHMENT_MAX_BYTES = 1024 * 1024 * 1024;
@@ -4715,17 +4715,17 @@ var PLUGIN_STATE_SCOPE_KINDS = [
   "run"
 ];
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/adapter-type.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/adapter-type.js
 var agentAdapterTypeSchema = external_exports.string().trim().min(1).default("process").describe(`Known built-in adapters: ${AGENT_ADAPTER_TYPES.join(", ")}. External adapters may register additional non-empty string types at runtime.`);
 var optionalAgentAdapterTypeSchema = external_exports.string().trim().min(1).optional();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/trust-policy.js
 var TRUST_PRESETS = ["standard", "low_trust_review"];
 var LOW_TRUST_REVIEW_PRESET = "low_trust_review";
 var LOW_TRUST_REVIEW_PRESET_VERSION = 1;
 var LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION = "quarantine";
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/network-bind.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/network-bind.js
 function normalizeHost(host) {
   const trimmed = host?.trim();
   return trimmed ? trimmed : void 0;
@@ -4768,7 +4768,7 @@ function validateConfiguredBindMode(input) {
   return errors;
 }
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/instance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/instance.js
 var DAILY_RETENTION_PRESETS = [3, 7, 14];
 var WEEKLY_RETENTION_PRESETS = [1, 2, 4];
 var MONTHLY_RETENTION_PRESETS = [1, 3, 6];
@@ -4781,13 +4781,13 @@ var DEFAULT_BACKUP_RETENTION = {
   monthlyMonths: 1
 };
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/search.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/search.js
 var COMPANY_SEARCH_SCOPES = ["all", "issues", "comments", "documents", "artifacts", "agents", "projects"];
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
 var RESOURCE_MEMBERSHIP_STATES = ["joined", "left"];
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
 var sidebarOrderedIdSchema = external_exports.string().uuid();
 var sidebarOrderPreferenceSchema = external_exports.object({
   orderedIds: external_exports.array(sidebarOrderedIdSchema),
@@ -4797,7 +4797,7 @@ var upsertSidebarOrderPreferenceSchema = external_exports.object({
   orderedIds: external_exports.array(sidebarOrderedIdSchema)
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
 var resourceMembershipStateSchema = external_exports.enum(RESOURCE_MEMBERSHIP_STATES);
 var updateResourceMembershipSchema = external_exports.object({
   state: resourceMembershipStateSchema.optional(),
@@ -4809,7 +4809,7 @@ var updateResourceMembershipSchema = external_exports.object({
   path: ["starred"]
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
 var executionWorkspaceStatusSchema = external_exports.enum([
   "active",
   "idle",
@@ -4946,14 +4946,14 @@ var updateExecutionWorkspaceSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
 }).strict();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/feedback.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/feedback.js
 var FEEDBACK_TARGET_TYPES = ["issue_comment", "issue_document_revision"];
 var FEEDBACK_VOTE_VALUES = ["up", "down"];
 var FEEDBACK_DATA_SHARING_PREFERENCES = ["allowed", "not_allowed", "prompt"];
 var DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE = "prompt";
 var FEEDBACK_TRACE_STATUSES = ["local_only", "pending", "sent", "failed"];
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/feedback.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/feedback.js
 var feedbackTargetTypeSchema = external_exports.enum(FEEDBACK_TARGET_TYPES);
 var feedbackTraceStatusSchema = external_exports.enum(FEEDBACK_TRACE_STATUSES);
 var feedbackVoteValueSchema = external_exports.enum(FEEDBACK_VOTE_VALUES);
@@ -4966,7 +4966,7 @@ var upsertIssueFeedbackVoteSchema = external_exports.object({
   allowSharing: external_exports.boolean().optional()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/instance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/instance.js
 function presetSchema(presets, label) {
   return external_exports.number().refine((v) => presets.includes(v), { message: `${label} must be one of: ${presets.join(", ")}` });
 }
@@ -5018,7 +5018,7 @@ var instanceSettingsSchema = external_exports.object({
   updatedAt: external_exports.union([external_exports.date(), external_exports.string().datetime()])
 }).strict();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/budget.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/budget.js
 var upsertBudgetPolicySchema = external_exports.object({
   scopeType: external_exports.enum(BUDGET_SCOPE_TYPES),
   scopeId: external_exports.string().uuid(),
@@ -5044,7 +5044,7 @@ var resolveBudgetIncidentSchema = external_exports.object({
   }
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company.js
 var logoAssetIdSchema = external_exports.string().uuid().nullable().optional();
 var brandColorSchema = external_exports.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
 var feedbackDataSharingTermsVersionSchema = external_exports.string().min(1).nullable().optional();
@@ -5075,7 +5075,7 @@ var updateCompanyBrandingSchema = external_exports.object({
   logoAssetId: logoAssetIdSchema
 }).strict().refine((value) => value.name !== void 0 || value.description !== void 0 || value.brandColor !== void 0 || value.logoAssetId !== void 0, "At least one branding field must be provided");
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/secret.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/secret.js
 var secretKeySchema = external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/);
 var secretVersionSelectorSchema = external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]);
 var creatableSecretStatusSchema = external_exports.enum(["active", "disabled", "archived"]);
@@ -5404,7 +5404,7 @@ var remoteSecretImportSchema = external_exports.object({
   secrets: external_exports.array(remoteSecretImportSelectionSchema).min(1).max(100)
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/environment.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/environment.js
 var environmentDriverSchema = external_exports.enum(ENVIRONMENT_DRIVERS);
 var environmentStatusSchema = external_exports.enum(ENVIRONMENT_STATUSES);
 var environmentLeaseStatusSchema = external_exports.enum(ENVIRONMENT_LEASE_STATUSES);
@@ -5437,7 +5437,7 @@ var probeEnvironmentConfigSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
 }).strict();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
 var isoDateTime = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
 var providerKeySchema = external_exports.string().min(1).max(200);
 var optionalRecordSchema = external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable();
@@ -5513,7 +5513,7 @@ var environmentCustomImageTerminalSessionTokenSchema = external_exports.object({
   websocketPath: external_exports.string().min(1)
 }).strict();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/external-object.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/external-object.js
 var externalObjectStatusCategorySchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_CATEGORIES);
 var externalObjectStatusToneSchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_TONES);
 var externalObjectLivenessStateSchema = external_exports.enum(EXTERNAL_OBJECT_LIVENESS_STATES);
@@ -5533,7 +5533,7 @@ var externalObjectMentionSourceSchema = external_exports.object({
   propertyKey: external_exports.string().trim().min(1).optional().nullable()
 }).strict();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company-skill.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company-skill.js
 var companySkillSourceTypeSchema = external_exports.enum(["local_path", "github", "url", "catalog", "skills_sh"]);
 var companySkillTrustLevelSchema = external_exports.enum(["markdown_only", "assets", "scripts_executables"]);
 var companySkillCompatibilitySchema = external_exports.enum(["compatible", "unknown", "invalid"]);
@@ -5844,13 +5844,13 @@ var companySkillInstallCatalogResultSchema = external_exports.object({
   warnings: external_exports.array(external_exports.string())
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/text.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/text.js
 function normalizeEscapedLineBreaks(value) {
   return value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
 }
 var multilineTextSchema = external_exports.string().transform(normalizeEscapedLineBreaks);
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
 var trustPresetSchema = external_exports.enum(TRUST_PRESETS);
 var lowTrustOutputPromotionTargetSchema = external_exports.object({
   type: external_exports.literal("issue"),
@@ -5894,7 +5894,7 @@ var sourceTrustMetadataSchema = external_exports.object({
   promotedAt: external_exports.string().datetime({ offset: true }).nullable().optional()
 }).strict();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/issue.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/issue.js
 var issueBlockedInboxStateSchema = external_exports.enum([
   "needs_attention",
   "awaiting_decision",
@@ -6701,7 +6701,7 @@ var upsertIssueDocumentSchema = external_exports.object({
 });
 var restoreIssueDocumentRevisionSchema = external_exports.object({});
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/routine-variables.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/routine-variables.js
 var HUMAN_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "long",
@@ -6739,7 +6739,7 @@ function isValidRoutineDateString(value) {
   return day >= 1 && day <= daysInMonth;
 }
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/routine.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/routine.js
 var routineVariableValueSchema = external_exports.union([external_exports.string(), external_exports.number().finite(), external_exports.boolean()]);
 var routineVariableSchema = external_exports.object({
   name: external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/),
@@ -6874,7 +6874,7 @@ var runRoutineSchema = external_exports.object({
 });
 var rotateRoutineTriggerSecretSchema = external_exports.object({});
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company-portability.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company-portability.js
 var portabilityIncludeSchema = external_exports.object({
   company: external_exports.boolean().optional(),
   agents: external_exports.boolean().optional(),
@@ -7099,7 +7099,7 @@ var companyPortabilityImportSchema = companyPortabilityPreviewSchema.extend({
   secretValues: external_exports.record(external_exports.string().min(1), external_exports.string()).optional()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
 var catalogTeamKindSchema = external_exports.enum(["bundled", "optional"]);
 var catalogTeamTrustLevelSchema = external_exports.enum([
   "markdown_only",
@@ -7245,7 +7245,7 @@ var catalogTeamSkillPreparationSchema = external_exports.object({
   reason: external_exports.string().min(1).nullable()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
 var agentSkillStateSchema = external_exports.enum([
   "available",
   "configured",
@@ -7301,7 +7301,7 @@ var agentSkillSyncSchema = external_exports.object({
   desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema)
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/agent.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/agent.js
 var agentPermissionsSchema = external_exports.object({
   canCreateAgents: external_exports.boolean().optional().default(false),
   canCreateSkills: external_exports.boolean().optional().default(true),
@@ -7442,7 +7442,7 @@ var updateAgentPermissionsSchema = external_exports.object({
   authorizationPolicy: trustAuthorizationPolicySchema.optional()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/project.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/project.js
 var executionWorkspaceStrategySchema2 = external_exports.object({
   type: external_exports.enum(["project_primary", "git_worktree", "adapter_managed", "cloud_sandbox"]).optional(),
   baseRef: external_exports.string().optional().nullable(),
@@ -7540,7 +7540,7 @@ var createProjectSchema = external_exports.object({
 });
 var updateProjectSchema = external_exports.object(projectFields).partial();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
 var documentAnnotationThreadStatusSchema = external_exports.enum(DOCUMENT_ANNOTATION_THREAD_STATUSES);
 var documentAnnotationAnchorStateSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_STATES);
 var documentAnnotationAnchorConfidenceSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_CONFIDENCES);
@@ -7591,7 +7591,7 @@ var updateDocumentAnnotationThreadSchema = external_exports.object({
   message: "At least one field must be provided"
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/search.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/search.js
 var COMPANY_SEARCH_MAX_QUERY_LENGTH = 200;
 var COMPANY_SEARCH_DEFAULT_LIMIT = 20;
 var COMPANY_SEARCH_MAX_LIMIT = 50;
@@ -7613,7 +7613,7 @@ var companySearchQuerySchema = external_exports.object({
   offset: external_exports.unknown().optional().transform((value) => clampInteger(value, 0, 0, COMPANY_SEARCH_MAX_OFFSET))
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
 var issueTreeControlModeSchema = external_exports.enum(ISSUE_TREE_CONTROL_MODES);
 var issueTreeHoldReleasePolicySchema = external_exports.object({
   strategy: external_exports.enum(ISSUE_TREE_HOLD_RELEASE_POLICY_STRATEGIES).default("manual"),
@@ -7635,7 +7635,7 @@ var releaseIssueTreeHoldSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
 }).strict();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
 var workspaceFileListSearchMaxBytes = 128;
 function utf8ByteLength(value) {
   return new TextEncoder().encode(value).length;
@@ -7721,7 +7721,7 @@ var workspaceFileContentSchema = external_exports.object({
   })
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/work-product.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/work-product.js
 function attachmentContentPath(attachmentId) {
   return `/api/attachments/${attachmentId}/content`;
 }
@@ -7805,7 +7805,7 @@ var createIssueWorkProductSchema = external_exports.object({
 });
 var updateIssueWorkProductSchema = createIssueWorkProductSchema.partial();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/artifact.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/artifact.js
 var COMPANY_ARTIFACTS_DEFAULT_LIMIT = 30;
 var COMPANY_ARTIFACTS_MAX_LIMIT = 100;
 var COMPANY_ARTIFACTS_MAX_QUERY_LENGTH = 160;
@@ -7869,7 +7869,7 @@ var companyArtifactsResponseSchema = external_exports.object({
   nextCursor: external_exports.string().nullable()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/goal.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/goal.js
 var createGoalSchema = external_exports.object({
   title: external_exports.string().min(1),
   description: external_exports.string().optional().nullable(),
@@ -7880,7 +7880,7 @@ var createGoalSchema = external_exports.object({
 });
 var updateGoalSchema = createGoalSchema.partial();
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/approval.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/approval.js
 var createApprovalSchema = external_exports.object({
   type: external_exports.enum(APPROVAL_TYPES),
   requestedByAgentId: external_exports.string().uuid().optional().nullable(),
@@ -7900,7 +7900,7 @@ var addApprovalCommentSchema = external_exports.object({
   body: multilineTextSchema.pipe(external_exports.string().min(1))
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/cost.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/cost.js
 var createCostEventSchema = external_exports.object({
   agentId: external_exports.string().uuid(),
   issueId: external_exports.string().uuid().optional().nullable(),
@@ -7925,7 +7925,7 @@ var updateBudgetSchema = external_exports.object({
   budgetMonthlyCents: external_exports.number().int().nonnegative()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/finance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/finance.js
 var createFinanceEventSchema = external_exports.object({
   agentId: external_exports.string().uuid().optional().nullable(),
   issueId: external_exports.string().uuid().optional().nullable(),
@@ -7956,12 +7956,12 @@ var createFinanceEventSchema = external_exports.object({
   currency: value.currency.toUpperCase()
 }));
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/asset.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/asset.js
 var createAssetImageMetadataSchema = external_exports.object({
   namespace: external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9/_-]+$/).optional()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/pipeline.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/pipeline.js
 var routineVariableLikeNameSchema = external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/);
 var pipelineStageKindSchema = external_exports.enum(["working", "review", "done", "cancelled"]);
 var legacyPipelineStageKindSchema = external_exports.enum(["open", "working", "review", "done", "cancelled"]);
@@ -8093,7 +8093,7 @@ var pipelineAutomationRetryRequestSchema = external_exports.object({
   })
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/access.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/access.js
 var createCompanyInviteSchema = external_exports.object({
   allowedJoinTypes: external_exports.enum(INVITE_JOIN_TYPES).default("both"),
   humanRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
@@ -8216,7 +8216,7 @@ var updateCurrentUserProfileSchema = external_exports.object({
   image: external_exports.union([profileImageSchema, external_exports.literal(""), external_exports.null()]).optional().transform((value) => value === "" ? null : value)
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/plugin.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/plugin.js
 var jsonSchemaSchema = external_exports.record(external_exports.string(), external_exports.unknown()).refine((val) => {
   if (Object.keys(val).length === 0)
     return true;
@@ -9031,7 +9031,7 @@ var listPluginStateSchema = external_exports.object({
   namespace: external_exports.string().min(1).optional()
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/api.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/api.js
 var API_PREFIX = "/api";
 var API = {
   health: `${API_PREFIX}/health`,
@@ -9074,7 +9074,7 @@ var API = {
   admin: `${API_PREFIX}/admin`
 };
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/config-schema.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/config-schema.js
 var configMetaSchema = external_exports.object({
   version: external_exports.literal(1),
   updatedAt: external_exports.string(),
@@ -9230,7 +9230,7 @@ var paperclipConfigSchema = external_exports.object({
   }
 });
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
 var adapterRegistryEntrySchema = external_exports.object({
   adapterType: external_exports.string().min(1),
   enabled: external_exports.boolean().default(true),
@@ -9242,14 +9242,14 @@ var adapterRegistryEntrySchema = external_exports.object({
 }).strict();
 var adapterRegistrySchema = external_exports.array(adapterRegistryEntrySchema);
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 import fs from "node:fs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
 var JSONRPC_VERSION = "2.0";
 var JSONRPC_ERROR_CODES = {
   /** Invalid JSON was received by the server. */
@@ -9381,7 +9381,7 @@ var JsonRpcCallError = class extends Error {
   }
 };
 
-// ../../../../paperclip/work/AgenticOS/node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 var DEFAULT_RPC_TIMEOUT_MS = 3e4;
 function realpathOrResolvedPath(filePath) {
   const resolvedPath = path.resolve(filePath);
@@ -11934,6 +11934,76 @@ function buildInboundCloseReconcilePing(s) {
   return `\u{1F501} inbound-close-reconcile: propagated ${s.propagated} GitHub close(s) \u2192 Paperclip, pruned ${s.pruned} orphaned mapping(s), ${s.failed} failed (scanned ${s.scanned})`;
 }
 
+// src/inbound-create-reconcile.ts
+var DEFAULT_MAX_CREATES2 = 20;
+async function runInboundCreateReconcile(input) {
+  const maxCreates = input.maxCreates ?? DEFAULT_MAX_CREATES2;
+  const summary = {
+    scanned: 0,
+    created: 0,
+    skippedMapped: 0,
+    skippedClosed: 0,
+    skippedPaperclipOrigin: 0,
+    failed: 0,
+    reposFailed: 0,
+    truncated: false,
+    capped: false
+  };
+  for (const repoSlug of input.repoSlugs) {
+    const listed = await input.listIssues(repoSlug);
+    if (!listed.ok) {
+      summary.reposFailed++;
+      input.logger.warn("inbound-create-reconcile: issue list failed; skipping repo this run", {
+        repo: repoSlug,
+        error: listed.error
+      });
+      continue;
+    }
+    if (listed.truncated) summary.truncated = true;
+    for (const issue of listed.issues) {
+      summary.scanned++;
+      if (summary.created + summary.failed >= maxCreates) {
+        summary.capped = true;
+        return summary;
+      }
+      try {
+        const outcome = await input.driveCreate({ repoSlug, issue });
+        switch (outcome) {
+          case "created":
+            summary.created++;
+            break;
+          case "skipped-mapped":
+            summary.skippedMapped++;
+            break;
+          case "skipped-closed":
+            summary.skippedClosed++;
+            break;
+          case "skipped-paperclip-origin":
+            summary.skippedPaperclipOrigin++;
+            break;
+          case "no-bridge":
+            break;
+          case "failed":
+            summary.failed++;
+            break;
+        }
+      } catch (err) {
+        summary.failed++;
+        input.logger.warn("inbound-create-reconcile: mirror-create re-drive failed; continuing sweep", {
+          repo: repoSlug,
+          number: issue.number,
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
+    }
+  }
+  return summary;
+}
+function buildInboundCreateReconcilePing(s) {
+  const capNote = s.capped ? " \u2014 capped, next run continues" : "";
+  return `\u{1FA9E} inbound-create-reconcile: created ${s.created} missing Paperclip twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
+}
+
 // src/error-log.ts
 var ERROR_TABLE = "github_sync_error";
 function qualifiedTable2(db) {
@@ -12352,6 +12422,8 @@ var SIGNOFF_RECONCILE_WINDOW_MS = 3 * 24 * 60 * 60 * 1e3;
 var SIGNOFF_RECONCILE_ROW_CAP = 200;
 var INBOUND_CLOSE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
 var INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
+var INBOUND_CREATE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
+var INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
 var currentContext = null;
 function safeJson(raw) {
   try {
@@ -13381,6 +13453,73 @@ var plugin = definePlugin({
         }
       } catch (err) {
         await recordSwallowedFailure(ctx, cfg, "inbound-close-reconcile job failed", err, {});
+      }
+    });
+    ctx.jobs.register("inbound-create-reconcile", async () => {
+      try {
+        if (!cfg.companyId) {
+          ctx.logger.warn("inbound-create-reconcile: companyId not configured; skipping sweep");
+          return;
+        }
+        const sinceIso = new Date(Date.now() - INBOUND_CREATE_RECONCILE_WINDOW_MS).toISOString();
+        const summary = await runInboundCreateReconcile({
+          repoSlugs: Array.from(clientsBySlug.keys()),
+          // state:"open" — never create a pre-closed mirror (the close leg is
+          // inbound-close-reconcile's job); `since` bounds the scan to the window.
+          listIssues: async (repoSlug) => {
+            const entry = clientsBySlug.get(repoSlug);
+            if (!entry) return { ok: false, error: "no client for repo" };
+            const res = await entry.github.listIssues(entry.repo, {
+              state: "open",
+              since: sinceIso,
+              maxPages: INBOUND_CREATE_RECONCILE_MAX_PAGES
+            });
+            if (!res.ok) return { ok: false, error: res.error };
+            return {
+              ok: true,
+              issues: res.data.issues.map((i) => ({
+                number: i.number,
+                state: i.state,
+                title: i.title,
+                body: i.body,
+                url: i.htmlUrl,
+                labels: i.labels
+              })),
+              truncated: res.data.truncated
+            };
+          },
+          // Re-drive the SAME inbound mirror-create the webhook uses. Owns the guards
+          // (bridge / closed / Paperclip-origin label / already-mapped) so the sweep
+          // tallies without duplicating createMirrorIssue's internals. No ambient
+          // scope ((fn) => fn()); createMirrorIssue's writes go through withRestFallback,
+          // so a cron-tick scope expiry falls back to the Paperclip REST API (GOL-323).
+          driveCreate: async ({ repoSlug, issue }) => {
+            const bridge = matchBridge(cfg, repoSlug);
+            if (!bridge) return "no-bridge";
+            if (issue.state === "closed") return "skipped-closed";
+            if (issue.labels.some((l) => l.toLowerCase() === bridge.syncLabelPaperclip.toLowerCase())) {
+              return "skipped-paperclip-origin";
+            }
+            if (await getByRepoNumber(ctx.db, repoSlug, issue.number)) return "skipped-mapped";
+            await createMirrorIssue(
+              ctx,
+              cfg,
+              bridge,
+              { repo: repoSlug, number: issue.number, title: issue.title, body: issue.body, url: issue.url },
+              issue.labels,
+              (fn) => fn()
+            );
+            return await getByRepoNumber(ctx.db, repoSlug, issue.number) ? "created" : "failed";
+          },
+          logger: ctx.logger
+        });
+        ctx.logger.info("inbound-create-reconcile complete", summary);
+        if (summary.created > 0 || summary.failed > 0) {
+          if (wantPing(cfg, "outcome"))
+            await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCreateReconcilePing(summary));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "inbound-create-reconcile job failed", err, {});
       }
     });
     ctx.logger.info("github sync listening", {

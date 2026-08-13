@@ -44,6 +44,7 @@ import { handleReviewSignoff } from "./pr-signoff.js";
 import { runMirrorReconcile, buildReconcilePing } from "./reconcile.js";
 import { runSignoffReconcile } from "./signoff-reconcile.js";
 import { runInboundCloseReconcile, buildInboundCloseReconcilePing } from "./inbound-close-reconcile.js";
+import { runInboundCreateReconcile, buildInboundCreateReconcilePing } from "./inbound-create-reconcile.js";
 import { recordError, buildSwallowedFailurePing, OpsPingThrottle, withSuppressionNote } from "./error-log.js";
 import {
   buildCiFixBody,
@@ -91,6 +92,15 @@ const INBOUND_CLOSE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 /** Page cap per repo per run (100/page) — bounds a large repo's scan; a hit sets
  *  `truncated` and the freshest closes (sort=updated desc) are scanned first. */
 const INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
+
+/**
+ * Inbound-create reconcile sweep (GOL-1413): how far back to look for GitHub-side
+ * issues that never got a Paperclip twin (inbound webhook outage). Same 14-day
+ * window and page cap as the close leg — the sweep is idempotent and pre-checks
+ * the mapping, so re-scanning a settled/already-mirrored issue is a cheap skip.
+ */
+const INBOUND_CREATE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+const INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
 
 /** Captured in setup() so onWebhook (which only receives `input`) can reach ctx. */
 let currentContext: PluginContext | null = null;
@@ -1741,6 +1751,97 @@ const plugin = definePlugin({
         }
       } catch (err) {
         await recordSwallowedFailure(ctx, cfg, "inbound-close-reconcile job failed", err, {});
+      }
+    });
+
+    // Inbound-CREATE reconcile sweep (GOL-1413): the polling inbound leg of mirror
+    // CREATION — the create counterpart to inbound-close-reconcile and the inbound
+    // sibling the outbound mirror-reconcile (PR #444) never had. The inbound mirror
+    // is event-driven only: a GitHub-native issue gets a Paperclip twin solely if
+    // its webhook (App `opened` event, or the custom Actions POST) was delivered AND
+    // the handler survived. If the inbound webhook is disabled / mis-delivered / its
+    // handler drops (scope expiry, timeout), that issue is never revisited — neither
+    // mirror-reconcile (outbound-only) nor inbound-close-reconcile (acts only on
+    // already-mapped issues) will create it. This hourly sweep lists each bridged
+    // repo's recently-OPEN issues and re-drives the SAME createMirrorIssue path the
+    // webhook uses for any open, non-Paperclip-origin, unmapped issue — so a
+    // deliberately-induced inbound-webhook outage self-heals within an hour (the DoD
+    // self-heal net; absorbs grove-sites#473 / GOL-1300). AgenticOS stays a near
+    // no-op (its opened issues are already mapped by the time the sweep runs).
+    ctx.jobs.register("inbound-create-reconcile", async () => {
+      try {
+        if (!cfg.companyId) {
+          ctx.logger.warn("inbound-create-reconcile: companyId not configured; skipping sweep");
+          return;
+        }
+        const sinceIso = new Date(Date.now() - INBOUND_CREATE_RECONCILE_WINDOW_MS).toISOString();
+        const summary = await runInboundCreateReconcile({
+          repoSlugs: Array.from(clientsBySlug.keys()),
+          // state:"open" — never create a pre-closed mirror (the close leg is
+          // inbound-close-reconcile's job); `since` bounds the scan to the window.
+          listIssues: async (repoSlug) => {
+            const entry = clientsBySlug.get(repoSlug);
+            if (!entry) return { ok: false, error: "no client for repo" };
+            const res = await entry.github.listIssues(entry.repo, {
+              state: "open",
+              since: sinceIso,
+              maxPages: INBOUND_CREATE_RECONCILE_MAX_PAGES,
+            });
+            if (!res.ok) return { ok: false, error: res.error };
+            return {
+              ok: true,
+              issues: res.data.issues.map((i) => ({
+                number: i.number,
+                state: i.state,
+                title: i.title,
+                body: i.body,
+                url: i.htmlUrl,
+                labels: i.labels,
+              })),
+              truncated: res.data.truncated,
+            };
+          },
+          // Re-drive the SAME inbound mirror-create the webhook uses. Owns the guards
+          // (bridge / closed / Paperclip-origin label / already-mapped) so the sweep
+          // tallies without duplicating createMirrorIssue's internals. No ambient
+          // scope ((fn) => fn()); createMirrorIssue's writes go through withRestFallback,
+          // so a cron-tick scope expiry falls back to the Paperclip REST API (GOL-323).
+          driveCreate: async ({ repoSlug, issue }) => {
+            const bridge = matchBridge(cfg, repoSlug);
+            if (!bridge) return "no-bridge";
+            if (issue.state === "closed") return "skipped-closed";
+            // Loop guard: never mirror an issue GitHub already shows as Paperclip-origin
+            // (mirrors the event-path label check in handleAppInbound).
+            if (issue.labels.some((l) => l.toLowerCase() === bridge.syncLabelPaperclip.toLowerCase())) {
+              return "skipped-paperclip-origin";
+            }
+            // Idempotency pre-check: an already-mirrored issue is a cheap skip, not a
+            // create attempt (createMirrorIssue also dedupes internally as a backstop).
+            if (await getByRepoNumber(ctx.db, repoSlug, issue.number)) return "skipped-mapped";
+            await createMirrorIssue(
+              ctx,
+              cfg,
+              bridge,
+              { repo: repoSlug, number: issue.number, title: issue.title, body: issue.body, url: issue.url },
+              issue.labels,
+              (fn) => fn(),
+            );
+            // createMirrorIssue upserts the mapping on success and logs-and-returns on
+            // failure (no throw), so the mapping row is the ground truth for success.
+            return (await getByRepoNumber(ctx.db, repoSlug, issue.number)) ? "created" : "failed";
+          },
+          logger: ctx.logger,
+        });
+        ctx.logger.info("inbound-create-reconcile complete", summary as unknown as Record<string, unknown>);
+        // Page on real work only: a create, or an actionable (retryable) failure.
+        // createMirrorIssue already emits a per-mirror ops ping on each create, so this
+        // summary ping is the sweep-level rollup.
+        if (summary.created > 0 || summary.failed > 0) {
+          if (wantPing(cfg, "outcome"))
+            await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCreateReconcilePing(summary));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "inbound-create-reconcile job failed", err, {});
       }
     });
 
