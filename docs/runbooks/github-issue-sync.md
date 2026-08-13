@@ -234,3 +234,41 @@ The workflow no-ops until these secrets exist.
 - **One instance, many bridges, one inbound endpoint.** `pluginKey` is unique, so the plugin can't be installed twice — add bridges to the `bridges[]` config array. The **single** webhook endpoint `/api/plugins/:id/webhooks/github-issue` serves all repos (routing is by the payload's `repo`); each repo just needs the workflow + secrets pointing at it.
 - **Cross-org auth = the GitHub App, not a PAT.** A fine-grained PAT is single-owner; the gh-token-broker mints repo-scoped App installation tokens for any org the App is installed on. Confirm the App is installed on **both** orgs with the synced repos selected.
 - **QA double-trigger is avoided by scoping:** QA-triage issues live in a different project, so the plugin (filtered to each bridge's project) never mirrors them.
+
+## Inbound id-drift protection (GOL-1394)
+
+The inbound webhook URL embeds the github-sync plugin **id**, and a plugin
+reinstall (delete+install — Paperclip's only update path) **rotates** that id.
+The id lives in THREE places that must move together, or inbound silently severs:
+
+1. the CF Access apps in `infra/terraform/cloudflare-qa-webhook.tf`
+   (`var.github_sync_plugin_id`),
+2. the **AgenticOS Developer** GitHub App webhook URL, and
+3. the plugin install itself.
+
+On 2026-08-12 only (3) moved for a window → GitHub deliveries `302`'d at the CF
+edge and no GitHub-created issue reached the board. This failed **silently**:
+the outbound hourly `mirror-reconcile` only covers board→GitHub. Two guards now
+close that class:
+
+- **Deploy-gate** — `scripts/deploy-plugin.sh` compares the live installed id
+  against `var.github_sync_plugin_id` after a `github-sync-plugin` reinstall and
+  **fails loudly** (default; `PLUGIN_ID_GATE=warn` downgrades) with the exact
+  re-scope legs. So a sanctioned reinstall can't leave drift unnoticed.
+- **Dead-man probe** — `scripts/inbound-deadman-probe.sh`, scheduled daily by
+  `.github/workflows/inbound-webhook-deadman.yml`, replays a GitHub App `ping`
+  (HMAC-signed, **no** CF service-token headers — exactly what GitHub sends) to
+  the live webhook URL and asserts a plugin `200`. A `302` (edge severed) / `404`
+  (id rotated) / timeout → alert to the Grove ops Discord. `ping` is ignored by
+  the plugin (no board write, zero noise), so it's safe on a schedule.
+  - Configure: repo **variable** `INBOUND_WEBHOOK_URL` (the URL set on the GitHub
+    App) + secrets `GITHUB_APP_WEBHOOK_SECRET` (== the App webhook secret /
+    plugin `appWebhookSecret`) and `DISCORD_WEBHOOK_URL` (already set). No-op
+    until configured. Run with **Force fail** (workflow_dispatch input) to test
+    the Discord alert path.
+  - Limitation: a `200` proves the CF edge + host-accept are healthy for that id;
+    it does not by itself prove async processing. The deploy-gate covers the
+    "CF scoped to an id whose plugin was deleted" case. The durable elimination
+    is the id-stable host route (GOL-1394 leg 1) — once that lands, point
+    `INBOUND_WEBHOOK_URL` at the stable `/api/plugin-webhooks/github-sync/...`
+    path and none of the three places ever need editing on a reinstall again.

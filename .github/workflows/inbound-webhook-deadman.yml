@@ -1,0 +1,61 @@
+name: Inbound webhook dead-man probe
+
+# GOL-1394 — the inbound sibling of the hourly OUTBOUND mirror-reconcile.
+#
+# The GitHub→Paperclip inbound path (GitHub App deliveries → the github-sync
+# plugin's /webhooks/github-app endpoint, through a Cloudflare Access *bypass*
+# app) fails SILENTLY: when the plugin id rotates on a reinstall, or a CF Access
+# re-scope drifts, every delivery 302s at the edge and no GitHub-created issue
+# reaches the board — GitHub logs the failures, but nothing on our side alerts.
+# The 2026-08-12 incident ran ~20h undetected.
+#
+# This probe replays exactly what a GitHub App delivery does: an HMAC-signed
+# `ping` POST to the SAME webhook URL, with NO Cloudflare Access service-token
+# headers (GitHub can't send them either — the endpoint is a Bypass app). A
+# healthy edge+id returns 200; a severed edge 302s; a rotated id 404s. Anything
+# but 200 → alert Grove ops Discord. `ping` is ignored by the plugin (no board
+# write, no scratch issue), so this is zero-noise and safe to schedule.
+#
+# Configuration (no-op until set, so this is safe to merge first):
+#   var    INBOUND_WEBHOOK_URL        — the github-app webhook URL currently
+#                                        configured on the AgenticOS Developer
+#                                        GitHub App. Repo/Org Actions *variable*
+#                                        (not secret; not sensitive). Once the
+#                                        id-stable host route (GOL-1394 leg 1)
+#                                        lands, point this at the stable path and
+#                                        it never needs touching on a reinstall.
+#   secret GITHUB_APP_WEBHOOK_SECRET  — the App webhook secret (== the plugin's
+#                                        appWebhookSecret). Signs the probe.
+#   secret DISCORD_WEBHOOK_URL        — Grove ops Discord webhook (already set).
+
+on:
+  schedule:
+    - cron: "17 13 * * *"   # daily 13:17 UTC — off the top-of-hour reconcile
+  workflow_dispatch:
+    inputs:
+      force_fail:
+        description: "Force a synthetic failure to test the Discord alert path"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inbound-webhook-deadman
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe inbound GitHub→Paperclip edge
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run dead-man probe
+        env:
+          INBOUND_WEBHOOK_URL: ${{ vars.INBOUND_WEBHOOK_URL }}
+          GITHUB_APP_WEBHOOK_SECRET: ${{ secrets.GITHUB_APP_WEBHOOK_SECRET }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PROBE_FORCE_FAIL: ${{ inputs.force_fail && '1' || '' }}
+        run: bash scripts/inbound-deadman-probe.sh
