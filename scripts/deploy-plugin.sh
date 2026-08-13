@@ -32,6 +32,19 @@ DROPLET_SSH="${DROPLET_SSH:-deploy@agenticos-droplet}"
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/agenticos}"
 VALID_PLUGINS="vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin"
 
+# --- github-sync inbound webhook id-drift gate (GOL-1394) ---------------------
+# A github-sync reinstall ROTATES the plugin id (delete+install is Paperclip's
+# only update path). That id is embedded in the inbound webhook URL in THREE
+# places that must move together: the CF Access apps (cloudflare-qa-webhook.tf
+# var.github_sync_plugin_id), the GitHub App webhook URL, and the install. On
+# 2026-08-12 only the install moved → ~20h of silently-severed inbound sync
+# (every GitHub delivery 302'd at the CF edge). This gate compares the live
+# installed id against the committed TF var and, on mismatch, prints the exact
+# operator legs. Default = FAIL (can't be silently ignored); PLUGIN_ID_GATE=warn
+# downgrades to a non-fatal warning.
+TF_WEBHOOK_FILE="${TF_WEBHOOK_FILE:-${HERE}/../infra/terraform/cloudflare-qa-webhook.tf}"
+PLUGIN_ID_GATE="${PLUGIN_ID_GATE:-fail}"   # fail | warn
+
 usage() {
   echo "Usage: $0 <plugin> [<plugin> ...]" >&2
   echo "  plugin ∈ ${VALID_PLUGINS}" >&2
@@ -140,6 +153,65 @@ assert_healthy() {
   esac
 }
 
+# tf_github_sync_id — parse the committed default of var.github_sync_plugin_id
+# from cloudflare-qa-webhook.tf. Empty if the file/var is missing. NOTE: this is
+# the committed intent; a terraform.tfvars override is not read here (the gate is
+# a drift tripwire, not a full plan) — see the runbook.
+tf_github_sync_id() {
+  [ -f "${TF_WEBHOOK_FILE}" ] || { echo ""; return 0; }
+  awk '/variable "github_sync_plugin_id"/{f=1} f&&/default/{print; exit}' "${TF_WEBHOOK_FILE}" \
+    | grep -oiE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1
+}
+
+# assert_inbound_id_stable — after a github-sync reinstall, the live id must
+# still match the id the inbound webhook path is scoped to (TF + GitHub App).
+# On mismatch the inbound sync is SEVERED until an operator re-scopes all three.
+assert_inbound_id_stable() {
+  local live tf
+  live="$(resolve_plugin_id "agenticos.github-sync-plugin")"
+  tf="$(tf_github_sync_id)"
+  if [ -z "$tf" ]; then
+    echo "    github-sync-plugin: WARN could not read var.github_sync_plugin_id from ${TF_WEBHOOK_FILE} — id gate SKIPPED" >&2
+    return 0
+  fi
+  if [ -z "$live" ]; then
+    echo "    github-sync-plugin: WARN plugin not installed — id gate SKIPPED" >&2
+    return 0
+  fi
+  if [ "$live" = "$tf" ]; then
+    echo "    github-sync-plugin: inbound id gate OK (live=TF=${live})"
+    return 0
+  fi
+  # --- DRIFT: inbound sync is now severed at the edge -------------------------
+  cat >&2 <<EOF
+
+  ============================================================================
+  🚨 INBOUND WEBHOOK ID DRIFT — GitHub→Paperclip issue sync is SEVERED (GOL-1394)
+  ============================================================================
+    live installed id : ${live}
+    TF-scoped id      : ${tf}   (var.github_sync_plugin_id)
+
+  The github-sync plugin id rotated on reinstall. Until all three are re-scoped
+  to ${live}, every GitHub issue/PR delivery 302s at the Cloudflare edge and NO
+  GitHub-created issue reaches the board. Operator legs (see
+  docs/runbooks/github-issue-sync.md):
+
+    1. infra/terraform/cloudflare-qa-webhook.tf: set
+         default = "${live}"  (var.github_sync_plugin_id), then \`terraform apply\`.
+    2. GitHub App "AgenticOS Developer" → webhook URL:
+         https://paperclip.gatheringatthegrove.com/api/plugins/${live}/webhooks/github-app
+    3. Update the inbound dead-man probe target (repo var GITHUB_SYNC_PLUGIN_ID
+       or the webhook URL secret) so the probe tracks the live id.
+  ============================================================================
+EOF
+  if [ "${PLUGIN_ID_GATE}" = "warn" ]; then
+    echo "    github-sync-plugin: id gate WARN-only (PLUGIN_ID_GATE=warn) — continuing" >&2
+    return 0
+  fi
+  return 1
+}
+
+gate_rc=0
 for p in "$@"; do
   echo "==> ${p}"
   recreate_guard "$p"
@@ -147,5 +219,15 @@ for p in "$@"; do
   apply_config "$p"
   cycle "$p"
   assert_healthy "$p"
+  # A github-sync reinstall rotates the id — verify the inbound path still
+  # resolves. Deferred non-fatal so the rest of the deploy completes; the
+  # script exits non-zero at the end so CI/the operator can't miss the drift.
+  if [ "$p" = "github-sync-plugin" ]; then
+    assert_inbound_id_stable || gate_rc=1
+  fi
 done
 echo "==> done. Plugins refreshed from 1Password: $*"
+if [ "$gate_rc" -ne 0 ]; then
+  echo "==> FAIL: github-sync inbound webhook id drift (see above). Re-scope TF + GitHub App, then re-run." >&2
+  exit 1
+fi
