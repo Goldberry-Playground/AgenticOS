@@ -12062,6 +12062,42 @@ function withSuppressionNote(content, suppressed) {
   return suppressed > 0 ? `${content} (+${suppressed} identical alert${suppressed === 1 ? "" : "s"} suppressed)` : content;
 }
 
+// src/delivery-log.ts
+var DELIVERY_TABLE = "github_sync_delivery";
+function qualifiedTable3(db) {
+  return `${db.namespace}.${DELIVERY_TABLE}`;
+}
+function trimDetail(detail) {
+  if (!detail) return null;
+  return detail.length > 1e3 ? `${detail.slice(0, 1e3)}\u2026` : detail;
+}
+async function recordDelivery(db, row) {
+  await db.execute(
+    `INSERT INTO ${qualifiedTable3(db)}
+       (request_id, endpoint_key, event, delivery_guid, outcome, detail, occurred_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      row.requestId,
+      row.endpointKey,
+      row.event,
+      row.deliveryGuid,
+      row.outcome,
+      trimDetail(row.detail),
+      row.occurredAt
+    ]
+  );
+}
+var WebhookRejection = class extends Error {
+  constructor(outcome, message, httpStatus = 401) {
+    super(message);
+    this.outcome = outcome;
+    this.httpStatus = httpStatus;
+    this.name = "WebhookRejection";
+  }
+  outcome;
+  httpStatus;
+};
+
 // src/ci-failure.ts
 var DEFAULT_AGENT_PR_AUTHOR = "agenticos-developer[bot]";
 var AGENT_REVIEW_CHECK_PREFIX = "agent-review/";
@@ -12553,6 +12589,25 @@ async function recordPipelineError(ctx, cfg, scope, detail, context = {}) {
   }
   await postThrottledOpsAlert(ctx, cfg, buildPipelineErrorPing(detail));
 }
+async function safeRecordDelivery(ctx, input, outcome, detail) {
+  try {
+    await recordDelivery(ctx.db, {
+      requestId: input.requestId,
+      endpointKey: input.endpointKey,
+      event: getHeader(input.headers, "x-github-event") ?? null,
+      deliveryGuid: getHeader(input.headers, "x-github-delivery") ?? null,
+      outcome,
+      detail: detail ?? null,
+      occurredAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    ctx.logger.warn("failed to persist webhook delivery outcome", {
+      endpointKey: input.endpointKey,
+      outcome,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
+}
 function makeDispatch(ctx, cfg, depsByProject, handle, eventName) {
   return async (event) => {
     try {
@@ -12662,17 +12717,14 @@ async function createMirrorIssue(ctx, cfg, bridge, payload, labels = [], runInSc
 }
 async function handleCustomInbound(ctx, cfg, input, runInScope) {
   if (!cfg.inboundWebhookSecret) {
-    ctx.logger.error("inbound webhook: no inboundWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "inbound webhook: no inboundWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.inboundWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    ctx.logger.warn("inbound webhook: signature verification failed");
-    return;
+    throw new WebhookRejection("rejected_signature", "inbound webhook: signature verification failed");
   }
   const payload = parseInboundPayload(input.parsedBody ?? safeJson(input.rawBody));
   if (!payload) {
-    ctx.logger.warn("inbound webhook: unparseable/invalid payload");
-    return;
+    throw new WebhookRejection("invalid_payload", "inbound webhook: unparseable/invalid payload");
   }
   const bridge = matchBridge(cfg, payload.repo);
   if (!bridge) {
@@ -12750,12 +12802,10 @@ async function handleAppClosure(ctx, cfg, event, runInScope) {
 }
 async function handleAppInbound(ctx, cfg, input, runInScope) {
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("app webhook: no appWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "app webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    ctx.logger.warn("app webhook: signature verification failed");
-    return;
+    throw new WebhookRejection("rejected_signature", "app webhook: signature verification failed");
   }
   const eventType = getHeader(input.headers, "x-github-event");
   if (eventType && eventType !== "issues") {
@@ -12807,15 +12857,10 @@ function captureInvocationScope() {
 }
 async function handlePrInbound(ctx, cfg, input) {
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("pr webhook: no appWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "pr webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    await recordPipelineError(ctx, cfg, "pr webhook: signature verification failed", "HMAC verification failed on a github-pr delivery", {
-      endpointKey: PR_WEBHOOK_ENDPOINT_KEY,
-      delivery: getHeader(input.headers, "x-github-delivery")
-    });
-    return;
+    throw new WebhookRejection("rejected_signature", "pr webhook: signature verification failed");
   }
   const eventType = getHeader(input.headers, "x-github-event");
   if (eventType && eventType !== "pull_request") {
@@ -13035,15 +13080,10 @@ async function seedPendingCheck(ctx, github, bridge, ev, reviewer) {
 }
 async function handleCiCompletion(ctx, cfg, input, eventType) {
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("ci webhook: no appWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "ci webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    await recordPipelineError(ctx, cfg, "ci webhook: signature verification failed", `HMAC verification failed on a ${eventType} delivery`, {
-      eventType,
-      delivery: getHeader(input.headers, "x-github-delivery")
-    });
-    return;
+    throw new WebhookRejection("rejected_signature", `ci webhook: signature verification failed (${eventType})`);
   }
   const ev = parseCiCompletionEvent(input.parsedBody ?? safeJson(input.rawBody), eventType);
   if (!ev) {
@@ -13559,12 +13599,18 @@ var plugin = definePlugin({
       } else {
         ctx.logger.warn("inbound webhook: unknown endpoint", { endpointKey: input.endpointKey });
       }
+      await safeRecordDelivery(ctx, input, "processed");
     } catch (err) {
+      if (err instanceof WebhookRejection) {
+        await safeRecordDelivery(ctx, input, err.outcome, err.message);
+        throw err;
+      }
       const scope = `inbound webhook: handler failed (${input.endpointKey})`;
+      const detail = err instanceof Error ? err.message : String(err);
+      await safeRecordDelivery(ctx, input, "failed_processing", detail);
       if (cfg) {
         await recordSwallowedFailure(ctx, cfg, scope, err, { endpointKey: input.endpointKey });
       } else {
-        const detail = err instanceof Error ? err.message : String(err);
         ctx.logger.error(scope, { endpointKey: input.endpointKey, error: detail });
         try {
           await recordError(ctx.db, {
@@ -13576,6 +13622,7 @@ var plugin = definePlugin({
         } catch {
         }
       }
+      throw err;
     }
   },
   async onHealth() {

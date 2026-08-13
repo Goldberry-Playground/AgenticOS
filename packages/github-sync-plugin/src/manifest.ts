@@ -183,7 +183,20 @@ const manifest: PaperclipPluginManifestV1 = {
   //   within an hour (the DoD self-heal net; absorbs grove-sites#473 / GOL-1300).
   //   Idempotent (pre-checks the mapping), capped per run (20 attempts), 14-day/5-page
   //   window. Reuses issues.create + jobs.schedule — no new capability, no migration.
-  version: "0.15.0",
+  // 0.15.1 = receiver honesty (GOL-1411 / W2). Before this, the webhook receiver
+  //   returned HTTP 200 {status:"success"} for EVERY delivery — including unsigned
+  //   garbage and deliveries whose downstream write failed — so GitHub's delivery
+  //   log showed green checkmarks while inbound mirroring was dead, which is why the
+  //   2026-08-12 outage stayed invisible for ~20h. Every inbound handler now VERIFIES
+  //   the HMAC BEFORE any enqueue/write and THROWS a WebhookRejection on a missing
+  //   secret / bad signature / (custom-endpoint) bad payload; onWebhook records a
+  //   per-delivery outcome to the new github_sync_delivery table (migration 006),
+  //   fires the Discord ops alert ONLY on a genuine failed_processing (not on an
+  //   unauthenticated probe), and RE-THROWS so the host returns a non-2xx and GitHub's
+  //   delivery turns red. Retries stay safe: inbound create still dedupes on
+  //   repo+number before writing (getByRepoNumber), preserving the GOL-352/GOL-323
+  //   REST fallback. Adds migration 006 (new table) — surface otherwise unchanged.
+  version: "0.15.1",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
