@@ -1,0 +1,167 @@
+# Reusable protected-paths guard (GOL-1408, org-wide spec GOL-1403).
+#
+# Fails a PR when it touches sync-critical / gate-critical files unless a HUMAN
+# on the allowlist has applied the `human-approved` label. This is the merge
+# backstop for the fact that the agenticos-developer App holds
+# issues:write/workflows:write across the org — an agent could otherwise edit
+# the very files that enforce the gates (the auto-approve workflow, the sync
+# Terraform, plugin manifests) and self-approve.
+#
+# HOST-REPO pattern (mirrors the GOL-1317 shared ci-failure action): this file
+# lives in AgenticOS and is consumed by all four repos via `workflow_call`, so
+# the gate logic exists ONCE and stays consistent. Each consumer passes its own
+# protected globs.
+#
+# SECURITY: this workflow never checks out or executes PR code. It reads only
+# API metadata (changed files, labels, the label-event timeline). The
+# label-forgery defense is the crux — see the timeline check below.
+#
+# CHECK NAME: consumers call this from a job id `protected-paths-guard`, so the
+# emitted required-status context is `protected-paths-guard / guard`.
+name: protected-paths-guard
+
+on:
+  workflow_call:
+    inputs:
+      protected-globs:
+        description: >-
+          Newline-separated globs. A changed file matching ANY of these makes
+          the PR require the human-approved label. Supports **, *, ?.
+        required: true
+        type: string
+      approval-label:
+        description: Label whose human application satisfies the gate.
+        required: false
+        default: human-approved
+        type: string
+      human-allowlist:
+        description: >-
+          Comma-separated GitHub logins whose application of the label counts as
+          human approval. A label applied by anyone else (incl. any bot/App) is
+          rejected.
+        required: false
+        default: EngineeringMoonBear
+        type: string
+
+# Read-only: metadata only, never PR code. issues:read is needed for the
+# label-event timeline; pull-requests:read for the changed-files list.
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  guard:
+    name: guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce human approval on protected paths
+        uses: actions/github-script@v9
+        env:
+          PROTECTED_GLOBS: ${{ inputs.protected-globs }}
+          APPROVAL_LABEL: ${{ inputs.approval-label }}
+          HUMAN_ALLOWLIST: ${{ inputs.human-allowlist }}
+        with:
+          script: |
+            const APPROVAL_LABEL = process.env.APPROVAL_LABEL;
+            const ALLOW = process.env.HUMAN_ALLOWLIST.split(',')
+              .map((s) => s.trim().toLowerCase()).filter(Boolean);
+            const GLOBS = process.env.PROTECTED_GLOBS.split('\n')
+              .map((s) => s.trim()).filter((s) => s && !s.startsWith('#'));
+
+            const pr = context.payload.pull_request;
+            if (!pr) { core.info('No pull_request in context — nothing to guard.'); return; }
+            const { owner, repo } = context.repo;
+            const prNumber = pr.number;
+
+            // ── glob → RegExp (** spans /, * and ? do not) ──────────────────
+            function globToRe(glob) {
+              let re = '';
+              for (let i = 0; i < glob.length; i++) {
+                const c = glob[i];
+                if (c === '*') {
+                  if (glob[i + 1] === '*') { re += '.*'; i++; if (glob[i + 1] === '/') i++; }
+                  else re += '[^/]*';
+                } else if (c === '?') { re += '[^/]'; }
+                else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+              }
+              return new RegExp('^' + re + '$');
+            }
+            const matchers = GLOBS.map((g) => ({ g, re: globToRe(g) }));
+
+            // ── changed files (include pre-rename paths) ────────────────────
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: prNumber, per_page: 100,
+            });
+            const changed = [];
+            for (const f of files) {
+              changed.push(f.filename);
+              if (f.previous_filename) changed.push(f.previous_filename);
+            }
+
+            const hits = [];
+            for (const f of changed) {
+              const m = matchers.find((x) => x.re.test(f));
+              if (m) hits.push(`${f}  (matched \`${m.g}\`)`);
+            }
+
+            const remedy = `Ask Josh to review and apply the \`${APPROVAL_LABEL}\` label.`;
+
+            if (hits.length === 0) {
+              core.info(`No protected paths touched by PR #${prNumber}. Guard passes.`);
+              await core.summary
+                .addHeading('protected-paths-guard ✅')
+                .addRaw('No protected files changed by this PR.')
+                .write();
+              return;
+            }
+
+            // ── is the label currently active, and WHO applied it? ──────────
+            const { data: issue } = await github.rest.issues.get({
+              owner, repo, issue_number: prNumber,
+            });
+            const hasLabel = (issue.labels || [])
+              .some((l) => (typeof l === 'string' ? l : l.name) === APPROVAL_LABEL);
+
+            // Timeline in chronological order; the LAST labeled/unlabeled event
+            // for our label decides the current applier. An `unlabeled` clears it.
+            const timeline = await github.paginate(
+              github.rest.issues.listEventsForTimeline,
+              { owner, repo, issue_number: prNumber, per_page: 100 },
+            );
+            let appliedBy = null;
+            for (const ev of timeline) {
+              if (!ev.label || ev.label.name !== APPROVAL_LABEL) continue;
+              if (ev.event === 'labeled') appliedBy = ev.actor ? ev.actor.login : null;
+              else if (ev.event === 'unlabeled') appliedBy = null;
+            }
+
+            const fail = async (reason) => {
+              await core.summary
+                .addHeading('protected-paths-guard ❌ — human approval required')
+                .addRaw(reason).addBreak().addBreak()
+                .addRaw(`**Remedy:** ${remedy}`)
+                .addHeading('Protected files changed', 3)
+                .addList(hits)
+                .write();
+              core.setFailed(reason);
+            };
+
+            if (!hasLabel || !appliedBy) {
+              await fail(`This PR changes ${hits.length} protected file(s) and has no active ` +
+                `\`${APPROVAL_LABEL}\` label. ${remedy}`);
+              return;
+            }
+            if (!ALLOW.includes(appliedBy.toLowerCase())) {
+              await fail(`The \`${APPROVAL_LABEL}\` label was applied by \`${appliedBy}\`, who is ` +
+                `NOT on the human allowlist (${ALLOW.join(', ')}). A label applied by a bot or App ` +
+                `identity does not satisfy the gate. ${remedy}`);
+              return;
+            }
+
+            core.info(`Approved: \`${APPROVAL_LABEL}\` applied by human \`${appliedBy}\`. Guard passes.`);
+            await core.summary
+              .addHeading('protected-paths-guard ✅ — human-approved')
+              .addRaw(`\`${appliedBy}\` (human allowlist) applied \`${APPROVAL_LABEL}\`; ` +
+                `${hits.length} protected file(s) changed.`)
+              .write();

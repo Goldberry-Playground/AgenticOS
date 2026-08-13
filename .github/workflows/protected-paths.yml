@@ -1,0 +1,25 @@
+# Consumer of the reusable protected-paths-guard (GOL-1408).
+#
+# The job id `protected-paths-guard` + the reusable job `guard` produce the
+# required status context `protected-paths-guard / guard`.
+name: Protected paths
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  protected-paths-guard:
+    uses: ./.github/workflows/protected-paths-guard.yml
+    with:
+      protected-globs: |
+        .github/workflows/**
+        infra/terraform/cloudflare-qa-webhook.tf
+        infra/terraform/github-*.tf
+        packages/github-sync-plugin/src/manifest*
+        scripts/deploy-plugin.sh
