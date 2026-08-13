@@ -54,13 +54,25 @@ resource "cloudflare_zero_trust_access_policy" "paperclip_webhook_allow_service_
 # path-scoped Access app for this plugin's /webhooks prefix, reusing the SAME
 # service token. Scoped to the plugin's webhooks path only, so the token can't
 # reach /api/plugins/<id>/config or /install (those also require board auth at the
-# app layer — this keeps least-privilege at the edge too). The plugin id is stable
-# across reinstalls; signature verification is still the plugin's job (HMAC).
+# app layer — this keeps least-privilege at the edge too). Signature verification
+# is still the plugin's job (HMAC).
+#
+# ⚠️ The plugin id is NOT stable across reinstalls (an earlier revision of this
+# comment claimed it was — that claim caused a full inbound-sync outage). Paperclip
+# has no in-place plugin update: every manifest change is delete+install, which
+# mints a NEW plugin id. The id is embedded in THREE places that must move
+# together: this variable (3 Access-app paths), the GitHub App's webhook URL, and
+# any workflow that POSTs the legacy per-repo path. Incident 2026-08-12/13
+# (GOL: github-sync inbound outage): the plugin was reinstalled → id rotated
+# f46075f1… → 3d337cf7… → all deliveries 302'd at the CF edge for ~20h and no
+# GitHub-created issue reached the board. After ANY github-sync reinstall, update
+# this default, apply, and update the GitHub App webhook URL in the same change
+# window. Durable fix tracked as a stable alias route (see AgenticOS issue).
 
 variable "github_sync_plugin_id" {
-  description = "Installed github-sync-plugin id (stable across reinstalls). Path-scopes its inbound webhook Access app."
+  description = "Installed github-sync-plugin id (ROTATES on every reinstall — see incident note above). Path-scopes its inbound webhook Access apps and must match the GitHub App webhook URL."
   type        = string
-  default     = "f46075f1-bfb9-441b-90ea-ab1976ef83ff"
+  default     = "3d337cf7-2e15-46bf-bef6-bade1115cf26"
 }
 
 resource "cloudflare_zero_trust_access_application" "paperclip_plugin_webhook" {
