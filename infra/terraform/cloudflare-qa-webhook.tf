@@ -57,22 +57,25 @@ resource "cloudflare_zero_trust_access_policy" "paperclip_webhook_allow_service_
 # app layer — this keeps least-privilege at the edge too). Signature verification
 # is still the plugin's job (HMAC).
 #
-# ⚠️ The plugin id is NOT stable across reinstalls (an earlier revision of this
-# comment claimed it was — that claim caused a full inbound-sync outage). Paperclip
-# has no in-place plugin update: every manifest change is delete+install, which
-# mints a NEW plugin id. The id is embedded in THREE places that must move
-# together: this variable (3 Access-app paths), the GitHub App's webhook URL, and
-# any workflow that POSTs the legacy per-repo path. Incident 2026-08-12/13
-# (GOL: github-sync inbound outage): the plugin was reinstalled → id rotated
-# f46075f1… → 3d337cf7… → all deliveries 302'd at the CF edge for ~20h and no
-# GitHub-created issue reached the board. After ANY github-sync reinstall, update
-# this default, apply, and update the GitHub App webhook URL in the same change
-# window. Durable fix tracked as a stable alias route (see AgenticOS issue).
+# ⚠️ THIS ID IS A LANDMINE — verify before ever changing it. It must equal the id
+# of `agenticos.github-sync-plugin` — NOT `agenticos.github-plugin`, a different,
+# older plugin whose key also matches a naive "github" search of /api/plugins.
+# That exact confusion caused the 2026-08-13 incident: the id here was "corrected"
+# to github-plugin's id (PR #503), which moved all three Access bypasses OFF the
+# real webhook path and 302'd every GitHub delivery at the edge until it was
+# reverted the same day. Verify with:
+#   GET /api/plugins → the entry with pluginKey == "agenticos.github-sync-plugin"
+# The id is stable across normal operation but WOULD rotate on a delete+install
+# reinstall (Paperclip has no in-place update). If it ever legitimately changes,
+# THREE places must move together in one change window: this variable (3 Access-app
+# paths), the GitHub App's webhook URL, and any legacy per-repo workflow path.
+# The deploy-gate id-drift check + inbound dead-man probe (GOL-1394, PR #506)
+# exist to catch both failure modes.
 
 variable "github_sync_plugin_id" {
-  description = "Installed github-sync-plugin id (ROTATES on every reinstall — see incident note above). Path-scopes its inbound webhook Access apps and must match the GitHub App webhook URL."
+  description = "Installed id of agenticos.github-sync-plugin (NOT agenticos.github-plugin — see landmine note). Path-scopes the inbound webhook Access apps; must match the GitHub App webhook URL."
   type        = string
-  default     = "3d337cf7-2e15-46bf-bef6-bade1115cf26"
+  default     = "f46075f1-bfb9-441b-90ea-ab1976ef83ff"
 }
 
 resource "cloudflare_zero_trust_access_application" "paperclip_plugin_webhook" {
