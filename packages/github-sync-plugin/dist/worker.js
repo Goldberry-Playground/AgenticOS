@@ -7,7 +7,7 @@ var __export = (target, all) => {
 // src/worker.ts
 import { AsyncResource } from "node:async_hooks";
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.722.0_react@19.2.8/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
 function definePlugin(definition) {
   return Object.freeze({ definition });
 }
@@ -4053,7 +4053,7 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/constants.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/constants.js
 var COMPANY_STATUSES = ["active", "paused", "archived"];
 var DEFAULT_COMPANY_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 var MAX_COMPANY_ATTACHMENT_MAX_BYTES = 1024 * 1024 * 1024;
@@ -4073,11 +4073,11 @@ var AGENT_STATUSES = [
 var AGENT_ADAPTER_TYPES = [
   "process",
   "http",
-  "acpx_local",
   "claude_local",
   "codex_local",
   "cursor_cloud",
   "gemini_local",
+  "grok_local",
   "hermes_gateway",
   "hermes_local",
   "opencode_local",
@@ -4203,8 +4203,12 @@ var INBOX_MINE_ISSUE_STATUSES = [
 ];
 var INBOX_MINE_ISSUE_STATUS_FILTER = INBOX_MINE_ISSUE_STATUSES.join(",");
 var ISSUE_PRIORITIES = ["critical", "high", "medium", "low"];
-var ISSUE_WORK_MODES = ["standard", "ask", "planning"];
+var ISSUE_WORK_MODES = ["standard", "ask", "planning", "skill_test"];
+var ISSUE_HARNESS_KINDS = ["skill_test"];
 var MAX_ISSUE_REQUEST_DEPTH = 1024;
+var SUMMARY_SLOT_SCOPE_KINDS = ["project", "workspaces_overview", "project_workspace"];
+var SUMMARY_SLOT_KEYS = ["header"];
+var SUMMARY_SLOT_STATUSES = ["idle", "generating", "failed"];
 var ISSUE_COMMENT_AUTHOR_TYPES = ["user", "agent", "system"];
 var ISSUE_COMMENT_PRESENTATION_KINDS = ["message", "system_notice"];
 var ISSUE_COMMENT_PRESENTATION_TONES = ["neutral", "info", "success", "warning", "danger"];
@@ -4225,9 +4229,11 @@ var ISSUE_THREAD_INTERACTION_KINDS = [
   "suggest_tasks",
   "ask_user_questions",
   "request_confirmation",
-  "request_checkbox_confirmation"
+  "request_checkbox_confirmation",
+  "request_item_verdicts"
 ];
 var REQUEST_CHECKBOX_CONFIRMATION_OPTION_LIMIT = 200;
+var REQUEST_ITEM_VERDICTS_ITEM_LIMIT = REQUEST_CHECKBOX_CONFIRMATION_OPTION_LIMIT;
 var ISSUE_THREAD_INTERACTION_STATUSES = [
   "pending",
   "accepted",
@@ -4266,6 +4272,8 @@ var ISSUE_RECOVERY_ACTION_OWNER_TYPES = [
 ];
 var ISSUE_RECOVERY_ACTION_OUTCOMES = [
   "restored",
+  "handed_back",
+  "owner_completed",
   "delegated",
   "false_positive",
   "blocked",
@@ -4423,8 +4431,10 @@ var SECRET_BINDING_TARGET_TYPES = [
   "plugin",
   "issue",
   "run",
+  "tool_connection",
   "system"
 ];
+var SECRET_PROJECTION_CLASSES = ["unclassified", "class_3_static_lease"];
 var STORAGE_PROVIDERS = ["local_disk", "s3"];
 var BILLING_TYPES = [
   "metered_api",
@@ -4434,6 +4444,7 @@ var BILLING_TYPES = [
   "fixed",
   "unknown"
 ];
+var COST_STATUSES = ["reported", "unpriced"];
 var FINANCE_EVENT_KINDS = [
   "inference_charge",
   "platform_fee",
@@ -4482,8 +4493,18 @@ var JOIN_REQUEST_TYPES = ["human", "agent"];
 var JOIN_REQUEST_STATUSES = ["pending_approval", "approved", "rejected"];
 var PERMISSION_KEYS = [
   "agents:create",
+  "agents:configure",
+  "agents:suggest-changes",
   "skills:create",
+  "skills:suggest-changes",
   "environments:manage",
+  "tools:admin",
+  "tools:manage_connections",
+  "tools:manage_profiles",
+  "tools:view_audit",
+  "tools:use",
+  "tools:manage_runtime",
+  "inbox:manage",
   "users:invite",
   "users:manage_permissions",
   "tasks:assign",
@@ -4492,6 +4513,110 @@ var PERMISSION_KEYS = [
   "pipelines:write",
   "joins:approve"
 ];
+var TOOL_APPLICATION_TYPES = ["mcp_http", "mcp_stdio", "paperclip_plugin", "a2a"];
+var TOOL_APPLICATION_STATUSES = ["draft", "active", "disabled", "archived"];
+var TOOL_CONNECTION_KINDS = ["managed"];
+var TOOL_CONNECTION_HEALTH_STATUSES = [
+  "unknown",
+  "healthy",
+  "degraded",
+  "failed",
+  "unchecked",
+  "ok",
+  "error",
+  "missing_secret"
+];
+var TOOL_CATALOG_ENTRY_KINDS = ["tool", "resource", "prompt"];
+var TOOL_CATALOG_ENTRY_STATUSES = ["active", "disabled", "quarantined", "removed"];
+var TOOL_RISK_LEVELS = ["low", "medium", "high", "critical", "read", "write", "destructive"];
+var TOOL_PROFILE_STATUSES = ["draft", "active", "disabled", "archived"];
+var TOOL_PROFILE_DEFAULT_ACTIONS = ["deny", "allow"];
+var TOOL_PROFILE_ENTRY_SELECTOR_TYPES = [
+  "application",
+  "connection",
+  "catalog_entry",
+  "tool_name",
+  "risk_level"
+];
+var TOOL_PROFILE_ENTRY_EFFECTS = ["include", "exclude"];
+var TOOL_PROFILE_BINDING_TARGET_TYPES = ["company", "agent", "project", "routine", "issue", "gateway"];
+var TOOL_MCP_GATEWAY_STATUSES = ["draft", "active", "disabled", "archived"];
+var TOOL_MCP_GATEWAY_DEFAULT_PROFILE_MODES = [
+  "gateway_only",
+  "inherit_context_then_gateway",
+  "gateway_then_context"
+];
+var TOOL_MCP_GATEWAY_CONTEXT_SCOPE_TYPES = [
+  "none",
+  "company",
+  "project",
+  "routine",
+  "issue",
+  "agent"
+];
+var TOOL_MCP_GATEWAY_TOKEN_SUBJECT_TYPES = ["gateway_client", "heartbeat_run", "board_user", "agent"];
+var TOOL_MCP_GATEWAY_TOKEN_ACTIONS = ["tools/list", "tools/call"];
+var CONNECTION_TOKEN_ISSUANCE_PATHS = ["exchange", "oauth_access", "static"];
+var TOOL_POLICY_TYPES = [
+  "allow",
+  "block",
+  "require_approval",
+  "trust_rule",
+  "rate_limit"
+];
+var TOOL_POLICY_DECISIONS = ["allow", "deny", "require_approval", "rate_limited", "defer_runtime"];
+var TOOL_INVOCATION_STATUSES = [
+  "pending",
+  "authorized",
+  "denied",
+  "awaiting_approval",
+  "executing",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "timed_out",
+  "rate_limited"
+];
+var TOOL_INVOCATION_APPROVAL_STATES = [
+  "not_required",
+  "required",
+  "pending",
+  "approved",
+  "rejected",
+  "expired"
+];
+var TOOL_ACTION_REQUEST_STATUSES = [
+  "pending",
+  "approved",
+  "executing",
+  "rejected",
+  "expired",
+  "cancelled",
+  "executed",
+  "failed"
+];
+var TOOL_AUDIT_EVENT_TYPES = [
+  "discovery",
+  "policy_decision",
+  "invocation_created",
+  "call_started",
+  "call_completed",
+  "call_failed",
+  "call_denied",
+  "approval_requested",
+  "approval_resolved",
+  "session_revoked",
+  "trust_rule_created",
+  "trust_rule_revoked",
+  "trust_rule_used",
+  "runtime_started",
+  "runtime_stopped",
+  "rate_limited"
+];
+var TOOL_AUDIT_OUTCOMES = ["pending", "success", "failure", "denied", "timeout", "cancelled"];
+var TOOL_RUNTIME_KINDS = ["remote_session", "local_stdio"];
+var TOOL_RUNTIME_SLOT_STATUSES = ["starting", "running", "idle", "stopped", "failed", "disabled", "error"];
+var TOOL_RATE_LIMIT_WINDOW_KINDS = ["minute", "hour", "day", "month"];
 var PLUGIN_STATUSES = [
   "installed",
   "ready",
@@ -4537,6 +4662,7 @@ var PLUGIN_CAPABILITIES = [
   "issues.checkout",
   "issues.wakeup",
   "issue.comments.create",
+  "issue.comments.create_human_attributed",
   "issue.interactions.create",
   "issue.documents.write",
   "projects.managed",
@@ -4715,1142 +4841,590 @@ var PLUGIN_STATE_SCOPE_KINDS = [
   "run"
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/adapter-type.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/adapter-type.js
 var agentAdapterTypeSchema = external_exports.string().trim().min(1).default("process").describe(`Known built-in adapters: ${AGENT_ADAPTER_TYPES.join(", ")}. External adapters may register additional non-empty string types at runtime.`);
 var optionalAgentAdapterTypeSchema = external_exports.string().trim().min(1).optional();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/frontmatter.js
+var SKILL_FRONTMATTER_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+var skillMetadataValueSchema = external_exports.lazy(() => external_exports.union([
+  external_exports.string(),
+  external_exports.number(),
+  external_exports.boolean(),
+  external_exports.null(),
+  external_exports.array(skillMetadataValueSchema),
+  external_exports.record(skillMetadataValueSchema)
+]));
+var skillFrontmatterSchema = external_exports.object({
+  name: external_exports.string().regex(SKILL_FRONTMATTER_SLUG_RE, "Expected a lowercase URL slug."),
+  description: external_exports.string().min(1),
+  "allowed-tools": external_exports.array(external_exports.string()).optional(),
+  metadata: external_exports.record(skillMetadataValueSchema).optional()
+}).passthrough();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/trust-policy.js
 var TRUST_PRESETS = ["standard", "low_trust_review"];
 var LOW_TRUST_REVIEW_PRESET = "low_trust_review";
 var LOW_TRUST_REVIEW_PRESET_VERSION = 1;
 var LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION = "quarantine";
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/network-bind.js
-function normalizeHost(host) {
-  const trimmed = host?.trim();
-  return trimmed ? trimmed : void 0;
-}
-function isLoopbackHost(host) {
-  const normalized = normalizeHost(host)?.toLowerCase();
-  return normalized === "127.0.0.1" || normalized === "localhost" || normalized === "::1";
-}
-function isAllInterfacesHost(host) {
-  const normalized = normalizeHost(host)?.toLowerCase();
-  return normalized === "0.0.0.0" || normalized === "::";
-}
-function inferBindModeFromHost(host, opts) {
-  const normalized = normalizeHost(host);
-  const tailnetBindHost = normalizeHost(opts?.tailnetBindHost);
-  if (!normalized || isLoopbackHost(normalized))
-    return "loopback";
-  if (isAllInterfacesHost(normalized))
-    return "lan";
-  if (tailnetBindHost && normalized === tailnetBindHost)
-    return "tailnet";
-  return "custom";
-}
-function validateConfiguredBindMode(input) {
-  const bind = input.bind ?? inferBindModeFromHost(input.host);
-  const customBindHost = normalizeHost(input.customBindHost);
-  const errors = [];
-  if (input.deploymentMode === "local_trusted" && bind !== "loopback") {
-    errors.push("local_trusted requires server.bind=loopback");
-  }
-  if (bind === "custom" && !customBindHost) {
-    const legacyHost = normalizeHost(input.host);
-    if (!legacyHost || isLoopbackHost(legacyHost) || isAllInterfacesHost(legacyHost)) {
-      errors.push("server.customBindHost is required when server.bind=custom");
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/zapier.json
+var zapier_default = {
+  schemaVersion: 1,
+  slug: "zapier",
+  name: "Zapier",
+  description: "Reach thousands of apps through your Zapier account.",
+  categories: [
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=zapier.com&sz=128"
+  },
+  urlPatterns: [
+    "https://mcp.zapier.com/*"
+  ],
+  methods: [
+    {
+      key: "mcp-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://mcp.zapier.com/api/mcp"
+      },
+      guidanceMd: "Create a Zapier MCP connection, then paste its token here.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Zapier MCP token",
+          type: "password",
+          required: true,
+          placeholder: "Paste your Zapier token",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      }
     }
-  }
-  if (input.deploymentMode === "authenticated" && input.deploymentExposure === "public" && bind === "tailnet") {
-    errors.push("server.bind=tailnet is only supported for authenticated/private deployments");
-  }
-  return errors;
-}
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/instance.js
-var DAILY_RETENTION_PRESETS = [3, 7, 14];
-var WEEKLY_RETENTION_PRESETS = [1, 2, 4];
-var MONTHLY_RETENTION_PRESETS = [1, 3, 6];
-var DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 24;
-var MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 1;
-var MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 24 * 30;
-var DEFAULT_BACKUP_RETENTION = {
-  dailyDays: 7,
-  weeklyWeeks: 4,
-  monthlyMonths: 1
+  ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/search.js
-var COMPANY_SEARCH_SCOPES = ["all", "issues", "comments", "documents", "artifacts", "agents", "projects"];
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
-var RESOURCE_MEMBERSHIP_STATES = ["joined", "left"];
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
-var sidebarOrderedIdSchema = external_exports.string().uuid();
-var sidebarOrderPreferenceSchema = external_exports.object({
-  orderedIds: external_exports.array(sidebarOrderedIdSchema),
-  updatedAt: external_exports.coerce.date().nullable()
-});
-var upsertSidebarOrderPreferenceSchema = external_exports.object({
-  orderedIds: external_exports.array(sidebarOrderedIdSchema)
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
-var resourceMembershipStateSchema = external_exports.enum(RESOURCE_MEMBERSHIP_STATES);
-var updateResourceMembershipSchema = external_exports.object({
-  state: resourceMembershipStateSchema.optional(),
-  starred: external_exports.boolean().optional()
-}).refine((value) => value.state !== void 0 || value.starred !== void 0, {
-  message: "state or starred is required"
-}).refine((value) => !(value.state === "left" && value.starred === true), {
-  message: "starred resources must be joined",
-  path: ["starred"]
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
-var executionWorkspaceStatusSchema = external_exports.enum([
-  "active",
-  "idle",
-  "in_review",
-  "archived",
-  "cleanup_failed"
-]);
-var workspaceOverviewStatusFilterSchema = external_exports.preprocess((value) => {
-  if (value === void 0 || value === null)
-    return void 0;
-  const rawValues = Array.isArray(value) ? value : [value];
-  const statuses = rawValues.flatMap((entry) => {
-    if (typeof entry !== "string")
-      return [];
-    return entry.split(",").map((part) => part.trim()).filter(Boolean);
-  });
-  return statuses.length > 0 ? statuses : void 0;
-}, external_exports.array(executionWorkspaceStatusSchema).optional());
-var workspaceOverviewQuerySchema = external_exports.object({
-  projectId: external_exports.string().uuid().optional(),
-  status: workspaceOverviewStatusFilterSchema,
-  limit: external_exports.coerce.number().int().min(1).max(WORKSPACE_OVERVIEW_MAX_LIMIT).optional().default(WORKSPACE_OVERVIEW_DEFAULT_LIMIT),
-  offset: external_exports.coerce.number().int().min(0).optional().default(0)
-}).strict();
-var executionWorkspaceConfigSchema = external_exports.object({
-  environmentId: external_exports.string().uuid().optional().nullable(),
-  provisionCommand: external_exports.string().optional().nullable(),
-  teardownCommand: external_exports.string().optional().nullable(),
-  cleanupCommand: external_exports.string().optional().nullable(),
-  workspaceRuntime: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  desiredState: external_exports.enum(["running", "stopped", "manual"]).optional().nullable(),
-  serviceStates: external_exports.record(external_exports.enum(["running", "stopped", "manual"])).optional().nullable()
-}).strict();
-var workspaceRuntimeControlTargetSchema = external_exports.object({
-  workspaceCommandId: external_exports.string().min(1).optional().nullable(),
-  runtimeServiceId: external_exports.string().uuid().optional().nullable(),
-  serviceIndex: external_exports.number().int().nonnegative().optional().nullable()
-}).strict();
-var executionWorkspaceCloseReadinessStateSchema = external_exports.enum([
-  "ready",
-  "ready_with_warnings",
-  "blocked"
-]);
-var executionWorkspaceCloseActionKindSchema = external_exports.enum([
-  "archive_record",
-  "stop_runtime_services",
-  "cleanup_command",
-  "teardown_command",
-  "git_worktree_remove",
-  "git_branch_delete",
-  "remove_local_directory"
-]);
-var executionWorkspaceCloseActionSchema = external_exports.object({
-  kind: executionWorkspaceCloseActionKindSchema,
-  label: external_exports.string(),
-  description: external_exports.string(),
-  command: external_exports.string().nullable()
-}).strict();
-var executionWorkspaceCloseLinkedIssueSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  identifier: external_exports.string().nullable(),
-  title: external_exports.string(),
-  status: external_exports.string(),
-  isTerminal: external_exports.boolean()
-}).strict();
-var executionWorkspaceCloseGitReadinessSchema = external_exports.object({
-  repoRoot: external_exports.string().nullable(),
-  workspacePath: external_exports.string().nullable(),
-  branchName: external_exports.string().nullable(),
-  baseRef: external_exports.string().nullable(),
-  hasDirtyTrackedFiles: external_exports.boolean(),
-  hasUntrackedFiles: external_exports.boolean(),
-  dirtyEntryCount: external_exports.number().int().nonnegative(),
-  untrackedEntryCount: external_exports.number().int().nonnegative(),
-  aheadCount: external_exports.number().int().nonnegative().nullable(),
-  behindCount: external_exports.number().int().nonnegative().nullable(),
-  isMergedIntoBase: external_exports.boolean().nullable(),
-  createdByRuntime: external_exports.boolean()
-}).strict();
-var workspaceRuntimeServiceSchema = external_exports.object({
-  id: external_exports.string(),
-  companyId: external_exports.string().uuid(),
-  projectId: external_exports.string().uuid().nullable(),
-  projectWorkspaceId: external_exports.string().uuid().nullable(),
-  executionWorkspaceId: external_exports.string().uuid().nullable(),
-  issueId: external_exports.string().uuid().nullable(),
-  scopeType: external_exports.enum(["project_workspace", "execution_workspace", "run", "agent"]),
-  scopeId: external_exports.string().nullable(),
-  serviceName: external_exports.string(),
-  status: external_exports.enum(["starting", "running", "stopped", "failed"]),
-  lifecycle: external_exports.enum(["shared", "ephemeral"]),
-  reuseKey: external_exports.string().nullable(),
-  command: external_exports.string().nullable(),
-  cwd: external_exports.string().nullable(),
-  port: external_exports.number().int().nullable(),
-  url: external_exports.string().nullable(),
-  provider: external_exports.enum(["local_process", "adapter_managed"]),
-  providerRef: external_exports.string().nullable(),
-  ownerAgentId: external_exports.string().uuid().nullable(),
-  startedByRunId: external_exports.string().uuid().nullable(),
-  lastUsedAt: external_exports.coerce.date(),
-  startedAt: external_exports.coerce.date(),
-  stoppedAt: external_exports.coerce.date().nullable(),
-  stopPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-  healthStatus: external_exports.enum(["unknown", "healthy", "unhealthy"]),
-  configIndex: external_exports.number().int().nonnegative().nullable().optional(),
-  createdAt: external_exports.coerce.date(),
-  updatedAt: external_exports.coerce.date()
-}).strict();
-var executionWorkspaceCloseReadinessSchema = external_exports.object({
-  workspaceId: external_exports.string().uuid(),
-  state: executionWorkspaceCloseReadinessStateSchema,
-  blockingReasons: external_exports.array(external_exports.string()),
-  warnings: external_exports.array(external_exports.string()),
-  linkedIssues: external_exports.array(executionWorkspaceCloseLinkedIssueSchema),
-  plannedActions: external_exports.array(executionWorkspaceCloseActionSchema),
-  isDestructiveCloseAllowed: external_exports.boolean(),
-  isSharedWorkspace: external_exports.boolean(),
-  isProjectPrimaryWorkspace: external_exports.boolean(),
-  git: executionWorkspaceCloseGitReadinessSchema.nullable(),
-  runtimeServices: external_exports.array(workspaceRuntimeServiceSchema)
-}).strict();
-var updateExecutionWorkspaceSchema = external_exports.object({
-  name: external_exports.string().min(1).optional(),
-  cwd: external_exports.string().optional().nullable(),
-  repoUrl: external_exports.string().optional().nullable(),
-  baseRef: external_exports.string().optional().nullable(),
-  branchName: external_exports.string().optional().nullable(),
-  providerRef: external_exports.string().optional().nullable(),
-  status: executionWorkspaceStatusSchema.optional(),
-  cleanupEligibleAt: external_exports.string().datetime().optional().nullable(),
-  cleanupReason: external_exports.string().optional().nullable(),
-  config: executionWorkspaceConfigSchema.optional().nullable(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-}).strict();
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/types/feedback.js
-var FEEDBACK_TARGET_TYPES = ["issue_comment", "issue_document_revision"];
-var FEEDBACK_VOTE_VALUES = ["up", "down"];
-var FEEDBACK_DATA_SHARING_PREFERENCES = ["allowed", "not_allowed", "prompt"];
-var DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE = "prompt";
-var FEEDBACK_TRACE_STATUSES = ["local_only", "pending", "sent", "failed"];
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/feedback.js
-var feedbackTargetTypeSchema = external_exports.enum(FEEDBACK_TARGET_TYPES);
-var feedbackTraceStatusSchema = external_exports.enum(FEEDBACK_TRACE_STATUSES);
-var feedbackVoteValueSchema = external_exports.enum(FEEDBACK_VOTE_VALUES);
-var feedbackDataSharingPreferenceSchema = external_exports.enum(FEEDBACK_DATA_SHARING_PREFERENCES);
-var upsertIssueFeedbackVoteSchema = external_exports.object({
-  targetType: feedbackTargetTypeSchema,
-  targetId: external_exports.string().uuid(),
-  vote: feedbackVoteValueSchema,
-  reason: external_exports.string().trim().max(1e3).optional(),
-  allowSharing: external_exports.boolean().optional()
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/instance.js
-function presetSchema(presets, label) {
-  return external_exports.number().refine((v) => presets.includes(v), { message: `${label} must be one of: ${presets.join(", ")}` });
-}
-var backupRetentionPolicySchema = external_exports.object({
-  dailyDays: presetSchema(DAILY_RETENTION_PRESETS, "dailyDays").default(DEFAULT_BACKUP_RETENTION.dailyDays),
-  weeklyWeeks: presetSchema(WEEKLY_RETENTION_PRESETS, "weeklyWeeks").default(DEFAULT_BACKUP_RETENTION.weeklyWeeks),
-  monthlyMonths: presetSchema(MONTHLY_RETENTION_PRESETS, "monthlyMonths").default(DEFAULT_BACKUP_RETENTION.monthlyMonths)
-});
-var instanceGeneralSettingsSchema = external_exports.object({
-  censorUsernameInLogs: external_exports.boolean().default(false),
-  keyboardShortcuts: external_exports.boolean().default(false),
-  feedbackDataSharingPreference: feedbackDataSharingPreferenceSchema.default(DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE),
-  backupRetention: backupRetentionPolicySchema.default(DEFAULT_BACKUP_RETENTION),
-  // Execution policy. Absent/"any" = unrestricted; "kubernetes" forces the
-  // Kubernetes sandbox provider and denies local/ssh execution (cloud_tenant).
-  executionMode: external_exports.enum(["kubernetes", "any"]).optional()
-}).strict();
-var patchInstanceGeneralSettingsSchema = instanceGeneralSettingsSchema.partial();
-var instanceExperimentalSettingsSchema = external_exports.object({
-  enableEnvironments: external_exports.boolean().default(false),
-  enableIsolatedWorkspaces: external_exports.boolean().default(false),
-  enableStreamlinedLeftNavigation: external_exports.boolean().default(true),
-  enablePipelines: external_exports.boolean().default(false),
-  enableConferenceRoomChat: external_exports.boolean().default(false),
-  enableTaskWatchdogs: external_exports.boolean().default(false),
-  enableIssuePlanDecompositions: external_exports.boolean().default(false),
-  enableExperimentalFileViewer: external_exports.boolean().default(false),
-  enableCloudSync: external_exports.boolean().default(false),
-  enableExternalObjects: external_exports.boolean().default(false),
-  enableServerInfoDebugView: external_exports.boolean().default(false),
-  autoRestartDevServerWhenIdle: external_exports.boolean().default(false),
-  enableIssueGraphLivenessAutoRecovery: external_exports.boolean().default(false),
-  enableWorkspaceBranchReconcileForward: external_exports.boolean().default(false),
-  issueGraphLivenessAutoRecoveryLookbackHours: external_exports.number().int().min(MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).max(MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).default(DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS)
-}).strict();
-var patchInstanceExperimentalSettingsSchema = instanceExperimentalSettingsSchema.partial();
-var patchInstanceSettingsSchema = external_exports.object({
-  defaultEnvironmentId: external_exports.string().uuid().nullable().optional()
-}).strict();
-var issueGraphLivenessAutoRecoveryRequestSchema = external_exports.object({
-  lookbackHours: external_exports.number().int().min(MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).max(MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).optional()
-}).strict();
-var instanceSettingsSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  defaultEnvironmentId: external_exports.string().uuid().nullable(),
-  general: instanceGeneralSettingsSchema,
-  experimental: instanceExperimentalSettingsSchema,
-  createdAt: external_exports.union([external_exports.date(), external_exports.string().datetime()]),
-  updatedAt: external_exports.union([external_exports.date(), external_exports.string().datetime()])
-}).strict();
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/budget.js
-var upsertBudgetPolicySchema = external_exports.object({
-  scopeType: external_exports.enum(BUDGET_SCOPE_TYPES),
-  scopeId: external_exports.string().uuid(),
-  metric: external_exports.enum(BUDGET_METRICS).optional().default("billed_cents"),
-  windowKind: external_exports.enum(BUDGET_WINDOW_KINDS).optional().default("calendar_month_utc"),
-  amount: external_exports.number().int().nonnegative(),
-  warnPercent: external_exports.number().int().min(1).max(99).optional().default(80),
-  hardStopEnabled: external_exports.boolean().optional().default(true),
-  notifyEnabled: external_exports.boolean().optional().default(true),
-  isActive: external_exports.boolean().optional().default(true)
-});
-var resolveBudgetIncidentSchema = external_exports.object({
-  action: external_exports.enum(BUDGET_INCIDENT_RESOLUTION_ACTIONS),
-  amount: external_exports.number().int().nonnegative().optional(),
-  decisionNote: external_exports.string().optional().nullable()
-}).superRefine((value, ctx) => {
-  if (value.action === "raise_budget_and_resume" && typeof value.amount !== "number") {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "amount is required when raising a budget",
-      path: ["amount"]
-    });
-  }
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company.js
-var logoAssetIdSchema = external_exports.string().uuid().nullable().optional();
-var brandColorSchema = external_exports.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
-var feedbackDataSharingTermsVersionSchema = external_exports.string().min(1).nullable().optional();
-var attachmentMaxBytesSchema = external_exports.number().int().min(1).max(MAX_COMPANY_ATTACHMENT_MAX_BYTES);
-var createCompanySchema = external_exports.object({
-  name: external_exports.string().min(1),
-  description: external_exports.string().optional().nullable(),
-  budgetMonthlyCents: external_exports.number().int().nonnegative().optional().default(0),
-  attachmentMaxBytes: attachmentMaxBytesSchema.optional(),
-  defaultResponsibleUserId: external_exports.string().min(1).nullable().optional()
-});
-var updateCompanySchema = createCompanySchema.partial().extend({
-  status: external_exports.enum(COMPANY_STATUSES).optional(),
-  spentMonthlyCents: external_exports.number().int().nonnegative().optional(),
-  requireBoardApprovalForNewAgents: external_exports.boolean().optional(),
-  feedbackDataSharingEnabled: external_exports.boolean().optional(),
-  feedbackDataSharingConsentAt: external_exports.coerce.date().nullable().optional(),
-  feedbackDataSharingConsentByUserId: external_exports.string().min(1).nullable().optional(),
-  feedbackDataSharingTermsVersion: feedbackDataSharingTermsVersionSchema,
-  brandColor: brandColorSchema,
-  logoAssetId: logoAssetIdSchema,
-  attachmentMaxBytes: attachmentMaxBytesSchema.optional()
-});
-var updateCompanyBrandingSchema = external_exports.object({
-  name: external_exports.string().min(1).optional(),
-  description: external_exports.string().nullable().optional(),
-  brandColor: brandColorSchema,
-  logoAssetId: logoAssetIdSchema
-}).strict().refine((value) => value.name !== void 0 || value.description !== void 0 || value.brandColor !== void 0 || value.logoAssetId !== void 0, "At least one branding field must be provided");
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/secret.js
-var secretKeySchema = external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/);
-var secretVersionSelectorSchema = external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]);
-var creatableSecretStatusSchema = external_exports.enum(["active", "disabled", "archived"]);
-var envBindingPlainSchema = external_exports.object({
-  type: external_exports.literal("plain"),
-  value: external_exports.string()
-});
-var envBindingSecretRefSchema = external_exports.object({
-  type: external_exports.literal("secret_ref"),
-  secretId: external_exports.string().uuid(),
-  version: secretVersionSelectorSchema.optional()
-});
-var envBindingUserSecretRefSchema = external_exports.object({
-  type: external_exports.literal("user_secret_ref"),
-  key: secretKeySchema,
-  version: secretVersionSelectorSchema.optional(),
-  required: external_exports.boolean().optional().default(true),
-  allowMissingOverride: external_exports.boolean().optional().default(false)
-});
-var envBindingSchema = external_exports.union([
-  external_exports.string(),
-  envBindingPlainSchema,
-  envBindingSecretRefSchema,
-  envBindingUserSecretRefSchema
-]);
-var envConfigSchema = external_exports.record(external_exports.string(), envBindingSchema);
-var createSecretSchema = external_exports.object({
-  name: external_exports.string().min(1),
-  key: secretKeySchema.optional(),
-  provider: external_exports.enum(SECRET_PROVIDERS).optional(),
-  providerConfigId: external_exports.string().uuid().optional().nullable(),
-  managedMode: external_exports.enum(SECRET_MANAGED_MODES).optional(),
-  value: external_exports.string().min(1).optional().nullable(),
-  description: external_exports.string().optional().nullable(),
-  externalRef: external_exports.string().optional().nullable(),
-  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  providerVersionRef: external_exports.string().optional().nullable()
-}).superRefine((value, ctx) => {
-  if ((value.managedMode ?? "paperclip_managed") === "external_reference") {
-    if (!value.externalRef?.trim()) {
-      ctx.addIssue({
-        code: external_exports.ZodIssueCode.custom,
-        path: ["externalRef"],
-        message: "External reference secrets require externalRef"
-      });
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/github.json
+var github_default = {
+  schemaVersion: 1,
+  slug: "github",
+  name: "GitHub",
+  description: "Read code and pull requests, and coordinate repository work.",
+  categories: [
+    "developer"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=github.com&sz=128"
+  },
+  urlPatterns: [
+    "https://api.githubcopilot.com/mcp/*"
+  ],
+  methods: [
+    {
+      key: "mcp-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://api.githubcopilot.com/mcp/"
+      },
+      guidanceMd: "Create a fine-grained token limited to the repositories agents should use.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "GitHub token",
+          type: "password",
+          required: true,
+          placeholder: "github_pat_...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      requiredResourceFilters: [
+        "organization",
+        "repository"
+      ]
     }
-    return;
-  }
-  if (value.externalRef?.trim()) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["externalRef"],
-      message: "Managed secrets cannot set externalRef"
-    });
-  }
-  if (!value.value?.trim()) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["value"],
-      message: "Managed secrets require value"
-    });
-  }
-});
-function requireSecretRotationInput(value, ctx) {
-  if (!value.value?.trim() && !value.externalRef?.trim() && value.providerVersionRef == null && value.providerConfigId == null) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["value"],
-      message: "Secret rotation requires value, externalRef, providerVersionRef, or providerConfigId"
-    });
-  }
-}
-var rotateSecretSchema = external_exports.object({
-  value: external_exports.string().min(1).optional().nullable(),
-  externalRef: external_exports.string().optional().nullable(),
-  providerVersionRef: external_exports.string().optional().nullable(),
-  providerConfigId: external_exports.string().uuid().optional().nullable()
-}).superRefine(requireSecretRotationInput);
-var updateSecretSchema = external_exports.object({
-  name: external_exports.string().min(1).optional(),
-  key: secretKeySchema.optional(),
-  status: external_exports.enum(SECRET_STATUSES).optional(),
-  providerConfigId: external_exports.string().uuid().optional().nullable(),
-  description: external_exports.string().optional().nullable(),
-  externalRef: external_exports.string().optional().nullable(),
-  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-});
-var secretBindingTargetSchema = external_exports.object({
-  targetType: external_exports.enum(SECRET_BINDING_TARGET_TYPES),
-  targetId: external_exports.string().min(1),
-  configPath: external_exports.string().min(1)
-});
-var createSecretBindingSchema = secretBindingTargetSchema.extend({
-  secretId: external_exports.string().uuid(),
-  versionSelector: secretVersionSelectorSchema.default("latest"),
-  required: external_exports.boolean().default(true),
-  label: external_exports.string().optional().nullable()
-});
-var createUserSecretDefinitionSchema = external_exports.object({
-  key: secretKeySchema,
-  name: external_exports.string().trim().min(1).max(160),
-  description: external_exports.string().trim().max(500).optional().nullable(),
-  status: creatableSecretStatusSchema.optional(),
-  provider: external_exports.enum(SECRET_PROVIDERS).optional(),
-  providerConfigId: external_exports.string().uuid().optional().nullable(),
-  managedMode: external_exports.enum(SECRET_MANAGED_MODES).optional(),
-  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  usageGuidance: external_exports.string().trim().max(1e3).optional().nullable()
-});
-var updateUserSecretDefinitionSchema = external_exports.object({
-  name: external_exports.string().trim().min(1).max(160).optional(),
-  description: external_exports.string().trim().max(500).optional().nullable(),
-  status: external_exports.enum(SECRET_STATUSES).optional(),
-  providerConfigId: external_exports.string().uuid().optional().nullable(),
-  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  usageGuidance: external_exports.string().trim().max(1e3).optional().nullable()
-});
-var createUserSecretValueSchema = external_exports.object({
-  definitionKey: secretKeySchema.optional(),
-  definitionId: external_exports.string().uuid().optional(),
-  value: external_exports.string().min(1).optional().nullable(),
-  externalRef: external_exports.string().optional().nullable(),
-  providerVersionRef: external_exports.string().optional().nullable(),
-  providerConfigId: external_exports.string().uuid().optional().nullable()
-}).superRefine((value, ctx) => {
-  if (!value.definitionKey && !value.definitionId) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["definitionId"],
-      message: "User secret value requires definitionId or definitionKey"
-    });
-  }
-  if (!value.value?.trim() && !value.externalRef?.trim()) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["value"],
-      message: "User secret value requires value or externalRef"
-    });
-  }
-});
-var updateUserSecretValueSchema = external_exports.object({
-  status: external_exports.enum(SECRET_STATUSES).optional(),
-  value: external_exports.string().min(1).optional().nullable(),
-  externalRef: external_exports.string().min(1).optional().nullable(),
-  providerVersionRef: external_exports.string().min(1).optional().nullable(),
-  providerConfigId: external_exports.string().uuid().optional().nullable()
-});
-var rotateUserSecretValueSchema = external_exports.object({
-  value: external_exports.string().min(1).optional().nullable(),
-  externalRef: external_exports.string().min(1).optional().nullable(),
-  providerVersionRef: external_exports.string().min(1).optional().nullable(),
-  providerConfigId: external_exports.string().uuid().optional().nullable()
-}).superRefine(requireSecretRotationInput);
-var createUserSecretDeclarationSchema = secretBindingTargetSchema.extend({
-  definitionKey: secretKeySchema,
-  envKey: external_exports.string().trim().min(1),
-  versionSelector: secretVersionSelectorSchema.default("latest"),
-  required: external_exports.boolean().default(true),
-  allowMissingOverride: external_exports.boolean().default(false),
-  label: external_exports.string().optional().nullable()
-});
-var safeShortText = external_exports.string().trim().min(1).max(160);
-var optionalSafeShortText = safeShortText.optional().nullable();
-var deniedProviderConfigKeyPattern = /^(access[-_]?key([-_]?id)?|secret[-_]?access[-_]?key|secret[-_]?key|token|password|passwd|credential|credentials|private[-_]?key|pem|jwt|session[-_]?token|service[-_]?account([-_]?json)?|client[-_]?secret|secret[-_]?id|unseal[-_]?key|recovery[-_]?key|key[-_]?file([-_]?path)?|token[-_]?file([-_]?path)?)$/i;
-function rejectSensitiveProviderConfigKeys(value, ctx) {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    return;
-  for (const key of Object.keys(value)) {
-    if (!deniedProviderConfigKeyPattern.test(key))
-      continue;
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["config", key],
-      message: `Provider vault config cannot persist sensitive field: ${key}`
-    });
-  }
-}
-var localEncryptedProviderConfigSchema = external_exports.object({
-  backupReminderAcknowledged: external_exports.boolean().optional()
-}).strict();
-var awsSecretsManagerProviderConfigSchema = external_exports.object({
-  region: external_exports.string().trim().regex(/^[a-z]{2}(?:-gov)?-[a-z]+-\d+$/, "Invalid AWS region"),
-  namespace: optionalSafeShortText,
-  secretNamePrefix: optionalSafeShortText,
-  kmsKeyId: external_exports.string().trim().min(1).max(512).optional().nullable(),
-  ownerTag: optionalSafeShortText,
-  environmentTag: optionalSafeShortText
-}).strict();
-var gcpSecretManagerProviderConfigSchema = external_exports.object({
-  projectId: external_exports.string().trim().min(1).max(128).regex(/^[a-z][a-z0-9-]{4,127}$/).optional().nullable(),
-  location: optionalSafeShortText,
-  namespace: optionalSafeShortText,
-  secretNamePrefix: optionalSafeShortText
-}).strict();
-var vaultAddressSchema = external_exports.preprocess((value) => typeof value === "string" ? value.trim() : value, external_exports.string().url().superRefine((value, ctx) => {
-  let url;
-  try {
-    url = new URL(value);
-  } catch {
-    return;
-  }
-  const hasPath = url.pathname !== "" && url.pathname !== "/";
-  if (url.protocol !== "http:" && url.protocol !== "https:" || url.username || url.password || url.search || url.hash || hasPath) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "Vault address must be an origin-only HTTP(S) URL without credentials, path, query, or fragment"
-    });
-  }
-}).transform((value) => new URL(value).origin));
-function rejectUnsafeVaultAddress(value, ctx) {
-  if (value === void 0 || value === null)
-    return;
-  const parsed = vaultAddressSchema.safeParse(value);
-  if (parsed.success)
-    return;
-  for (const issue of parsed.error.issues) {
-    ctx.addIssue({
-      ...issue,
-      path: ["config", "address", ...issue.path]
-    });
-  }
-}
-var vaultProviderConfigSchema = external_exports.object({
-  address: vaultAddressSchema.optional().nullable(),
-  namespace: optionalSafeShortText,
-  mountPath: optionalSafeShortText,
-  secretPathPrefix: optionalSafeShortText
-}).strict();
-var secretProviderConfigPayloadSchema = external_exports.discriminatedUnion("provider", [
-  external_exports.object({ provider: external_exports.literal("local_encrypted"), config: localEncryptedProviderConfigSchema }),
-  external_exports.object({ provider: external_exports.literal("aws_secrets_manager"), config: awsSecretsManagerProviderConfigSchema }),
-  external_exports.object({ provider: external_exports.literal("gcp_secret_manager"), config: gcpSecretManagerProviderConfigSchema }),
-  external_exports.object({ provider: external_exports.literal("vault"), config: vaultProviderConfigSchema })
-]);
-var createSecretProviderConfigSchema = external_exports.object({
-  provider: external_exports.enum(SECRET_PROVIDERS),
-  displayName: external_exports.string().trim().min(1).max(120),
-  status: external_exports.enum(SECRET_PROVIDER_CONFIG_STATUSES).optional(),
-  isDefault: external_exports.boolean().optional(),
-  config: external_exports.record(external_exports.string(), external_exports.unknown()).default({})
-}).superRefine((value, ctx) => {
-  rejectSensitiveProviderConfigKeys(value.config, ctx);
-  const parsed = secretProviderConfigPayloadSchema.safeParse({
-    provider: value.provider,
-    config: value.config
-  });
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues) {
-      ctx.addIssue({
-        ...issue,
-        path: issue.path[0] === "config" ? issue.path : ["config", ...issue.path]
-      });
-    }
-  }
-  const status = value.status ?? (["gcp_secret_manager", "vault"].includes(value.provider) ? "coming_soon" : "ready");
-  if ((value.provider === "gcp_secret_manager" || value.provider === "vault") && status !== "coming_soon" && status !== "disabled") {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["status"],
-      message: `${value.provider} provider vaults are locked while coming soon`
-    });
-  }
-  if ((status === "coming_soon" || status === "disabled") && value.isDefault) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["isDefault"],
-      message: "Only ready or warning provider vaults can be default"
-    });
-  }
-});
-var updateSecretProviderConfigSchema = external_exports.object({
-  displayName: external_exports.string().trim().min(1).max(120).optional(),
-  status: external_exports.enum(SECRET_PROVIDER_CONFIG_STATUSES).optional(),
-  isDefault: external_exports.boolean().optional(),
-  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
-}).superRefine((value, ctx) => {
-  if (value.config !== void 0) {
-    rejectSensitiveProviderConfigKeys(value.config, ctx);
-    rejectUnsafeVaultAddress(value.config.address, ctx);
-  }
-  if ((value.status === "coming_soon" || value.status === "disabled") && value.isDefault) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["isDefault"],
-      message: "Only ready or warning provider vaults can be default"
-    });
-  }
-});
-var remoteSecretImportPreviewSchema = external_exports.object({
-  providerConfigId: external_exports.string().uuid(),
-  query: external_exports.string().trim().max(200).optional().nullable(),
-  nextToken: external_exports.string().trim().min(1).max(4096).optional().nullable(),
-  pageSize: external_exports.number().int().min(1).max(100).optional()
-});
-var secretProviderConfigDiscoveryPreviewSchema = external_exports.object({
-  provider: external_exports.enum(SECRET_PROVIDERS),
-  config: external_exports.record(external_exports.unknown()).default({}),
-  query: external_exports.string().trim().max(200).optional().nullable(),
-  nextToken: external_exports.string().trim().min(1).max(4096).optional().nullable(),
-  pageSize: external_exports.number().int().min(1).max(100).optional()
-}).superRefine((value, ctx) => {
-  rejectSensitiveProviderConfigKeys(value.config, ctx);
-  const parsed = secretProviderConfigPayloadSchema.safeParse({
-    provider: value.provider,
-    config: value.config
-  });
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues) {
-      ctx.addIssue({
-        ...issue,
-        path: issue.path[0] === "config" ? issue.path : ["config", ...issue.path]
-      });
-    }
-  }
-});
-var remoteSecretImportSelectionSchema = external_exports.object({
-  externalRef: external_exports.string().trim().min(1).max(2048),
-  name: external_exports.string().trim().min(1).max(160).optional().nullable(),
-  key: external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/).optional().nullable(),
-  description: external_exports.string().trim().max(500).optional().nullable(),
-  providerVersionRef: external_exports.string().trim().min(1).max(512).optional().nullable(),
-  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-});
-var remoteSecretImportSchema = external_exports.object({
-  providerConfigId: external_exports.string().uuid(),
-  secrets: external_exports.array(remoteSecretImportSelectionSchema).min(1).max(100)
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/environment.js
-var environmentDriverSchema = external_exports.enum(ENVIRONMENT_DRIVERS);
-var environmentStatusSchema = external_exports.enum(ENVIRONMENT_STATUSES);
-var environmentLeaseStatusSchema = external_exports.enum(ENVIRONMENT_LEASE_STATUSES);
-var environmentLeaseCleanupStatusSchema = external_exports.enum(ENVIRONMENT_LEASE_CLEANUP_STATUSES);
-var environmentFields = {
-  name: external_exports.string().min(1),
-  description: external_exports.string().optional().nullable(),
-  driver: environmentDriverSchema,
-  status: environmentStatusSchema.optional().default("active"),
-  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional().default({}),
-  envVars: envConfigSchema.optional().default({}),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+  ]
 };
-var createEnvironmentSchema = external_exports.object(environmentFields).strict();
-var updateEnvironmentSchema = external_exports.object({
-  name: external_exports.string().min(1).optional(),
-  description: external_exports.string().optional().nullable(),
-  driver: environmentDriverSchema.optional(),
-  status: environmentStatusSchema.optional(),
-  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
-  envVars: envConfigSchema.optional(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-}).strict();
-var probeEnvironmentConfigSchema = external_exports.object({
-  name: external_exports.string().min(1).optional(),
-  description: external_exports.string().optional().nullable(),
-  driver: environmentDriverSchema,
-  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional().default({}),
-  envVars: envConfigSchema.optional().default({}),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-}).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
-var isoDateTime = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
-var providerKeySchema = external_exports.string().min(1).max(200);
-var optionalRecordSchema = external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable();
-var environmentCustomImageTemplateKindSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_TEMPLATE_KINDS);
-var environmentCustomImageTemplateStatusSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_TEMPLATE_STATUSES);
-var environmentCustomImageSetupSessionStatusSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_SETUP_SESSION_STATUSES);
-var environmentCustomImageSetupConnectionTypeSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_SETUP_CONNECTION_TYPES);
-var environmentCustomImageSetupConnectionSummarySchema = external_exports.object({
-  type: environmentCustomImageSetupConnectionTypeSchema,
-  username: external_exports.string().min(1).max(200).optional().nullable(),
-  hostRedacted: external_exports.literal(true).optional().default(true),
-  portRedacted: external_exports.literal(true).optional().default(true),
-  label: external_exports.string().min(1).max(200).optional().nullable(),
-  instructions: external_exports.string().min(1).max(1e3).optional().nullable()
-}).strict();
-var environmentCustomImageTemplateSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  environmentId: external_exports.string().uuid(),
-  provider: providerKeySchema,
-  templateKind: environmentCustomImageTemplateKindSchema,
-  templateRef: external_exports.string().min(1).nullable(),
-  sourceTemplateRef: external_exports.string().min(1).nullable(),
-  sourceEnvironmentConfigFingerprint: external_exports.string().min(1).nullable(),
-  status: environmentCustomImageTemplateStatusSchema,
-  createdByUserId: external_exports.string().min(1).nullable(),
-  createdByAgentId: external_exports.string().uuid().nullable(),
-  capturedAt: isoDateTime.nullable(),
-  lastUsedAt: isoDateTime.nullable(),
-  supersededByTemplateId: external_exports.string().uuid().nullable(),
-  metadata: optionalRecordSchema,
-  createdAt: isoDateTime,
-  updatedAt: isoDateTime
-}).strict();
-var environmentCustomImageSetupSessionSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  environmentId: external_exports.string().uuid(),
-  templateId: external_exports.string().uuid().nullable(),
-  promotedTemplateId: external_exports.string().uuid().nullable(),
-  provider: providerKeySchema,
-  providerLeaseId: external_exports.string().min(1).nullable(),
-  environmentLeaseId: external_exports.string().uuid().nullable(),
-  status: environmentCustomImageSetupSessionStatusSchema,
-  startedByUserId: external_exports.string().min(1).nullable(),
-  startedByAgentId: external_exports.string().uuid().nullable(),
-  baseTemplateRef: external_exports.string().min(1).nullable(),
-  expiresAt: isoDateTime.nullable(),
-  finishedAt: isoDateTime.nullable(),
-  failureReason: external_exports.string().min(1).nullable(),
-  connectionSummary: environmentCustomImageSetupConnectionSummarySchema.nullable(),
-  connectionSecretRef: external_exports.string().min(1).nullable(),
-  metadata: optionalRecordSchema,
-  createdAt: isoDateTime,
-  updatedAt: isoDateTime
-}).strict();
-var startEnvironmentCustomImageSetupSessionSchema = external_exports.object({
-  templateId: external_exports.string().uuid().optional().nullable(),
-  ttlSeconds: external_exports.number().int().min(60).max(24 * 60 * 60).optional()
-}).strict();
-var finishEnvironmentCustomImageSetupSessionSchema = external_exports.object({
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
-}).strict();
-var cancelEnvironmentCustomImageSetupSessionSchema = external_exports.object({
-  reason: external_exports.string().min(1).max(1e3).optional()
-}).strict();
-var createEnvironmentCustomImageTerminalSessionTokenSchema = external_exports.object({}).strict().default({});
-var environmentCustomImageTerminalSessionTokenSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  token: external_exports.string().min(32),
-  expiresAt: isoDateTime,
-  setupSessionId: external_exports.string().min(1),
-  environmentId: external_exports.string().min(1),
-  connectionType: external_exports.literal("ssh"),
-  websocketPath: external_exports.string().min(1)
-}).strict();
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/slack.json
+var slack_default = {
+  schemaVersion: 1,
+  slug: "slack",
+  name: "Slack",
+  description: "Search channels and coordinate team communication.",
+  categories: [
+    "communication"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=slack.com&sz=128"
+  },
+  urlPatterns: [
+    "https://mcp.slack.com/*"
+  ],
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer",
+        "dcr"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://mcp.slack.com/mcp",
+        authorizationEndpoint: "https://slack.com/oauth/v2/authorize",
+        tokenEndpoint: "https://slack.com/api/oauth.v2.access",
+        scopesHint: [
+          "channels:read",
+          "chat:write",
+          "search:read"
+        ]
+      },
+      guidanceMd: "Connect a Slack workspace and limit access to the channels agents need.",
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "workspace",
+        "channel"
+      ]
+    }
+  ]
+};
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/external-object.js
-var externalObjectStatusCategorySchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_CATEGORIES);
-var externalObjectStatusToneSchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_TONES);
-var externalObjectLivenessStateSchema = external_exports.enum(EXTERNAL_OBJECT_LIVENESS_STATES);
-var externalObjectMentionSourceKindSchema = external_exports.enum(EXTERNAL_OBJECT_MENTION_SOURCE_KINDS);
-var externalObjectMentionConfidenceSchema = external_exports.enum(EXTERNAL_OBJECT_MENTION_CONFIDENCES);
-var externalObjectProviderKeySchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z][a-z0-9_.-]*$/);
-var externalObjectTypeSchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z][a-z0-9_]*$/);
-var externalObjectCanonicalIdentitySchema = external_exports.object({
-  scheme: external_exports.enum(["http", "https"]),
-  host: external_exports.string().trim().min(1),
-  path: external_exports.string().trim().min(1),
-  queryParamHashes: external_exports.record(external_exports.string().regex(/^[a-f0-9]{64}$/)).optional()
-}).strict();
-var externalObjectMentionSourceSchema = external_exports.object({
-  sourceKind: externalObjectMentionSourceKindSchema,
-  documentKey: external_exports.string().trim().min(1).optional().nullable(),
-  propertyKey: external_exports.string().trim().min(1).optional().nullable()
-}).strict();
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/notion.json
+var notion_default = {
+  schemaVersion: 1,
+  slug: "notion",
+  name: "Notion",
+  description: "Read and update pages in your Notion workspace.",
+  categories: [
+    "content"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=notion.so&sz=128"
+  },
+  urlPatterns: [
+    "https://mcp.notion.com/*"
+  ],
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer",
+        "dcr"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://mcp.notion.com/mcp",
+        authorizationEndpoint: "https://api.notion.com/v1/oauth/authorize",
+        tokenEndpoint: "https://api.notion.com/v1/oauth/token",
+        scopesHint: [
+          "read_content",
+          "update_content"
+        ]
+      },
+      guidanceMd: "Connect Notion for workspace content. Share only the pages and databases agents should use.",
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "workspace",
+        "page",
+        "database"
+      ]
+    }
+  ]
+};
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company-skill.js
-var companySkillSourceTypeSchema = external_exports.enum(["local_path", "github", "url", "catalog", "skills_sh"]);
-var companySkillTrustLevelSchema = external_exports.enum(["markdown_only", "assets", "scripts_executables"]);
-var companySkillCompatibilitySchema = external_exports.enum(["compatible", "unknown", "invalid"]);
-var companySkillSourceBadgeSchema = external_exports.enum(["paperclip", "github", "local", "url", "catalog", "skills_sh"]);
-var companySkillSharingScopeSchema = external_exports.enum(["private", "company", "public_link"]);
-var companySkillListSortSchema = external_exports.enum(["alphabetical", "recent", "installs", "stars", "agents", "forks"]);
-var companySkillFileInventoryEntrySchema = external_exports.object({
-  path: external_exports.string().min(1),
-  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"])
-});
-var companySkillVersionFileInventoryEntrySchema = companySkillFileInventoryEntrySchema.extend({
-  content: external_exports.string()
-});
-var companySkillSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  companyId: external_exports.string().uuid(),
-  key: external_exports.string().min(1),
-  slug: external_exports.string().min(1),
-  name: external_exports.string().min(1),
-  description: external_exports.string().nullable(),
-  markdown: external_exports.string(),
-  sourceType: companySkillSourceTypeSchema,
-  sourceLocator: external_exports.string().nullable(),
-  sourceRef: external_exports.string().nullable(),
-  trustLevel: companySkillTrustLevelSchema,
-  compatibility: companySkillCompatibilitySchema,
-  fileInventory: external_exports.array(companySkillFileInventoryEntrySchema).default([]),
-  iconUrl: external_exports.string().nullable(),
-  color: external_exports.string().nullable(),
-  tagline: external_exports.string().nullable(),
-  authorName: external_exports.string().nullable(),
-  homepageUrl: external_exports.string().nullable(),
-  categories: external_exports.array(external_exports.string().min(1)).default([]),
-  sharingScope: companySkillSharingScopeSchema,
-  publicShareToken: external_exports.string().nullable(),
-  forkedFromSkillId: external_exports.string().uuid().nullable(),
-  forkedFromCompanyId: external_exports.string().uuid().nullable(),
-  starCount: external_exports.number().int().nonnegative(),
-  installCount: external_exports.number().int().nonnegative(),
-  forkCount: external_exports.number().int().nonnegative(),
-  currentVersionId: external_exports.string().uuid().nullable(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-  createdAt: external_exports.coerce.date(),
-  updatedAt: external_exports.coerce.date()
-});
-var companySkillListItemSchema = companySkillSchema.extend({
-  attachedAgentCount: external_exports.number().int().nonnegative(),
-  editable: external_exports.boolean(),
-  editableReason: external_exports.string().nullable(),
-  sourceLabel: external_exports.string().nullable(),
-  sourceBadge: companySkillSourceBadgeSchema,
-  catalogKind: external_exports.enum(["bundled", "optional"]).nullable(),
-  originHash: external_exports.string().nullable(),
-  packageName: external_exports.string().nullable(),
-  packageVersion: external_exports.string().nullable()
-});
-var companySkillUsageAgentSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  name: external_exports.string().min(1),
-  urlKey: external_exports.string().min(1),
-  adapterType: external_exports.string().min(1),
-  desired: external_exports.boolean(),
-  actualState: external_exports.string().nullable().describe("Runtime adapter skill state when explicitly fetched; company skill detail reads return null without probing agent runtimes."),
-  versionId: external_exports.string().uuid().nullable()
-});
-var companySkillListQuerySchema = external_exports.object({
-  q: external_exports.string().min(1).optional(),
-  sort: companySkillListSortSchema.optional(),
-  categories: external_exports.array(external_exports.string().min(1)).optional(),
-  scope: companySkillSharingScopeSchema.optional()
-});
-var companySkillCategoryCountSchema = external_exports.object({
-  slug: external_exports.string().min(1),
-  count: external_exports.number().int().nonnegative()
-});
-var companySkillVersionSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  companyId: external_exports.string().uuid(),
-  companySkillId: external_exports.string().uuid(),
-  revisionNumber: external_exports.number().int().positive(),
-  label: external_exports.string().nullable(),
-  fileInventory: external_exports.array(companySkillVersionFileInventoryEntrySchema).default([]),
-  authorAgentId: external_exports.string().uuid().nullable(),
-  authorUserId: external_exports.string().nullable(),
-  createdAt: external_exports.coerce.date()
-});
-var companySkillDetailSchema = companySkillSchema.extend({
-  attachedAgentCount: external_exports.number().int().nonnegative(),
-  usedByAgents: external_exports.array(companySkillUsageAgentSchema).default([]),
-  editable: external_exports.boolean(),
-  editableReason: external_exports.string().nullable(),
-  sourceLabel: external_exports.string().nullable(),
-  sourceBadge: companySkillSourceBadgeSchema,
-  currentVersion: companySkillVersionSchema.nullable(),
-  starredByCurrentActor: external_exports.boolean()
-});
-var companySkillVersionCreateSchema = external_exports.object({
-  label: external_exports.string().trim().min(1).nullable().optional()
-}).default({});
-var companySkillStarResultSchema = external_exports.object({
-  skillId: external_exports.string().uuid(),
-  starred: external_exports.boolean(),
-  starCount: external_exports.number().int().nonnegative()
-});
-var companySkillCommentSchema = external_exports.object({
-  id: external_exports.string().uuid(),
-  companyId: external_exports.string().uuid(),
-  companySkillId: external_exports.string().uuid(),
-  parentCommentId: external_exports.string().uuid().nullable(),
-  authorAgentId: external_exports.string().uuid().nullable(),
-  authorUserId: external_exports.string().nullable(),
-  body: external_exports.string(),
-  deletedAt: external_exports.coerce.date().nullable(),
-  createdAt: external_exports.coerce.date(),
-  updatedAt: external_exports.coerce.date()
-});
-var companySkillCommentCreateSchema = external_exports.object({
-  body: external_exports.string().min(1),
-  parentCommentId: external_exports.string().uuid().nullable().optional()
-});
-var companySkillCommentUpdateSchema = external_exports.object({
-  body: external_exports.string().min(1)
-});
-var companySkillForkSchema = external_exports.object({
-  name: external_exports.string().min(1).nullable().optional(),
-  slug: external_exports.string().min(1).nullable().optional(),
-  sharingScope: companySkillSharingScopeSchema.optional()
-}).default({});
-var companySkillUpdateSchema = external_exports.object({
-  description: external_exports.string().nullable().optional(),
-  iconUrl: external_exports.string().nullable().optional(),
-  color: external_exports.string().nullable().optional(),
-  tagline: external_exports.string().max(120).nullable().optional(),
-  authorName: external_exports.string().nullable().optional(),
-  homepageUrl: external_exports.string().nullable().optional(),
-  categories: external_exports.array(external_exports.string().min(1)).optional(),
-  sharingScope: companySkillSharingScopeSchema.optional()
-}).default({});
-var companySkillUpdateStatusSchema = external_exports.object({
-  supported: external_exports.boolean(),
-  reason: external_exports.string().nullable(),
-  trackingRef: external_exports.string().nullable(),
-  currentRef: external_exports.string().nullable(),
-  latestRef: external_exports.string().nullable(),
-  hasUpdate: external_exports.boolean(),
-  installedHash: external_exports.string().nullable(),
-  originHash: external_exports.string().nullable(),
-  userModifiedAt: external_exports.string().nullable(),
-  updateHoldReason: external_exports.enum([
-    "local_modifications",
-    "audit_hard_stop",
-    "origin_unavailable",
-    "compatibility_invalid",
-    "operator_hold"
-  ]).nullable(),
-  auditVerdict: external_exports.enum(["pass", "warning", "fail"]).nullable(),
-  auditCodes: external_exports.array(external_exports.string())
-});
-var companySkillAuditFindingSchema = external_exports.object({
-  code: external_exports.string().min(1),
-  severity: external_exports.enum(["warning", "error"]),
-  message: external_exports.string().min(1),
-  path: external_exports.string().nullable()
-});
-var companySkillAuditResultSchema = external_exports.object({
-  skillId: external_exports.string().uuid(),
-  installedHash: external_exports.string().nullable(),
-  originHash: external_exports.string().nullable(),
-  verdict: external_exports.enum(["pass", "warning", "fail"]),
-  codes: external_exports.array(external_exports.string()),
-  findings: external_exports.array(companySkillAuditFindingSchema),
-  scannedAt: external_exports.string().min(1),
-  scanVersion: external_exports.string().min(1)
-});
-var companySkillInstallUpdateSchema = external_exports.object({
-  force: external_exports.boolean().optional()
-}).default({});
-var companySkillResetSchema = external_exports.object({
-  force: external_exports.boolean().optional()
-}).default({});
-var companySkillImportSchema = external_exports.object({
-  source: external_exports.string().min(1)
-});
-var companySkillProjectScanRequestSchema = external_exports.object({
-  projectIds: external_exports.array(external_exports.string().uuid()).optional(),
-  workspaceIds: external_exports.array(external_exports.string().uuid()).optional()
-});
-var companySkillProjectScanSkippedSchema = external_exports.object({
-  projectId: external_exports.string().uuid(),
-  projectName: external_exports.string().min(1),
-  workspaceId: external_exports.string().uuid().nullable(),
-  workspaceName: external_exports.string().nullable(),
-  path: external_exports.string().nullable(),
-  reason: external_exports.string().min(1)
-});
-var companySkillProjectScanConflictSchema = external_exports.object({
-  slug: external_exports.string().min(1),
-  key: external_exports.string().min(1),
-  projectId: external_exports.string().uuid(),
-  projectName: external_exports.string().min(1),
-  workspaceId: external_exports.string().uuid(),
-  workspaceName: external_exports.string().min(1),
-  path: external_exports.string().min(1),
-  existingSkillId: external_exports.string().uuid(),
-  existingSkillKey: external_exports.string().min(1),
-  existingSourceLocator: external_exports.string().nullable(),
-  reason: external_exports.string().min(1)
-});
-var companySkillProjectScanResultSchema = external_exports.object({
-  scannedProjects: external_exports.number().int().nonnegative(),
-  scannedWorkspaces: external_exports.number().int().nonnegative(),
-  discovered: external_exports.number().int().nonnegative(),
-  imported: external_exports.array(companySkillSchema),
-  updated: external_exports.array(companySkillSchema),
-  skipped: external_exports.array(companySkillProjectScanSkippedSchema),
-  conflicts: external_exports.array(companySkillProjectScanConflictSchema),
-  warnings: external_exports.array(external_exports.string())
-});
-var companySkillCreateSchema = external_exports.object({
-  name: external_exports.string().min(1),
-  slug: external_exports.string().min(1).nullable().optional(),
-  description: external_exports.string().nullable().optional(),
-  markdown: external_exports.string().nullable().optional(),
-  iconUrl: external_exports.string().nullable().optional(),
-  color: external_exports.string().nullable().optional(),
-  tagline: external_exports.string().max(120).nullable().optional(),
-  authorName: external_exports.string().nullable().optional(),
-  homepageUrl: external_exports.string().nullable().optional(),
-  categories: external_exports.array(external_exports.string().min(1)).optional(),
-  sharingScope: companySkillSharingScopeSchema.optional(),
-  forkedFromSkillId: external_exports.string().uuid().nullable().optional()
-});
-var companySkillFileDetailSchema = external_exports.object({
-  skillId: external_exports.string().uuid(),
-  path: external_exports.string().min(1),
-  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"]),
-  content: external_exports.string(),
-  language: external_exports.string().nullable(),
-  markdown: external_exports.boolean(),
-  editable: external_exports.boolean()
-});
-var companySkillFileUpdateSchema = external_exports.object({
-  path: external_exports.string().min(1),
-  content: external_exports.string()
-});
-var catalogSkillKindSchema = external_exports.enum(["bundled", "optional"]);
-var catalogSkillFileSchema = external_exports.object({
-  path: external_exports.string().min(1),
-  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"]),
-  sizeBytes: external_exports.number().int().nonnegative(),
-  sha256: external_exports.string().min(1)
-});
-var catalogSkillGitHubSourceSchema = external_exports.object({
-  type: external_exports.literal("github"),
-  hostname: external_exports.string().min(1),
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  ref: external_exports.string().min(1),
-  commit: external_exports.string().regex(/^[0-9a-f]{40}$/i),
-  path: external_exports.string(),
-  url: external_exports.string().url()
-});
-var catalogSkillSourceSchema = catalogSkillGitHubSourceSchema;
-var catalogSkillSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  key: external_exports.string().min(1),
-  kind: catalogSkillKindSchema,
-  category: external_exports.string().min(1),
-  slug: external_exports.string().min(1),
-  name: external_exports.string().min(1),
-  description: external_exports.string(),
-  path: external_exports.string().min(1),
-  entrypoint: external_exports.literal("SKILL.md"),
-  trustLevel: companySkillTrustLevelSchema,
-  compatibility: companySkillCompatibilitySchema,
-  defaultInstall: external_exports.boolean(),
-  recommendedForRoles: external_exports.array(external_exports.string()),
-  requires: external_exports.array(external_exports.string()),
-  tags: external_exports.array(external_exports.string()),
-  files: external_exports.array(catalogSkillFileSchema),
-  contentHash: external_exports.string().min(1),
-  source: catalogSkillSourceSchema.optional(),
-  packageName: external_exports.string().min(1).optional(),
-  packageVersion: external_exports.string().min(1).optional()
-});
-var catalogSkillListQuerySchema = external_exports.object({
-  kind: catalogSkillKindSchema.optional(),
-  category: external_exports.string().min(1).optional(),
-  q: external_exports.string().min(1).optional()
-});
-var catalogSkillFileDetailSchema = external_exports.object({
-  catalogSkillId: external_exports.string().min(1),
-  path: external_exports.string().min(1),
-  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"]),
-  content: external_exports.string(),
-  language: external_exports.string().nullable(),
-  markdown: external_exports.boolean()
-});
-var companySkillInstallCatalogSchema = external_exports.object({
-  catalogSkillId: external_exports.string().min(1),
-  slug: external_exports.string().min(1).nullable().optional(),
-  force: external_exports.boolean().optional()
-});
-var companySkillInstallCatalogResultSchema = external_exports.object({
-  action: external_exports.enum(["created", "updated", "unchanged"]),
-  skill: companySkillSchema,
-  catalogSkill: catalogSkillSchema,
-  warnings: external_exports.array(external_exports.string())
-});
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/linear.json
+var linear_default = {
+  schemaVersion: 1,
+  slug: "linear",
+  name: "Linear",
+  description: "Create, update, and read Linear issues.",
+  categories: [
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=linear.app&sz=128"
+  },
+  urlPatterns: [
+    "https://mcp.linear.app/*"
+  ],
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer",
+        "dcr"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://mcp.linear.app/mcp",
+        authorizationEndpoint: "https://linear.app/oauth/authorize",
+        tokenEndpoint: "https://api.linear.app/oauth/token",
+        scopesHint: [
+          "read",
+          "write"
+        ]
+      },
+      guidanceMd: "Register a Linear OAuth app and add Paperclip's redirect URI before connecting.",
+      riskTier: "S2",
+      requiredResourceFilters: [
+        "workspace",
+        "team",
+        "project"
+      ]
+    }
+  ]
+};
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/text.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/google-sheets.json
+var google_sheets_default = {
+  schemaVersion: 1,
+  slug: "google-sheets",
+  name: "Google Sheets",
+  description: "Read and update selected spreadsheets.",
+  categories: [
+    "data"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=sheets.google.com&sz=128"
+  },
+  urlPatterns: [
+    "https://docs.google.com/spreadsheets/*",
+    "https://sheets.google.com/*"
+  ],
+  methods: [
+    {
+      key: "local",
+      transport: "local_stdio",
+      auth: "none",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use credentials from your provider account.",
+      defaults: {
+        templateKey: "paperclip.google-sheets"
+      },
+      guidanceMd: "Share each spreadsheet with the Paperclip robot email, then paste the sheet links.",
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "spreadsheet"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/context7.json
+var context7_default = {
+  schemaVersion: 1,
+  slug: "context7",
+  name: "Context7",
+  description: "Look up current documentation for software libraries.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=context7.com&sz=128"
+  },
+  urlPatterns: [
+    "https://mcp.context7.com/*"
+  ],
+  methods: [
+    {
+      key: "mcp",
+      transport: "mcp_remote",
+      auth: "none",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://mcp.context7.com/mcp"
+      },
+      guidanceMd: "Connect Context7 to give agents current library documentation.",
+      riskTier: "S1"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/oauth-generic.json
+var oauth_generic_default = {
+  schemaVersion: 1,
+  slug: "oauth-generic",
+  name: "OAuth app",
+  description: "Connect a provider using your own OAuth client.",
+  categories: [
+    "other"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=oauth.net&sz=128"
+  },
+  urlPatterns: [],
+  methods: [
+    {
+      key: "oauth",
+      transport: "rest_api",
+      auth: "oauth",
+      ownershipModes: [
+        "customer",
+        "dcr"
+      ],
+      whenToUse: "Use credentials from your provider account.",
+      defaults: {},
+      guidanceMd: "Register an OAuth client with the provider and add Paperclip's redirect URI.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "clientId",
+          label: "Client ID",
+          type: "text",
+          required: true,
+          placeholder: "Paste the client ID",
+          secret: false
+        },
+        {
+          key: "clientSecret",
+          label: "Client secret",
+          type: "password",
+          required: true,
+          placeholder: "Paste the client secret",
+          secret: true
+        }
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/api-key-generic.json
+var api_key_generic_default = {
+  schemaVersion: 1,
+  slug: "api-key-generic",
+  name: "API key app",
+  description: "Connect an API using a key from your provider.",
+  categories: [
+    "other"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=openapis.org&sz=128"
+  },
+  urlPatterns: [],
+  methods: [
+    {
+      key: "api-key",
+      transport: "rest_api",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use credentials from your provider account.",
+      defaults: {},
+      guidanceMd: "Create a restricted API key and paste it here.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "apiKey",
+          label: "API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste the API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      }
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/sentry.json
+var sentry_default = {
+  schemaVersion: 1,
+  slug: "sentry",
+  name: "Sentry",
+  description: "Investigate errors, releases, and production issues.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=sentry.io&sz=128"
+  },
+  urlPatterns: [
+    "https://mcp.sentry.dev/*"
+  ],
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer",
+        "dcr"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://mcp.sentry.dev/mcp",
+        discoveryUrl: "https://sentry.io/.well-known/oauth-authorization-server"
+      },
+      guidanceMd: "Connect the Sentry organization and projects agents need for incident work.",
+      riskTier: "S2",
+      requiredResourceFilters: [
+        "organization",
+        "project",
+        "environment"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/vercel.json
+var vercel_default = {
+  schemaVersion: 1,
+  slug: "vercel",
+  name: "Vercel",
+  description: "Inspect projects, deployments, and runtime logs.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=vercel.com&sz=128"
+  },
+  urlPatterns: [
+    "https://mcp.vercel.com/*"
+  ],
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer",
+        "dcr"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {
+        serverUrl: "https://mcp.vercel.com/mcp"
+      },
+      guidanceMd: "Connect the Vercel team and projects agents should operate.",
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "team",
+        "project",
+        "environment"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions/anthropic.json
+var anthropic_default = {
+  schemaVersion: 1,
+  slug: "anthropic",
+  name: "Anthropic",
+  description: "Use Anthropic APIs with a restricted key.",
+  categories: [
+    "ai"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "https://www.google.com/s2/favicons?domain=anthropic.com&sz=128"
+  },
+  urlPatterns: [
+    "https://api.anthropic.com/*"
+  ],
+  methods: [
+    {
+      key: "api-key",
+      transport: "rest_api",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use credentials from your provider account.",
+      defaults: {
+        serviceHost: "api.anthropic.com"
+      },
+      guidanceMd: "Create a key in the Anthropic Console and rotate it if it has been exposed.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "apiKey",
+          label: "API key",
+          type: "password",
+          required: true,
+          placeholder: "sk-ant-api03-...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "x-api-key"
+      }
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions.generated.js
+var APP_DEFINITIONS = [zapier_default, github_default, slack_default, notion_default, linear_default, google_sheets_default, context7_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default];
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/app-definitions.js
+var CONNECTABLE_APP_SLUGS = /* @__PURE__ */ new Set([
+  "zapier",
+  "github",
+  "slack",
+  "notion",
+  "linear",
+  "google-sheets",
+  "context7"
+]);
+var CONNECTABLE_APP_DEFINITIONS = APP_DEFINITIONS.filter((app) => CONNECTABLE_APP_SLUGS.has(app.slug));
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/text.js
 function normalizeEscapedLineBreaks(value) {
   return value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
 }
 var multilineTextSchema = external_exports.string().transform(normalizeEscapedLineBreaks);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
 var trustPresetSchema = external_exports.enum(TRUST_PRESETS);
 var lowTrustOutputPromotionTargetSchema = external_exports.object({
   type: external_exports.literal("issue"),
@@ -5894,7 +5468,7 @@ var sourceTrustMetadataSchema = external_exports.object({
   promotedAt: external_exports.string().datetime({ offset: true }).nullable().optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/issue.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/issue.js
 var issueBlockedInboxStateSchema = external_exports.enum([
   "needs_attention",
   "awaiting_decision",
@@ -6189,6 +5763,7 @@ var createIssueBaseSchema = external_exports.object({
   description: multilineTextSchema.optional().nullable(),
   status: external_exports.enum(ISSUE_STATUSES),
   workMode: external_exports.enum(ISSUE_WORK_MODES).optional().default("standard"),
+  harnessKind: external_exports.enum(ISSUE_HARNESS_KINDS).optional().nullable(),
   priority: external_exports.enum(ISSUE_PRIORITIES).optional().default("medium"),
   assigneeAgentId: external_exports.string().uuid().optional().nullable(),
   assigneeUserId: external_exports.string().optional().nullable(),
@@ -6211,10 +5786,15 @@ var createIssueBaseSchema = external_exports.object({
     instructions: multilineTextSchema.optional().nullable()
   }).strict().optional().nullable()
 });
+var createIssueDuplicateGuardSchema = {
+  idempotencyKey: external_exports.string().trim().min(1).max(255).optional().nullable(),
+  allowDuplicate: external_exports.boolean().describe("Bypasses recent-title duplicate detection; idempotency keys always replay their original issue").optional().default(false)
+};
 var createIssueInputSchema = createIssueBaseSchema.extend({
-  status: createIssueBaseSchema.shape.status.optional()
+  status: createIssueBaseSchema.shape.status.optional(),
+  ...createIssueDuplicateGuardSchema
 });
-var createIssueSchema = withCreateIssueStatusDefault(createIssueBaseSchema);
+var createIssueSchema = withCreateIssueStatusDefault(createIssueBaseSchema.extend(createIssueDuplicateGuardSchema));
 var upsertIssueWatchdogSchema = external_exports.object({
   agentId: external_exports.string().uuid(),
   instructions: multilineTextSchema.optional().nullable()
@@ -6476,6 +6056,21 @@ var requestConfirmationTargetSchema = external_exports.discriminatedUnion("type"
   requestConfirmationIssueDocumentTargetSchema,
   requestConfirmationCustomTargetSchema
 ]);
+var requestConfirmationToolActionPayloadSchema = external_exports.object({
+  version: external_exports.literal(1),
+  actionRequestId: external_exports.string().uuid(),
+  invocationId: external_exports.string().uuid(),
+  toolName: external_exports.string().trim().min(1).max(500),
+  toolDisplayName: external_exports.string().trim().min(1).max(500),
+  connectionId: external_exports.string().uuid().nullable(),
+  applicationId: external_exports.string().uuid().nullable(),
+  appDisplayName: external_exports.string().trim().min(1).max(500).nullable(),
+  risk: external_exports.enum(["write", "destructive"]),
+  previewMarkdown: external_exports.string().trim().min(1).max(2e4),
+  argumentsSummaryJson: external_exports.string().max(2e4),
+  argumentsHash: external_exports.string().trim().min(1).max(255),
+  expiresAt: external_exports.string().datetime({ offset: true })
+});
 var requestConfirmationPayloadSchema = external_exports.object({
   version: external_exports.literal(1),
   prompt: external_exports.string().trim().min(1).max(1e3),
@@ -6487,7 +6082,8 @@ var requestConfirmationPayloadSchema = external_exports.object({
   declineReasonPlaceholder: external_exports.string().trim().min(1).max(240).nullable().optional(),
   detailsMarkdown: external_exports.string().max(2e4).nullable().optional(),
   supersedeOnUserComment: external_exports.boolean().optional(),
-  target: requestConfirmationTargetSchema.nullable().optional()
+  target: requestConfirmationTargetSchema.nullable().optional(),
+  toolAction: requestConfirmationToolActionPayloadSchema.optional()
 });
 var requestCheckboxConfirmationOptionSchema = external_exports.object({
   id: external_exports.string().trim().min(1).max(120),
@@ -6580,12 +6176,36 @@ var requestCheckboxConfirmationPayloadSchema = external_exports.object({
     }
   }
 });
+var requestConfirmationResumeFailureSchema = external_exports.object({
+  status: external_exports.enum(["retrying", "needs_attention"]),
+  errorCode: external_exports.string().trim().min(1).max(120).nullable(),
+  attempt: external_exports.number().int().min(0).max(100),
+  maxAttempts: external_exports.number().int().min(0).max(100),
+  runId: external_exports.string().uuid().nullable().optional(),
+  retryRunId: external_exports.string().uuid().nullable().optional(),
+  recoveryActionId: external_exports.string().uuid().nullable().optional(),
+  updatedAt: external_exports.string().trim().min(1).nullable().optional()
+});
+var requestConfirmationToolActionResultSchema = external_exports.object({
+  version: external_exports.literal(1),
+  status: external_exports.enum(["approved", "executing", "executed", "failed", "expired"]),
+  errorCode: external_exports.string().trim().min(1).max(120).nullable().optional(),
+  errorMessage: external_exports.string().trim().min(1).max(4e3).nullable().optional(),
+  // Populated on `executed` so the card can report the outcome (e.g. "Row 42
+  // added") instead of a bare checkmark, with an optional deep-link when the
+  // connector returns a URL (PAP-13745 §5 Executed / Peak-End).
+  resultSummary: external_exports.string().trim().min(1).max(4e3).nullable().optional(),
+  resultHref: external_exports.string().trim().url().max(2e3).nullable().optional(),
+  updatedAt: external_exports.string().datetime({ offset: true })
+});
 var requestConfirmationResultSchema = external_exports.object({
   version: external_exports.literal(1),
   outcome: external_exports.enum(["accepted", "rejected", "superseded_by_comment", "stale_target"]),
   reason: external_exports.string().trim().max(4e3).nullable().optional(),
   commentId: external_exports.string().uuid().nullable().optional(),
-  staleTarget: requestConfirmationTargetSchema.nullable().optional()
+  staleTarget: requestConfirmationTargetSchema.nullable().optional(),
+  resumeFailure: requestConfirmationResumeFailureSchema.nullable().optional(),
+  toolAction: requestConfirmationToolActionResultSchema.optional()
 });
 var requestCheckboxConfirmationResultSchema = requestConfirmationResultSchema.extend({
   selectedOptionIds: external_exports.array(external_exports.string().trim().min(1).max(120)).max(REQUEST_CHECKBOX_CONFIRMATION_OPTION_LIMIT).optional()
@@ -6601,6 +6221,104 @@ var requestCheckboxConfirmationResultSchema = requestConfirmationResultSchema.ex
       });
     }
     seenOptionIds.add(optionId);
+  }
+});
+var requestItemVerdictValueSchema = external_exports.enum(["approve", "reject", "defer"]);
+var requestItemVerdictsItemSchema = external_exports.object({
+  id: external_exports.string().trim().min(1).max(120),
+  label: external_exports.string().trim().min(1).max(120),
+  description: external_exports.string().trim().max(500).nullable().optional(),
+  previewMarkdown: external_exports.string().max(2e4).nullable().optional(),
+  href: requestConfirmationHrefSchema.nullable().optional(),
+  attachmentId: external_exports.string().uuid().nullable().optional()
+});
+var requestItemVerdictsPayloadSchema = external_exports.object({
+  version: external_exports.literal(1),
+  prompt: external_exports.string().trim().min(1).max(1e3),
+  detailsMarkdown: external_exports.string().max(2e4).nullable().optional(),
+  items: external_exports.array(requestItemVerdictsItemSchema).min(1).max(REQUEST_ITEM_VERDICTS_ITEM_LIMIT),
+  verdicts: external_exports.array(requestItemVerdictValueSchema).min(2).max(3).optional().default(["approve", "reject"]),
+  requireReasonOn: external_exports.array(requestItemVerdictValueSchema).max(3).optional().default(["reject"]),
+  reasonLabel: external_exports.string().trim().min(1).max(160).nullable().optional(),
+  allowBulkApprove: external_exports.boolean().optional().default(true),
+  supersedeOnUserComment: external_exports.boolean().optional(),
+  target: requestConfirmationTargetSchema.nullable().optional()
+}).superRefine((value, ctx) => {
+  const itemIds = /* @__PURE__ */ new Set();
+  for (const [index, item] of value.items.entries()) {
+    if (itemIds.has(item.id)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "Item ids must be unique within one item verdict request",
+        path: ["items", index, "id"]
+      });
+    }
+    itemIds.add(item.id);
+  }
+  const verdicts = /* @__PURE__ */ new Set();
+  for (const [index, verdict] of value.verdicts.entries()) {
+    if (verdicts.has(verdict)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "verdicts must be unique",
+        path: ["verdicts", index]
+      });
+    }
+    verdicts.add(verdict);
+  }
+  if (!verdicts.has("approve") || !verdicts.has("reject")) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "verdicts must include approve and reject; defer is optional",
+      path: ["verdicts"]
+    });
+  }
+  const reasonVerdicts = /* @__PURE__ */ new Set();
+  for (const [index, verdict] of value.requireReasonOn.entries()) {
+    if (reasonVerdicts.has(verdict)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "requireReasonOn must be unique",
+        path: ["requireReasonOn", index]
+      });
+      continue;
+    }
+    reasonVerdicts.add(verdict);
+    if (!verdicts.has(verdict)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "requireReasonOn must reference enabled verdicts",
+        path: ["requireReasonOn", index]
+      });
+    }
+  }
+});
+var requestItemVerdictsResultItemSchema = external_exports.object({
+  id: external_exports.string().trim().min(1).max(120),
+  verdict: requestItemVerdictValueSchema,
+  reason: external_exports.string().trim().max(4e3).nullable().optional(),
+  resolvedByUserId: external_exports.string().trim().min(1).max(255),
+  resolvedAt: external_exports.union([external_exports.string().datetime(), external_exports.date()]),
+  commentId: external_exports.string().uuid().nullable().optional()
+});
+var requestItemVerdictsResultSchema = external_exports.object({
+  version: external_exports.literal(1),
+  outcome: external_exports.enum(["resolved", "superseded_by_comment", "stale_target", "cancelled"]),
+  complete: external_exports.boolean(),
+  items: external_exports.array(requestItemVerdictsResultItemSchema).max(REQUEST_ITEM_VERDICTS_ITEM_LIMIT),
+  commentId: external_exports.string().uuid().nullable().optional(),
+  staleTarget: requestConfirmationTargetSchema.nullable().optional()
+}).superRefine((value, ctx) => {
+  const itemIds = /* @__PURE__ */ new Set();
+  for (const [index, item] of value.items.entries()) {
+    if (itemIds.has(item.id)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "result item ids must be unique",
+        path: ["items", index, "id"]
+      });
+    }
+    itemIds.add(item.id);
   }
 });
 var createIssueThreadInteractionSchema = external_exports.discriminatedUnion("kind", [
@@ -6643,6 +6361,16 @@ var createIssueThreadInteractionSchema = external_exports.discriminatedUnion("ki
     summary: external_exports.string().trim().max(1e3).nullable().optional(),
     continuationPolicy: issueThreadInteractionContinuationPolicySchema.optional().default("wake_assignee"),
     payload: requestCheckboxConfirmationPayloadSchema
+  }),
+  external_exports.object({
+    kind: external_exports.literal("request_item_verdicts"),
+    idempotencyKey: external_exports.string().trim().max(255).nullable().optional(),
+    sourceCommentId: external_exports.string().uuid().nullable().optional(),
+    sourceRunId: external_exports.string().uuid().nullable().optional(),
+    title: external_exports.string().trim().max(240).nullable().optional(),
+    summary: external_exports.string().trim().max(1e3).nullable().optional(),
+    continuationPolicy: issueThreadInteractionContinuationPolicySchema.optional().default("wake_assignee"),
+    payload: requestItemVerdictsPayloadSchema
   })
 ]);
 var acceptIssueThreadInteractionSchema = external_exports.object({
@@ -6684,6 +6412,25 @@ var respondIssueThreadInteractionSchema = external_exports.object({
   answers: external_exports.array(askUserQuestionsAnswerSchema).max(20),
   summaryMarkdown: multilineTextSchema.pipe(external_exports.string().max(2e4)).nullable().optional()
 });
+var submitIssueThreadInteractionVerdictsSchema = external_exports.object({
+  verdicts: external_exports.array(external_exports.object({
+    id: external_exports.string().trim().min(1).max(120),
+    verdict: requestItemVerdictValueSchema,
+    reason: external_exports.string().trim().max(4e3).nullable().optional()
+  })).min(1).max(REQUEST_ITEM_VERDICTS_ITEM_LIMIT)
+}).superRefine((value, ctx) => {
+  const itemIds = /* @__PURE__ */ new Set();
+  for (const [index, verdict] of value.verdicts.entries()) {
+    if (itemIds.has(verdict.id)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "verdict item ids must be unique",
+        path: ["verdicts", index, "id"]
+      });
+    }
+    itemIds.add(verdict.id);
+  }
+});
 var linkIssueApprovalSchema = external_exports.object({
   approvalId: external_exports.string().uuid()
 });
@@ -6701,7 +6448,340 @@ var upsertIssueDocumentSchema = external_exports.object({
 });
 var restoreIssueDocumentRevisionSchema = external_exports.object({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/routine-variables.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/secret.js
+var secretKeySchema = external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/);
+var secretVersionSelectorSchema = external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]);
+var creatableSecretStatusSchema = external_exports.enum(["active", "disabled", "archived"]);
+var envBindingPlainSchema = external_exports.object({
+  type: external_exports.literal("plain"),
+  value: external_exports.string()
+});
+var envBindingSecretRefSchema = external_exports.object({
+  type: external_exports.literal("secret_ref"),
+  secretId: external_exports.string().uuid(),
+  version: secretVersionSelectorSchema.optional(),
+  projectionClass: external_exports.enum(SECRET_PROJECTION_CLASSES).optional(),
+  projectionAllowlistKey: external_exports.string().trim().min(1).max(160).optional().nullable()
+});
+var envBindingUserSecretRefSchema = external_exports.object({
+  type: external_exports.literal("user_secret_ref"),
+  key: secretKeySchema,
+  version: secretVersionSelectorSchema.optional(),
+  required: external_exports.boolean().optional().default(true),
+  allowMissingOverride: external_exports.boolean().optional().default(false)
+});
+var envBindingSchema = external_exports.union([
+  external_exports.string(),
+  envBindingPlainSchema,
+  envBindingSecretRefSchema,
+  envBindingUserSecretRefSchema
+]);
+var envConfigSchema = external_exports.record(external_exports.string(), envBindingSchema);
+var createSecretSchema = external_exports.object({
+  name: external_exports.string().min(1),
+  key: secretKeySchema.optional(),
+  provider: external_exports.enum(SECRET_PROVIDERS).optional(),
+  providerConfigId: external_exports.string().uuid().optional().nullable(),
+  managedMode: external_exports.enum(SECRET_MANAGED_MODES).optional(),
+  value: external_exports.string().min(1).optional().nullable(),
+  description: external_exports.string().optional().nullable(),
+  externalRef: external_exports.string().optional().nullable(),
+  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  providerVersionRef: external_exports.string().optional().nullable()
+}).superRefine((value, ctx) => {
+  if ((value.managedMode ?? "paperclip_managed") === "external_reference") {
+    if (!value.externalRef?.trim()) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: ["externalRef"],
+        message: "External reference secrets require externalRef"
+      });
+    }
+    return;
+  }
+  if (value.externalRef?.trim()) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["externalRef"],
+      message: "Managed secrets cannot set externalRef"
+    });
+  }
+  if (!value.value?.trim()) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["value"],
+      message: "Managed secrets require value"
+    });
+  }
+});
+function requireSecretRotationInput(value, ctx) {
+  if (!value.value?.trim() && !value.externalRef?.trim() && value.providerVersionRef == null && value.providerConfigId == null) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["value"],
+      message: "Secret rotation requires value, externalRef, providerVersionRef, or providerConfigId"
+    });
+  }
+}
+var rotateSecretSchema = external_exports.object({
+  value: external_exports.string().min(1).optional().nullable(),
+  externalRef: external_exports.string().optional().nullable(),
+  providerVersionRef: external_exports.string().optional().nullable(),
+  providerConfigId: external_exports.string().uuid().optional().nullable()
+}).superRefine(requireSecretRotationInput);
+var updateSecretSchema = external_exports.object({
+  name: external_exports.string().min(1).optional(),
+  key: secretKeySchema.optional(),
+  status: external_exports.enum(SECRET_STATUSES).optional(),
+  providerConfigId: external_exports.string().uuid().optional().nullable(),
+  description: external_exports.string().optional().nullable(),
+  externalRef: external_exports.string().optional().nullable(),
+  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var secretBindingTargetSchema = external_exports.object({
+  targetType: external_exports.enum(SECRET_BINDING_TARGET_TYPES),
+  targetId: external_exports.string().min(1),
+  configPath: external_exports.string().min(1)
+});
+var createSecretBindingSchema = secretBindingTargetSchema.extend({
+  secretId: external_exports.string().uuid(),
+  versionSelector: secretVersionSelectorSchema.default("latest"),
+  required: external_exports.boolean().default(true),
+  label: external_exports.string().optional().nullable(),
+  projectionClass: external_exports.enum(SECRET_PROJECTION_CLASSES).optional(),
+  projectionAllowlistKey: external_exports.string().trim().min(1).max(160).optional().nullable()
+});
+var createUserSecretDefinitionSchema = external_exports.object({
+  key: secretKeySchema,
+  name: external_exports.string().trim().min(1).max(160),
+  description: external_exports.string().trim().max(500).optional().nullable(),
+  status: creatableSecretStatusSchema.optional(),
+  provider: external_exports.enum(SECRET_PROVIDERS).optional(),
+  providerConfigId: external_exports.string().uuid().optional().nullable(),
+  managedMode: external_exports.enum(SECRET_MANAGED_MODES).optional(),
+  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  usageGuidance: external_exports.string().trim().max(1e3).optional().nullable()
+});
+var updateUserSecretDefinitionSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160).optional(),
+  description: external_exports.string().trim().max(500).optional().nullable(),
+  status: external_exports.enum(SECRET_STATUSES).optional(),
+  providerConfigId: external_exports.string().uuid().optional().nullable(),
+  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  usageGuidance: external_exports.string().trim().max(1e3).optional().nullable()
+});
+var createUserSecretValueSchema = external_exports.object({
+  definitionKey: secretKeySchema.optional(),
+  definitionId: external_exports.string().uuid().optional(),
+  value: external_exports.string().min(1).optional().nullable(),
+  externalRef: external_exports.string().optional().nullable(),
+  providerVersionRef: external_exports.string().optional().nullable(),
+  providerConfigId: external_exports.string().uuid().optional().nullable()
+}).superRefine((value, ctx) => {
+  if (!value.definitionKey && !value.definitionId) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["definitionId"],
+      message: "User secret value requires definitionId or definitionKey"
+    });
+  }
+  if (!value.value?.trim() && !value.externalRef?.trim()) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["value"],
+      message: "User secret value requires value or externalRef"
+    });
+  }
+});
+var updateUserSecretValueSchema = external_exports.object({
+  status: external_exports.enum(SECRET_STATUSES).optional(),
+  value: external_exports.string().min(1).optional().nullable(),
+  externalRef: external_exports.string().min(1).optional().nullable(),
+  providerVersionRef: external_exports.string().min(1).optional().nullable(),
+  providerConfigId: external_exports.string().uuid().optional().nullable()
+});
+var rotateUserSecretValueSchema = external_exports.object({
+  value: external_exports.string().min(1).optional().nullable(),
+  externalRef: external_exports.string().min(1).optional().nullable(),
+  providerVersionRef: external_exports.string().min(1).optional().nullable(),
+  providerConfigId: external_exports.string().uuid().optional().nullable()
+}).superRefine(requireSecretRotationInput);
+var createUserSecretDeclarationSchema = secretBindingTargetSchema.extend({
+  definitionKey: secretKeySchema,
+  envKey: external_exports.string().trim().min(1),
+  versionSelector: secretVersionSelectorSchema.default("latest"),
+  required: external_exports.boolean().default(true),
+  allowMissingOverride: external_exports.boolean().default(false),
+  label: external_exports.string().optional().nullable()
+});
+var safeShortText = external_exports.string().trim().min(1).max(160);
+var optionalSafeShortText = safeShortText.optional().nullable();
+var deniedProviderConfigKeyPattern = /^(access[-_]?key([-_]?id)?|secret[-_]?access[-_]?key|secret[-_]?key|token|password|passwd|credential|credentials|private[-_]?key|pem|jwt|session[-_]?token|service[-_]?account([-_]?json)?|client[-_]?secret|secret[-_]?id|unseal[-_]?key|recovery[-_]?key|key[-_]?file([-_]?path)?|token[-_]?file([-_]?path)?)$/i;
+function rejectSensitiveProviderConfigKeys(value, ctx) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return;
+  for (const key of Object.keys(value)) {
+    if (!deniedProviderConfigKeyPattern.test(key))
+      continue;
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["config", key],
+      message: `Provider vault config cannot persist sensitive field: ${key}`
+    });
+  }
+}
+var localEncryptedProviderConfigSchema = external_exports.object({
+  backupReminderAcknowledged: external_exports.boolean().optional()
+}).strict();
+var awsSecretsManagerProviderConfigSchema = external_exports.object({
+  region: external_exports.string().trim().regex(/^[a-z]{2}(?:-gov)?-[a-z]+-\d+$/, "Invalid AWS region"),
+  namespace: optionalSafeShortText,
+  secretNamePrefix: optionalSafeShortText,
+  kmsKeyId: external_exports.string().trim().min(1).max(512).optional().nullable(),
+  ownerTag: optionalSafeShortText,
+  environmentTag: optionalSafeShortText
+}).strict();
+var gcpSecretManagerProviderConfigSchema = external_exports.object({
+  projectId: external_exports.string().trim().min(1).max(128).regex(/^[a-z][a-z0-9-]{4,127}$/).optional().nullable(),
+  location: optionalSafeShortText,
+  namespace: optionalSafeShortText,
+  secretNamePrefix: optionalSafeShortText
+}).strict();
+var vaultAddressSchema = external_exports.preprocess((value) => typeof value === "string" ? value.trim() : value, external_exports.string().url().superRefine((value, ctx) => {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return;
+  }
+  const hasPath = url.pathname !== "" && url.pathname !== "/";
+  if (url.protocol !== "http:" && url.protocol !== "https:" || url.username || url.password || url.search || url.hash || hasPath) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "Vault address must be an origin-only HTTP(S) URL without credentials, path, query, or fragment"
+    });
+  }
+}).transform((value) => new URL(value).origin));
+function rejectUnsafeVaultAddress(value, ctx) {
+  if (value === void 0 || value === null)
+    return;
+  const parsed = vaultAddressSchema.safeParse(value);
+  if (parsed.success)
+    return;
+  for (const issue of parsed.error.issues) {
+    ctx.addIssue({
+      ...issue,
+      path: ["config", "address", ...issue.path]
+    });
+  }
+}
+var vaultProviderConfigSchema = external_exports.object({
+  address: vaultAddressSchema.optional().nullable(),
+  namespace: optionalSafeShortText,
+  mountPath: optionalSafeShortText,
+  secretPathPrefix: optionalSafeShortText
+}).strict();
+var secretProviderConfigPayloadSchema = external_exports.discriminatedUnion("provider", [
+  external_exports.object({ provider: external_exports.literal("local_encrypted"), config: localEncryptedProviderConfigSchema }),
+  external_exports.object({ provider: external_exports.literal("aws_secrets_manager"), config: awsSecretsManagerProviderConfigSchema }),
+  external_exports.object({ provider: external_exports.literal("gcp_secret_manager"), config: gcpSecretManagerProviderConfigSchema }),
+  external_exports.object({ provider: external_exports.literal("vault"), config: vaultProviderConfigSchema })
+]);
+var createSecretProviderConfigSchema = external_exports.object({
+  provider: external_exports.enum(SECRET_PROVIDERS),
+  displayName: external_exports.string().trim().min(1).max(120),
+  status: external_exports.enum(SECRET_PROVIDER_CONFIG_STATUSES).optional(),
+  isDefault: external_exports.boolean().optional(),
+  config: external_exports.record(external_exports.string(), external_exports.unknown()).default({})
+}).superRefine((value, ctx) => {
+  rejectSensitiveProviderConfigKeys(value.config, ctx);
+  const parsed = secretProviderConfigPayloadSchema.safeParse({
+    provider: value.provider,
+    config: value.config
+  });
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      ctx.addIssue({
+        ...issue,
+        path: issue.path[0] === "config" ? issue.path : ["config", ...issue.path]
+      });
+    }
+  }
+  const status = value.status ?? (["gcp_secret_manager", "vault"].includes(value.provider) ? "coming_soon" : "ready");
+  if ((value.provider === "gcp_secret_manager" || value.provider === "vault") && status !== "coming_soon" && status !== "disabled") {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["status"],
+      message: `${value.provider} provider vaults are locked while coming soon`
+    });
+  }
+  if ((status === "coming_soon" || status === "disabled") && value.isDefault) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["isDefault"],
+      message: "Only ready or warning provider vaults can be default"
+    });
+  }
+});
+var updateSecretProviderConfigSchema = external_exports.object({
+  displayName: external_exports.string().trim().min(1).max(120).optional(),
+  status: external_exports.enum(SECRET_PROVIDER_CONFIG_STATUSES).optional(),
+  isDefault: external_exports.boolean().optional(),
+  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+}).superRefine((value, ctx) => {
+  if (value.config !== void 0) {
+    rejectSensitiveProviderConfigKeys(value.config, ctx);
+    rejectUnsafeVaultAddress(value.config.address, ctx);
+  }
+  if ((value.status === "coming_soon" || value.status === "disabled") && value.isDefault) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["isDefault"],
+      message: "Only ready or warning provider vaults can be default"
+    });
+  }
+});
+var remoteSecretImportPreviewSchema = external_exports.object({
+  providerConfigId: external_exports.string().uuid(),
+  query: external_exports.string().trim().max(200).optional().nullable(),
+  nextToken: external_exports.string().trim().min(1).max(4096).optional().nullable(),
+  pageSize: external_exports.number().int().min(1).max(100).optional()
+});
+var secretProviderConfigDiscoveryPreviewSchema = external_exports.object({
+  provider: external_exports.enum(SECRET_PROVIDERS),
+  config: external_exports.record(external_exports.unknown()).default({}),
+  query: external_exports.string().trim().max(200).optional().nullable(),
+  nextToken: external_exports.string().trim().min(1).max(4096).optional().nullable(),
+  pageSize: external_exports.number().int().min(1).max(100).optional()
+}).superRefine((value, ctx) => {
+  rejectSensitiveProviderConfigKeys(value.config, ctx);
+  const parsed = secretProviderConfigPayloadSchema.safeParse({
+    provider: value.provider,
+    config: value.config
+  });
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      ctx.addIssue({
+        ...issue,
+        path: issue.path[0] === "config" ? issue.path : ["config", ...issue.path]
+      });
+    }
+  }
+});
+var remoteSecretImportSelectionSchema = external_exports.object({
+  externalRef: external_exports.string().trim().min(1).max(2048),
+  name: external_exports.string().trim().min(1).max(160).optional().nullable(),
+  key: external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/).optional().nullable(),
+  description: external_exports.string().trim().max(500).optional().nullable(),
+  providerVersionRef: external_exports.string().trim().min(1).max(512).optional().nullable(),
+  providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var remoteSecretImportSchema = external_exports.object({
+  providerConfigId: external_exports.string().uuid(),
+  secrets: external_exports.array(remoteSecretImportSelectionSchema).min(1).max(100)
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/routine-variables.js
 var HUMAN_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "long",
@@ -6739,7 +6819,7 @@ function isValidRoutineDateString(value) {
   return day >= 1 && day <= daysInMonth;
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/routine.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/routine.js
 var routineVariableValueSchema = external_exports.union([external_exports.string(), external_exports.number().finite(), external_exports.boolean()]);
 var routineVariableSchema = external_exports.object({
   name: external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/),
@@ -6784,6 +6864,7 @@ var routineVariableSchema = external_exports.object({
 });
 var createRoutineSchema = external_exports.object({
   projectId: external_exports.string().uuid().optional().nullable(),
+  folderId: external_exports.string().uuid().optional().nullable(),
   goalId: external_exports.string().uuid().optional().nullable(),
   parentIssueId: external_exports.string().uuid().optional().nullable(),
   title: external_exports.string().trim().min(1).max(200),
@@ -6803,6 +6884,7 @@ var routineRevisionSnapshotRoutineV1Schema = external_exports.object({
   id: external_exports.string().uuid(),
   companyId: external_exports.string().uuid(),
   projectId: external_exports.string().uuid().nullable(),
+  folderId: external_exports.string().uuid().nullable().optional(),
   goalId: external_exports.string().uuid().nullable(),
   parentIssueId: external_exports.string().uuid().nullable(),
   title: external_exports.string().trim().min(1).max(200),
@@ -6874,1349 +6956,27 @@ var runRoutineSchema = external_exports.object({
 });
 var rotateRoutineTriggerSecretSchema = external_exports.object({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/company-portability.js
-var portabilityIncludeSchema = external_exports.object({
-  company: external_exports.boolean().optional(),
-  agents: external_exports.boolean().optional(),
-  projects: external_exports.boolean().optional(),
-  issues: external_exports.boolean().optional(),
-  skills: external_exports.boolean().optional()
-}).partial();
-var portabilityEnvInputSchema = external_exports.object({
-  key: external_exports.string().min(1),
-  description: external_exports.string().nullable(),
-  agentSlug: external_exports.string().min(1).nullable(),
-  projectSlug: external_exports.string().min(1).nullable(),
-  kind: external_exports.enum(["secret", "plain"]),
-  requirement: external_exports.enum(["required", "optional"]),
-  defaultValue: external_exports.string().nullable(),
-  portability: external_exports.enum(["portable", "system_dependent"])
-});
-var portabilityFileEntrySchema = external_exports.union([
-  external_exports.string(),
-  external_exports.object({
-    encoding: external_exports.literal("base64"),
-    data: external_exports.string(),
-    contentType: external_exports.string().min(1).optional().nullable()
-  })
-]);
-var portabilityCompanyManifestEntrySchema = external_exports.object({
-  path: external_exports.string().min(1),
-  name: external_exports.string().min(1),
-  description: external_exports.string().nullable(),
-  brandColor: external_exports.string().nullable(),
-  logoPath: external_exports.string().nullable(),
-  attachmentMaxBytes: external_exports.number().int().min(1).max(MAX_COMPANY_ATTACHMENT_MAX_BYTES).nullable().default(null),
-  requireBoardApprovalForNewAgents: external_exports.boolean(),
-  feedbackDataSharingEnabled: external_exports.boolean().default(false),
-  feedbackDataSharingConsentAt: external_exports.string().datetime().nullable().default(null),
-  feedbackDataSharingConsentByUserId: external_exports.string().nullable().default(null),
-  feedbackDataSharingTermsVersion: external_exports.string().nullable().default(null)
-});
-var portabilitySidebarOrderSchema = external_exports.object({
-  agents: external_exports.array(external_exports.string().min(1)).default([]),
-  projects: external_exports.array(external_exports.string().min(1)).default([])
-});
-var portabilityAgentManifestEntrySchema = external_exports.object({
-  slug: external_exports.string().min(1),
-  name: external_exports.string().min(1),
-  path: external_exports.string().min(1),
-  skills: external_exports.array(external_exports.string().min(1)).default([]),
-  role: external_exports.string().min(1),
-  title: external_exports.string().nullable(),
-  icon: external_exports.string().nullable(),
-  capabilities: external_exports.string().nullable(),
-  reportsToSlug: external_exports.string().min(1).nullable(),
-  adapterType: external_exports.string().min(1),
-  adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()),
-  runtimeConfig: external_exports.record(external_exports.string(), external_exports.unknown()),
-  permissions: external_exports.record(external_exports.string(), external_exports.unknown()),
-  budgetMonthlyCents: external_exports.number().int().nonnegative(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable()
-});
-var portabilitySkillManifestEntrySchema = external_exports.object({
-  key: external_exports.string().min(1),
-  slug: external_exports.string().min(1),
-  name: external_exports.string().min(1),
-  path: external_exports.string().min(1),
-  description: external_exports.string().nullable(),
-  sourceType: external_exports.string().min(1),
-  sourceLocator: external_exports.string().nullable(),
-  sourceRef: external_exports.string().nullable(),
-  trustLevel: external_exports.string().nullable(),
-  compatibility: external_exports.string().nullable(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-  fileInventory: external_exports.array(external_exports.object({
-    path: external_exports.string().min(1),
-    kind: external_exports.string().min(1)
-  })).default([])
-});
-var portabilityProjectManifestEntrySchema = external_exports.object({
-  slug: external_exports.string().min(1),
-  name: external_exports.string().min(1),
-  path: external_exports.string().min(1),
-  description: external_exports.string().nullable(),
-  ownerAgentSlug: external_exports.string().min(1).nullable(),
-  leadAgentSlug: external_exports.string().min(1).nullable(),
-  targetDate: external_exports.string().nullable(),
-  color: external_exports.string().nullable(),
-  status: external_exports.string().nullable(),
-  executionWorkspacePolicy: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-  workspaces: external_exports.array(external_exports.object({
-    key: external_exports.string().min(1),
-    name: external_exports.string().min(1),
-    sourceType: external_exports.string().nullable(),
-    repoUrl: external_exports.string().nullable(),
-    repoRef: external_exports.string().nullable(),
-    defaultRef: external_exports.string().nullable(),
-    visibility: external_exports.string().nullable(),
-    setupCommand: external_exports.string().nullable(),
-    cleanupCommand: external_exports.string().nullable(),
-    metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-    isPrimary: external_exports.boolean()
-  })).default([]),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable()
-});
-var portabilityIssueRoutineTriggerManifestEntrySchema = external_exports.object({
-  kind: external_exports.string().min(1),
-  label: external_exports.string().nullable(),
-  enabled: external_exports.boolean(),
-  cronExpression: external_exports.string().nullable(),
-  timezone: external_exports.string().nullable(),
-  signingMode: external_exports.string().nullable(),
-  replayWindowSec: external_exports.number().int().nullable()
-});
-var portabilityIssueRoutineManifestEntrySchema = external_exports.object({
-  concurrencyPolicy: external_exports.string().nullable(),
-  catchUpPolicy: external_exports.string().nullable(),
-  variables: external_exports.array(routineVariableSchema).nullable().optional(),
-  triggers: external_exports.array(portabilityIssueRoutineTriggerManifestEntrySchema).default([])
-});
-var portabilityIssueCommentManifestEntrySchema = external_exports.object({
-  body: external_exports.string().min(1),
-  authorType: issueCommentAuthorTypeSchema,
-  authorAgentSlug: external_exports.string().min(1).nullable(),
-  authorUserId: external_exports.string().nullable(),
-  presentation: issueCommentPresentationSchema.nullable(),
-  metadata: issueCommentMetadataSchema.nullable(),
-  createdAt: external_exports.string().datetime().nullable()
-});
-var portabilityIssueManifestEntrySchema = external_exports.object({
-  slug: external_exports.string().min(1),
-  identifier: external_exports.string().min(1).nullable(),
-  title: external_exports.string().min(1),
-  path: external_exports.string().min(1),
-  projectSlug: external_exports.string().min(1).nullable(),
-  projectWorkspaceKey: external_exports.string().min(1).nullable(),
-  assigneeAgentSlug: external_exports.string().min(1).nullable(),
-  description: external_exports.string().nullable(),
-  recurring: external_exports.boolean().default(false),
-  routine: portabilityIssueRoutineManifestEntrySchema.nullable(),
-  legacyRecurrence: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-  status: external_exports.string().nullable(),
-  priority: external_exports.string().nullable(),
-  labelIds: external_exports.array(external_exports.string().min(1)).default([]),
-  billingCode: external_exports.string().nullable(),
-  executionWorkspaceSettings: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-  assigneeAdapterOverrides: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
-  comments: external_exports.array(portabilityIssueCommentManifestEntrySchema).default([]),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable()
-});
-var portabilityManifestSchema = external_exports.object({
-  schemaVersion: external_exports.number().int().positive(),
-  generatedAt: external_exports.string().datetime(),
-  source: external_exports.object({
-    companyId: external_exports.string().uuid(),
-    companyName: external_exports.string().min(1)
-  }).nullable(),
-  includes: external_exports.object({
-    company: external_exports.boolean(),
-    agents: external_exports.boolean(),
-    projects: external_exports.boolean(),
-    issues: external_exports.boolean(),
-    skills: external_exports.boolean()
-  }),
-  company: portabilityCompanyManifestEntrySchema.nullable(),
-  sidebar: portabilitySidebarOrderSchema.nullable(),
-  agents: external_exports.array(portabilityAgentManifestEntrySchema),
-  skills: external_exports.array(portabilitySkillManifestEntrySchema).default([]),
-  projects: external_exports.array(portabilityProjectManifestEntrySchema).default([]),
-  issues: external_exports.array(portabilityIssueManifestEntrySchema).default([]),
-  envInputs: external_exports.array(portabilityEnvInputSchema).default([])
-});
-var portabilitySourceSchema = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("inline"),
-    rootPath: external_exports.string().min(1).optional().nullable(),
-    files: external_exports.record(external_exports.string(), portabilityFileEntrySchema)
-  }),
-  external_exports.object({
-    type: external_exports.literal("github"),
-    url: external_exports.string().url()
-  })
-]);
-var portabilityTargetSchema = external_exports.discriminatedUnion("mode", [
-  external_exports.object({
-    mode: external_exports.literal("new_company"),
-    newCompanyName: external_exports.string().min(1).optional().nullable()
-  }),
-  external_exports.object({
-    mode: external_exports.literal("existing_company"),
-    companyId: external_exports.string().uuid()
-  })
-]);
-var portabilityAgentSelectionSchema = external_exports.union([
-  external_exports.literal("all"),
-  external_exports.array(external_exports.string().min(1))
-]);
-var portabilityCollisionStrategySchema = external_exports.enum(["rename", "skip", "replace"]);
-var companyPortabilityExportSchema = external_exports.object({
-  include: portabilityIncludeSchema.optional(),
-  agents: external_exports.array(external_exports.string().min(1)).optional(),
-  skills: external_exports.array(external_exports.string().min(1)).optional(),
-  projects: external_exports.array(external_exports.string().min(1)).optional(),
-  issues: external_exports.array(external_exports.string().min(1)).optional(),
-  projectIssues: external_exports.array(external_exports.string().min(1)).optional(),
-  selectedFiles: external_exports.array(external_exports.string().min(1)).optional(),
-  expandReferencedSkills: external_exports.boolean().optional(),
-  sidebarOrder: portabilitySidebarOrderSchema.partial().optional()
-});
-var companyPortabilityPreviewSchema = external_exports.object({
-  source: portabilitySourceSchema,
-  include: portabilityIncludeSchema.optional(),
-  target: portabilityTargetSchema,
-  agents: portabilityAgentSelectionSchema.optional(),
-  collisionStrategy: portabilityCollisionStrategySchema.optional(),
-  nameOverrides: external_exports.record(external_exports.string().min(1), external_exports.string().min(1)).optional(),
-  selectedFiles: external_exports.array(external_exports.string().min(1)).optional()
-});
-var portabilityAdapterOverrideSchema = external_exports.object({
-  adapterType: external_exports.string().min(1),
-  adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
-});
-var companyPortabilityImportSchema = companyPortabilityPreviewSchema.extend({
-  adapterOverrides: external_exports.record(external_exports.string().min(1), portabilityAdapterOverrideSchema).optional(),
-  secretValues: external_exports.record(external_exports.string().min(1), external_exports.string()).optional()
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
-var catalogTeamKindSchema = external_exports.enum(["bundled", "optional"]);
-var catalogTeamTrustLevelSchema = external_exports.enum([
-  "markdown_only",
-  "assets",
-  "scripts_executables",
-  "external_sources"
-]);
-var catalogTeamCompatibilitySchema = external_exports.enum(["compatible", "unknown", "invalid"]);
-var catalogTeamFileKindSchema = external_exports.enum([
-  "team",
-  "agent",
-  "project",
-  "task",
-  "skill",
-  "extension",
-  "readme",
-  "reference",
-  "script",
-  "asset",
-  "markdown",
-  "other"
-]);
-var catalogTeamSkillRequirementTypeSchema = external_exports.enum([
-  "catalog",
-  "local",
-  "skills_sh",
-  "github",
-  "url",
-  "local_path",
-  "agent_package"
-]);
-var catalogTeamSkillRequirementSchema = external_exports.object({
-  type: catalogTeamSkillRequirementTypeSchema,
-  ref: external_exports.string().min(1),
-  agentSlugs: external_exports.array(external_exports.string().min(1)),
-  resolved: external_exports.boolean(),
-  catalogSkillId: external_exports.string().min(1).optional(),
-  catalogSkillKey: external_exports.string().min(1).optional(),
-  localPath: external_exports.string().min(1).optional(),
-  sourceLocator: external_exports.string().min(1).optional(),
-  sourceRef: external_exports.string().min(1).optional()
-});
-var catalogTeamEnvInputSummarySchema = external_exports.object({
-  key: external_exports.string().min(1),
-  agentSlug: external_exports.string().min(1).nullable(),
-  projectSlug: external_exports.string().min(1).nullable(),
-  kind: external_exports.enum(["secret", "plain"]),
-  requirement: external_exports.enum(["required", "optional"])
-});
-var catalogTeamSourceRefSchema = external_exports.object({
-  type: external_exports.enum(["skills_sh", "github", "url", "local_path", "agent_package", "include"]),
-  ref: external_exports.string().min(1),
-  pinned: external_exports.boolean()
-});
-var catalogTeamFileSchema = external_exports.object({
-  path: external_exports.string().min(1),
-  kind: catalogTeamFileKindSchema,
-  sizeBytes: external_exports.number().int().nonnegative(),
-  sha256: external_exports.string().min(1)
-});
-var catalogTeamSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  key: external_exports.string().min(1),
-  kind: catalogTeamKindSchema,
-  category: external_exports.string().min(1),
-  slug: external_exports.string().min(1),
-  name: external_exports.string().min(1),
-  description: external_exports.string(),
-  path: external_exports.string().min(1),
-  entrypoint: external_exports.literal("TEAM.md"),
-  schema: external_exports.literal("agentcompanies/v1"),
-  defaultInstall: external_exports.boolean(),
-  recommendedForCompanyTypes: external_exports.array(external_exports.string()),
-  tags: external_exports.array(external_exports.string()),
-  counts: external_exports.object({
-    agents: external_exports.number().int().nonnegative(),
-    projects: external_exports.number().int().nonnegative(),
-    tasks: external_exports.number().int().nonnegative(),
-    routines: external_exports.number().int().nonnegative(),
-    localSkills: external_exports.number().int().nonnegative(),
-    catalogSkills: external_exports.number().int().nonnegative(),
-    externalSkillSources: external_exports.number().int().nonnegative()
-  }),
-  rootAgentSlugs: external_exports.array(external_exports.string()),
-  agentSlugs: external_exports.array(external_exports.string()),
-  projectSlugs: external_exports.array(external_exports.string()),
-  requiredSkills: external_exports.array(catalogTeamSkillRequirementSchema),
-  envInputs: external_exports.array(catalogTeamEnvInputSummarySchema),
-  sourceRefs: external_exports.array(catalogTeamSourceRefSchema),
-  files: external_exports.array(catalogTeamFileSchema),
-  trustLevel: catalogTeamTrustLevelSchema,
-  compatibility: catalogTeamCompatibilitySchema,
-  contentHash: external_exports.string().min(1),
-  packageName: external_exports.string().min(1).optional(),
-  packageVersion: external_exports.string().min(1).optional()
-});
-var catalogTeamListQuerySchema = external_exports.object({
-  kind: catalogTeamKindSchema.optional(),
-  category: external_exports.string().min(1).optional(),
-  q: external_exports.string().min(1).optional()
-});
-var catalogTeamFileDetailSchema = external_exports.object({
-  catalogTeamId: external_exports.string().min(1),
-  path: external_exports.string().min(1),
-  kind: catalogTeamFileKindSchema,
-  content: external_exports.string(),
-  language: external_exports.string().nullable(),
-  markdown: external_exports.boolean()
-});
-var catalogTeamSourcePolicySchema = external_exports.object({
-  allowExternalSources: external_exports.boolean().optional(),
-  allowUnpinnedOptionalSources: external_exports.boolean().optional(),
-  allowLocalPathSources: external_exports.boolean().optional()
-}).strict();
-var catalogTeamPreviewSchema = external_exports.object({
-  targetManagerAgentId: external_exports.string().min(1).nullable().optional(),
-  targetManagerSlug: external_exports.string().min(1).nullable().optional(),
-  include: portabilityIncludeSchema.omit({ company: true }).strict().optional(),
-  agents: portabilityAgentSelectionSchema.optional(),
-  collisionStrategy: portabilityCollisionStrategySchema.optional(),
-  nameOverrides: external_exports.record(external_exports.string().min(1), external_exports.string().min(1)).optional(),
-  selectedFiles: external_exports.array(external_exports.string().min(1)).optional(),
-  sourcePolicy: catalogTeamSourcePolicySchema.optional()
-}).strict();
-var catalogTeamInstallSchema = catalogTeamPreviewSchema.extend({
-  adapterOverrides: external_exports.record(external_exports.string().min(1), portabilityAdapterOverrideSchema).optional(),
-  secretValues: external_exports.record(external_exports.string().min(1), external_exports.string()).optional()
-}).strict();
-var catalogTeamSkillPreparationSchema = external_exports.object({
-  type: catalogTeamSkillRequirementTypeSchema,
-  ref: external_exports.string().min(1),
-  agentSlugs: external_exports.array(external_exports.string().min(1)),
-  action: external_exports.enum([
-    "already_in_package",
-    "catalog_install_required",
-    "external_import_required",
-    "blocked"
-  ]),
-  catalogSkillId: external_exports.string().min(1).nullable(),
-  catalogSkillKey: external_exports.string().min(1).nullable(),
-  sourceLocator: external_exports.string().min(1).nullable(),
-  sourceRef: external_exports.string().min(1).nullable(),
-  reason: external_exports.string().min(1).nullable()
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
-var agentSkillStateSchema = external_exports.enum([
-  "available",
-  "configured",
-  "installed",
-  "missing",
-  "stale",
-  "external"
-]);
-var agentSkillOriginSchema = external_exports.enum([
-  "company_managed",
-  "user_installed",
-  "external_unknown"
-]);
-var agentSkillSyncModeSchema = external_exports.enum([
-  "unsupported",
-  "persistent",
-  "ephemeral"
-]);
-var agentDesiredSkillEntrySchema = external_exports.object({
-  key: external_exports.string().min(1),
-  versionId: external_exports.string().uuid().nullable()
-});
-var agentDesiredSkillSelectionSchema = external_exports.union([
-  external_exports.string().min(1),
-  agentDesiredSkillEntrySchema
-]);
-var agentSkillEntrySchema = external_exports.object({
-  key: external_exports.string().min(1),
-  runtimeName: external_exports.string().min(1).nullable(),
-  versionId: external_exports.string().uuid().nullable().optional(),
-  currentVersionId: external_exports.string().uuid().nullable().optional(),
-  desired: external_exports.boolean(),
-  managed: external_exports.boolean(),
-  state: agentSkillStateSchema,
-  origin: agentSkillOriginSchema.optional(),
-  originLabel: external_exports.string().nullable().optional(),
-  locationLabel: external_exports.string().nullable().optional(),
-  readOnly: external_exports.boolean().optional(),
-  sourcePath: external_exports.string().nullable().optional(),
-  targetPath: external_exports.string().nullable().optional(),
-  detail: external_exports.string().nullable().optional()
-});
-var agentSkillSnapshotSchema = external_exports.object({
-  adapterType: external_exports.string().min(1),
-  supported: external_exports.boolean(),
-  mode: agentSkillSyncModeSchema,
-  desiredSkills: external_exports.array(external_exports.string().min(1)),
-  desiredSkillEntries: external_exports.array(agentDesiredSkillEntrySchema).optional(),
-  entries: external_exports.array(agentSkillEntrySchema),
-  warnings: external_exports.array(external_exports.string())
-});
-var agentSkillSyncSchema = external_exports.object({
-  desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema)
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/agent.js
-var agentPermissionsSchema = external_exports.object({
-  canCreateAgents: external_exports.boolean().optional().default(false),
-  canCreateSkills: external_exports.boolean().optional().default(true),
-  trustPreset: trustPresetSchema.optional(),
-  authorizationPolicy: trustAuthorizationPolicySchema.optional()
-}).catchall(external_exports.unknown());
-var agentInstructionsBundleModeSchema = external_exports.enum(["managed", "external"]);
-var updateAgentInstructionsBundleSchema = external_exports.object({
-  mode: agentInstructionsBundleModeSchema.optional(),
-  rootPath: external_exports.string().trim().min(1).nullable().optional(),
-  entryFile: external_exports.string().trim().min(1).optional(),
-  clearLegacyPromptTemplate: external_exports.boolean().optional().default(false)
-});
-var upsertAgentInstructionsFileSchema = external_exports.object({
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/external-object.js
+var externalObjectStatusCategorySchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_CATEGORIES);
+var externalObjectStatusToneSchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_TONES);
+var externalObjectLivenessStateSchema = external_exports.enum(EXTERNAL_OBJECT_LIVENESS_STATES);
+var externalObjectMentionSourceKindSchema = external_exports.enum(EXTERNAL_OBJECT_MENTION_SOURCE_KINDS);
+var externalObjectMentionConfidenceSchema = external_exports.enum(EXTERNAL_OBJECT_MENTION_CONFIDENCES);
+var externalObjectProviderKeySchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z][a-z0-9_.-]*$/);
+var externalObjectTypeSchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z][a-z0-9_]*$/);
+var externalObjectCanonicalIdentitySchema = external_exports.object({
+  scheme: external_exports.enum(["http", "https"]),
+  host: external_exports.string().trim().min(1),
   path: external_exports.string().trim().min(1),
-  content: external_exports.string(),
-  clearLegacyPromptTemplate: external_exports.boolean().optional().default(false)
-});
-var adapterConfigSchema = external_exports.record(external_exports.string(), external_exports.unknown()).superRefine((value, ctx) => {
-  const envValue = value.env;
-  if (envValue === void 0)
-    return;
-  const parsed = envConfigSchema.safeParse(envValue);
-  if (!parsed.success) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "adapterConfig.env must be a map of valid env bindings",
-      path: ["env"]
-    });
-  }
-});
-var createAgentInstructionsBundleSchema = external_exports.object({
-  entryFile: external_exports.string().trim().min(1).optional(),
-  files: external_exports.record(external_exports.string(), external_exports.string()).refine((files) => Object.keys(files).length > 0, {
-    message: "instructionsBundle.files must contain at least one file"
-  })
-});
-var agentModelProfileConfigSchema = external_exports.object({
-  enabled: external_exports.boolean().optional(),
-  label: external_exports.string().trim().min(1).optional(),
-  adapterConfig: adapterConfigSchema
+  queryParamHashes: external_exports.record(external_exports.string().regex(/^[a-f0-9]{64}$/)).optional()
 }).strict();
-var agentRuntimeConfigSchema = external_exports.object({
-  modelProfiles: external_exports.object({
-    cheap: agentModelProfileConfigSchema.optional()
-  }).strict().optional()
-}).catchall(external_exports.unknown());
-var createAgentSchema = external_exports.object({
-  name: external_exports.string().min(1),
-  role: external_exports.enum(AGENT_ROLES).optional().default("general"),
-  title: external_exports.string().optional().nullable(),
-  icon: external_exports.enum(AGENT_ICON_NAMES).optional().nullable(),
-  reportsTo: external_exports.string().uuid().optional().nullable(),
-  capabilities: external_exports.string().optional().nullable(),
-  desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema).optional(),
-  adapterType: agentAdapterTypeSchema,
-  adapterConfig: adapterConfigSchema.optional().default({}),
-  instructionsBundle: createAgentInstructionsBundleSchema.optional(),
-  runtimeConfig: agentRuntimeConfigSchema.optional().default({}),
-  defaultEnvironmentId: external_exports.string().uuid().optional().nullable(),
-  budgetMonthlyCents: external_exports.number().int().nonnegative().optional().default(0),
-  permissions: agentPermissionsSchema.optional(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-});
-var createAgentHireSchema = createAgentSchema.extend({
-  sourceIssueId: external_exports.string().uuid().optional().nullable(),
-  sourceIssueIds: external_exports.array(external_exports.string().uuid()).optional()
-});
-var updateAgentSchema = createAgentSchema.omit({ permissions: true }).partial().extend({
-  permissions: external_exports.never().optional(),
-  replaceAdapterConfig: external_exports.boolean().optional(),
-  status: external_exports.enum(AGENT_STATUSES).optional(),
-  spentMonthlyCents: external_exports.number().int().nonnegative().optional()
-});
-var updateAgentInstructionsPathSchema = external_exports.object({
-  path: external_exports.string().trim().min(1).nullable(),
-  adapterConfigKey: external_exports.string().trim().min(1).optional()
-});
-var taskBridgeAgentKeyScopeSchema = external_exports.object({
-  kind: external_exports.literal("task_bridge"),
-  projectId: external_exports.string().uuid().optional().nullable(),
-  projectIds: external_exports.array(external_exports.string().uuid()).max(50).optional(),
-  parentIssueId: external_exports.string().uuid().optional().nullable(),
-  parentIssueIds: external_exports.array(external_exports.string().uuid()).max(50).optional(),
-  allowedAssigneeAgentIds: external_exports.array(external_exports.string().uuid()).max(50).optional()
-}).strict().superRefine((value, ctx) => {
-  const hasProjectBoundary = Boolean(value.projectId) || Boolean(value.projectIds?.length);
-  const hasParentBoundary = Boolean(value.parentIssueId) || Boolean(value.parentIssueIds?.length);
-  if (!hasProjectBoundary && !hasParentBoundary) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "task_bridge keys require at least one project or parent issue boundary",
-      path: ["projectId"]
-    });
-  }
-});
-var standardAgentKeyScopeSchema = external_exports.object({
-  kind: external_exports.literal("standard")
-}).strict();
-var agentApiKeyScopeSchema = external_exports.union([
-  standardAgentKeyScopeSchema,
-  taskBridgeAgentKeyScopeSchema
-]);
-var createAgentKeySchema = external_exports.object({
-  name: external_exports.string().min(1).default("default"),
-  scope: agentApiKeyScopeSchema.optional().default({ kind: "standard" })
-});
-var agentMineInboxQuerySchema = external_exports.object({
-  userId: external_exports.string().trim().min(1),
-  status: external_exports.string().trim().min(1).optional().default(INBOX_MINE_ISSUE_STATUS_FILTER)
-});
-var wakeAgentSchema = external_exports.object({
-  source: external_exports.enum(["timer", "assignment", "on_demand", "automation"]).optional().default("on_demand"),
-  triggerDetail: external_exports.enum(["manual", "ping", "callback", "system"]).optional(),
-  reason: external_exports.string().optional().nullable(),
-  payload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  idempotencyKey: external_exports.string().optional().nullable(),
-  forceFreshSession: external_exports.preprocess((value) => value === null ? void 0 : value, external_exports.boolean().optional().default(false))
-});
-var resetAgentSessionSchema = external_exports.object({
-  taskKey: external_exports.string().min(1).optional().nullable()
-});
-var testAdapterEnvironmentSchema = external_exports.object({
-  adapterConfig: adapterConfigSchema.optional().default({}),
-  /**
-   * Optional environment to run the adapter test inside. When omitted, the
-   * test runs against the local Paperclip host. When provided and the
-   * environment is non-local (SSH/sandbox), the test probes are executed
-   * inside that environment so the result reflects real agent execution.
-   */
-  environmentId: external_exports.string().uuid().optional().nullable()
-});
-var updateAgentPermissionsSchema = external_exports.object({
-  canCreateAgents: external_exports.boolean(),
-  canCreateSkills: external_exports.boolean().optional(),
-  canAssignTasks: external_exports.boolean(),
-  trustPreset: trustPresetSchema.optional(),
-  authorizationPolicy: trustAuthorizationPolicySchema.optional()
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/project.js
-var executionWorkspaceStrategySchema2 = external_exports.object({
-  type: external_exports.enum(["project_primary", "git_worktree", "adapter_managed", "cloud_sandbox"]).optional(),
-  baseRef: external_exports.string().optional().nullable(),
-  branchTemplate: external_exports.string().optional().nullable(),
-  worktreeParentDir: external_exports.string().optional().nullable(),
-  provisionCommand: external_exports.string().optional().nullable(),
-  teardownCommand: external_exports.string().optional().nullable()
-}).strict();
-var projectExecutionWorkspacePolicySchema = external_exports.object({
-  enabled: external_exports.boolean(),
-  defaultMode: external_exports.enum(["shared_workspace", "isolated_workspace", "operator_branch", "adapter_default"]).optional(),
-  allowIssueOverride: external_exports.boolean().optional(),
-  defaultProjectWorkspaceId: external_exports.string().uuid().optional().nullable(),
-  environmentId: external_exports.string().uuid().optional().nullable(),
-  workspaceStrategy: executionWorkspaceStrategySchema2.optional().nullable(),
-  workspaceRuntime: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  branchPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  pullRequestPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  runtimePolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  cleanupPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  authorizationPolicy: trustAuthorizationPolicySchema.optional().nullable()
-}).strict();
-var projectWorkspaceRuntimeConfigSchema = external_exports.object({
-  workspaceRuntime: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  desiredState: external_exports.enum(["running", "stopped", "manual"]).optional().nullable(),
-  serviceStates: external_exports.record(external_exports.enum(["running", "stopped", "manual"])).optional().nullable()
-}).strict();
-var projectWorkspaceSourceTypeSchema = external_exports.enum(["local_path", "git_repo", "remote_managed", "non_git_path"]);
-var projectWorkspaceVisibilitySchema = external_exports.enum(["default", "advanced"]);
-var projectWorkspaceFields = {
-  name: external_exports.string().min(1).optional(),
-  sourceType: projectWorkspaceSourceTypeSchema.optional(),
-  cwd: external_exports.string().min(1).optional().nullable(),
-  repoUrl: external_exports.string().url().optional().nullable(),
-  repoRef: external_exports.string().optional().nullable(),
-  defaultRef: external_exports.string().optional().nullable(),
-  visibility: projectWorkspaceVisibilitySchema.optional(),
-  setupCommand: external_exports.string().optional().nullable(),
-  cleanupCommand: external_exports.string().optional().nullable(),
-  remoteProvider: external_exports.string().optional().nullable(),
-  remoteWorkspaceRef: external_exports.string().optional().nullable(),
-  sharedWorkspaceKey: external_exports.string().optional().nullable(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  runtimeConfig: projectWorkspaceRuntimeConfigSchema.optional().nullable()
-};
-function validateProjectWorkspace(value, ctx) {
-  const sourceType = value.sourceType ?? "local_path";
-  const hasCwd = typeof value.cwd === "string" && value.cwd.trim().length > 0;
-  const hasRepo = typeof value.repoUrl === "string" && value.repoUrl.trim().length > 0;
-  const hasRemoteRef = typeof value.remoteWorkspaceRef === "string" && value.remoteWorkspaceRef.trim().length > 0;
-  if (sourceType === "remote_managed") {
-    if (!hasRemoteRef && !hasRepo) {
-      ctx.addIssue({
-        code: external_exports.ZodIssueCode.custom,
-        message: "Remote-managed workspace requires remoteWorkspaceRef or repoUrl.",
-        path: ["remoteWorkspaceRef"]
-      });
-    }
-    return;
-  }
-  if (!hasCwd && !hasRepo) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "Workspace requires at least one of cwd or repoUrl.",
-      path: ["cwd"]
-    });
-  }
-}
-var createProjectWorkspaceSchema = external_exports.object({
-  ...projectWorkspaceFields,
-  isPrimary: external_exports.boolean().optional().default(false)
-}).superRefine(validateProjectWorkspace);
-var updateProjectWorkspaceSchema = external_exports.object({
-  ...projectWorkspaceFields,
-  isPrimary: external_exports.boolean().optional()
-}).partial();
-var projectFields = {
-  /** @deprecated Use goalIds instead */
-  goalId: external_exports.string().uuid().optional().nullable(),
-  goalIds: external_exports.array(external_exports.string().uuid()).optional(),
-  name: external_exports.string().min(1),
-  description: external_exports.string().optional().nullable(),
-  status: external_exports.enum(PROJECT_STATUSES).optional().default("backlog"),
-  leadAgentId: external_exports.string().uuid().optional().nullable(),
-  targetDate: external_exports.string().optional().nullable(),
-  color: external_exports.string().optional().nullable(),
-  icon: external_exports.enum(PROJECT_ICON_NAMES).optional().nullable(),
-  env: envConfigSchema.optional().nullable(),
-  executionWorkspacePolicy: projectExecutionWorkspacePolicySchema.optional().nullable(),
-  archivedAt: external_exports.string().datetime().optional().nullable()
-};
-var createProjectSchema = external_exports.object({
-  ...projectFields,
-  workspace: createProjectWorkspaceSchema.optional()
-});
-var updateProjectSchema = external_exports.object(projectFields).partial();
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
-var documentAnnotationThreadStatusSchema = external_exports.enum(DOCUMENT_ANNOTATION_THREAD_STATUSES);
-var documentAnnotationAnchorStateSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_STATES);
-var documentAnnotationAnchorConfidenceSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_CONFIDENCES);
-var documentAnnotationTextQuoteSelectorSchema = external_exports.object({
-  exact: external_exports.string().min(1).max(1e4),
-  prefix: external_exports.string().max(1e3).default(""),
-  suffix: external_exports.string().max(1e3).default("")
-}).strict();
-var documentAnnotationTextPositionSelectorSchema = external_exports.object({
-  normalizedStart: external_exports.number().int().nonnegative(),
-  normalizedEnd: external_exports.number().int().nonnegative(),
-  markdownStart: external_exports.number().int().nonnegative(),
-  markdownEnd: external_exports.number().int().nonnegative()
-}).strict().superRefine((value, ctx) => {
-  if (value.normalizedEnd <= value.normalizedStart) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "normalizedEnd must be greater than normalizedStart",
-      path: ["normalizedEnd"]
-    });
-  }
-  if (value.markdownEnd <= value.markdownStart) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "markdownEnd must be greater than markdownStart",
-      path: ["markdownEnd"]
-    });
-  }
-});
-var documentAnnotationAnchorSelectorSchema = external_exports.object({
-  quote: documentAnnotationTextQuoteSelectorSchema,
-  position: documentAnnotationTextPositionSelectorSchema
-}).strict();
-var createDocumentAnnotationThreadSchema = external_exports.object({
-  baseRevisionId: external_exports.string().uuid(),
-  baseRevisionNumber: external_exports.number().int().positive(),
-  selector: documentAnnotationAnchorSelectorSchema,
-  body: multilineTextSchema.pipe(external_exports.string().min(1).max(2e4)),
-  issueCommentId: external_exports.string().uuid().nullable().optional()
-}).strict();
-var createDocumentAnnotationCommentSchema = external_exports.object({
-  body: multilineTextSchema.pipe(external_exports.string().min(1).max(2e4)),
-  issueCommentId: external_exports.string().uuid().nullable().optional()
-}).strict();
-var updateDocumentAnnotationThreadSchema = external_exports.object({
-  status: documentAnnotationThreadStatusSchema.optional()
-}).strict().refine((value) => value.status != null, {
-  message: "At least one field must be provided"
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/search.js
-var COMPANY_SEARCH_MAX_QUERY_LENGTH = 200;
-var COMPANY_SEARCH_DEFAULT_LIMIT = 20;
-var COMPANY_SEARCH_MAX_LIMIT = 50;
-var COMPANY_SEARCH_MAX_OFFSET = 200;
-function firstQueryValue(value) {
-  return Array.isArray(value) ? value[0] : value;
-}
-function clampInteger(value, fallback, min, max) {
-  const raw = firstQueryValue(value);
-  const numeric = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim().length > 0 ? Number.parseInt(raw, 10) : Number.NaN;
-  if (!Number.isFinite(numeric))
-    return fallback;
-  return Math.min(max, Math.max(min, Math.floor(numeric)));
-}
-var companySearchQuerySchema = external_exports.object({
-  q: external_exports.preprocess(firstQueryValue, external_exports.string().optional().default("")).transform((value) => value.slice(0, COMPANY_SEARCH_MAX_QUERY_LENGTH)),
-  scope: external_exports.preprocess(firstQueryValue, external_exports.enum(COMPANY_SEARCH_SCOPES).catch("all")).optional().default("all"),
-  limit: external_exports.unknown().optional().transform((value) => clampInteger(value, COMPANY_SEARCH_DEFAULT_LIMIT, 1, COMPANY_SEARCH_MAX_LIMIT)),
-  offset: external_exports.unknown().optional().transform((value) => clampInteger(value, 0, 0, COMPANY_SEARCH_MAX_OFFSET))
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
-var issueTreeControlModeSchema = external_exports.enum(ISSUE_TREE_CONTROL_MODES);
-var issueTreeHoldReleasePolicySchema = external_exports.object({
-  strategy: external_exports.enum(ISSUE_TREE_HOLD_RELEASE_POLICY_STRATEGIES).default("manual"),
-  note: external_exports.string().trim().min(1).max(500).optional().nullable()
-}).strict();
-var previewIssueTreeControlSchema = external_exports.object({
-  mode: issueTreeControlModeSchema,
-  releasePolicy: issueTreeHoldReleasePolicySchema.optional().nullable()
-}).strict();
-var createIssueTreeHoldSchema = external_exports.object({
-  mode: issueTreeControlModeSchema,
-  reason: external_exports.string().trim().min(1).max(1e3).optional().nullable(),
-  releasePolicy: issueTreeHoldReleasePolicySchema.optional().nullable(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-}).strict();
-var releaseIssueTreeHoldSchema = external_exports.object({
-  reason: external_exports.string().trim().min(1).max(1e3).optional().nullable(),
-  releasePolicy: issueTreeHoldReleasePolicySchema.optional().nullable(),
-  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+var externalObjectMentionSourceSchema = external_exports.object({
+  sourceKind: externalObjectMentionSourceKindSchema,
+  documentKey: external_exports.string().trim().min(1).optional().nullable(),
+  propertyKey: external_exports.string().trim().min(1).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
-var workspaceFileListSearchMaxBytes = 128;
-function utf8ByteLength(value) {
-  return new TextEncoder().encode(value).length;
-}
-var workspaceFileWorkspaceKindSchema = external_exports.enum(["execution_workspace", "project_workspace"]);
-var workspaceFileSelectorSchema = external_exports.enum(["auto", "execution", "project"]).default("auto");
-var workspaceFileListModeSchema = external_exports.enum(["all", "recent", "changed"]).default("all");
-var workspaceFilePreviewKindSchema = external_exports.enum(["text", "image", "video", "pdf", "unsupported"]);
-var workspaceFileResourceKindSchema = external_exports.enum(["file", "directory", "remote_resource"]);
-var workspaceFileRefSchema = external_exports.object({
-  kind: external_exports.literal("workspace_file"),
-  issueId: external_exports.string().uuid().optional(),
-  projectId: external_exports.string().uuid().optional(),
-  projectName: external_exports.string().min(1).optional(),
-  workspaceKind: workspaceFileWorkspaceKindSchema,
-  workspaceId: external_exports.string().uuid(),
-  relativePath: external_exports.string().min(1),
-  line: external_exports.number().int().positive().nullable().optional(),
-  column: external_exports.number().int().positive().nullable().optional(),
-  displayPath: external_exports.string().min(1)
-});
-var workspaceFileResourceQuerySchema = external_exports.object({
-  projectId: external_exports.string().uuid().optional(),
-  workspaceId: external_exports.string().uuid().optional(),
-  path: external_exports.string().min(1).refine((value) => !/[\x00-\x1f\x7f]/.test(value), {
-    message: "Workspace file path contains an invalid character",
-    params: { code: "invalid_path" }
-  }),
-  workspace: workspaceFileSelectorSchema.optional()
-}).refine((value) => Boolean(value.projectId) === Boolean(value.workspaceId), {
-  message: "Workspace file target requires both projectId and workspaceId",
-  path: ["workspaceId"],
-  params: { code: "invalid_target" }
-});
-var workspaceFileListQuerySchema = external_exports.object({
-  projectId: external_exports.string().uuid().optional(),
-  workspaceId: external_exports.string().uuid().optional(),
-  workspace: workspaceFileSelectorSchema.optional(),
-  path: external_exports.string().min(1).refine((value) => !/[\x00-\x1f\x7f]/.test(value), {
-    message: "Workspace folder path contains an invalid character",
-    params: { code: "invalid_path" }
-  }).optional(),
-  mode: workspaceFileListModeSchema.optional(),
-  q: external_exports.string().refine((value) => !/[\x00-\x1f\x7f]/.test(value), {
-    message: "Workspace file search contains an invalid character",
-    params: { code: "invalid_query" }
-  }).refine((value) => utf8ByteLength(value.trim()) <= workspaceFileListSearchMaxBytes, {
-    message: "Workspace file search is too long",
-    params: { code: "invalid_query" }
-  }).optional(),
-  limit: external_exports.coerce.number().int().min(1).max(100).default(25),
-  offset: external_exports.coerce.number().int().min(0).max(1e4).default(0)
-}).refine((value) => Boolean(value.projectId) === Boolean(value.workspaceId), {
-  message: "Workspace file target requires both projectId and workspaceId",
-  path: ["workspaceId"],
-  params: { code: "invalid_target" }
-});
-var resolvedWorkspaceResourceSchema = external_exports.object({
-  kind: workspaceFileResourceKindSchema,
-  provider: external_exports.string().min(1),
-  title: external_exports.string().min(1),
-  displayPath: external_exports.string().min(1),
-  workspaceLabel: external_exports.string().min(1),
-  workspaceKind: workspaceFileWorkspaceKindSchema,
-  workspaceId: external_exports.string().uuid(),
-  projectId: external_exports.string().uuid().nullable().optional(),
-  projectName: external_exports.string().min(1).nullable().optional(),
-  contentType: external_exports.string().nullable().optional(),
-  byteSize: external_exports.number().int().nonnegative().nullable().optional(),
-  previewKind: workspaceFilePreviewKindSchema,
-  denialReason: external_exports.string().nullable().optional(),
-  capabilities: external_exports.object({
-    preview: external_exports.boolean(),
-    download: external_exports.boolean(),
-    listChildren: external_exports.boolean()
-  })
-});
-var workspaceFileContentSchema = external_exports.object({
-  resource: resolvedWorkspaceResourceSchema,
-  content: external_exports.object({
-    encoding: external_exports.enum(["utf8", "base64"]),
-    data: external_exports.string()
-  })
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/work-product.js
-function attachmentContentPath(attachmentId) {
-  return `/api/attachments/${attachmentId}/content`;
-}
-var issueWorkProductTypeSchema = external_exports.enum([
-  "preview_url",
-  "runtime_service",
-  "pull_request",
-  "branch",
-  "commit",
-  "artifact",
-  "document"
-]);
-var issueWorkProductStatusSchema = external_exports.enum([
-  "active",
-  "ready_for_review",
-  "approved",
-  "changes_requested",
-  "merged",
-  "closed",
-  "failed",
-  "archived",
-  "draft"
-]);
-var issueWorkProductReviewStateSchema = external_exports.enum([
-  "none",
-  "needs_board_review",
-  "approved",
-  "changes_requested"
-]);
-var attachmentArtifactWorkProductMetadataSchema = external_exports.object({
-  attachmentId: external_exports.string().uuid(),
-  contentType: external_exports.string().min(1),
-  byteSize: external_exports.number().int().nonnegative(),
-  contentPath: external_exports.string().min(1),
-  openPath: external_exports.string().min(1),
-  downloadPath: external_exports.string().min(1),
-  originalFilename: external_exports.string().optional().nullable()
-}).superRefine((value, ctx) => {
-  const contentPath = attachmentContentPath(value.attachmentId);
-  if (value.contentPath !== contentPath) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["contentPath"],
-      message: "contentPath must point to the same-origin attachment content route"
-    });
-  }
-  if (value.openPath !== contentPath) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["openPath"],
-      message: "openPath must point to the same-origin attachment content route"
-    });
-  }
-  if (value.downloadPath !== `${contentPath}?download=1`) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["downloadPath"],
-      message: "downloadPath must point to the same-origin attachment download route"
-    });
-  }
-});
-var issueWorkProductMetadataSchema = external_exports.object({
-  resourceRef: workspaceFileRefSchema.optional().nullable()
-}).passthrough();
-var createIssueWorkProductSchema = external_exports.object({
-  projectId: external_exports.string().uuid().optional().nullable(),
-  executionWorkspaceId: external_exports.string().uuid().optional().nullable(),
-  runtimeServiceId: external_exports.string().uuid().optional().nullable(),
-  type: issueWorkProductTypeSchema,
-  provider: external_exports.string().min(1),
-  externalId: external_exports.string().optional().nullable(),
-  title: external_exports.string().min(1),
-  url: external_exports.string().url().optional().nullable(),
-  status: issueWorkProductStatusSchema.default("active"),
-  reviewState: issueWorkProductReviewStateSchema.optional().default("none"),
-  isPrimary: external_exports.boolean().optional().default(false),
-  healthStatus: external_exports.enum(["unknown", "healthy", "unhealthy"]).optional().default("unknown"),
-  summary: external_exports.string().optional().nullable(),
-  metadata: issueWorkProductMetadataSchema.optional().nullable(),
-  createdByRunId: external_exports.string().uuid().optional().nullable()
-});
-var updateIssueWorkProductSchema = createIssueWorkProductSchema.partial();
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/artifact.js
-var COMPANY_ARTIFACTS_DEFAULT_LIMIT = 30;
-var COMPANY_ARTIFACTS_MAX_LIMIT = 100;
-var COMPANY_ARTIFACTS_MAX_QUERY_LENGTH = 160;
-var companyArtifactSourceSchema = external_exports.enum(["document", "attachment", "work_product"]);
-var companyArtifactMediaKindSchema = external_exports.enum(["image", "video", "text", "document", "file", "empty"]);
-var companyArtifactGroupBySchema = external_exports.enum(["none", "task", "parent_task"]);
-var companyArtifactsQuerySchema = external_exports.object({
-  kind: external_exports.enum(["image", "video", "text", "document", "file", "all"]).optional().default("all"),
-  projectId: external_exports.string().uuid().optional(),
-  q: external_exports.string().trim().max(COMPANY_ARTIFACTS_MAX_QUERY_LENGTH).optional(),
-  groupBy: companyArtifactGroupBySchema.optional().default("none"),
-  groupIssueId: external_exports.string().uuid().optional(),
-  limit: external_exports.coerce.number().int().min(1).max(COMPANY_ARTIFACTS_MAX_LIMIT).optional().default(COMPANY_ARTIFACTS_DEFAULT_LIMIT),
-  cursor: external_exports.string().min(1).optional()
-});
-var companyArtifactSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  source: companyArtifactSourceSchema,
-  mediaKind: companyArtifactMediaKindSchema,
-  title: external_exports.string(),
-  previewText: external_exports.string().nullable(),
-  contentType: external_exports.string().nullable(),
-  contentPath: external_exports.string().nullable(),
-  openPath: external_exports.string().nullable(),
-  downloadPath: external_exports.string().nullable(),
-  issue: external_exports.object({
-    id: external_exports.string().uuid(),
-    identifier: external_exports.string(),
-    title: external_exports.string()
-  }),
-  project: external_exports.object({
-    id: external_exports.string().uuid(),
-    name: external_exports.string()
-  }).nullable(),
-  createdByAgent: external_exports.object({
-    id: external_exports.string().uuid(),
-    name: external_exports.string()
-  }).nullable(),
-  updatedAt: external_exports.string().datetime(),
-  href: external_exports.string().min(1)
-});
-var companyArtifactGroupSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  groupBy: companyArtifactGroupBySchema.exclude(["none"]),
-  issue: external_exports.object({
-    id: external_exports.string().uuid(),
-    identifier: external_exports.string(),
-    title: external_exports.string()
-  }),
-  title: external_exports.string(),
-  count: external_exports.number().int().min(0),
-  mediaKinds: external_exports.array(companyArtifactMediaKindSchema),
-  previewArtifacts: external_exports.array(companyArtifactSchema),
-  updatedAt: external_exports.string().datetime(),
-  href: external_exports.string().min(1)
-});
-var companyArtifactsResponseSchema = external_exports.object({
-  artifacts: external_exports.array(companyArtifactSchema),
-  groups: external_exports.array(companyArtifactGroupSchema).optional(),
-  selectedGroup: companyArtifactGroupSchema.nullable().optional(),
-  nextCursor: external_exports.string().nullable()
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/goal.js
-var createGoalSchema = external_exports.object({
-  title: external_exports.string().min(1),
-  description: external_exports.string().optional().nullable(),
-  level: external_exports.enum(GOAL_LEVELS).optional().default("task"),
-  status: external_exports.enum(GOAL_STATUSES).optional().default("planned"),
-  parentId: external_exports.string().uuid().optional().nullable(),
-  ownerAgentId: external_exports.string().uuid().optional().nullable()
-});
-var updateGoalSchema = createGoalSchema.partial();
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/approval.js
-var createApprovalSchema = external_exports.object({
-  type: external_exports.enum(APPROVAL_TYPES),
-  requestedByAgentId: external_exports.string().uuid().optional().nullable(),
-  payload: external_exports.record(external_exports.string(), external_exports.unknown()),
-  issueIds: external_exports.array(external_exports.string().uuid()).optional()
-});
-var resolveApprovalSchema = external_exports.object({
-  decisionNote: multilineTextSchema.optional().nullable()
-});
-var requestApprovalRevisionSchema = external_exports.object({
-  decisionNote: multilineTextSchema.optional().nullable()
-});
-var resubmitApprovalSchema = external_exports.object({
-  payload: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
-});
-var addApprovalCommentSchema = external_exports.object({
-  body: multilineTextSchema.pipe(external_exports.string().min(1))
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/cost.js
-var createCostEventSchema = external_exports.object({
-  agentId: external_exports.string().uuid(),
-  issueId: external_exports.string().uuid().optional().nullable(),
-  projectId: external_exports.string().uuid().optional().nullable(),
-  goalId: external_exports.string().uuid().optional().nullable(),
-  heartbeatRunId: external_exports.string().uuid().optional().nullable(),
-  billingCode: external_exports.string().optional().nullable(),
-  provider: external_exports.string().min(1),
-  biller: external_exports.string().min(1).optional(),
-  billingType: external_exports.enum(BILLING_TYPES).optional().default("unknown"),
-  model: external_exports.string().min(1),
-  inputTokens: external_exports.number().int().nonnegative().optional().default(0),
-  cachedInputTokens: external_exports.number().int().nonnegative().optional().default(0),
-  outputTokens: external_exports.number().int().nonnegative().optional().default(0),
-  costCents: external_exports.number().int().nonnegative(),
-  occurredAt: external_exports.string().datetime()
-}).transform((value) => ({
-  ...value,
-  biller: value.biller ?? value.provider
-}));
-var updateBudgetSchema = external_exports.object({
-  budgetMonthlyCents: external_exports.number().int().nonnegative()
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/finance.js
-var createFinanceEventSchema = external_exports.object({
-  agentId: external_exports.string().uuid().optional().nullable(),
-  issueId: external_exports.string().uuid().optional().nullable(),
-  projectId: external_exports.string().uuid().optional().nullable(),
-  goalId: external_exports.string().uuid().optional().nullable(),
-  heartbeatRunId: external_exports.string().uuid().optional().nullable(),
-  costEventId: external_exports.string().uuid().optional().nullable(),
-  billingCode: external_exports.string().optional().nullable(),
-  description: external_exports.string().max(500).optional().nullable(),
-  eventKind: external_exports.enum(FINANCE_EVENT_KINDS),
-  direction: external_exports.enum(FINANCE_DIRECTIONS).optional().default("debit"),
-  biller: external_exports.string().min(1),
-  provider: external_exports.string().min(1).optional().nullable(),
-  executionAdapterType: external_exports.enum(AGENT_ADAPTER_TYPES).optional().nullable(),
-  pricingTier: external_exports.string().min(1).optional().nullable(),
-  region: external_exports.string().min(1).optional().nullable(),
-  model: external_exports.string().min(1).optional().nullable(),
-  quantity: external_exports.number().int().nonnegative().optional().nullable(),
-  unit: external_exports.enum(FINANCE_UNITS).optional().nullable(),
-  amountCents: external_exports.number().int().nonnegative(),
-  currency: external_exports.string().length(3).optional().default("USD"),
-  estimated: external_exports.boolean().optional().default(false),
-  externalInvoiceId: external_exports.string().optional().nullable(),
-  metadataJson: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  occurredAt: external_exports.string().datetime()
-}).transform((value) => ({
-  ...value,
-  currency: value.currency.toUpperCase()
-}));
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/asset.js
-var createAssetImageMetadataSchema = external_exports.object({
-  namespace: external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9/_-]+$/).optional()
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/pipeline.js
-var routineVariableLikeNameSchema = external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/);
-var pipelineStageKindSchema = external_exports.enum(["working", "review", "done", "cancelled"]);
-var legacyPipelineStageKindSchema = external_exports.enum(["open", "working", "review", "done", "cancelled"]);
-var pipelineStageApproverSchema = external_exports.object({
-  kind: external_exports.enum(["any_human", "user", "agent"]).optional().default("any_human"),
-  id: external_exports.string().trim().min(1).max(200).optional()
-}).superRefine((value, ctx) => {
-  if (value.kind !== "any_human" && (typeof value.id !== "string" || value.id.length === 0)) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["id"],
-      message: "Specific stage approvers require an id"
-    });
-  }
-});
-var pipelineStageOnEnterSchema = external_exports.object({
-  type: external_exports.literal("run_routine"),
-  routineId: external_exports.string().uuid(),
-  id: external_exports.string().trim().min(1).max(200).optional(),
-  projectId: external_exports.string().uuid().optional().nullable(),
-  projectWorkspaceId: external_exports.string().uuid().optional().nullable(),
-  executionWorkspaceId: external_exports.string().uuid().optional().nullable(),
-  executionWorkspacePreference: external_exports.enum(ISSUE_EXECUTION_WORKSPACE_PREFERENCES).optional().nullable(),
-  executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable()
-}).passthrough();
-var pipelineStageAutomationSchema = external_exports.object({
-  routineId: external_exports.string().uuid().optional().nullable(),
-  assigneeAgentId: external_exports.string().uuid().optional().nullable(),
-  instructionsBody: external_exports.string().optional().nullable(),
-  projectId: external_exports.string().uuid().optional().nullable(),
-  projectWorkspaceId: external_exports.string().uuid().optional().nullable(),
-  executionWorkspaceId: external_exports.string().uuid().optional().nullable(),
-  executionWorkspacePreference: external_exports.enum(ISSUE_EXECUTION_WORKSPACE_PREFERENCES).optional().nullable(),
-  executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable()
-}).passthrough();
-var pipelineStageCarryOverPolicySchema = external_exports.object({
-  version: external_exports.literal(1).default(1),
-  mode: external_exports.enum(["all_except", "only"]).default("all_except"),
-  includeFields: external_exports.array(routineVariableLikeNameSchema).max(100).default([]),
-  excludeFields: external_exports.array(routineVariableLikeNameSchema).max(100).default([])
-});
-var pipelineStageBreakdownSchema = external_exports.object({
-  targetPipelineId: external_exports.string().uuid(),
-  targetStageKey: external_exports.string().trim().min(1).max(120),
-  pieceNoun: external_exports.string().trim().min(1).max(80).default("piece"),
-  carryOverPolicy: pipelineStageCarryOverPolicySchema.optional(),
-  inheritFields: external_exports.array(routineVariableLikeNameSchema).max(100).default([]),
-  advanceTo: external_exports.string().trim().min(1).max(120).optional(),
-  waitForPieces: external_exports.boolean().optional().default(false),
-  whenFinishedMoveTo: external_exports.string().trim().min(1).max(120).optional()
-}).superRefine((value, ctx) => {
-  if (value.waitForPieces && !value.whenFinishedMoveTo) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["whenFinishedMoveTo"],
-      message: "Breakdown stages that wait for pieces need a destination stage"
-    });
-  }
-});
-var pipelineStageVariableSchema = external_exports.object({
-  key: routineVariableLikeNameSchema,
-  label: external_exports.string().trim().max(120),
-  type: external_exports.enum(["select", "text", "multiline"]).default("text"),
-  options: external_exports.array(external_exports.string().trim().min(1).max(120)).max(50).optional().default([]),
-  required: external_exports.boolean().optional().default(false),
-  showInAddForm: external_exports.boolean().optional().default(false)
-}).superRefine((value, ctx) => {
-  if (value.type === "select" && value.options.length === 0) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["options"],
-      message: "Select variables require at least one option"
-    });
-  }
-  if (value.type !== "select" && value.options.length > 0) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["options"],
-      message: "Only select variables can define options"
-    });
-  }
-});
-var pipelineStageConfigSchema = external_exports.object({
-  variables: external_exports.array(pipelineStageVariableSchema).default([]),
-  disabled: external_exports.boolean().optional(),
-  disabledReason: external_exports.string().trim().max(1e3).nullable().optional(),
-  requireApproval: external_exports.boolean().optional(),
-  approver: pipelineStageApproverSchema.optional(),
-  /** Legacy input only; the server migrates it to requireApproval/approver. */
-  reviewerKind: external_exports.enum(["human", "any"]).optional(),
-  whatHappensHere: external_exports.string().trim().max(1e4).optional(),
-  onEnter: pipelineStageOnEnterSchema.optional(),
-  automation: pipelineStageAutomationSchema.optional(),
-  breakdown: pipelineStageBreakdownSchema.optional(),
-  approveToStageKey: external_exports.string().trim().min(1).max(120).optional(),
-  rejectToStageKey: external_exports.string().trim().min(1).max(120).optional(),
-  requestChangesToStageKey: external_exports.string().trim().min(1).max(120).optional(),
-  requireRejectReason: external_exports.boolean().optional(),
-  requireRequestChangesReason: external_exports.boolean().optional(),
-  requireChildrenTerminal: external_exports.boolean().optional(),
-  requireNoUnresolvedDrift: external_exports.boolean().optional()
-}).passthrough().superRefine((value, ctx) => {
-  const keys = /* @__PURE__ */ new Set();
-  value.variables.forEach((variable, index) => {
-    if (keys.has(variable.key)) {
-      ctx.addIssue({
-        code: external_exports.ZodIssueCode.custom,
-        path: ["variables", index, "key"],
-        message: "Pipeline stage variable keys must be unique"
-      });
-    }
-    keys.add(variable.key);
-  });
-});
-var pipelineAutomationRetryScopeSchema = external_exports.enum(["current_stage", "previous_stage"]);
-var pipelineAutomationRetryCleanupOptionsSchema = external_exports.object({
-  retireDirectChildren: external_exports.boolean().default(true),
-  retireDescendants: external_exports.boolean().default(true),
-  cancelLinkedAutomationIssues: external_exports.boolean().default(true)
-});
-var pipelineAutomationRetryRequestSchema = external_exports.object({
-  scope: pipelineAutomationRetryScopeSchema,
-  targetStageId: external_exports.string().uuid().nullable().optional(),
-  expectedVersion: external_exports.number().int().positive(),
-  cleanup: pipelineAutomationRetryCleanupOptionsSchema.default({
-    retireDirectChildren: true,
-    retireDescendants: true,
-    cancelLinkedAutomationIssues: true
-  })
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/access.js
-var createCompanyInviteSchema = external_exports.object({
-  allowedJoinTypes: external_exports.enum(INVITE_JOIN_TYPES).default("both"),
-  humanRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
-  defaultsPayload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  agentMessage: external_exports.string().max(4e3).optional().nullable()
-});
-var createOpenClawInvitePromptSchema = external_exports.object({
-  agentMessage: external_exports.string().max(4e3).optional().nullable()
-});
-var acceptInviteSchema = external_exports.object({
-  requestType: external_exports.enum(JOIN_REQUEST_TYPES),
-  agentName: external_exports.string().min(1).max(120).optional(),
-  adapterType: optionalAgentAdapterTypeSchema,
-  capabilities: external_exports.string().max(4e3).optional().nullable(),
-  agentDefaultsPayload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  // OpenClaw join compatibility fields accepted at top level.
-  responsesWebhookUrl: external_exports.string().max(4e3).optional().nullable(),
-  responsesWebhookMethod: external_exports.string().max(32).optional().nullable(),
-  responsesWebhookHeaders: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
-  paperclipApiUrl: external_exports.string().max(4e3).optional().nullable(),
-  webhookAuthHeader: external_exports.string().max(4e3).optional().nullable()
-});
-var listJoinRequestsQuerySchema = external_exports.object({
-  status: external_exports.enum(JOIN_REQUEST_STATUSES).optional(),
-  requestType: external_exports.enum(JOIN_REQUEST_TYPES).optional()
-});
-var listCompanyInvitesQuerySchema = external_exports.object({
-  state: external_exports.enum(["active", "revoked", "accepted", "expired"]).optional(),
-  limit: external_exports.coerce.number().int().min(1).max(100).optional().default(20),
-  offset: external_exports.coerce.number().int().min(0).optional().default(0)
-});
-var claimJoinRequestApiKeySchema = external_exports.object({
-  claimSecret: external_exports.string().min(16).max(256)
-});
-var boardCliAuthAccessLevelSchema = external_exports.enum([
-  "board",
-  "instance_admin_required"
-]);
-var createCliAuthChallengeSchema = external_exports.object({
-  command: external_exports.string().min(1).max(240),
-  clientName: external_exports.string().max(120).optional().nullable(),
-  requestedAccess: boardCliAuthAccessLevelSchema.default("board"),
-  requestedCompanyId: external_exports.string().uuid().optional().nullable()
-});
-var resolveCliAuthChallengeSchema = external_exports.object({
-  token: external_exports.string().min(16).max(256)
-});
-var createBoardApiKeySchema = external_exports.object({
-  name: external_exports.string().trim().min(1).max(120).default("paperclipai cli"),
-  expiresAt: external_exports.coerce.date().optional().nullable(),
-  requestedCompanyId: external_exports.string().uuid().optional().nullable()
-});
-var updateMemberPermissionsSchema = external_exports.object({
-  grants: external_exports.array(external_exports.object({
-    permissionKey: external_exports.enum(PERMISSION_KEYS),
-    scope: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
-  }))
-});
-var editableMembershipStatuses = ["pending", "active", "suspended"];
-var updateCompanyMemberSchema = external_exports.object({
-  membershipRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
-  status: external_exports.enum(editableMembershipStatuses).optional()
-}).refine((value) => value.membershipRole !== void 0 || value.status !== void 0, {
-  message: "membershipRole or status is required"
-});
-var updateCompanyMemberWithPermissionsSchema = external_exports.object({
-  membershipRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
-  status: external_exports.enum(editableMembershipStatuses).optional(),
-  grants: updateMemberPermissionsSchema.shape.grants.default([])
-}).refine((value) => value.membershipRole !== void 0 || value.status !== void 0, {
-  message: "membershipRole or status is required"
-});
-var archiveCompanyMemberSchema = external_exports.object({
-  reassignment: external_exports.object({
-    assigneeAgentId: external_exports.string().uuid().optional().nullable(),
-    assigneeUserId: external_exports.string().uuid().optional().nullable()
-  }).optional().nullable()
-}).superRefine((value, ctx) => {
-  if (value.reassignment?.assigneeAgentId && value.reassignment.assigneeUserId) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      message: "Choose either an agent or user reassignment target",
-      path: ["reassignment"]
-    });
-  }
-});
-var updateUserCompanyAccessSchema = external_exports.object({
-  companyIds: external_exports.array(external_exports.string().uuid()).default([])
-});
-var searchAdminUsersQuerySchema = external_exports.object({
-  query: external_exports.string().trim().max(120).optional().default("")
-});
-var profileImageAssetPathPattern = /^\/api\/assets\/[^/?#]+\/content(?:\?[^#]*)?(?:#.*)?$/;
-function isValidProfileImage(value) {
-  if (profileImageAssetPathPattern.test(value))
-    return true;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
-}
-var profileImageSchema = external_exports.string().trim().min(1).max(4e3).refine(isValidProfileImage, { message: "Invalid profile image URL" });
-var currentUserProfileSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  email: external_exports.string().email().nullable(),
-  name: external_exports.string().min(1).max(120).nullable(),
-  image: profileImageSchema.nullable()
-});
-var authSessionSchema = external_exports.object({
-  session: external_exports.object({
-    id: external_exports.string().min(1),
-    userId: external_exports.string().min(1)
-  }),
-  user: currentUserProfileSchema
-});
-var updateCurrentUserProfileSchema = external_exports.object({
-  name: external_exports.string().trim().min(1).max(120),
-  image: external_exports.union([profileImageSchema, external_exports.literal(""), external_exports.null()]).optional().transform((value) => value === "" ? null : value)
-});
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/plugin.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/plugin.js
 var jsonSchemaSchema = external_exports.record(external_exports.string(), external_exports.unknown()).refine((val) => {
   if (Object.keys(val).length === 0)
     return true;
@@ -8258,22 +7018,22 @@ var pluginEnvironmentTemplateConfigBindingSchema = external_exports.object({
 }).strict().superRefine((value, ctx) => {
   const unsetFields = value.unsetFields ?? [];
   const seen = /* @__PURE__ */ new Set();
-  for (const [index, field] of unsetFields.entries()) {
-    if (field === value.field) {
+  for (const [index, field2] of unsetFields.entries()) {
+    if (field2 === value.field) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Template config binding cannot unset the same field it sets",
         path: ["unsetFields", index]
       });
     }
-    if (seen.has(field)) {
+    if (seen.has(field2)) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Template config binding unsetFields must be unique",
         path: ["unsetFields", index]
       });
     }
-    seen.add(field);
+    seen.add(field2);
   }
 });
 var pluginEnvironmentDriverDeclarationSchema = external_exports.object({
@@ -8287,6 +7047,7 @@ var pluginEnvironmentDriverDeclarationSchema = external_exports.object({
   supportsTemplateCapture: external_exports.boolean().optional(),
   templateRefKind: external_exports.string().min(1).max(100).optional(),
   templateConfigBinding: pluginEnvironmentTemplateConfigBindingSchema.optional(),
+  templateIdentityPaths: external_exports.array(external_exports.string().min(1).max(200)).max(20).optional(),
   supportsTemplateDelete: external_exports.boolean().optional(),
   configSchema: jsonSchemaSchema
 });
@@ -8999,9 +7760,11 @@ var installPluginSchema = external_exports.object({
   packagePath: external_exports.string().min(1).optional()
 });
 var upsertPluginConfigSchema = external_exports.object({
+  companyId: external_exports.string().uuid(),
   configJson: external_exports.record(external_exports.string(), external_exports.unknown())
 });
 var patchPluginConfigSchema = external_exports.object({
+  companyId: external_exports.string().uuid(),
   configJson: external_exports.record(external_exports.string(), external_exports.unknown())
 });
 var updatePluginStatusSchema = external_exports.object({
@@ -9031,14 +7794,3385 @@ var listPluginStateSchema = external_exports.object({
   namespace: external_exports.string().min(1).optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/api.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/tool-access.js
+var toolApplicationTypeSchema = external_exports.enum(TOOL_APPLICATION_TYPES);
+var toolApplicationStatusSchema = external_exports.enum(TOOL_APPLICATION_STATUSES);
+var toolConnectionTransportSchema = external_exports.enum(["mcp_remote", "rest_api", "local_stdio"]);
+var toolConnectionAuthKindSchema = external_exports.enum(["oauth", "api_key", "none"]);
+var toolConnectionOwnershipSchema = external_exports.enum(["platform_shared", "platform_provisioned", "customer", "dcr"]);
+var connectionGrantKindSchema = external_exports.enum(["workspace", "user"]);
+var connectionGrantStatusSchema = external_exports.enum(["active", "revoked", "expired", "needs_reauthorization"]);
+var toolConnectionStatusSchema = external_exports.enum(["draft", "active", "disabled", "archived"]);
+var toolConnectionInstallTargetTypeSchema = external_exports.enum(["company", "agent"]);
+var toolCredentialPlacementSchema = external_exports.enum(["header", "env"]);
+var toolConnectionKindSchema = external_exports.enum(TOOL_CONNECTION_KINDS);
+var toolConnectionHealthStatusSchema = external_exports.enum(TOOL_CONNECTION_HEALTH_STATUSES);
+var toolCatalogEntryKindSchema = external_exports.enum(TOOL_CATALOG_ENTRY_KINDS);
+var toolCatalogEntryStatusSchema = external_exports.enum(TOOL_CATALOG_ENTRY_STATUSES);
+var toolRiskLevelSchema = external_exports.enum(TOOL_RISK_LEVELS);
+var toolProfileStatusSchema = external_exports.enum(TOOL_PROFILE_STATUSES);
+var toolProfileDefaultActionSchema = external_exports.enum(TOOL_PROFILE_DEFAULT_ACTIONS);
+var toolProfileEntrySelectorTypeSchema = external_exports.enum(TOOL_PROFILE_ENTRY_SELECTOR_TYPES);
+var toolProfileEntryEffectSchema = external_exports.enum(TOOL_PROFILE_ENTRY_EFFECTS);
+var toolProfileBindingTargetTypeSchema = external_exports.enum(TOOL_PROFILE_BINDING_TARGET_TYPES);
+var toolPolicyTypeSchema = external_exports.enum(TOOL_POLICY_TYPES);
+var toolPolicyDecisionSchema = external_exports.enum(TOOL_POLICY_DECISIONS);
+var toolInvocationStatusSchema = external_exports.enum(TOOL_INVOCATION_STATUSES);
+var toolInvocationApprovalStateSchema = external_exports.enum(TOOL_INVOCATION_APPROVAL_STATES);
+var toolMcpGatewayStatusSchema = external_exports.enum(TOOL_MCP_GATEWAY_STATUSES);
+var toolMcpGatewayDefaultProfileModeSchema = external_exports.enum(TOOL_MCP_GATEWAY_DEFAULT_PROFILE_MODES);
+var toolMcpGatewayContextScopeTypeSchema = external_exports.enum(TOOL_MCP_GATEWAY_CONTEXT_SCOPE_TYPES);
+var toolMcpGatewayTokenSubjectTypeSchema = external_exports.enum(TOOL_MCP_GATEWAY_TOKEN_SUBJECT_TYPES);
+var toolMcpGatewayTokenActionSchema = external_exports.enum(TOOL_MCP_GATEWAY_TOKEN_ACTIONS);
+var toolActionRequestStatusSchema = external_exports.enum(TOOL_ACTION_REQUEST_STATUSES);
+var toolAuditEventTypeSchema = external_exports.enum(TOOL_AUDIT_EVENT_TYPES);
+var toolAuditOutcomeSchema = external_exports.enum(TOOL_AUDIT_OUTCOMES);
+var toolRuntimeKindSchema = external_exports.enum(TOOL_RUNTIME_KINDS);
+var toolRuntimeSlotStatusSchema = external_exports.enum(TOOL_RUNTIME_SLOT_STATUSES);
+var toolRateLimitWindowKindSchema = external_exports.enum(TOOL_RATE_LIMIT_WINDOW_KINDS);
+var safeKeyPattern = /^[a-z0-9][a-z0-9._:-]*$/i;
+var sensitiveConfigKeyPattern = /^(access[-_]?key([-_]?id)?|api[-_]?key|authorization|bearer|client[-_]?secret|credential|credentials|jwt|password|passwd|private[-_]?key|refresh[-_]?token|secret|secret[-_]?access[-_]?key|secret[-_]?key|session[-_]?token|token)$/i;
+function rejectSensitiveConfigKeys(value, ctx, path2 = []) {
+  if (!value || typeof value !== "object")
+    return;
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => rejectSensitiveConfigKeys(entry, ctx, [...path2, index]));
+    return;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (sensitiveConfigKeyPattern.test(key)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, key],
+        message: `Tool access config cannot persist sensitive field: ${key}. Use credentialSecretRefs instead.`
+      });
+    }
+    rejectSensitiveConfigKeys(nested, ctx, [...path2, key]);
+  }
+}
+var toolCredentialSecretRefSchema = external_exports.object({
+  secretId: external_exports.string().uuid(),
+  versionSelector: external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]).optional(),
+  configPath: external_exports.string().trim().min(1).max(200),
+  required: external_exports.boolean().optional(),
+  label: external_exports.string().trim().max(120).optional().nullable(),
+  projectionClass: external_exports.enum(SECRET_PROJECTION_CLASSES).optional(),
+  projectionAllowlistKey: external_exports.string().trim().min(1).max(160).optional().nullable(),
+  keyScope: external_exports.string().trim().min(1).max(160).optional(),
+  expiresAt: external_exports.string().datetime({ offset: true }).optional()
+});
+var mcpConnectionCredentialRefSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120),
+  secretId: external_exports.string().uuid(),
+  version: external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]).optional(),
+  placement: toolCredentialPlacementSchema,
+  key: external_exports.string().trim().min(1).max(160),
+  prefix: external_exports.string().max(120).nullable().optional()
+});
+var toolTransportConfigSchema = external_exports.record(external_exports.string(), external_exports.unknown()).superRefine(rejectSensitiveConfigKeys);
+var toolRedactedValueSummarySchema = external_exports.object({
+  summary: external_exports.string().max(4e3),
+  sizeBytes: external_exports.number().int().min(0).optional().nullable(),
+  sha256: external_exports.string().trim().regex(/^[a-f0-9]{64}$/i).optional().nullable(),
+  redactedFields: external_exports.array(external_exports.string().trim().min(1).max(200)).default([]).optional(),
+  artifactId: external_exports.string().uuid().optional().nullable()
+});
+var createToolApplicationSchema = external_exports.object({
+  applicationKey: external_exports.string().trim().min(1).max(160).regex(safeKeyPattern).optional(),
+  name: external_exports.string().trim().min(1).max(160),
+  description: external_exports.string().max(4e3).optional().nullable(),
+  type: toolApplicationTypeSchema,
+  status: toolApplicationStatusSchema.optional(),
+  pluginId: external_exports.string().uuid().optional().nullable(),
+  ownerAgentId: external_exports.string().uuid().optional().nullable(),
+  ownerUserId: external_exports.string().optional().nullable(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var updateToolApplicationSchema = createToolApplicationSchema.partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool application field is required" });
+var createToolConnectionSchema = external_exports.object({
+  applicationId: external_exports.string().uuid().optional(),
+  applicationName: external_exports.string().trim().min(1).max(160).optional(),
+  name: external_exports.string().trim().min(1).max(160),
+  transport: toolConnectionTransportSchema.optional(),
+  authKind: toolConnectionAuthKindSchema.default("none"),
+  ownership: toolConnectionOwnershipSchema.default("customer"),
+  status: toolConnectionStatusSchema.optional(),
+  connectionKind: toolConnectionKindSchema.default("managed"),
+  config: toolTransportConfigSchema.optional(),
+  transportConfig: toolTransportConfigSchema.default({}),
+  credentialRefs: external_exports.array(mcpConnectionCredentialRefSchema).optional(),
+  credentialSecretRefs: external_exports.array(toolCredentialSecretRefSchema).default([]),
+  enabled: external_exports.boolean().optional()
+});
+var updateToolConnectionSchema = createToolConnectionSchema.omit({ applicationId: true }).partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool connection field is required" });
+var connectionGrantSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  companyId: external_exports.string().uuid(),
+  connectionId: external_exports.string().uuid(),
+  kind: connectionGrantKindSchema,
+  subjectUserId: external_exports.string().nullable(),
+  providerTenant: external_exports.object({
+    name: external_exports.string().trim().min(1).max(200).optional(),
+    externalId: external_exports.string().trim().min(1).max(400).optional()
+  }).nullable(),
+  credentialSecretRefs: external_exports.array(toolCredentialSecretRefSchema),
+  status: connectionGrantStatusSchema,
+  isDefault: external_exports.boolean(),
+  createdByAgentId: external_exports.string().uuid().nullable(),
+  createdByUserId: external_exports.string().nullable(),
+  revokedAt: external_exports.coerce.date().nullable(),
+  revokedByAgentId: external_exports.string().uuid().nullable(),
+  revokedByUserId: external_exports.string().nullable(),
+  lastUsedAt: external_exports.coerce.date().nullable(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+}).superRefine((grant, ctx) => {
+  if (grant.kind === "user" !== Boolean(grant.subjectUserId)) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["subjectUserId"], message: "User grants require a subject user; workspace grants must not have one" });
+  }
+});
+var putToolConnectionInstallsSchema = external_exports.object({
+  installs: external_exports.array(external_exports.object({
+    targetType: toolConnectionInstallTargetTypeSchema,
+    targetId: external_exports.string().trim().min(1).max(200)
+  })).max(1e3)
+}).strict();
+var connectionTokenIssuancePathSchema = external_exports.enum(CONNECTION_TOKEN_ISSUANCE_PATHS);
+var connectionTokenScopeSchema = external_exports.union([
+  external_exports.string().trim().min(1).max(500),
+  external_exports.array(external_exports.string().trim().min(1).max(240)).max(100)
+]);
+var connectionTokenSubjectSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({ type: external_exports.literal("app") }).strict(),
+  external_exports.object({ type: external_exports.literal("user"), userId: external_exports.string().trim().min(1).max(500) }).strict()
+]);
+var connectionTokenRequestSchema = external_exports.object({
+  subject: connectionTokenSubjectSchema.optional().default({ type: "app" }),
+  scope: connectionTokenScopeSchema.optional(),
+  requestedTtlSeconds: external_exports.number().int().positive().max(86400).optional(),
+  grantId: external_exports.string().uuid().optional()
+}).strict();
+var startConnectionAuthorizationSchema = external_exports.object({
+  subjectUserId: external_exports.string().trim().min(1).max(500),
+  scopes: external_exports.array(external_exports.string().trim().min(1).max(240)).max(100).optional(),
+  returnTo: external_exports.string().trim().max(2e3).optional()
+}).strict();
+var envKeyPattern = /^[A-Z_][A-Z0-9_]*$/i;
+var toolStdioTemplateToolSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(240),
+  title: external_exports.string().trim().max(240).optional().nullable(),
+  description: external_exports.string().max(8e3).optional().nullable(),
+  inputSchema: jsonSchemaSchema.optional().nullable(),
+  annotations: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var createToolStdioCommandTemplateSchema = external_exports.object({
+  templateId: external_exports.string().trim().min(1).max(160).regex(safeKeyPattern),
+  name: external_exports.string().trim().min(1).max(160),
+  description: external_exports.string().max(4e3).optional().nullable(),
+  command: external_exports.string().trim().min(1).max(2e3),
+  args: external_exports.array(external_exports.string().max(2e3)).max(100).default([]),
+  envKeys: external_exports.array(external_exports.string().trim().min(1).max(160).regex(envKeyPattern)).max(200).default([]),
+  tools: external_exports.array(toolStdioTemplateToolSchema).max(500).default([])
+});
+var disableToolStdioCommandTemplateSchema = external_exports.object({
+  reason: external_exports.string().trim().max(1e3).optional().nullable()
+});
+var connectToolAppSchema = external_exports.object({
+  galleryKey: external_exports.string().trim().min(1).max(120).optional(),
+  link: external_exports.string().trim().url().max(2e3).optional(),
+  name: external_exports.string().trim().min(1).max(160).optional(),
+  credentialValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.string().min(1)).optional(),
+  configValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.unknown()).optional(),
+  applicationId: external_exports.string().uuid().optional()
+}).refine((value) => Boolean(value.galleryKey) !== Boolean(value.link), { message: "Provide exactly one of galleryKey or link" });
+var reconnectToolAppSchema = external_exports.object({
+  credentialValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.string().min(1))
+});
+var finishToolAppSchema = external_exports.object({
+  enabledCatalogEntryIds: external_exports.array(external_exports.string().uuid()).max(500).default([]),
+  askFirstCatalogEntryIds: external_exports.array(external_exports.string().uuid()).max(500).default([]),
+  access: external_exports.union([
+    external_exports.literal("all_agents"),
+    external_exports.object({ agentIds: external_exports.array(external_exports.string().uuid()).min(1).max(250) })
+  ])
+});
+var upsertToolCatalogEntrySchema = external_exports.object({
+  applicationId: external_exports.string().uuid(),
+  connectionId: external_exports.string().uuid(),
+  entryKind: toolCatalogEntryKindSchema.default("tool"),
+  toolName: external_exports.string().trim().min(1).max(240),
+  title: external_exports.string().trim().max(240).optional().nullable(),
+  description: external_exports.string().max(8e3).optional().nullable(),
+  inputSchema: jsonSchemaSchema.optional().nullable(),
+  outputSchema: jsonSchemaSchema.optional().nullable(),
+  annotations: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  riskLevel: toolRiskLevelSchema.default("medium"),
+  isReadOnly: external_exports.boolean().default(false),
+  isWrite: external_exports.boolean().default(false),
+  isDestructive: external_exports.boolean().default(false),
+  status: toolCatalogEntryStatusSchema.default("active"),
+  version: external_exports.string().trim().max(200).optional().nullable(),
+  schemaHash: external_exports.string().trim().max(128).optional().nullable()
+});
+var createToolProfileSchema = external_exports.object({
+  profileKey: external_exports.string().trim().min(1).max(160).regex(safeKeyPattern),
+  name: external_exports.string().trim().min(1).max(160),
+  description: external_exports.string().max(4e3).optional().nullable(),
+  status: toolProfileStatusSchema.default("active"),
+  defaultAction: toolProfileDefaultActionSchema.default("deny"),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var updateToolProfileSchema = createToolProfileSchema.partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool profile field is required" });
+var createToolProfileEntrySchema = external_exports.object({
+  profileId: external_exports.string().uuid(),
+  selectorType: toolProfileEntrySelectorTypeSchema,
+  effect: toolProfileEntryEffectSchema.default("include"),
+  applicationId: external_exports.string().uuid().optional().nullable(),
+  connectionId: external_exports.string().uuid().optional().nullable(),
+  catalogEntryId: external_exports.string().uuid().optional().nullable(),
+  toolName: external_exports.string().trim().min(1).max(240).optional().nullable(),
+  riskLevel: toolRiskLevelSchema.optional().nullable(),
+  conditions: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var createToolProfileEntryForProfileSchema = createToolProfileEntrySchema.omit({ profileId: true });
+var updateToolProfileEntrySchema = createToolProfileEntryForProfileSchema.partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool profile entry field is required" });
+var createToolProfileWithEntriesSchema = createToolProfileSchema.extend({
+  entries: external_exports.array(createToolProfileEntryForProfileSchema).max(250).optional()
+});
+var duplicateToolProfileSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160),
+  includeAssignments: external_exports.boolean().default(false)
+});
+var updateToolProfileWithEntriesSchema = createToolProfileSchema.partial().extend({
+  entries: external_exports.array(createToolProfileEntryForProfileSchema).max(250).optional()
+}).refine((value) => Object.keys(value).length > 0, { message: "At least one tool profile field is required" });
+var reviewToolProfileNewToolsSchema = external_exports.object({
+  decisions: external_exports.array(external_exports.object({
+    catalogEntryId: external_exports.string().uuid(),
+    decision: external_exports.enum(["allow", "keep_blocked"])
+  })).min(1).max(250)
+});
+var deleteToolProfileSchema = external_exports.object({
+  force: external_exports.boolean().default(false),
+  reassignToProfileId: external_exports.string().uuid().optional()
+}).default({});
+var createToolProfileBindingSchema = external_exports.object({
+  profileId: external_exports.string().uuid(),
+  targetType: toolProfileBindingTargetTypeSchema,
+  targetId: external_exports.string().trim().min(1).max(200),
+  priority: external_exports.number().int().min(0).max(1e4).default(100),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var createToolProfileBindingForProfileSchema = createToolProfileBindingSchema.omit({ profileId: true });
+var unbindToolProfileBindingSchema = createToolProfileBindingForProfileSchema.pick({
+  targetType: true,
+  targetId: true
+});
+var headerNameSchema = external_exports.string().trim().min(1).max(120).regex(/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
+var toolMcpGatewayAuthConfigSchema = external_exports.object({
+  version: external_exports.literal(1).default(1),
+  bearer: external_exports.object({
+    enabled: external_exports.boolean().default(true),
+    tokenPrefix: external_exports.literal("pcgw").default("pcgw"),
+    defaultTtlSeconds: external_exports.number().int().positive().max(31536e3).nullable().default(7776e3),
+    requireFiniteExpiry: external_exports.boolean().default(true),
+    longLivedTokenRequiresOverride: external_exports.boolean().default(true)
+  }).default({}),
+  oauth: external_exports.object({
+    enabled: external_exports.literal(false).default(false),
+    reservedFor: external_exports.literal("v1_5").default("v1_5"),
+    protectedResourceMetadataPath: external_exports.string().trim().max(240).optional().nullable(),
+    dynamicClientRegistration: external_exports.literal(false).optional(),
+    authorizationCodePkce: external_exports.literal(false).optional()
+  }).default({})
+});
+var toolMcpGatewayHeaderPolicySchema = external_exports.object({
+  version: external_exports.literal(1).default(1),
+  callerPassthrough: external_exports.object({
+    enabled: external_exports.boolean().default(false),
+    allowedHeaders: external_exports.array(headerNameSchema).max(50).default([])
+  }).default({}),
+  staticHeaders: external_exports.array(external_exports.object({
+    name: headerNameSchema,
+    valueRef: external_exports.string().trim().max(240).optional().nullable(),
+    value: external_exports.string().max(4e3).optional().nullable()
+  })).max(50).default([]),
+  generatedMetadata: external_exports.object({
+    enabled: external_exports.boolean().default(false),
+    allowedHeaders: external_exports.array(headerNameSchema).max(20).default([])
+  }).default({}),
+  responseHeaders: external_exports.object({
+    forwardMcpRequiredHeaders: external_exports.boolean().default(true),
+    forwardSafeCacheHeaders: external_exports.boolean().default(true)
+  }).default({})
+});
+var toolMcpGatewayMetadataPolicySchema = external_exports.object({
+  version: external_exports.literal(1).default(1),
+  forwardCompanyId: external_exports.boolean().default(false),
+  forwardGatewayId: external_exports.boolean().default(false),
+  forwardProjectId: external_exports.boolean().default(false),
+  forwardIssueId: external_exports.boolean().default(false),
+  forwardAgentId: external_exports.boolean().default(false),
+  forwardRunId: external_exports.boolean().default(false),
+  forwardCorrelationId: external_exports.boolean().default(true)
+});
+var toolMcpGatewayOnDemandToolsConfigSchema = external_exports.object({
+  enabled: external_exports.boolean().default(false),
+  searchToolName: external_exports.literal("search_tools").default("search_tools"),
+  runToolName: external_exports.literal("run_tool").default("run_tool")
+});
+var createToolMcpGatewaySchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160),
+  slug: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional(),
+  displaySlug: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional(),
+  description: external_exports.string().max(4e3).optional().nullable(),
+  profileId: external_exports.string().uuid(),
+  defaultProfileMode: toolMcpGatewayDefaultProfileModeSchema.default("gateway_only").optional(),
+  contextScopeType: toolMcpGatewayContextScopeTypeSchema.default("none").optional(),
+  contextScopeId: external_exports.string().trim().min(1).max(200).optional().nullable(),
+  agentId: external_exports.string().uuid().optional().nullable(),
+  projectId: external_exports.string().uuid().optional().nullable(),
+  issueId: external_exports.string().uuid().optional().nullable(),
+  approvalIssueId: external_exports.string().uuid().optional().nullable(),
+  authConfig: toolMcpGatewayAuthConfigSchema.optional(),
+  headerPolicy: toolMcpGatewayHeaderPolicySchema.optional(),
+  metadataPolicy: toolMcpGatewayMetadataPolicySchema.optional(),
+  onDemandToolsConfig: toolMcpGatewayOnDemandToolsConfigSchema.optional(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var updateToolMcpGatewaySchema = createToolMcpGatewaySchema.partial().extend({ status: toolMcpGatewayStatusSchema.optional() }).refine((value) => Object.keys(value).length > 0, { message: "At least one gateway field is required" });
+var createToolMcpGatewayTokenSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160),
+  subjectType: toolMcpGatewayTokenSubjectTypeSchema.default("gateway_client").optional(),
+  subjectId: external_exports.string().trim().min(1).max(240).optional().nullable(),
+  clientLabel: external_exports.string().trim().min(1).max(160),
+  ownerNote: external_exports.string().trim().min(1).max(1e3),
+  allowedActions: external_exports.array(toolMcpGatewayTokenActionSchema).min(1).max(TOOL_MCP_GATEWAY_TOKEN_ACTIONS.length).default(["tools/list", "tools/call"]).optional(),
+  expiresAt: external_exports.coerce.date().optional().nullable(),
+  expiryOverrideReason: external_exports.string().trim().min(1).max(1e3).optional().nullable()
+}).superRefine((value, ctx) => {
+  if (value.subjectType && value.subjectType !== "gateway_client") {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["subjectType"],
+      message: "Public V1 token minting only supports gateway_client subjects; heartbeat_run is runtime-managed, while board_user and agent are reserved for later OAuth/user-bound flows."
+    });
+  }
+  if (value.expiresAt === null && !value.expiryOverrideReason) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["expiryOverrideReason"],
+      message: "Non-expiring gateway tokens require an override reason."
+    });
+  }
+});
+var argumentConditionSchema = external_exports.object({
+  fieldEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+  fieldNotEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+  fieldIn: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.array(external_exports.unknown()).min(1).max(100)).optional(),
+  fieldMatches: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.string().trim().min(1).max(500)).optional(),
+  fieldExists: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional(),
+  fieldAbsent: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional()
+}).strict().refine((value) => Object.values(value).some((nested) => Array.isArray(nested) ? nested.length > 0 : Boolean(nested && Object.keys(nested).length > 0)), { message: "Argument conditions must include at least one field predicate" });
+var timeWindowConditionSchema = external_exports.object({
+  startAt: external_exports.string().trim().datetime({ offset: true }).optional(),
+  endAt: external_exports.string().trim().datetime({ offset: true }).optional(),
+  daysOfWeekUtc: external_exports.array(external_exports.number().int().min(0).max(6)).max(7).optional(),
+  startHourUtc: external_exports.number().int().min(0).max(23).optional(),
+  endHourUtc: external_exports.number().int().min(0).max(24).optional()
+}).strict().refine((value) => value.startAt || value.endAt || value.daysOfWeekUtc?.length || value.startHourUtc !== void 0 || value.endHourUtc !== void 0, { message: "timeWindow must include at least one bound" });
+var actorConditionSchema = external_exports.object({
+  actorType: external_exports.enum(["agent", "user", "system", "plugin"]).optional(),
+  actorTypes: external_exports.array(external_exports.enum(["agent", "user", "system", "plugin"])).max(20).optional(),
+  agentId: external_exports.string().uuid().optional(),
+  agentIds: external_exports.array(external_exports.string().uuid()).max(100).optional()
+}).strict();
+var contextConditionSchema = external_exports.object({
+  projectId: external_exports.string().uuid().optional(),
+  projectIds: external_exports.array(external_exports.string().uuid()).max(100).optional(),
+  routineId: external_exports.string().uuid().optional(),
+  routineIds: external_exports.array(external_exports.string().uuid()).max(100).optional(),
+  issueId: external_exports.string().uuid().optional(),
+  issueIds: external_exports.array(external_exports.string().uuid()).max(100).optional(),
+  requireIssue: external_exports.boolean().optional(),
+  requireProject: external_exports.boolean().optional(),
+  requireRoutine: external_exports.boolean().optional()
+}).strict();
+var credentialScopeConditionSchema = external_exports.object({
+  applicationId: external_exports.string().uuid().optional(),
+  applicationIds: external_exports.array(external_exports.string().uuid()).max(100).optional(),
+  connectionId: external_exports.string().uuid().optional(),
+  connectionIds: external_exports.array(external_exports.string().uuid()).max(100).optional(),
+  catalogEntryId: external_exports.string().uuid().optional(),
+  catalogEntryIds: external_exports.array(external_exports.string().uuid()).max(100).optional(),
+  applicationKey: external_exports.string().trim().min(1).max(160).optional(),
+  applicationKeys: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional(),
+  providerType: external_exports.string().trim().min(1).max(160).optional(),
+  providerTypes: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional()
+}).strict();
+var toolPolicyConditionsSchema = external_exports.object({
+  arguments: argumentConditionSchema.optional(),
+  args: argumentConditionSchema.optional(),
+  actor: actorConditionSchema.optional(),
+  context: contextConditionSchema.optional(),
+  risk: external_exports.object({
+    levels: external_exports.array(toolRiskLevelSchema).max(20).optional(),
+    max: toolRiskLevelSchema.optional(),
+    isWrite: external_exports.boolean().optional(),
+    isDestructive: external_exports.boolean().optional()
+  }).strict().optional(),
+  credentialScope: credentialScopeConditionSchema.optional(),
+  trustBoundary: external_exports.object({
+    providerType: external_exports.string().trim().min(1).max(160).optional(),
+    providerTypes: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional(),
+    applicationKey: external_exports.string().trim().min(1).max(160).optional(),
+    applicationKeys: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional(),
+    remoteHttpOnly: external_exports.boolean().optional(),
+    paperclipSelfOnly: external_exports.boolean().optional()
+  }).strict().optional(),
+  timeWindow: timeWindowConditionSchema.optional()
+}).strict().refine((value) => Object.keys(value).length > 0, { message: "Tool policy conditions must include at least one supported condition group" });
+var createToolPolicySchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160),
+  description: external_exports.string().max(4e3).optional().nullable(),
+  policyType: toolPolicyTypeSchema,
+  priority: external_exports.number().int().min(0).max(1e4).default(100),
+  enabled: external_exports.boolean().default(true),
+  selectors: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
+  conditions: toolPolicyConditionsSchema.optional().nullable(),
+  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var updateToolPolicySchema = createToolPolicySchema.partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool policy field is required" });
+var reorderToolPoliciesSchema = external_exports.object({
+  policyIds: external_exports.array(external_exports.string().uuid()).min(1).max(500)
+});
+var duplicateToolPolicySchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160).optional()
+});
+var createToolInvocationSchema = external_exports.object({
+  idempotencyKey: external_exports.string().trim().min(1).max(300).optional().nullable(),
+  issueId: external_exports.string().uuid().optional().nullable(),
+  runId: external_exports.string().uuid().optional().nullable(),
+  applicationId: external_exports.string().uuid().optional().nullable(),
+  connectionId: external_exports.string().uuid().optional().nullable(),
+  catalogEntryId: external_exports.string().uuid().optional().nullable(),
+  toolName: external_exports.string().trim().min(1).max(240),
+  argumentsHash: external_exports.string().trim().max(128).optional().nullable(),
+  argumentsSummary: toolRedactedValueSummarySchema.optional().nullable()
+});
+var createToolActionRequestSchema = external_exports.object({
+  invocationId: external_exports.string().uuid(),
+  issueId: external_exports.string().uuid().optional().nullable(),
+  canonicalArgumentsHash: external_exports.string().trim().min(1).max(128),
+  canonicalArgumentsSummary: toolRedactedValueSummarySchema,
+  signedArguments: external_exports.string().trim().max(4096).optional().nullable(),
+  previewMarkdown: external_exports.string().max(2e4).optional().nullable(),
+  expiresAt: external_exports.coerce.date().optional().nullable()
+});
+var toolConnectionTestCallSchema = external_exports.object({
+  agentId: external_exports.string().uuid(),
+  toolName: external_exports.string().trim().min(1).max(240),
+  parameters: external_exports.unknown().optional()
+});
+var importMcpJsonSchema = external_exports.object({
+  mcpJson: external_exports.union([external_exports.string(), external_exports.record(external_exports.string(), external_exports.unknown())])
+});
+var toolAccessSelectorSchema = external_exports.object({
+  actorType: external_exports.enum(["agent", "user", "system", "plugin"]).optional(),
+  agentId: external_exports.string().uuid().optional(),
+  agentIds: external_exports.array(external_exports.string().uuid()).optional(),
+  projectId: external_exports.string().uuid().optional(),
+  projectIds: external_exports.array(external_exports.string().uuid()).optional(),
+  routineId: external_exports.string().uuid().optional(),
+  routineIds: external_exports.array(external_exports.string().uuid()).optional(),
+  issueId: external_exports.string().uuid().optional(),
+  issueIds: external_exports.array(external_exports.string().uuid()).optional(),
+  gatewayId: external_exports.string().uuid().optional(),
+  gatewayIds: external_exports.array(external_exports.string().uuid()).optional(),
+  gatewayPublicId: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional(),
+  gatewayPublicIds: external_exports.array(external_exports.string().trim().min(1).max(120).regex(safeKeyPattern)).optional(),
+  gatewayTokenId: external_exports.string().uuid().optional(),
+  gatewayTokenIds: external_exports.array(external_exports.string().uuid()).optional(),
+  clientSubjectType: toolMcpGatewayTokenSubjectTypeSchema.optional(),
+  clientSubjectTypes: external_exports.array(toolMcpGatewayTokenSubjectTypeSchema).optional(),
+  clientName: external_exports.string().trim().min(1).max(160).optional(),
+  clientNames: external_exports.array(external_exports.string().trim().min(1).max(160)).optional(),
+  externalClient: external_exports.boolean().optional(),
+  applicationId: external_exports.string().uuid().optional(),
+  applicationIds: external_exports.array(external_exports.string().uuid()).optional(),
+  connectionId: external_exports.string().uuid().optional(),
+  connectionIds: external_exports.array(external_exports.string().uuid()).optional(),
+  catalogEntryId: external_exports.string().uuid().optional(),
+  catalogEntryIds: external_exports.array(external_exports.string().uuid()).optional(),
+  toolName: external_exports.string().trim().min(1).max(240).optional(),
+  toolNames: external_exports.array(external_exports.string().trim().min(1).max(240)).optional(),
+  riskLevel: toolRiskLevelSchema.optional(),
+  riskLevels: external_exports.array(toolRiskLevelSchema).optional()
+});
+var toolRateLimitRuleSchema = external_exports.object({
+  limit: external_exports.number().int().positive().max(1e6),
+  windowSeconds: external_exports.number().int().positive().max(31536e3),
+  keyBy: external_exports.array(external_exports.enum(["company", "agent", "application", "connection", "tool"])).optional()
+});
+var toolTrustRuleArgumentFiltersSchema = external_exports.object({
+  allowAny: external_exports.boolean().optional(),
+  exactHash: external_exports.string().trim().regex(/^[a-f0-9]{64}$/i).optional().nullable(),
+  allowedHashes: external_exports.array(external_exports.string().trim().regex(/^[a-f0-9]{64}$/i)).max(100).optional(),
+  fieldEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+  fieldNotEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+  fieldIn: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.array(external_exports.unknown()).min(1).max(100)).optional(),
+  fieldMatches: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.string().trim().min(1).max(500)).optional(),
+  fieldExists: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional(),
+  fieldAbsent: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional()
+}).refine((value) => value.allowAny === true || Boolean(value.exactHash) || Boolean(value.allowedHashes?.length) || Boolean(value.fieldEquals && Object.keys(value.fieldEquals).length > 0) || Boolean(value.fieldNotEquals && Object.keys(value.fieldNotEquals).length > 0) || Boolean(value.fieldIn && Object.keys(value.fieldIn).length > 0) || Boolean(value.fieldMatches && Object.keys(value.fieldMatches).length > 0) || Boolean(value.fieldExists?.length) || Boolean(value.fieldAbsent?.length), { message: "Trust-rule argument filters must specify allowAny, a hash filter, or a field predicate" });
+var toolTrustRuleScopeSchema = external_exports.object({
+  includeAgent: external_exports.boolean().optional(),
+  includeProject: external_exports.boolean().optional(),
+  includeIssue: external_exports.boolean().optional(),
+  includeApplication: external_exports.boolean().optional(),
+  includeConnection: external_exports.boolean().optional(),
+  includeCatalogEntry: external_exports.boolean().optional(),
+  includeTool: external_exports.boolean().optional()
+});
+var toolTrustRuleBatchApprovalSchema = external_exports.object({
+  enabled: external_exports.boolean().optional(),
+  maxBatchSize: external_exports.number().int().positive().max(100).optional(),
+  windowSeconds: external_exports.number().int().positive().max(31536e3).optional()
+});
+var createToolTrustRuleFromActionRequestSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160).optional(),
+  description: external_exports.string().max(4e3).optional().nullable(),
+  priority: external_exports.number().int().min(0).max(1e4).default(40),
+  approvalThreshold: external_exports.number().int().min(1).max(50).default(2),
+  selectors: toolAccessSelectorSchema.optional(),
+  scope: toolTrustRuleScopeSchema.optional(),
+  argumentFilters: toolTrustRuleArgumentFiltersSchema.optional(),
+  expiresAt: external_exports.coerce.date().optional().nullable(),
+  batchApproval: toolTrustRuleBatchApprovalSchema.optional().nullable()
+});
+var revokeToolTrustRuleSchema = external_exports.object({
+  reason: external_exports.string().trim().max(1e3).optional().nullable()
+});
+var toolPolicyTestRequestSchema = external_exports.object({
+  companyId: external_exports.string().uuid(),
+  actor: external_exports.object({
+    actorType: external_exports.enum(["agent", "user", "system", "plugin"]),
+    actorId: external_exports.string().trim().min(1).max(240),
+    agentId: external_exports.string().uuid().optional().nullable()
+  }),
+  runContext: external_exports.object({
+    heartbeatRunId: external_exports.string().uuid().optional().nullable(),
+    issueId: external_exports.string().uuid().optional().nullable(),
+    projectId: external_exports.string().uuid().optional().nullable(),
+    routineId: external_exports.string().uuid().optional().nullable(),
+    gatewayId: external_exports.string().uuid().optional().nullable(),
+    gatewayPublicId: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional().nullable(),
+    gatewayTokenId: external_exports.string().uuid().optional().nullable(),
+    clientSubjectType: toolMcpGatewayTokenSubjectTypeSchema.optional().nullable(),
+    clientSubjectId: external_exports.string().trim().min(1).max(240).optional().nullable(),
+    clientName: external_exports.string().trim().min(1).max(160).optional().nullable(),
+    externalClient: external_exports.boolean().optional().nullable()
+  }).optional().nullable(),
+  request: external_exports.object({
+    applicationId: external_exports.string().uuid().optional().nullable(),
+    connectionId: external_exports.string().uuid().optional().nullable(),
+    catalogEntryId: external_exports.string().uuid().optional().nullable(),
+    toolName: external_exports.string().trim().min(1).max(240),
+    arguments: external_exports.unknown().optional(),
+    idempotencyKey: external_exports.string().trim().min(1).max(512).optional().nullable(),
+    sideEffecting: external_exports.boolean().optional()
+  }),
+  consumeRateLimit: external_exports.boolean().optional(),
+  writeAuditEvent: external_exports.boolean().optional()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/app-definition.js
+var field = external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1), type: external_exports.enum(["text", "password", "textarea", "datetime", "select", "checkbox"]), required: external_exports.boolean().optional(), placeholder: external_exports.string().optional(), helperMd: external_exports.string().optional(), secret: external_exports.boolean().optional(), prefix: external_exports.string().optional() }).superRefine((v, c) => {
+  if (v.required && v.type !== "checkbox" && !v.placeholder)
+    c.addIssue({ code: "custom", message: "Required fields need placeholders", path: ["placeholder"] });
+});
+var connectionMethodDefSchema = external_exports.object({ key: external_exports.string().min(1), transport: toolConnectionTransportSchema, auth: external_exports.enum(["oauth", "api_key", "none"]), ownershipModes: external_exports.array(toolConnectionOwnershipSchema).min(1), whenToUse: external_exports.string().min(1), defaults: external_exports.object({ serverUrl: external_exports.string().url().optional(), discoveryUrl: external_exports.string().url().nullable().optional(), serviceHost: external_exports.string().optional(), templateKey: external_exports.string().optional(), authorizationEndpoint: external_exports.string().url().optional(), tokenEndpoint: external_exports.string().url().optional(), metadataUrl: external_exports.string().url().optional(), scopesHint: external_exports.array(external_exports.string()).optional() }).optional(), tenantFields: external_exports.array(field).optional(), extensionFields: external_exports.array(field).optional(), credentialFields: external_exports.array(field).optional(), keyPlacement: external_exports.object({ location: external_exports.enum(["header", "query", "body_json", "env"]), name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }).optional(), guidanceMd: external_exports.string().min(1), consoleLinks: external_exports.object({ register: external_exports.string().url().optional(), keys: external_exports.string().url().optional(), settings: external_exports.string().url().optional(), docs: external_exports.string().url().optional() }).optional(), warnings: external_exports.array(external_exports.string()).optional(), variants: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), whenToUse: external_exports.string(), tenantFields: external_exports.array(field).optional() })).optional(), riskTier: external_exports.enum(["S1", "S2", "S3", "S4"]), requiredResourceFilters: external_exports.array(external_exports.string()).optional() }).superRefine((v, c) => {
+  if (v.auth === "api_key" && !v.keyPlacement)
+    c.addIssue({ code: "custom", message: "API-key methods require keyPlacement", path: ["keyPlacement"] });
+});
+var appDefinitionSchema = external_exports.object({ schemaVersion: external_exports.literal(1), slug: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: external_exports.string().min(1), description: external_exports.string().min(1), categories: external_exports.array(external_exports.enum(["ai", "analytics", "commerce", "communication", "content", "data", "developer", "productivity", "other"])).min(1), featured: external_exports.boolean().optional(), branding: external_exports.object({ logoUrl: external_exports.string().url(), darkLogoUrl: external_exports.string().url().optional(), backgroundColor: external_exports.string().optional(), accentColor: external_exports.string().optional() }), urlPatterns: external_exports.array(external_exports.string()), docsUrl: external_exports.string().url().optional(), methods: external_exports.array(connectionMethodDefSchema).min(1), suggestable: external_exports.boolean().optional(), availability: external_exports.object({ available: external_exports.boolean(), reason: external_exports.string().optional(), robotEmail: external_exports.string().optional() }).optional(), ownershipAvailability: external_exports.object({ platform_shared: external_exports.boolean().optional(), platform_provisioned: external_exports.boolean().optional(), customer: external_exports.boolean().optional(), dcr: external_exports.boolean().optional() }).optional() });
+var appDefinitionsSchema = external_exports.array(appDefinitionSchema).superRefine((v, c) => {
+  const s = /* @__PURE__ */ new Set();
+  v.forEach((a, i) => {
+    if (s.has(a.slug))
+      c.addIssue({ code: "custom", message: "Duplicate slug", path: [i, "slug"] });
+    s.add(a.slug);
+  });
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/summary-slot.js
+var optionalScopeIdSchema = external_exports.string().uuid().optional().nullable();
+var summarySlotScopeKindSchema = external_exports.enum(SUMMARY_SLOT_SCOPE_KINDS);
+var summarySlotKeySchema = external_exports.enum(SUMMARY_SLOT_KEYS);
+var summarySlotStatusSchema = external_exports.enum(SUMMARY_SLOT_STATUSES);
+var summarySlotScopeSelectorSchema = external_exports.object({
+  scopeKind: summarySlotScopeKindSchema,
+  scopeId: optionalScopeIdSchema,
+  slotKey: summarySlotKeySchema
+}).strict().superRefine((value, ctx) => {
+  const hasScopeId = typeof value.scopeId === "string";
+  if (value.scopeKind === "workspaces_overview") {
+    if (hasScopeId) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "workspaces_overview summary slots must not include scopeId",
+        path: ["scopeId"]
+      });
+    }
+    return;
+  }
+  if (!hasScopeId) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: `${value.scopeKind} summary slots require scopeId`,
+      path: ["scopeId"]
+    });
+  }
+});
+var summarySlotQuerySchema = external_exports.object({
+  scopeId: optionalScopeIdSchema
+}).strict();
+var writeSummarySlotSchema = external_exports.object({
+  scopeId: optionalScopeIdSchema,
+  markdown: external_exports.string().trim().min(1).max(2e5),
+  title: external_exports.string().trim().min(1).max(200).optional().nullable(),
+  changeSummary: external_exports.string().trim().min(1).max(1e3).optional().nullable(),
+  baseRevisionId: external_exports.string().uuid().optional().nullable(),
+  generationIssueId: external_exports.string().uuid().optional().nullable(),
+  model: external_exports.string().trim().min(1).max(200).optional().nullable()
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/network-bind.js
+function normalizeHost(host) {
+  const trimmed = host?.trim();
+  return trimmed ? trimmed : void 0;
+}
+function isLoopbackHost(host) {
+  const normalized = normalizeHost(host)?.toLowerCase();
+  return normalized === "127.0.0.1" || normalized === "localhost" || normalized === "::1";
+}
+function isAllInterfacesHost(host) {
+  const normalized = normalizeHost(host)?.toLowerCase();
+  return normalized === "0.0.0.0" || normalized === "::";
+}
+function inferBindModeFromHost(host, opts) {
+  const normalized = normalizeHost(host);
+  const tailnetBindHost = normalizeHost(opts?.tailnetBindHost);
+  if (!normalized || isLoopbackHost(normalized))
+    return "loopback";
+  if (isAllInterfacesHost(normalized))
+    return "lan";
+  if (tailnetBindHost && normalized === tailnetBindHost)
+    return "tailnet";
+  return "custom";
+}
+function validateConfiguredBindMode(input) {
+  const bind = input.bind ?? inferBindModeFromHost(input.host);
+  const customBindHost = normalizeHost(input.customBindHost);
+  const errors = [];
+  if (input.deploymentMode === "local_trusted" && bind !== "loopback") {
+    errors.push("local_trusted requires server.bind=loopback");
+  }
+  if (bind === "custom" && !customBindHost) {
+    const legacyHost = normalizeHost(input.host);
+    if (!legacyHost || isLoopbackHost(legacyHost) || isAllInterfacesHost(legacyHost)) {
+      errors.push("server.customBindHost is required when server.bind=custom");
+    }
+  }
+  if (input.deploymentMode === "authenticated" && input.deploymentExposure === "public" && bind === "tailnet") {
+    errors.push("server.bind=tailnet is only supported for authenticated/private deployments");
+  }
+  return errors;
+}
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/types/smoke-lab.js
+var SMOKE_RUN_TRIGGERS = ["manual", "routine", "ci"];
+var SMOKE_RUN_STATUSES = ["running", "passed", "failed", "cancelled"];
+var SMOKE_RUN_STEP_PATHS = ["P1", "P2", "P3", "P4", "P5", "P6", "P7"];
+var SMOKE_RUN_STEP_STATUSES = ["pass", "fail", "skipped"];
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/types/instance.js
+var DAILY_RETENTION_PRESETS = [3, 7, 14];
+var WEEKLY_RETENTION_PRESETS = [1, 2, 4];
+var MONTHLY_RETENTION_PRESETS = [1, 3, 6];
+var DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 24;
+var MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 1;
+var MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 24 * 30;
+var DEFAULT_BACKUP_RETENTION = {
+  dailyDays: 7,
+  weeklyWeeks: 4,
+  monthlyMonths: 1
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/types/search.js
+var COMPANY_SEARCH_SCOPES = ["all", "issues", "comments", "documents", "artifacts", "agents", "projects"];
+var COMPANY_SEARCH_SORTS = ["relevance", "updated", "created", "priority"];
+var COMPANY_SEARCH_EXTRACT_SCOPES = ["all", "issues", "comments", "documents"];
+var COMPANY_SEARCH_EXTRACT_KINDS = ["literal", "url"];
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
+var RESOURCE_MEMBERSHIP_STATES = ["joined", "left"];
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
+var sidebarOrderedIdSchema = external_exports.string().uuid();
+var sidebarOrderPreferenceSchema = external_exports.object({
+  orderedIds: external_exports.array(sidebarOrderedIdSchema),
+  updatedAt: external_exports.coerce.date().nullable()
+});
+var upsertSidebarOrderPreferenceSchema = external_exports.object({
+  orderedIds: external_exports.array(sidebarOrderedIdSchema)
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
+var resourceMembershipStateSchema = external_exports.enum(RESOURCE_MEMBERSHIP_STATES);
+var updateResourceMembershipSchema = external_exports.object({
+  state: resourceMembershipStateSchema.optional(),
+  starred: external_exports.boolean().optional()
+}).refine((value) => value.state !== void 0 || value.starred !== void 0, {
+  message: "state or starred is required"
+}).refine((value) => !(value.state === "left" && value.starred === true), {
+  message: "starred resources must be joined",
+  path: ["starred"]
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/inbox-agent-policy.js
+var inboxAgentPolicyModeSchema = external_exports.enum(["open", "allowlist", "disabled"]);
+var updateInboxAgentPolicySchema = external_exports.object({
+  mode: inboxAgentPolicyModeSchema,
+  allowedAgentIds: external_exports.array(external_exports.string().uuid()).max(100).default([])
+}).strict().superRefine((value, ctx) => {
+  if (value.mode !== "allowlist" && value.allowedAgentIds.length > 0) {
+    ctx.addIssue({
+      code: "custom",
+      message: 'allowedAgentIds must be empty when mode is not "allowlist"',
+      path: ["allowedAgentIds"]
+    });
+  }
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
+var executionWorkspaceStatusSchema = external_exports.enum([
+  "active",
+  "idle",
+  "in_review",
+  "archived",
+  "cleanup_failed"
+]);
+var workspaceOverviewStatusFilterSchema = external_exports.preprocess((value) => {
+  if (value === void 0 || value === null)
+    return void 0;
+  const rawValues = Array.isArray(value) ? value : [value];
+  const statuses = rawValues.flatMap((entry) => {
+    if (typeof entry !== "string")
+      return [];
+    return entry.split(",").map((part) => part.trim()).filter(Boolean);
+  });
+  return statuses.length > 0 ? statuses : void 0;
+}, external_exports.array(executionWorkspaceStatusSchema).optional());
+var workspaceOverviewQuerySchema = external_exports.object({
+  projectId: external_exports.string().uuid().optional(),
+  status: workspaceOverviewStatusFilterSchema,
+  limit: external_exports.coerce.number().int().min(1).max(WORKSPACE_OVERVIEW_MAX_LIMIT).optional().default(WORKSPACE_OVERVIEW_DEFAULT_LIMIT),
+  offset: external_exports.coerce.number().int().min(0).optional().default(0)
+}).strict();
+var executionWorkspaceConfigSchema = external_exports.object({
+  environmentId: external_exports.string().uuid().optional().nullable(),
+  provisionCommand: external_exports.string().optional().nullable(),
+  teardownCommand: external_exports.string().optional().nullable(),
+  cleanupCommand: external_exports.string().optional().nullable(),
+  workspaceRuntime: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  desiredState: external_exports.enum(["running", "stopped", "manual"]).optional().nullable(),
+  serviceStates: external_exports.record(external_exports.enum(["running", "stopped", "manual"])).optional().nullable()
+}).strict();
+var workspaceRuntimeControlTargetSchema = external_exports.object({
+  workspaceCommandId: external_exports.string().min(1).optional().nullable(),
+  runtimeServiceId: external_exports.string().uuid().optional().nullable(),
+  serviceIndex: external_exports.number().int().nonnegative().optional().nullable()
+}).strict();
+var executionWorkspaceCloseReadinessStateSchema = external_exports.enum([
+  "ready",
+  "ready_with_warnings",
+  "blocked"
+]);
+var executionWorkspaceCloseActionKindSchema = external_exports.enum([
+  "archive_record",
+  "stop_runtime_services",
+  "cleanup_command",
+  "teardown_command",
+  "git_worktree_remove",
+  "git_branch_delete",
+  "remove_local_directory"
+]);
+var executionWorkspaceCloseActionSchema = external_exports.object({
+  kind: executionWorkspaceCloseActionKindSchema,
+  label: external_exports.string(),
+  description: external_exports.string(),
+  command: external_exports.string().nullable()
+}).strict();
+var executionWorkspaceCloseLinkedIssueSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  identifier: external_exports.string().nullable(),
+  title: external_exports.string(),
+  status: external_exports.string(),
+  isTerminal: external_exports.boolean()
+}).strict();
+var executionWorkspaceCloseGitReadinessSchema = external_exports.object({
+  repoRoot: external_exports.string().nullable(),
+  workspacePath: external_exports.string().nullable(),
+  branchName: external_exports.string().nullable(),
+  baseRef: external_exports.string().nullable(),
+  hasDirtyTrackedFiles: external_exports.boolean(),
+  hasUntrackedFiles: external_exports.boolean(),
+  dirtyEntryCount: external_exports.number().int().nonnegative(),
+  untrackedEntryCount: external_exports.number().int().nonnegative(),
+  aheadCount: external_exports.number().int().nonnegative().nullable(),
+  behindCount: external_exports.number().int().nonnegative().nullable(),
+  isMergedIntoBase: external_exports.boolean().nullable(),
+  createdByRuntime: external_exports.boolean()
+}).strict();
+var workspaceRuntimeServiceSchema = external_exports.object({
+  id: external_exports.string(),
+  companyId: external_exports.string().uuid(),
+  projectId: external_exports.string().uuid().nullable(),
+  projectWorkspaceId: external_exports.string().uuid().nullable(),
+  executionWorkspaceId: external_exports.string().uuid().nullable(),
+  issueId: external_exports.string().uuid().nullable(),
+  scopeType: external_exports.enum(["project_workspace", "execution_workspace", "run", "agent"]),
+  scopeId: external_exports.string().nullable(),
+  serviceName: external_exports.string(),
+  status: external_exports.enum(["starting", "running", "stopped", "failed"]),
+  lifecycle: external_exports.enum(["shared", "ephemeral"]),
+  reuseKey: external_exports.string().nullable(),
+  command: external_exports.string().nullable(),
+  cwd: external_exports.string().nullable(),
+  port: external_exports.number().int().nullable(),
+  url: external_exports.string().nullable(),
+  provider: external_exports.enum(["local_process", "adapter_managed"]),
+  providerRef: external_exports.string().nullable(),
+  ownerAgentId: external_exports.string().uuid().nullable(),
+  startedByRunId: external_exports.string().uuid().nullable(),
+  lastUsedAt: external_exports.coerce.date(),
+  startedAt: external_exports.coerce.date(),
+  stoppedAt: external_exports.coerce.date().nullable(),
+  stopPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+  healthStatus: external_exports.enum(["unknown", "healthy", "unhealthy"]),
+  configIndex: external_exports.number().int().nonnegative().nullable().optional(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+}).strict();
+var executionWorkspaceCloseReadinessSchema = external_exports.object({
+  workspaceId: external_exports.string().uuid(),
+  state: executionWorkspaceCloseReadinessStateSchema,
+  blockingReasons: external_exports.array(external_exports.string()),
+  warnings: external_exports.array(external_exports.string()),
+  linkedIssues: external_exports.array(executionWorkspaceCloseLinkedIssueSchema),
+  plannedActions: external_exports.array(executionWorkspaceCloseActionSchema),
+  isDestructiveCloseAllowed: external_exports.boolean(),
+  isSharedWorkspace: external_exports.boolean(),
+  isProjectPrimaryWorkspace: external_exports.boolean(),
+  git: executionWorkspaceCloseGitReadinessSchema.nullable(),
+  runtimeServices: external_exports.array(workspaceRuntimeServiceSchema)
+}).strict();
+var updateExecutionWorkspaceSchema = external_exports.object({
+  name: external_exports.string().min(1).optional(),
+  cwd: external_exports.string().optional().nullable(),
+  repoUrl: external_exports.string().optional().nullable(),
+  baseRef: external_exports.string().optional().nullable(),
+  branchName: external_exports.string().optional().nullable(),
+  providerRef: external_exports.string().optional().nullable(),
+  status: executionWorkspaceStatusSchema.optional(),
+  cleanupEligibleAt: external_exports.string().datetime().optional().nullable(),
+  cleanupReason: external_exports.string().optional().nullable(),
+  config: executionWorkspaceConfigSchema.optional().nullable(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+}).strict();
+var branchReconcileReasonSchema = external_exports.string().trim().min(1);
+var reconcileExecutionWorkspaceBranchSchema = external_exports.discriminatedUnion("mode", [
+  external_exports.object({
+    mode: external_exports.literal("forward"),
+    reason: branchReconcileReasonSchema.optional().nullable()
+  }).strict(),
+  external_exports.object({
+    mode: external_exports.literal("override"),
+    reason: branchReconcileReasonSchema
+  }).strict(),
+  external_exports.object({
+    mode: external_exports.literal("quarantine_restore"),
+    reason: branchReconcileReasonSchema.optional().nullable()
+  }).strict()
+]);
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/types/feedback.js
+var FEEDBACK_TARGET_TYPES = ["issue_comment", "issue_document_revision"];
+var FEEDBACK_VOTE_VALUES = ["up", "down"];
+var FEEDBACK_DATA_SHARING_PREFERENCES = ["allowed", "not_allowed", "prompt"];
+var DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE = "prompt";
+var FEEDBACK_TRACE_STATUSES = ["local_only", "pending", "sent", "failed"];
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/feedback.js
+var feedbackTargetTypeSchema = external_exports.enum(FEEDBACK_TARGET_TYPES);
+var feedbackTraceStatusSchema = external_exports.enum(FEEDBACK_TRACE_STATUSES);
+var feedbackVoteValueSchema = external_exports.enum(FEEDBACK_VOTE_VALUES);
+var feedbackDataSharingPreferenceSchema = external_exports.enum(FEEDBACK_DATA_SHARING_PREFERENCES);
+var upsertIssueFeedbackVoteSchema = external_exports.object({
+  targetType: feedbackTargetTypeSchema,
+  targetId: external_exports.string().uuid(),
+  vote: feedbackVoteValueSchema,
+  reason: external_exports.string().trim().max(1e3).optional(),
+  allowSharing: external_exports.boolean().optional()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/instance.js
+function presetSchema(presets, label) {
+  return external_exports.number().refine((v) => presets.includes(v), { message: `${label} must be one of: ${presets.join(", ")}` });
+}
+var backupRetentionPolicySchema = external_exports.object({
+  dailyDays: presetSchema(DAILY_RETENTION_PRESETS, "dailyDays").default(DEFAULT_BACKUP_RETENTION.dailyDays),
+  weeklyWeeks: presetSchema(WEEKLY_RETENTION_PRESETS, "weeklyWeeks").default(DEFAULT_BACKUP_RETENTION.weeklyWeeks),
+  monthlyMonths: presetSchema(MONTHLY_RETENTION_PRESETS, "monthlyMonths").default(DEFAULT_BACKUP_RETENTION.monthlyMonths)
+});
+var instanceGeneralSettingsSchema = external_exports.object({
+  censorUsernameInLogs: external_exports.boolean().default(false),
+  keyboardShortcuts: external_exports.boolean().default(false),
+  feedbackDataSharingPreference: feedbackDataSharingPreferenceSchema.default(DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE),
+  backupRetention: backupRetentionPolicySchema.default(DEFAULT_BACKUP_RETENTION),
+  // Execution policy. Absent/"any" = unrestricted; "kubernetes" forces the
+  // Kubernetes sandbox provider and denies local/ssh execution (cloud_tenant).
+  executionMode: external_exports.enum(["kubernetes", "any"]).optional()
+}).strict();
+var patchInstanceGeneralSettingsSchema = instanceGeneralSettingsSchema.partial();
+var instanceExperimentalSettingsSchema = external_exports.object({
+  enableEnvironments: external_exports.boolean().default(false),
+  enableIsolatedWorkspaces: external_exports.boolean().default(false),
+  enableStreamlinedLeftNavigation: external_exports.boolean().default(true),
+  enableApps: external_exports.boolean().default(false),
+  enablePipelines: external_exports.boolean().default(false),
+  enableCases: external_exports.boolean().default(false),
+  enableConferenceRoomChat: external_exports.boolean().default(false),
+  enableTaskWatchdogs: external_exports.boolean().default(false),
+  enableIssuePlanDecompositions: external_exports.boolean().default(false),
+  enableExperimentalFileViewer: external_exports.boolean().default(false),
+  enableCloudSync: external_exports.boolean().default(false),
+  enableExternalObjects: external_exports.boolean().default(false),
+  enableSmokeLab: external_exports.boolean().default(false),
+  enableBuiltInAgents: external_exports.boolean().default(false),
+  enableSummaries: external_exports.boolean().default(false),
+  enableDecisions: external_exports.boolean().default(false),
+  enableGoalsSidebarLink: external_exports.boolean().default(false),
+  enableServerInfoDebugView: external_exports.boolean().default(false),
+  autoRestartDevServerWhenIdle: external_exports.boolean().default(false),
+  enableIssueGraphLivenessAutoRecovery: external_exports.boolean().default(false),
+  enableWorkspaceBranchReconcileForward: external_exports.boolean().default(true),
+  enableWorkspaceDirtyQuarantineRepair: external_exports.boolean().default(true),
+  enableWorktreeRunExecution: external_exports.boolean().default(false),
+  worktreeRunExecutionActivatedAt: external_exports.string().datetime().nullable().default(null),
+  worktreeRunExecutionActivationInstanceId: external_exports.string().min(1).nullable().default(null),
+  issueGraphLivenessAutoRecoveryLookbackHours: external_exports.number().int().min(MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).max(MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).default(DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS)
+}).strict();
+var patchInstanceExperimentalSettingsSchema = instanceExperimentalSettingsSchema.omit({
+  worktreeRunExecutionActivatedAt: true,
+  worktreeRunExecutionActivationInstanceId: true
+}).partial().strip();
+var patchInstanceSettingsSchema = external_exports.object({
+  defaultEnvironmentId: external_exports.string().uuid().nullable().optional()
+}).strict();
+var issueGraphLivenessAutoRecoveryRequestSchema = external_exports.object({
+  lookbackHours: external_exports.number().int().min(MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).max(MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).optional()
+}).strict();
+var instanceSettingsSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  defaultEnvironmentId: external_exports.string().uuid().nullable(),
+  general: instanceGeneralSettingsSchema,
+  experimental: instanceExperimentalSettingsSchema,
+  createdAt: external_exports.union([external_exports.date(), external_exports.string().datetime()]),
+  updatedAt: external_exports.union([external_exports.date(), external_exports.string().datetime()])
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/budget.js
+var upsertBudgetPolicySchema = external_exports.object({
+  scopeType: external_exports.enum(BUDGET_SCOPE_TYPES),
+  scopeId: external_exports.string().uuid(),
+  metric: external_exports.enum(BUDGET_METRICS).optional().default("billed_cents"),
+  windowKind: external_exports.enum(BUDGET_WINDOW_KINDS).optional().default("calendar_month_utc"),
+  amount: external_exports.number().int().nonnegative(),
+  warnPercent: external_exports.number().int().min(1).max(99).optional().default(80),
+  hardStopEnabled: external_exports.boolean().optional().default(true),
+  notifyEnabled: external_exports.boolean().optional().default(true),
+  isActive: external_exports.boolean().optional().default(true)
+});
+var resolveBudgetIncidentSchema = external_exports.object({
+  action: external_exports.enum(BUDGET_INCIDENT_RESOLUTION_ACTIONS),
+  amount: external_exports.number().int().nonnegative().optional(),
+  decisionNote: external_exports.string().optional().nullable()
+}).superRefine((value, ctx) => {
+  if (value.action === "raise_budget_and_resume" && typeof value.amount !== "number") {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "amount is required when raising a budget",
+      path: ["amount"]
+    });
+  }
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/smoke-lab.js
+var smokeRunTriggerSchema = external_exports.enum(SMOKE_RUN_TRIGGERS);
+var smokeRunStatusSchema = external_exports.enum(SMOKE_RUN_STATUSES);
+var smokeRunStepPathSchema = external_exports.enum(SMOKE_RUN_STEP_PATHS);
+var smokeRunStepStatusSchema = external_exports.enum(SMOKE_RUN_STEP_STATUSES);
+var createSmokeRunSchema = external_exports.object({
+  trigger: smokeRunTriggerSchema.default("manual"),
+  summary: external_exports.record(external_exports.string(), external_exports.unknown()).default({})
+}).strict();
+var updateSmokeRunSchema = external_exports.object({
+  status: smokeRunStatusSchema,
+  summary: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+}).strict();
+var recordSmokeRunStepSchema = external_exports.object({
+  path: smokeRunStepPathSchema,
+  scenarioStep: external_exports.string().min(1).max(200),
+  status: smokeRunStepStatusSchema,
+  detail: external_exports.string().max(4e3).nullable().optional(),
+  screenshotArtifactRef: external_exports.record(external_exports.string(), external_exports.unknown()).nullable().optional(),
+  durationMs: external_exports.number().int().min(0).max(24 * 60 * 60 * 1e3).nullable().optional()
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/company.js
+var logoAssetIdSchema = external_exports.string().uuid().nullable().optional();
+var brandColorSchema = external_exports.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
+var feedbackDataSharingTermsVersionSchema = external_exports.string().min(1).nullable().optional();
+var attachmentMaxBytesSchema = external_exports.number().int().min(1).max(MAX_COMPANY_ATTACHMENT_MAX_BYTES);
+var createCompanySchema = external_exports.object({
+  name: external_exports.string().min(1),
+  description: external_exports.string().optional().nullable(),
+  budgetMonthlyCents: external_exports.number().int().nonnegative().optional().default(0),
+  attachmentMaxBytes: attachmentMaxBytesSchema.optional(),
+  defaultResponsibleUserId: external_exports.string().min(1).nullable().optional()
+});
+var updateCompanySchema = createCompanySchema.partial().extend({
+  status: external_exports.enum(COMPANY_STATUSES).optional(),
+  spentMonthlyCents: external_exports.number().int().nonnegative().optional(),
+  requireBoardApprovalForNewAgents: external_exports.boolean().optional(),
+  feedbackDataSharingEnabled: external_exports.boolean().optional(),
+  feedbackDataSharingConsentAt: external_exports.coerce.date().nullable().optional(),
+  feedbackDataSharingConsentByUserId: external_exports.string().min(1).nullable().optional(),
+  feedbackDataSharingTermsVersion: feedbackDataSharingTermsVersionSchema,
+  brandColor: brandColorSchema,
+  logoAssetId: logoAssetIdSchema,
+  attachmentMaxBytes: attachmentMaxBytesSchema.optional()
+});
+var updateCompanyBrandingSchema = external_exports.object({
+  name: external_exports.string().min(1).optional(),
+  description: external_exports.string().nullable().optional(),
+  brandColor: brandColorSchema,
+  logoAssetId: logoAssetIdSchema
+}).strict().refine((value) => value.name !== void 0 || value.description !== void 0 || value.brandColor !== void 0 || value.logoAssetId !== void 0, "At least one branding field must be provided");
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/environment.js
+var environmentDriverSchema = external_exports.enum(ENVIRONMENT_DRIVERS);
+var environmentStatusSchema = external_exports.enum(ENVIRONMENT_STATUSES);
+var environmentLeaseStatusSchema = external_exports.enum(ENVIRONMENT_LEASE_STATUSES);
+var environmentLeaseCleanupStatusSchema = external_exports.enum(ENVIRONMENT_LEASE_CLEANUP_STATUSES);
+var environmentFields = {
+  name: external_exports.string().min(1),
+  description: external_exports.string().optional().nullable(),
+  driver: environmentDriverSchema,
+  status: environmentStatusSchema.optional().default("active"),
+  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional().default({}),
+  envVars: envConfigSchema.optional().default({}),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+};
+var createEnvironmentSchema = external_exports.object(environmentFields).strict();
+var updateEnvironmentSchema = external_exports.object({
+  name: external_exports.string().min(1).optional(),
+  description: external_exports.string().optional().nullable(),
+  driver: environmentDriverSchema.optional(),
+  status: environmentStatusSchema.optional(),
+  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
+  envVars: envConfigSchema.optional(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+}).strict();
+var probeEnvironmentConfigSchema = external_exports.object({
+  name: external_exports.string().min(1).optional(),
+  description: external_exports.string().optional().nullable(),
+  driver: environmentDriverSchema,
+  config: external_exports.record(external_exports.string(), external_exports.unknown()).optional().default({}),
+  envVars: envConfigSchema.optional().default({}),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
+var isoDateTime = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
+var providerKeySchema = external_exports.string().min(1).max(200);
+var optionalRecordSchema = external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable();
+var environmentCustomImageTemplateKindSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_TEMPLATE_KINDS);
+var environmentCustomImageTemplateStatusSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_TEMPLATE_STATUSES);
+var environmentCustomImageSetupSessionStatusSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_SETUP_SESSION_STATUSES);
+var environmentCustomImageSetupConnectionTypeSchema = external_exports.enum(ENVIRONMENT_CUSTOM_IMAGE_SETUP_CONNECTION_TYPES);
+var environmentCustomImageSetupConnectionSummarySchema = external_exports.object({
+  type: environmentCustomImageSetupConnectionTypeSchema,
+  username: external_exports.string().min(1).max(200).optional().nullable(),
+  hostRedacted: external_exports.literal(true).optional().default(true),
+  portRedacted: external_exports.literal(true).optional().default(true),
+  label: external_exports.string().min(1).max(200).optional().nullable(),
+  instructions: external_exports.string().min(1).max(1e3).optional().nullable()
+}).strict();
+var environmentCustomImageTemplateSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  environmentId: external_exports.string().uuid(),
+  provider: providerKeySchema,
+  templateKind: environmentCustomImageTemplateKindSchema,
+  templateRef: external_exports.string().min(1).nullable(),
+  sourceTemplateRef: external_exports.string().min(1).nullable(),
+  sourceEnvironmentConfigFingerprint: external_exports.string().min(1).nullable(),
+  status: environmentCustomImageTemplateStatusSchema,
+  createdByUserId: external_exports.string().min(1).nullable(),
+  createdByAgentId: external_exports.string().uuid().nullable(),
+  capturedAt: isoDateTime.nullable(),
+  lastUsedAt: isoDateTime.nullable(),
+  supersededByTemplateId: external_exports.string().uuid().nullable(),
+  metadata: optionalRecordSchema,
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime
+}).strict();
+var environmentCustomImageSetupSessionSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  environmentId: external_exports.string().uuid(),
+  templateId: external_exports.string().uuid().nullable(),
+  promotedTemplateId: external_exports.string().uuid().nullable(),
+  provider: providerKeySchema,
+  providerLeaseId: external_exports.string().min(1).nullable(),
+  environmentLeaseId: external_exports.string().uuid().nullable(),
+  status: environmentCustomImageSetupSessionStatusSchema,
+  startedByUserId: external_exports.string().min(1).nullable(),
+  startedByAgentId: external_exports.string().uuid().nullable(),
+  baseTemplateRef: external_exports.string().min(1).nullable(),
+  expiresAt: isoDateTime.nullable(),
+  finishedAt: isoDateTime.nullable(),
+  failureReason: external_exports.string().min(1).nullable(),
+  connectionSummary: environmentCustomImageSetupConnectionSummarySchema.nullable(),
+  connectionSecretRef: external_exports.string().min(1).nullable(),
+  metadata: optionalRecordSchema,
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime
+}).strict();
+var startEnvironmentCustomImageSetupSessionSchema = external_exports.object({
+  templateId: external_exports.string().uuid().optional().nullable(),
+  ttlSeconds: external_exports.number().int().min(60).max(24 * 60 * 60).optional()
+}).strict();
+var finishEnvironmentCustomImageSetupSessionSchema = external_exports.object({
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+}).strict();
+var cancelEnvironmentCustomImageSetupSessionSchema = external_exports.object({
+  reason: external_exports.string().min(1).max(1e3).optional()
+}).strict();
+var createEnvironmentCustomImageTerminalSessionTokenSchema = external_exports.object({}).strict().default({});
+var environmentCustomImageTerminalSessionTokenSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  token: external_exports.string().min(32),
+  expiresAt: isoDateTime,
+  setupSessionId: external_exports.string().min(1),
+  environmentId: external_exports.string().min(1),
+  connectionType: external_exports.literal("ssh"),
+  websocketPath: external_exports.string().min(1)
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/company-skill.js
+var companySkillSourceTypeSchema = external_exports.enum(["local_path", "github", "url", "catalog", "skills_sh"]);
+var companySkillTrustLevelSchema = external_exports.enum(["markdown_only", "assets", "scripts_executables"]);
+var companySkillCompatibilitySchema = external_exports.enum(["compatible", "unknown", "invalid"]);
+var companySkillSourceBadgeSchema = external_exports.enum(["paperclip", "github", "local", "url", "catalog", "skills_sh"]);
+var companySkillSharingScopeSchema = external_exports.enum(["private", "company", "public_link"]);
+var companySkillListSortSchema = external_exports.enum(["alphabetical", "recent", "installs", "stars", "agents", "forks"]);
+var companySkillListIncludeSchema = external_exports.enum(["lastEditor"]);
+var companySkillFileInventoryEntrySchema = external_exports.object({
+  path: external_exports.string().min(1),
+  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"])
+});
+var companySkillVersionFileInventoryEntrySchema = companySkillFileInventoryEntrySchema.extend({
+  content: external_exports.string()
+});
+var companySkillSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  companyId: external_exports.string().uuid(),
+  folderId: external_exports.string().uuid().nullable().optional(),
+  folderPath: external_exports.string().nullable().optional(),
+  key: external_exports.string().min(1),
+  slug: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  markdown: external_exports.string(),
+  sourceType: companySkillSourceTypeSchema,
+  sourceLocator: external_exports.string().nullable(),
+  sourceRef: external_exports.string().nullable(),
+  trustLevel: companySkillTrustLevelSchema,
+  compatibility: companySkillCompatibilitySchema,
+  fileInventory: external_exports.array(companySkillFileInventoryEntrySchema).default([]),
+  iconUrl: external_exports.string().nullable(),
+  color: external_exports.string().nullable(),
+  tagline: external_exports.string().nullable(),
+  authorName: external_exports.string().nullable(),
+  homepageUrl: external_exports.string().nullable(),
+  categories: external_exports.array(external_exports.string().min(1)).default([]),
+  sharingScope: companySkillSharingScopeSchema,
+  publicShareToken: external_exports.string().nullable(),
+  forkedFromSkillId: external_exports.string().uuid().nullable(),
+  forkedFromCompanyId: external_exports.string().uuid().nullable(),
+  starCount: external_exports.number().int().nonnegative(),
+  installCount: external_exports.number().int().nonnegative(),
+  forkCount: external_exports.number().int().nonnegative(),
+  currentVersionId: external_exports.string().uuid().nullable(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+});
+var companySkillListItemSchema = companySkillSchema.extend({
+  attachedAgentCount: external_exports.number().int().nonnegative(),
+  editable: external_exports.boolean(),
+  editableReason: external_exports.string().nullable(),
+  sourceLabel: external_exports.string().nullable(),
+  sourceBadge: companySkillSourceBadgeSchema,
+  catalogKind: external_exports.enum(["bundled", "optional"]).nullable(),
+  originHash: external_exports.string().nullable(),
+  packageName: external_exports.string().nullable(),
+  packageVersion: external_exports.string().nullable(),
+  lastEditor: external_exports.object({
+    kind: external_exports.enum(["user", "agent"]),
+    id: external_exports.string().min(1),
+    name: external_exports.string().nullable(),
+    imageUrl: external_exports.string().nullable()
+  }).nullable().optional()
+});
+var companySkillUsageAgentSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  name: external_exports.string().min(1),
+  urlKey: external_exports.string().min(1),
+  adapterType: external_exports.string().min(1),
+  desired: external_exports.boolean(),
+  actualState: external_exports.string().nullable().describe("Runtime adapter skill state when explicitly fetched; company skill detail reads return null without probing agent runtimes."),
+  versionId: external_exports.string().uuid().nullable()
+});
+var companySkillOriginalSummarySchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  name: external_exports.string().min(1),
+  slug: external_exports.string().min(1),
+  sourceType: companySkillSourceTypeSchema,
+  sourceLocator: external_exports.string().nullable(),
+  sourceRef: external_exports.string().nullable()
+});
+var companySkillForkSummarySchema = companySkillOriginalSummarySchema.extend({
+  key: external_exports.string().min(1),
+  forkedFromSkillId: external_exports.string().uuid().nullable(),
+  forkedFromCompanyId: external_exports.string().uuid().nullable(),
+  currentVersionId: external_exports.string().uuid().nullable(),
+  createdByCurrentActor: external_exports.boolean(),
+  diverged: external_exports.boolean(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+});
+var companySkillListQuerySchema = external_exports.object({
+  q: external_exports.string().min(1).optional(),
+  sort: companySkillListSortSchema.optional(),
+  categories: external_exports.array(external_exports.string().min(1)).optional(),
+  scope: companySkillSharingScopeSchema.optional(),
+  include: external_exports.array(companySkillListIncludeSchema).optional(),
+  folderId: external_exports.string().uuid().optional(),
+  includeSubtree: external_exports.boolean().optional()
+});
+var companySkillCategoryCountSchema = external_exports.object({
+  slug: external_exports.string().min(1),
+  count: external_exports.number().int().nonnegative()
+});
+var companySkillVersionSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  companyId: external_exports.string().uuid(),
+  companySkillId: external_exports.string().uuid(),
+  revisionNumber: external_exports.number().int().positive(),
+  label: external_exports.string().nullable(),
+  fileInventory: external_exports.array(companySkillVersionFileInventoryEntrySchema).default([]),
+  authorAgentId: external_exports.string().uuid().nullable(),
+  authorUserId: external_exports.string().nullable(),
+  createdAt: external_exports.coerce.date()
+});
+var companySkillDetailSchema = companySkillSchema.extend({
+  attachedAgentCount: external_exports.number().int().nonnegative(),
+  usedByAgents: external_exports.array(companySkillUsageAgentSchema).default([]),
+  existingForks: external_exports.array(companySkillForkSummarySchema).default([]),
+  editable: external_exports.boolean(),
+  editableReason: external_exports.string().nullable(),
+  sourceLabel: external_exports.string().nullable(),
+  sourceBadge: companySkillSourceBadgeSchema,
+  currentVersion: companySkillVersionSchema.nullable(),
+  starredByCurrentActor: external_exports.boolean()
+});
+var companySkillVersionCreateSchema = external_exports.object({
+  label: external_exports.string().trim().min(1).nullable().optional()
+}).default({});
+var companySkillStarResultSchema = external_exports.object({
+  skillId: external_exports.string().uuid(),
+  starred: external_exports.boolean(),
+  starCount: external_exports.number().int().nonnegative()
+});
+var companySkillCommentSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  companyId: external_exports.string().uuid(),
+  companySkillId: external_exports.string().uuid(),
+  parentCommentId: external_exports.string().uuid().nullable(),
+  authorAgentId: external_exports.string().uuid().nullable(),
+  authorUserId: external_exports.string().nullable(),
+  body: external_exports.string(),
+  deletedAt: external_exports.coerce.date().nullable(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+});
+var companySkillCommentCreateSchema = external_exports.object({
+  body: external_exports.string().min(1),
+  parentCommentId: external_exports.string().uuid().nullable().optional()
+});
+var companySkillCommentUpdateSchema = external_exports.object({
+  body: external_exports.string().min(1)
+});
+var companySkillForkSchema = external_exports.object({
+  name: external_exports.string().min(1).nullable().optional(),
+  slug: external_exports.string().min(1).nullable().optional(),
+  sharingScope: companySkillSharingScopeSchema.optional(),
+  reassignAgentIds: external_exports.array(external_exports.string().uuid()).optional()
+}).default({});
+var companySkillForkReassignmentSchema = external_exports.object({
+  agentId: external_exports.string().uuid(),
+  previousSkillKey: external_exports.string().min(1),
+  nextSkillKey: external_exports.string().min(1)
+});
+var companySkillForkResultSchema = external_exports.object({
+  skill: companySkillSchema,
+  original: companySkillOriginalSummarySchema,
+  reassignments: external_exports.array(companySkillForkReassignmentSchema)
+});
+var companySkillForkPrecheckResultSchema = external_exports.object({
+  skillId: external_exports.string().uuid(),
+  original: companySkillOriginalSummarySchema,
+  agentUsageCount: external_exports.number().int().nonnegative(),
+  usedByAgents: external_exports.array(companySkillUsageAgentSchema),
+  existingForks: external_exports.array(companySkillForkSummarySchema)
+});
+var companySkillUpdateSchema = external_exports.object({
+  description: external_exports.string().nullable().optional(),
+  iconUrl: external_exports.string().nullable().optional(),
+  color: external_exports.string().nullable().optional(),
+  tagline: external_exports.string().max(120).nullable().optional(),
+  authorName: external_exports.string().nullable().optional(),
+  homepageUrl: external_exports.string().nullable().optional(),
+  categories: external_exports.array(external_exports.string().min(1)).optional(),
+  sharingScope: companySkillSharingScopeSchema.optional()
+}).default({});
+var companySkillUpdateStatusSchema = external_exports.object({
+  supported: external_exports.boolean(),
+  reason: external_exports.string().nullable(),
+  trackingRef: external_exports.string().nullable(),
+  currentRef: external_exports.string().nullable(),
+  latestRef: external_exports.string().nullable(),
+  hasUpdate: external_exports.boolean(),
+  installedHash: external_exports.string().nullable(),
+  originHash: external_exports.string().nullable(),
+  userModifiedAt: external_exports.string().nullable(),
+  updateHoldReason: external_exports.enum([
+    "local_modifications",
+    "audit_hard_stop",
+    "origin_unavailable",
+    "compatibility_invalid",
+    "operator_hold"
+  ]).nullable(),
+  auditVerdict: external_exports.enum(["pass", "warning", "fail"]).nullable(),
+  auditCodes: external_exports.array(external_exports.string())
+});
+var companySkillAuditFindingSchema = external_exports.object({
+  code: external_exports.string().min(1),
+  severity: external_exports.enum(["warning", "error"]),
+  message: external_exports.string().min(1),
+  path: external_exports.string().nullable()
+});
+var companySkillAuditResultSchema = external_exports.object({
+  skillId: external_exports.string().uuid(),
+  installedHash: external_exports.string().nullable(),
+  originHash: external_exports.string().nullable(),
+  verdict: external_exports.enum(["pass", "warning", "fail"]),
+  codes: external_exports.array(external_exports.string()),
+  findings: external_exports.array(companySkillAuditFindingSchema),
+  scannedAt: external_exports.string().min(1),
+  scanVersion: external_exports.string().min(1)
+});
+var companySkillInstallUpdateSchema = external_exports.object({
+  force: external_exports.boolean().optional()
+}).default({});
+var companySkillResetSchema = external_exports.object({
+  force: external_exports.boolean().optional()
+}).default({});
+var companySkillImportSchema = external_exports.object({
+  source: external_exports.string().min(1)
+});
+var companySkillProjectScanRequestSchema = external_exports.object({
+  projectIds: external_exports.array(external_exports.string().uuid()).optional(),
+  workspaceIds: external_exports.array(external_exports.string().uuid()).optional(),
+  mode: external_exports.enum(["import", "preview"]).optional(),
+  selection: external_exports.array(external_exports.object({
+    workspaceId: external_exports.string().uuid(),
+    path: external_exports.string().min(1),
+    slug: external_exports.string().min(1).optional()
+  })).optional()
+});
+var companySkillProjectScanCandidateSchema = external_exports.object({
+  slug: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  workspaceId: external_exports.string().uuid(),
+  workspaceName: external_exports.string().min(1),
+  projectId: external_exports.string().uuid(),
+  projectName: external_exports.string().min(1),
+  directoryRoot: external_exports.string().min(1),
+  relativePath: external_exports.string().min(1),
+  status: external_exports.enum(["new", "already_imported", "conflict", "skipped"]),
+  existingSkillId: external_exports.string().uuid().optional(),
+  reason: external_exports.string().min(1).optional()
+});
+var companySkillProjectScanSkippedSchema = external_exports.object({
+  projectId: external_exports.string().uuid().nullable(),
+  projectName: external_exports.string().min(1).nullable(),
+  workspaceId: external_exports.string().uuid().nullable(),
+  workspaceName: external_exports.string().nullable(),
+  path: external_exports.string().nullable(),
+  reason: external_exports.string().min(1)
+});
+var companySkillProjectScanConflictSchema = external_exports.object({
+  slug: external_exports.string().min(1),
+  key: external_exports.string().min(1),
+  projectId: external_exports.string().uuid(),
+  projectName: external_exports.string().min(1),
+  workspaceId: external_exports.string().uuid(),
+  workspaceName: external_exports.string().min(1),
+  path: external_exports.string().min(1),
+  existingSkillId: external_exports.string().uuid(),
+  existingSkillKey: external_exports.string().min(1),
+  existingSourceLocator: external_exports.string().nullable(),
+  reason: external_exports.string().min(1)
+});
+var companySkillProjectScanResultSchema = external_exports.object({
+  scannedProjects: external_exports.number().int().nonnegative(),
+  scannedWorkspaces: external_exports.number().int().nonnegative(),
+  discovered: external_exports.number().int().nonnegative(),
+  imported: external_exports.array(companySkillSchema),
+  updated: external_exports.array(companySkillSchema),
+  skipped: external_exports.array(companySkillProjectScanSkippedSchema),
+  conflicts: external_exports.array(companySkillProjectScanConflictSchema),
+  candidates: external_exports.array(companySkillProjectScanCandidateSchema),
+  warnings: external_exports.array(external_exports.string())
+});
+var companySkillCreateSchema = external_exports.object({
+  folderId: external_exports.string().uuid().nullable().optional(),
+  name: external_exports.string().min(1),
+  slug: external_exports.string().min(1).nullable().optional(),
+  description: external_exports.string().nullable().optional(),
+  markdown: external_exports.string().nullable().optional(),
+  iconUrl: external_exports.string().nullable().optional(),
+  color: external_exports.string().nullable().optional(),
+  tagline: external_exports.string().max(120).nullable().optional(),
+  authorName: external_exports.string().nullable().optional(),
+  homepageUrl: external_exports.string().nullable().optional(),
+  categories: external_exports.array(external_exports.string().min(1)).optional(),
+  sharingScope: companySkillSharingScopeSchema.optional(),
+  forkedFromSkillId: external_exports.string().uuid().nullable().optional()
+});
+var companySkillFileDetailSchema = external_exports.object({
+  skillId: external_exports.string().uuid(),
+  path: external_exports.string().min(1),
+  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"]),
+  content: external_exports.string(),
+  language: external_exports.string().nullable(),
+  markdown: external_exports.boolean(),
+  editable: external_exports.boolean()
+});
+var companySkillFileUpdateSchema = external_exports.object({
+  path: external_exports.string().min(1),
+  content: external_exports.string()
+});
+var companySkillFileDeleteSchema = external_exports.object({
+  path: external_exports.string().min(1),
+  target: external_exports.enum(["file", "folder"])
+});
+var companySkillTestRunStatusSchema = external_exports.enum(["queued", "running", "succeeded", "failed", "cancelled"]);
+var companySkillTestInputSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  companyId: external_exports.string().uuid(),
+  skillId: external_exports.string().uuid(),
+  name: external_exports.string().min(1),
+  content: external_exports.string(),
+  createdBy: external_exports.string().nullable(),
+  deletedAt: external_exports.coerce.date().nullable(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+});
+var companySkillTestInputCreateSchema = external_exports.object({
+  name: external_exports.string().trim().min(1),
+  content: external_exports.string().min(1)
+});
+var companySkillTestInputUpdateSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).optional(),
+  content: external_exports.string().min(1).optional()
+}).refine((value) => value.name !== void 0 || value.content !== void 0, {
+  message: "At least one field is required"
+});
+var companySkillTestRunTemplateSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  companyId: external_exports.string().uuid(),
+  name: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  body: external_exports.string().min(1),
+  builtIn: external_exports.boolean(),
+  createdByAgentId: external_exports.string().uuid().nullable(),
+  createdByUserId: external_exports.string().nullable(),
+  updatedByAgentId: external_exports.string().uuid().nullable(),
+  updatedByUserId: external_exports.string().nullable(),
+  deletedAt: external_exports.coerce.date().nullable(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+});
+var companySkillTestRunTemplateCreateSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120),
+  description: external_exports.string().trim().max(500).nullable().optional(),
+  body: external_exports.string().min(1).max(2e4)
+});
+var companySkillTestRunTemplateUpdateSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120).optional(),
+  description: external_exports.string().trim().max(500).nullable().optional(),
+  body: external_exports.string().min(1).max(2e4).optional()
+}).refine((value) => value.name !== void 0 || value.description !== void 0 || value.body !== void 0, { message: "At least one field is required" });
+var companySkillTestRunTemplateSnapshotSchema = external_exports.object({
+  templateId: external_exports.string().min(1).nullable(),
+  templateName: external_exports.string().min(1).nullable(),
+  templateBody: external_exports.string().min(1).max(2e4).nullable()
+}).refine((value) => value.templateId === null && value.templateName === null && value.templateBody === null || value.templateId !== null && value.templateName !== null && value.templateBody !== null, { message: "Template snapshot must be all null or include id, name, and body" });
+var companySkillTestRunCostSummarySchema = external_exports.object({
+  costCents: external_exports.number().int().nonnegative(),
+  inputTokens: external_exports.number().int().nonnegative(),
+  cachedInputTokens: external_exports.number().int().nonnegative(),
+  outputTokens: external_exports.number().int().nonnegative()
+});
+var companySkillTestRunSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  companyId: external_exports.string().uuid(),
+  skillId: external_exports.string().uuid(),
+  inputId: external_exports.string().uuid().nullable(),
+  inputSnapshot: external_exports.string(),
+  skillVersionId: external_exports.string().uuid(),
+  agentId: external_exports.string().uuid(),
+  agentConfigSnapshot: external_exports.record(external_exports.string(), external_exports.unknown()),
+  issueId: external_exports.string().uuid(),
+  templateId: external_exports.string().nullable(),
+  templateName: external_exports.string().nullable(),
+  templateBody: external_exports.string().nullable(),
+  renderedTemplateBody: external_exports.string().nullable(),
+  harnessIssueDescription: external_exports.string(),
+  status: companySkillTestRunStatusSchema,
+  outputDocumentKey: external_exports.string().min(1),
+  outputSnapshot: external_exports.string(),
+  error: external_exports.string().nullable(),
+  deletedAt: external_exports.coerce.date().nullable(),
+  supersededAt: external_exports.coerce.date().nullable(),
+  harnessIssueExpiresAt: external_exports.coerce.date().nullable(),
+  harnessIssueDeletedAt: external_exports.coerce.date().nullable(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date(),
+  cost: companySkillTestRunCostSummarySchema,
+  taskExpired: external_exports.boolean()
+});
+var companySkillTestRunCreateSchema = external_exports.object({
+  inputId: external_exports.string().uuid().nullable().optional(),
+  content: external_exports.string().min(1).nullable().optional(),
+  agentId: external_exports.string().uuid(),
+  templateId: external_exports.string().min(1).nullable().optional(),
+  templateSnapshot: companySkillTestRunTemplateSnapshotSchema.nullable().optional(),
+  // Re-run pins the viewed run's skill version instead of the live head, so the
+  // new run reproduces the same snapshots (golden-path step 5).
+  skillVersionId: external_exports.string().uuid().nullable().optional()
+}).refine((value) => Boolean(value.inputId) || Boolean(value.content?.trim()), {
+  message: "inputId or content is required"
+});
+var companySkillTestRunListQuerySchema = external_exports.object({
+  inputId: external_exports.string().uuid().optional()
+});
+var catalogSkillKindSchema = external_exports.enum(["bundled", "optional"]);
+var catalogSkillFileSchema = external_exports.object({
+  path: external_exports.string().min(1),
+  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"]),
+  sizeBytes: external_exports.number().int().nonnegative(),
+  sha256: external_exports.string().min(1)
+});
+var catalogSkillGitHubSourceSchema = external_exports.object({
+  type: external_exports.literal("github"),
+  hostname: external_exports.string().min(1),
+  owner: external_exports.string().min(1),
+  repo: external_exports.string().min(1),
+  ref: external_exports.string().min(1),
+  commit: external_exports.string().regex(/^[0-9a-f]{40}$/i),
+  path: external_exports.string(),
+  url: external_exports.string().url()
+});
+var catalogSkillSourceSchema = catalogSkillGitHubSourceSchema;
+var catalogSkillSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  key: external_exports.string().min(1),
+  kind: catalogSkillKindSchema,
+  category: external_exports.string().min(1),
+  slug: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  description: external_exports.string(),
+  path: external_exports.string().min(1),
+  entrypoint: external_exports.literal("SKILL.md"),
+  trustLevel: companySkillTrustLevelSchema,
+  compatibility: companySkillCompatibilitySchema,
+  defaultInstall: external_exports.boolean(),
+  recommendedForRoles: external_exports.array(external_exports.string()),
+  requires: external_exports.array(external_exports.string()),
+  tags: external_exports.array(external_exports.string()),
+  files: external_exports.array(catalogSkillFileSchema),
+  contentHash: external_exports.string().min(1),
+  source: catalogSkillSourceSchema.optional(),
+  packageName: external_exports.string().min(1).optional(),
+  packageVersion: external_exports.string().min(1).optional()
+});
+var catalogSkillListQuerySchema = external_exports.object({
+  kind: catalogSkillKindSchema.optional(),
+  category: external_exports.string().min(1).optional(),
+  q: external_exports.string().min(1).optional()
+});
+var catalogSkillFileDetailSchema = external_exports.object({
+  catalogSkillId: external_exports.string().min(1),
+  path: external_exports.string().min(1),
+  kind: external_exports.enum(["skill", "markdown", "reference", "script", "asset", "other"]),
+  content: external_exports.string(),
+  language: external_exports.string().nullable(),
+  markdown: external_exports.boolean()
+});
+var companySkillInstallCatalogSchema = external_exports.object({
+  catalogSkillId: external_exports.string().min(1),
+  slug: external_exports.string().min(1).nullable().optional(),
+  force: external_exports.boolean().optional()
+});
+var companySkillInstallCatalogResultSchema = external_exports.object({
+  action: external_exports.enum(["created", "updated", "unchanged"]),
+  skill: companySkillSchema,
+  catalogSkill: catalogSkillSchema,
+  warnings: external_exports.array(external_exports.string())
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/folder.js
+var folderKindSchema = external_exports.enum(["routine", "skill"]);
+var folderSlugSchema = external_exports.string().trim().min(1).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Folder slug must contain only lowercase letters, numbers, and single hyphens");
+var folderSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  companyId: external_exports.string().uuid(),
+  kind: folderKindSchema,
+  parentId: external_exports.string().uuid().nullable(),
+  name: external_exports.string().min(1),
+  slug: folderSlugSchema,
+  systemKey: external_exports.string().nullable(),
+  path: external_exports.string().min(1),
+  depth: external_exports.number().int().min(1),
+  color: external_exports.string().nullable(),
+  position: external_exports.number().int(),
+  createdAt: external_exports.coerce.date(),
+  updatedAt: external_exports.coerce.date()
+});
+var folderListItemSchema = folderSchema.extend({
+  itemCount: external_exports.number().int().nonnegative()
+});
+var folderListResultSchema = external_exports.object({
+  kind: folderKindSchema,
+  folders: external_exports.array(folderListItemSchema),
+  allCount: external_exports.number().int().nonnegative(),
+  unfiledCount: external_exports.number().int().nonnegative()
+});
+var createFolderSchema = external_exports.object({
+  kind: folderKindSchema,
+  parentId: external_exports.string().uuid().optional().nullable(),
+  name: external_exports.string().trim().min(1).max(120),
+  slug: folderSlugSchema.optional().nullable(),
+  color: external_exports.string().trim().min(1).max(80).optional().nullable(),
+  position: external_exports.number().int().min(0).optional().nullable()
+});
+var updateFolderSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120).optional(),
+  slug: folderSlugSchema.optional(),
+  color: external_exports.string().trim().min(1).max(80).optional().nullable(),
+  position: external_exports.number().int().min(0).optional()
+}).refine((value) => Object.keys(value).length > 0, {
+  message: "At least one folder field is required"
+});
+var moveFolderSchema = external_exports.object({
+  parentId: external_exports.string().uuid().optional().nullable(),
+  position: external_exports.number().int().min(0)
+});
+var ensureMySkillFolderSchema = external_exports.object({
+  slug: folderSlugSchema.optional().nullable()
+}).default({});
+var moveFolderItemSchema = external_exports.object({
+  kind: folderKindSchema,
+  itemId: external_exports.string().uuid(),
+  folderId: external_exports.string().uuid().optional().nullable()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/company-portability.js
+var portabilityIncludeSchema = external_exports.object({
+  company: external_exports.boolean().optional(),
+  agents: external_exports.boolean().optional(),
+  projects: external_exports.boolean().optional(),
+  issues: external_exports.boolean().optional(),
+  skills: external_exports.boolean().optional()
+}).partial();
+var portabilityEnvInputSchema = external_exports.object({
+  key: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  agentSlug: external_exports.string().min(1).nullable(),
+  projectSlug: external_exports.string().min(1).nullable(),
+  kind: external_exports.enum(["secret", "plain"]),
+  requirement: external_exports.enum(["required", "optional"]),
+  defaultValue: external_exports.string().nullable(),
+  portability: external_exports.enum(["portable", "system_dependent"])
+});
+var portabilityFileEntrySchema = external_exports.union([
+  external_exports.string(),
+  external_exports.object({
+    encoding: external_exports.literal("base64"),
+    data: external_exports.string(),
+    contentType: external_exports.string().min(1).optional().nullable()
+  })
+]);
+var portabilityCompanyManifestEntrySchema = external_exports.object({
+  path: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  brandColor: external_exports.string().nullable(),
+  logoPath: external_exports.string().nullable(),
+  attachmentMaxBytes: external_exports.number().int().min(1).max(MAX_COMPANY_ATTACHMENT_MAX_BYTES).nullable().default(null),
+  requireBoardApprovalForNewAgents: external_exports.boolean(),
+  feedbackDataSharingEnabled: external_exports.boolean().default(false),
+  feedbackDataSharingConsentAt: external_exports.string().datetime().nullable().default(null),
+  feedbackDataSharingConsentByUserId: external_exports.string().nullable().default(null),
+  feedbackDataSharingTermsVersion: external_exports.string().nullable().default(null)
+});
+var portabilitySidebarOrderSchema = external_exports.object({
+  agents: external_exports.array(external_exports.string().min(1)).default([]),
+  projects: external_exports.array(external_exports.string().min(1)).default([])
+});
+var portabilityAgentManifestEntrySchema = external_exports.object({
+  slug: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  path: external_exports.string().min(1),
+  skills: external_exports.array(external_exports.string().min(1)).default([]),
+  role: external_exports.string().min(1),
+  title: external_exports.string().nullable(),
+  icon: external_exports.string().nullable(),
+  capabilities: external_exports.string().nullable(),
+  reportsToSlug: external_exports.string().min(1).nullable(),
+  adapterType: external_exports.string().min(1),
+  adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()),
+  runtimeConfig: external_exports.record(external_exports.string(), external_exports.unknown()),
+  permissions: external_exports.record(external_exports.string(), external_exports.unknown()),
+  permissionGrants: external_exports.array(external_exports.object({
+    permissionKey: external_exports.enum(PERMISSION_KEYS),
+    scope: external_exports.record(external_exports.string(), external_exports.unknown()).nullable().default(null)
+  })).default([]),
+  budgetMonthlyCents: external_exports.number().int().nonnegative(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable()
+});
+var portabilitySkillManifestEntrySchema = external_exports.object({
+  key: external_exports.string().min(1),
+  slug: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  path: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  sourceType: external_exports.string().min(1),
+  sourceLocator: external_exports.string().nullable(),
+  sourceRef: external_exports.string().nullable(),
+  trustLevel: external_exports.string().nullable(),
+  compatibility: external_exports.string().nullable(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+  fileInventory: external_exports.array(external_exports.object({
+    path: external_exports.string().min(1),
+    kind: external_exports.string().min(1)
+  })).default([])
+});
+var portabilityProjectManifestEntrySchema = external_exports.object({
+  slug: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  path: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  ownerAgentSlug: external_exports.string().min(1).nullable(),
+  leadAgentSlug: external_exports.string().min(1).nullable(),
+  targetDate: external_exports.string().nullable(),
+  color: external_exports.string().nullable(),
+  status: external_exports.string().nullable(),
+  executionWorkspacePolicy: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+  workspaces: external_exports.array(external_exports.object({
+    key: external_exports.string().min(1),
+    name: external_exports.string().min(1),
+    sourceType: external_exports.string().nullable(),
+    repoUrl: external_exports.string().nullable(),
+    repoRef: external_exports.string().nullable(),
+    defaultRef: external_exports.string().nullable(),
+    visibility: external_exports.string().nullable(),
+    setupCommand: external_exports.string().nullable(),
+    cleanupCommand: external_exports.string().nullable(),
+    metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+    isPrimary: external_exports.boolean()
+  })).default([]),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable()
+});
+var portabilityIssueRoutineTriggerManifestEntrySchema = external_exports.object({
+  kind: external_exports.string().min(1),
+  label: external_exports.string().nullable(),
+  enabled: external_exports.boolean(),
+  cronExpression: external_exports.string().nullable(),
+  timezone: external_exports.string().nullable(),
+  signingMode: external_exports.string().nullable(),
+  replayWindowSec: external_exports.number().int().nullable()
+});
+var portabilityIssueRoutineManifestEntrySchema = external_exports.object({
+  concurrencyPolicy: external_exports.string().nullable(),
+  catchUpPolicy: external_exports.string().nullable(),
+  variables: external_exports.array(routineVariableSchema).nullable().optional(),
+  triggers: external_exports.array(portabilityIssueRoutineTriggerManifestEntrySchema).default([])
+});
+var portabilityIssueCommentManifestEntrySchema = external_exports.object({
+  body: external_exports.string().min(1),
+  authorType: issueCommentAuthorTypeSchema,
+  authorAgentSlug: external_exports.string().min(1).nullable(),
+  authorUserId: external_exports.string().nullable(),
+  presentation: issueCommentPresentationSchema.nullable(),
+  metadata: issueCommentMetadataSchema.nullable(),
+  createdAt: external_exports.string().datetime().nullable()
+});
+var portabilityIssueManifestEntrySchema = external_exports.object({
+  slug: external_exports.string().min(1),
+  identifier: external_exports.string().min(1).nullable(),
+  title: external_exports.string().min(1),
+  path: external_exports.string().min(1),
+  projectSlug: external_exports.string().min(1).nullable(),
+  projectWorkspaceKey: external_exports.string().min(1).nullable(),
+  assigneeAgentSlug: external_exports.string().min(1).nullable(),
+  description: external_exports.string().nullable(),
+  recurring: external_exports.boolean().default(false),
+  routine: portabilityIssueRoutineManifestEntrySchema.nullable(),
+  legacyRecurrence: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+  status: external_exports.string().nullable(),
+  priority: external_exports.string().nullable(),
+  labelIds: external_exports.array(external_exports.string().min(1)).default([]),
+  billingCode: external_exports.string().nullable(),
+  executionWorkspaceSettings: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+  assigneeAdapterOverrides: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+  comments: external_exports.array(portabilityIssueCommentManifestEntrySchema).default([]),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable()
+});
+var portabilityManifestSchema = external_exports.object({
+  schemaVersion: external_exports.number().int().positive(),
+  generatedAt: external_exports.string().datetime(),
+  source: external_exports.object({
+    companyId: external_exports.string().uuid(),
+    companyName: external_exports.string().min(1)
+  }).nullable(),
+  includes: external_exports.object({
+    company: external_exports.boolean(),
+    agents: external_exports.boolean(),
+    projects: external_exports.boolean(),
+    issues: external_exports.boolean(),
+    skills: external_exports.boolean()
+  }),
+  company: portabilityCompanyManifestEntrySchema.nullable(),
+  sidebar: portabilitySidebarOrderSchema.nullable(),
+  agents: external_exports.array(portabilityAgentManifestEntrySchema),
+  skills: external_exports.array(portabilitySkillManifestEntrySchema).default([]),
+  projects: external_exports.array(portabilityProjectManifestEntrySchema).default([]),
+  issues: external_exports.array(portabilityIssueManifestEntrySchema).default([]),
+  envInputs: external_exports.array(portabilityEnvInputSchema).default([])
+});
+var portabilitySourceSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("inline"),
+    rootPath: external_exports.string().min(1).optional().nullable(),
+    files: external_exports.record(external_exports.string(), portabilityFileEntrySchema)
+  }),
+  external_exports.object({
+    type: external_exports.literal("github"),
+    url: external_exports.string().url()
+  })
+]);
+var portabilityTargetSchema = external_exports.discriminatedUnion("mode", [
+  external_exports.object({
+    mode: external_exports.literal("new_company"),
+    newCompanyName: external_exports.string().min(1).optional().nullable()
+  }),
+  external_exports.object({
+    mode: external_exports.literal("existing_company"),
+    companyId: external_exports.string().uuid()
+  })
+]);
+var portabilityAgentSelectionSchema = external_exports.union([
+  external_exports.literal("all"),
+  external_exports.array(external_exports.string().min(1))
+]);
+var portabilityCollisionStrategySchema = external_exports.enum(["rename", "skip", "replace"]);
+var companyPortabilityExportSchema = external_exports.object({
+  include: portabilityIncludeSchema.optional(),
+  agents: external_exports.array(external_exports.string().min(1)).optional(),
+  skills: external_exports.array(external_exports.string().min(1)).optional(),
+  projects: external_exports.array(external_exports.string().min(1)).optional(),
+  issues: external_exports.array(external_exports.string().min(1)).optional(),
+  projectIssues: external_exports.array(external_exports.string().min(1)).optional(),
+  selectedFiles: external_exports.array(external_exports.string().min(1)).optional(),
+  expandReferencedSkills: external_exports.boolean().optional(),
+  sidebarOrder: portabilitySidebarOrderSchema.partial().optional()
+});
+var companyPortabilityPreviewSchema = external_exports.object({
+  source: portabilitySourceSchema,
+  include: portabilityIncludeSchema.optional(),
+  target: portabilityTargetSchema,
+  agents: portabilityAgentSelectionSchema.optional(),
+  collisionStrategy: portabilityCollisionStrategySchema.optional(),
+  nameOverrides: external_exports.record(external_exports.string().min(1), external_exports.string().min(1)).optional(),
+  selectedFiles: external_exports.array(external_exports.string().min(1)).optional()
+});
+var portabilityAdapterOverrideSchema = external_exports.object({
+  adapterType: external_exports.string().min(1),
+  adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+});
+var companyPortabilityImportSchema = companyPortabilityPreviewSchema.extend({
+  adapterOverrides: external_exports.record(external_exports.string().min(1), portabilityAdapterOverrideSchema).optional(),
+  secretValues: external_exports.record(external_exports.string().min(1), external_exports.string()).optional()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
+var catalogTeamKindSchema = external_exports.enum(["bundled", "optional"]);
+var catalogTeamTrustLevelSchema = external_exports.enum([
+  "markdown_only",
+  "assets",
+  "scripts_executables",
+  "external_sources"
+]);
+var catalogTeamCompatibilitySchema = external_exports.enum(["compatible", "unknown", "invalid"]);
+var catalogTeamFileKindSchema = external_exports.enum([
+  "team",
+  "agent",
+  "project",
+  "task",
+  "skill",
+  "extension",
+  "readme",
+  "reference",
+  "script",
+  "asset",
+  "markdown",
+  "other"
+]);
+var catalogTeamSkillRequirementTypeSchema = external_exports.enum([
+  "catalog",
+  "local",
+  "skills_sh",
+  "github",
+  "url",
+  "local_path",
+  "agent_package"
+]);
+var catalogTeamSkillRequirementSchema = external_exports.object({
+  type: catalogTeamSkillRequirementTypeSchema,
+  ref: external_exports.string().min(1),
+  agentSlugs: external_exports.array(external_exports.string().min(1)),
+  resolved: external_exports.boolean(),
+  catalogSkillId: external_exports.string().min(1).optional(),
+  catalogSkillKey: external_exports.string().min(1).optional(),
+  localPath: external_exports.string().min(1).optional(),
+  sourceLocator: external_exports.string().min(1).optional(),
+  sourceRef: external_exports.string().min(1).optional()
+});
+var catalogTeamEnvInputSummarySchema = external_exports.object({
+  key: external_exports.string().min(1),
+  agentSlug: external_exports.string().min(1).nullable(),
+  projectSlug: external_exports.string().min(1).nullable(),
+  kind: external_exports.enum(["secret", "plain"]),
+  requirement: external_exports.enum(["required", "optional"])
+});
+var catalogTeamSourceRefSchema = external_exports.object({
+  type: external_exports.enum(["skills_sh", "github", "url", "local_path", "agent_package", "include"]),
+  ref: external_exports.string().min(1),
+  pinned: external_exports.boolean()
+});
+var catalogTeamFileSchema = external_exports.object({
+  path: external_exports.string().min(1),
+  kind: catalogTeamFileKindSchema,
+  sizeBytes: external_exports.number().int().nonnegative(),
+  sha256: external_exports.string().min(1)
+});
+var catalogTeamSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  key: external_exports.string().min(1),
+  kind: catalogTeamKindSchema,
+  category: external_exports.string().min(1),
+  slug: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  description: external_exports.string(),
+  path: external_exports.string().min(1),
+  entrypoint: external_exports.literal("TEAM.md"),
+  schema: external_exports.literal("agentcompanies/v1"),
+  defaultInstall: external_exports.boolean(),
+  recommendedForCompanyTypes: external_exports.array(external_exports.string()),
+  tags: external_exports.array(external_exports.string()),
+  counts: external_exports.object({
+    agents: external_exports.number().int().nonnegative(),
+    projects: external_exports.number().int().nonnegative(),
+    tasks: external_exports.number().int().nonnegative(),
+    routines: external_exports.number().int().nonnegative(),
+    localSkills: external_exports.number().int().nonnegative(),
+    catalogSkills: external_exports.number().int().nonnegative(),
+    externalSkillSources: external_exports.number().int().nonnegative()
+  }),
+  rootAgentSlugs: external_exports.array(external_exports.string()),
+  agentSlugs: external_exports.array(external_exports.string()),
+  projectSlugs: external_exports.array(external_exports.string()),
+  requiredSkills: external_exports.array(catalogTeamSkillRequirementSchema),
+  envInputs: external_exports.array(catalogTeamEnvInputSummarySchema),
+  sourceRefs: external_exports.array(catalogTeamSourceRefSchema),
+  files: external_exports.array(catalogTeamFileSchema),
+  trustLevel: catalogTeamTrustLevelSchema,
+  compatibility: catalogTeamCompatibilitySchema,
+  contentHash: external_exports.string().min(1),
+  packageName: external_exports.string().min(1).optional(),
+  packageVersion: external_exports.string().min(1).optional()
+});
+var catalogTeamListQuerySchema = external_exports.object({
+  kind: catalogTeamKindSchema.optional(),
+  category: external_exports.string().min(1).optional(),
+  q: external_exports.string().min(1).optional()
+});
+var catalogTeamFileDetailSchema = external_exports.object({
+  catalogTeamId: external_exports.string().min(1),
+  path: external_exports.string().min(1),
+  kind: catalogTeamFileKindSchema,
+  content: external_exports.string(),
+  language: external_exports.string().nullable(),
+  markdown: external_exports.boolean()
+});
+var catalogTeamSourcePolicySchema = external_exports.object({
+  allowExternalSources: external_exports.boolean().optional(),
+  allowUnpinnedOptionalSources: external_exports.boolean().optional(),
+  allowLocalPathSources: external_exports.boolean().optional()
+}).strict();
+var catalogTeamPreviewSchema = external_exports.object({
+  targetManagerAgentId: external_exports.string().min(1).nullable().optional(),
+  targetManagerSlug: external_exports.string().min(1).nullable().optional(),
+  include: portabilityIncludeSchema.omit({ company: true }).strict().optional(),
+  agents: portabilityAgentSelectionSchema.optional(),
+  collisionStrategy: portabilityCollisionStrategySchema.optional(),
+  nameOverrides: external_exports.record(external_exports.string().min(1), external_exports.string().min(1)).optional(),
+  selectedFiles: external_exports.array(external_exports.string().min(1)).optional(),
+  sourcePolicy: catalogTeamSourcePolicySchema.optional()
+}).strict();
+var catalogTeamInstallSchema = catalogTeamPreviewSchema.extend({
+  adapterOverrides: external_exports.record(external_exports.string().min(1), portabilityAdapterOverrideSchema).optional(),
+  secretValues: external_exports.record(external_exports.string().min(1), external_exports.string()).optional()
+}).strict();
+var catalogTeamSkillPreparationSchema = external_exports.object({
+  type: catalogTeamSkillRequirementTypeSchema,
+  ref: external_exports.string().min(1),
+  agentSlugs: external_exports.array(external_exports.string().min(1)),
+  action: external_exports.enum([
+    "already_in_package",
+    "catalog_install_required",
+    "external_import_required",
+    "blocked"
+  ]),
+  catalogSkillId: external_exports.string().min(1).nullable(),
+  catalogSkillKey: external_exports.string().min(1).nullable(),
+  sourceLocator: external_exports.string().min(1).nullable(),
+  sourceRef: external_exports.string().min(1).nullable(),
+  reason: external_exports.string().min(1).nullable()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
+var agentSkillStateSchema = external_exports.enum([
+  "available",
+  "configured",
+  "installed",
+  "missing",
+  "stale",
+  "external"
+]);
+var agentSkillOriginSchema = external_exports.enum([
+  "company_managed",
+  "user_installed",
+  "external_unknown"
+]);
+var agentSkillSyncModeSchema = external_exports.enum([
+  "unsupported",
+  "persistent",
+  "ephemeral"
+]);
+var agentDesiredSkillEntrySchema = external_exports.object({
+  key: external_exports.string().min(1),
+  versionId: external_exports.string().uuid().nullable()
+});
+var agentDesiredSkillSelectionSchema = external_exports.union([
+  external_exports.string().min(1),
+  agentDesiredSkillEntrySchema
+]);
+var agentSkillEntrySchema = external_exports.object({
+  key: external_exports.string().min(1),
+  runtimeName: external_exports.string().min(1).nullable(),
+  versionId: external_exports.string().uuid().nullable().optional(),
+  currentVersionId: external_exports.string().uuid().nullable().optional(),
+  desired: external_exports.boolean(),
+  managed: external_exports.boolean(),
+  state: agentSkillStateSchema,
+  origin: agentSkillOriginSchema.optional(),
+  originLabel: external_exports.string().nullable().optional(),
+  locationLabel: external_exports.string().nullable().optional(),
+  readOnly: external_exports.boolean().optional(),
+  sourcePath: external_exports.string().nullable().optional(),
+  targetPath: external_exports.string().nullable().optional(),
+  detail: external_exports.string().nullable().optional()
+});
+var agentSkillSnapshotSchema = external_exports.object({
+  adapterType: external_exports.string().min(1),
+  supported: external_exports.boolean(),
+  mode: agentSkillSyncModeSchema,
+  desiredSkills: external_exports.array(external_exports.string().min(1)),
+  desiredSkillEntries: external_exports.array(agentDesiredSkillEntrySchema).optional(),
+  entries: external_exports.array(agentSkillEntrySchema),
+  warnings: external_exports.array(external_exports.string())
+});
+var agentSkillSyncSchema = external_exports.object({
+  desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema)
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/agent.js
+var agentPermissionsSchema = external_exports.object({
+  canCreateAgents: external_exports.boolean().optional().default(false),
+  canCreateSkills: external_exports.boolean().optional().default(true),
+  trustPreset: trustPresetSchema.optional(),
+  authorizationPolicy: trustAuthorizationPolicySchema.optional()
+}).catchall(external_exports.unknown());
+var agentInstructionsBundleModeSchema = external_exports.enum(["managed", "external"]);
+var updateAgentInstructionsBundleSchema = external_exports.object({
+  mode: agentInstructionsBundleModeSchema.optional(),
+  rootPath: external_exports.string().trim().min(1).nullable().optional(),
+  entryFile: external_exports.string().trim().min(1).optional(),
+  clearLegacyPromptTemplate: external_exports.boolean().optional().default(false)
+});
+var upsertAgentInstructionsFileSchema = external_exports.object({
+  path: external_exports.string().trim().min(1),
+  content: external_exports.string(),
+  clearLegacyPromptTemplate: external_exports.boolean().optional().default(false)
+});
+var adapterConfigSchema = external_exports.record(external_exports.string(), external_exports.unknown()).superRefine((value, ctx) => {
+  const envValue = value.env;
+  if (envValue === void 0)
+    return;
+  const parsed = envConfigSchema.safeParse(envValue);
+  if (!parsed.success) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "adapterConfig.env must be a map of valid env bindings",
+      path: ["env"]
+    });
+  }
+});
+var createAgentInstructionsBundleSchema = external_exports.object({
+  entryFile: external_exports.string().trim().min(1).optional(),
+  files: external_exports.record(external_exports.string(), external_exports.string()).refine((files) => Object.keys(files).length > 0, {
+    message: "instructionsBundle.files must contain at least one file"
+  })
+});
+var agentModelProfileConfigSchema = external_exports.object({
+  enabled: external_exports.boolean().optional(),
+  label: external_exports.string().trim().min(1).optional(),
+  adapterConfig: adapterConfigSchema
+}).strict();
+var agentRuntimeConfigSchema = external_exports.object({
+  modelProfiles: external_exports.object({
+    cheap: agentModelProfileConfigSchema.optional()
+  }).strict().optional()
+}).catchall(external_exports.unknown());
+var createAgentSchema = external_exports.object({
+  name: external_exports.string().min(1),
+  role: external_exports.enum(AGENT_ROLES).optional().default("general"),
+  title: external_exports.string().optional().nullable(),
+  icon: external_exports.enum(AGENT_ICON_NAMES).optional().nullable(),
+  reportsTo: external_exports.string().uuid().optional().nullable(),
+  capabilities: external_exports.string().optional().nullable(),
+  desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema).optional(),
+  adapterType: agentAdapterTypeSchema,
+  adapterConfig: adapterConfigSchema.optional().default({}),
+  instructionsBundle: createAgentInstructionsBundleSchema.optional(),
+  runtimeConfig: agentRuntimeConfigSchema.optional().default({}),
+  defaultEnvironmentId: external_exports.string().uuid().optional().nullable(),
+  budgetMonthlyCents: external_exports.number().int().nonnegative().optional().default(0),
+  permissions: agentPermissionsSchema.optional(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+});
+var builtInAgentProvisionSchema = external_exports.object({
+  adapterType: agentAdapterTypeSchema.optional(),
+  adapterConfig: adapterConfigSchema.optional(),
+  budgetMonthlyCents: external_exports.number().int().nonnegative().optional()
+}).strict();
+var builtInAgentEmptyMutationSchema = external_exports.object({}).strict().default({});
+var builtInAgentResetSchema = external_exports.object({
+  resources: external_exports.array(external_exports.enum(["agent", "instructions", "skill", "routine"])).optional()
+}).strict().default({});
+var createAgentHireSchema = createAgentSchema.extend({
+  sourceIssueId: external_exports.string().uuid().optional().nullable(),
+  sourceIssueIds: external_exports.array(external_exports.string().uuid()).optional()
+});
+var updateAgentSchema = createAgentSchema.omit({ permissions: true }).partial().extend({
+  permissions: external_exports.never().optional(),
+  replaceAdapterConfig: external_exports.boolean().optional(),
+  status: external_exports.enum(AGENT_STATUSES).optional(),
+  spentMonthlyCents: external_exports.number().int().nonnegative().optional()
+});
+var updateAgentInstructionsPathSchema = external_exports.object({
+  path: external_exports.string().trim().min(1).nullable(),
+  adapterConfigKey: external_exports.string().trim().min(1).optional()
+});
+var taskBridgeAgentKeyScopeSchema = external_exports.object({
+  kind: external_exports.literal("task_bridge"),
+  projectId: external_exports.string().uuid().optional().nullable(),
+  projectIds: external_exports.array(external_exports.string().uuid()).max(50).optional(),
+  parentIssueId: external_exports.string().uuid().optional().nullable(),
+  parentIssueIds: external_exports.array(external_exports.string().uuid()).max(50).optional(),
+  allowedAssigneeAgentIds: external_exports.array(external_exports.string().uuid()).max(50).optional()
+}).strict().superRefine((value, ctx) => {
+  const hasProjectBoundary = Boolean(value.projectId) || Boolean(value.projectIds?.length);
+  const hasParentBoundary = Boolean(value.parentIssueId) || Boolean(value.parentIssueIds?.length);
+  if (!hasProjectBoundary && !hasParentBoundary) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "task_bridge keys require at least one project or parent issue boundary",
+      path: ["projectId"]
+    });
+  }
+});
+var standardAgentKeyScopeSchema = external_exports.object({
+  kind: external_exports.literal("standard")
+}).strict();
+var skillTestAgentKeyScopeSchema = external_exports.object({
+  kind: external_exports.literal("skill_test"),
+  issueId: external_exports.string().uuid()
+}).strict();
+var agentApiKeyScopeSchema = external_exports.union([
+  standardAgentKeyScopeSchema,
+  taskBridgeAgentKeyScopeSchema,
+  skillTestAgentKeyScopeSchema
+]);
+var createAgentKeySchema = external_exports.object({
+  name: external_exports.string().min(1).default("default"),
+  scope: agentApiKeyScopeSchema.optional().default({ kind: "standard" })
+});
+var agentMineInboxQuerySchema = external_exports.object({
+  userId: external_exports.string().trim().min(1),
+  status: external_exports.string().trim().min(1).optional().default(INBOX_MINE_ISSUE_STATUS_FILTER)
+});
+var wakeAgentSchema = external_exports.object({
+  source: external_exports.enum(["timer", "assignment", "on_demand", "automation"]).optional().default("on_demand"),
+  triggerDetail: external_exports.enum(["manual", "ping", "callback", "system"]).optional(),
+  reason: external_exports.string().optional().nullable(),
+  payload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  idempotencyKey: external_exports.string().optional().nullable(),
+  forceFreshSession: external_exports.preprocess((value) => value === null ? void 0 : value, external_exports.boolean().optional().default(false))
+});
+var resetAgentSessionSchema = external_exports.object({
+  taskKey: external_exports.string().min(1).optional().nullable()
+});
+var testAdapterEnvironmentSchema = external_exports.object({
+  adapterConfig: adapterConfigSchema.optional().default({}),
+  /**
+   * Optional environment to run the adapter test inside. When omitted, the
+   * test runs against the local Paperclip host. When provided and the
+   * environment is non-local (SSH/sandbox), the test probes are executed
+   * inside that environment so the result reflects real agent execution.
+   */
+  environmentId: external_exports.string().uuid().optional().nullable()
+});
+var updateAgentPermissionsSchema = external_exports.object({
+  canCreateAgents: external_exports.boolean(),
+  canCreateSkills: external_exports.boolean().optional(),
+  canAssignTasks: external_exports.boolean(),
+  trustPreset: trustPresetSchema.optional(),
+  authorizationPolicy: trustAuthorizationPolicySchema.optional()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/project.js
+var executionWorkspaceStrategySchema2 = external_exports.object({
+  type: external_exports.enum(["project_primary", "git_worktree", "adapter_managed", "cloud_sandbox"]).optional(),
+  baseRef: external_exports.string().optional().nullable(),
+  branchTemplate: external_exports.string().optional().nullable(),
+  worktreeParentDir: external_exports.string().optional().nullable(),
+  provisionCommand: external_exports.string().optional().nullable(),
+  teardownCommand: external_exports.string().optional().nullable()
+}).strict();
+var projectExecutionWorkspacePolicySchema = external_exports.object({
+  enabled: external_exports.boolean(),
+  defaultMode: external_exports.enum(["shared_workspace", "isolated_workspace", "operator_branch", "adapter_default"]).optional(),
+  allowIssueOverride: external_exports.boolean().optional(),
+  defaultProjectWorkspaceId: external_exports.string().uuid().optional().nullable(),
+  environmentId: external_exports.string().uuid().optional().nullable(),
+  workspaceStrategy: executionWorkspaceStrategySchema2.optional().nullable(),
+  workspaceRuntime: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  branchPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  pullRequestPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  runtimePolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  cleanupPolicy: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  authorizationPolicy: trustAuthorizationPolicySchema.optional().nullable()
+}).strict();
+var projectWorkspaceRuntimeConfigSchema = external_exports.object({
+  workspaceRuntime: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  desiredState: external_exports.enum(["running", "stopped", "manual"]).optional().nullable(),
+  serviceStates: external_exports.record(external_exports.enum(["running", "stopped", "manual"])).optional().nullable()
+}).strict();
+var projectWorkspaceSourceTypeSchema = external_exports.enum(["local_path", "git_repo", "remote_managed", "non_git_path"]);
+var projectWorkspaceVisibilitySchema = external_exports.enum(["default", "advanced"]);
+var projectWorkspaceFields = {
+  name: external_exports.string().min(1).optional(),
+  sourceType: projectWorkspaceSourceTypeSchema.optional(),
+  cwd: external_exports.string().min(1).optional().nullable(),
+  repoUrl: external_exports.string().url().optional().nullable(),
+  repoRef: external_exports.string().optional().nullable(),
+  defaultRef: external_exports.string().optional().nullable(),
+  visibility: projectWorkspaceVisibilitySchema.optional(),
+  setupCommand: external_exports.string().optional().nullable(),
+  cleanupCommand: external_exports.string().optional().nullable(),
+  remoteProvider: external_exports.string().optional().nullable(),
+  remoteWorkspaceRef: external_exports.string().optional().nullable(),
+  sharedWorkspaceKey: external_exports.string().optional().nullable(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  runtimeConfig: projectWorkspaceRuntimeConfigSchema.optional().nullable()
+};
+function validateProjectWorkspace(value, ctx) {
+  const sourceType = value.sourceType ?? "local_path";
+  const hasCwd = typeof value.cwd === "string" && value.cwd.trim().length > 0;
+  const hasRepo = typeof value.repoUrl === "string" && value.repoUrl.trim().length > 0;
+  const hasRemoteRef = typeof value.remoteWorkspaceRef === "string" && value.remoteWorkspaceRef.trim().length > 0;
+  if (sourceType === "remote_managed") {
+    if (!hasRemoteRef && !hasRepo) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "Remote-managed workspace requires remoteWorkspaceRef or repoUrl.",
+        path: ["remoteWorkspaceRef"]
+      });
+    }
+    return;
+  }
+  if (!hasCwd && !hasRepo) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "Workspace requires at least one of cwd or repoUrl.",
+      path: ["cwd"]
+    });
+  }
+}
+var createProjectWorkspaceSchema = external_exports.object({
+  ...projectWorkspaceFields,
+  isPrimary: external_exports.boolean().optional().default(false)
+}).superRefine(validateProjectWorkspace);
+var updateProjectWorkspaceSchema = external_exports.object({
+  ...projectWorkspaceFields,
+  isPrimary: external_exports.boolean().optional()
+}).partial();
+var projectFields = {
+  /** @deprecated Use goalIds instead */
+  goalId: external_exports.string().uuid().optional().nullable(),
+  goalIds: external_exports.array(external_exports.string().uuid()).optional(),
+  name: external_exports.string().min(1),
+  description: external_exports.string().optional().nullable(),
+  status: external_exports.enum(PROJECT_STATUSES).optional().default("backlog"),
+  leadAgentId: external_exports.string().uuid().optional().nullable(),
+  targetDate: external_exports.string().optional().nullable(),
+  color: external_exports.string().optional().nullable(),
+  icon: external_exports.enum(PROJECT_ICON_NAMES).optional().nullable(),
+  env: envConfigSchema.optional().nullable(),
+  executionWorkspacePolicy: projectExecutionWorkspacePolicySchema.optional().nullable(),
+  archivedAt: external_exports.string().datetime().optional().nullable()
+};
+var createProjectSchema = external_exports.object({
+  ...projectFields,
+  workspace: createProjectWorkspaceSchema.optional()
+});
+var updateProjectSchema = external_exports.object(projectFields).partial();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
+var documentAnnotationThreadStatusSchema = external_exports.enum(DOCUMENT_ANNOTATION_THREAD_STATUSES);
+var documentAnnotationAnchorStateSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_STATES);
+var documentAnnotationAnchorConfidenceSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_CONFIDENCES);
+var documentAnnotationTextQuoteSelectorSchema = external_exports.object({
+  exact: external_exports.string().min(1).max(1e4),
+  prefix: external_exports.string().max(1e3).default(""),
+  suffix: external_exports.string().max(1e3).default("")
+}).strict();
+var documentAnnotationTextPositionSelectorSchema = external_exports.object({
+  normalizedStart: external_exports.number().int().nonnegative(),
+  normalizedEnd: external_exports.number().int().nonnegative(),
+  markdownStart: external_exports.number().int().nonnegative(),
+  markdownEnd: external_exports.number().int().nonnegative()
+}).strict().superRefine((value, ctx) => {
+  if (value.normalizedEnd <= value.normalizedStart) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "normalizedEnd must be greater than normalizedStart",
+      path: ["normalizedEnd"]
+    });
+  }
+  if (value.markdownEnd <= value.markdownStart) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "markdownEnd must be greater than markdownStart",
+      path: ["markdownEnd"]
+    });
+  }
+});
+var documentAnnotationAnchorSelectorSchema = external_exports.object({
+  quote: documentAnnotationTextQuoteSelectorSchema,
+  position: documentAnnotationTextPositionSelectorSchema
+}).strict();
+var createDocumentAnnotationThreadSchema = external_exports.object({
+  baseRevisionId: external_exports.string().uuid(),
+  baseRevisionNumber: external_exports.number().int().positive(),
+  selector: documentAnnotationAnchorSelectorSchema,
+  body: multilineTextSchema.pipe(external_exports.string().min(1).max(2e4)),
+  issueCommentId: external_exports.string().uuid().nullable().optional()
+}).strict();
+var createDocumentAnnotationCommentSchema = external_exports.object({
+  body: multilineTextSchema.pipe(external_exports.string().min(1).max(2e4)),
+  issueCommentId: external_exports.string().uuid().nullable().optional()
+}).strict();
+var updateDocumentAnnotationThreadSchema = external_exports.object({
+  status: documentAnnotationThreadStatusSchema.optional()
+}).strict().refine((value) => value.status != null, {
+  message: "At least one field must be provided"
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/agent-url-key.js
+var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function isUuidLike(value) {
+  if (typeof value !== "string")
+    return false;
+  return UUID_RE.test(value.trim());
+}
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/search.js
+var COMPANY_SEARCH_MAX_QUERY_LENGTH = 200;
+var COMPANY_SEARCH_DEFAULT_LIMIT = 20;
+var COMPANY_SEARCH_MAX_LIMIT = 50;
+var COMPANY_SEARCH_MAX_OFFSET = 200;
+var COMPANY_SEARCH_EXTRACT_DEFAULT_LIMIT = 100;
+var COMPANY_SEARCH_EXTRACT_MAX_LIMIT = 200;
+var COMPANY_SEARCH_EXTRACT_MAX_OFFSET = 5e3;
+var COMPANY_SEARCH_EXTRACT_DEFAULT_MATCHES_PER_ISSUE = 20;
+var COMPANY_SEARCH_EXTRACT_MAX_MATCHES_PER_ISSUE = 200;
+var UPDATED_WITHIN_RE = /^[1-9]\d{0,2}(h|d|w|m)$/;
+function firstQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+function queryValues(value) {
+  if (value === void 0 || value === null)
+    return [];
+  return Array.isArray(value) ? value : [value];
+}
+function parseOptionalString(value, ctx, field2) {
+  const raw = firstQueryValue(value);
+  if (raw === void 0 || raw === null)
+    return void 0;
+  if (typeof raw !== "string" && typeof raw !== "number") {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be a string` });
+    return void 0;
+  }
+  const normalized = String(raw).trim();
+  return normalized.length > 0 ? normalized : void 0;
+}
+function parseIntegerQuery(value, ctx, field2, fallback, min, max) {
+  const raw = firstQueryValue(value);
+  if (raw === void 0 || raw === null || raw === "")
+    return fallback;
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^-?\d+$/.test(text)) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be an integer` });
+    return fallback;
+  }
+  const numeric = Number.parseInt(text, 10);
+  if (!Number.isInteger(numeric) || numeric < min || numeric > max) {
+    const range = min === 0 ? `between 0 and ${max}` : `between ${min} and ${max}`;
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be ${range}` });
+    return fallback;
+  }
+  return numeric;
+}
+function parseEnumList(value, ctx, field2, allowed) {
+  const allowedSet = new Set(allowed);
+  const values = [];
+  for (const rawEntry of queryValues(value)) {
+    if (typeof rawEntry !== "string") {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be a comma-separated string` });
+      continue;
+    }
+    for (const rawItem of rawEntry.split(",")) {
+      const item = rawItem.trim();
+      if (!item)
+        continue;
+      if (!allowedSet.has(item)) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} contains an unsupported value` });
+        continue;
+      }
+      if (!values.includes(item))
+        values.push(item);
+    }
+  }
+  return values;
+}
+function parseOptionalUuid(value, ctx, field2) {
+  const normalized = parseOptionalString(value, ctx, field2);
+  if (normalized === void 0)
+    return void 0;
+  if (!isUuidLike(normalized)) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be a UUID` });
+    return void 0;
+  }
+  return normalized;
+}
+function parseAssigneeAgentId(value, ctx) {
+  const normalized = parseOptionalString(value, ctx, "assigneeAgentId");
+  if (normalized === void 0)
+    return void 0;
+  if (normalized.toLowerCase() === "null")
+    return null;
+  if (!isUuidLike(normalized)) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "assigneeAgentId must be a UUID or 'null'" });
+    return void 0;
+  }
+  return normalized;
+}
+function parseUpdatedAfter(value, ctx) {
+  const normalized = parseOptionalString(value, ctx, "updatedAfter");
+  if (normalized === void 0)
+    return void 0;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "updatedAfter must be a valid date" });
+    return void 0;
+  }
+  return date.toISOString();
+}
+function parseUpdatedWithin(value, ctx) {
+  const normalized = parseOptionalString(value, ctx, "updatedWithin");
+  if (normalized === void 0)
+    return void 0;
+  if (!UPDATED_WITHIN_RE.test(normalized)) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "updatedWithin must be a duration like 24h, 7d, 4w, or 3m" });
+    return void 0;
+  }
+  return normalized;
+}
+var companySearchQuerySchema = external_exports.object({
+  q: external_exports.unknown().optional().transform((value, ctx) => (parseOptionalString(value, ctx, "q") ?? "").slice(0, COMPANY_SEARCH_MAX_QUERY_LENGTH)),
+  scope: external_exports.unknown().optional().transform((value, ctx) => {
+    const normalized = parseOptionalString(value, ctx, "scope") ?? "all";
+    if (!COMPANY_SEARCH_SCOPES.includes(normalized)) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "scope must be a supported search scope" });
+      return "all";
+    }
+    return normalized;
+  }),
+  limit: external_exports.unknown().optional().transform((value, ctx) => parseIntegerQuery(value, ctx, "limit", COMPANY_SEARCH_DEFAULT_LIMIT, 1, COMPANY_SEARCH_MAX_LIMIT)),
+  offset: external_exports.unknown().optional().transform((value, ctx) => parseIntegerQuery(value, ctx, "offset", 0, 0, COMPANY_SEARCH_MAX_OFFSET)),
+  status: external_exports.unknown().optional().transform((value, ctx) => parseEnumList(value, ctx, "status", ISSUE_STATUSES)),
+  priority: external_exports.unknown().optional().transform((value, ctx) => parseEnumList(value, ctx, "priority", ISSUE_PRIORITIES)),
+  assigneeAgentId: external_exports.unknown().optional().transform((value, ctx) => parseAssigneeAgentId(value, ctx)),
+  assigneeUserId: external_exports.unknown().optional().transform((value, ctx) => parseOptionalString(value, ctx, "assigneeUserId")),
+  projectId: external_exports.unknown().optional().transform((value, ctx) => parseOptionalUuid(value, ctx, "projectId")),
+  labelId: external_exports.unknown().optional().transform((value, ctx) => parseOptionalUuid(value, ctx, "labelId")),
+  updatedWithin: external_exports.unknown().optional().transform((value, ctx) => parseUpdatedWithin(value, ctx)),
+  updatedAfter: external_exports.unknown().optional().transform((value, ctx) => parseUpdatedAfter(value, ctx)),
+  sort: external_exports.unknown().optional().transform((value, ctx) => {
+    const normalized = parseOptionalString(value, ctx, "sort") ?? "relevance";
+    if (!COMPANY_SEARCH_SORTS.includes(normalized)) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "sort must be relevance, updated, created, or priority" });
+      return "relevance";
+    }
+    return normalized;
+  })
+});
+var companySearchExtractQuerySchema = external_exports.object({
+  contains: external_exports.unknown().transform((value, ctx) => {
+    const normalized = parseOptionalString(value, ctx, "contains");
+    if (!normalized || normalized.length < 2) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "contains must be at least 2 characters" });
+      return "";
+    }
+    if (normalized.length > COMPANY_SEARCH_MAX_QUERY_LENGTH) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: `contains must be at most ${COMPANY_SEARCH_MAX_QUERY_LENGTH} characters`
+      });
+    }
+    return normalized.slice(0, COMPANY_SEARCH_MAX_QUERY_LENGTH);
+  }),
+  kind: external_exports.unknown().optional().transform((value, ctx) => {
+    const normalized = parseOptionalString(value, ctx, "kind") ?? "literal";
+    if (!COMPANY_SEARCH_EXTRACT_KINDS.includes(normalized)) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "kind must be literal or url" });
+      return "literal";
+    }
+    return normalized;
+  }),
+  scope: external_exports.unknown().optional().transform((value, ctx) => {
+    const normalized = parseOptionalString(value, ctx, "scope") ?? "all";
+    if (!COMPANY_SEARCH_EXTRACT_SCOPES.includes(normalized)) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "scope must be all, issues, comments, or documents" });
+      return "all";
+    }
+    return normalized;
+  }),
+  limit: external_exports.unknown().optional().transform((value, ctx) => parseIntegerQuery(value, ctx, "limit", COMPANY_SEARCH_EXTRACT_DEFAULT_LIMIT, 1, COMPANY_SEARCH_EXTRACT_MAX_LIMIT)),
+  offset: external_exports.unknown().optional().transform((value, ctx) => parseIntegerQuery(value, ctx, "offset", 0, 0, COMPANY_SEARCH_EXTRACT_MAX_OFFSET)),
+  matchesPerIssue: external_exports.unknown().optional().transform((value, ctx) => parseIntegerQuery(value, ctx, "matchesPerIssue", COMPANY_SEARCH_EXTRACT_DEFAULT_MATCHES_PER_ISSUE, 1, COMPANY_SEARCH_EXTRACT_MAX_MATCHES_PER_ISSUE)),
+  status: external_exports.unknown().optional().transform((value, ctx) => parseEnumList(value, ctx, "status", ISSUE_STATUSES)),
+  updatedWithin: external_exports.unknown().optional().transform((value, ctx) => parseUpdatedWithin(value, ctx)),
+  updatedAfter: external_exports.unknown().optional().transform((value, ctx) => parseUpdatedAfter(value, ctx))
+}).superRefine((value, ctx) => {
+  if (value.updatedWithin && value.updatedAfter) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "updatedWithin and updatedAfter cannot be used together"
+    });
+  }
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
+var issueTreeControlModeSchema = external_exports.enum(ISSUE_TREE_CONTROL_MODES);
+var issueTreeHoldReleasePolicySchema = external_exports.object({
+  strategy: external_exports.enum(ISSUE_TREE_HOLD_RELEASE_POLICY_STRATEGIES).default("manual"),
+  note: external_exports.string().trim().min(1).max(500).optional().nullable()
+}).strict();
+var previewIssueTreeControlSchema = external_exports.object({
+  mode: issueTreeControlModeSchema,
+  releasePolicy: issueTreeHoldReleasePolicySchema.optional().nullable()
+}).strict();
+var createIssueTreeHoldSchema = external_exports.object({
+  mode: issueTreeControlModeSchema,
+  reason: external_exports.string().trim().min(1).max(1e3).optional().nullable(),
+  releasePolicy: issueTreeHoldReleasePolicySchema.optional().nullable(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+}).strict();
+var releaseIssueTreeHoldSchema = external_exports.object({
+  reason: external_exports.string().trim().min(1).max(1e3).optional().nullable(),
+  releasePolicy: issueTreeHoldReleasePolicySchema.optional().nullable(),
+  metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
+var workspaceFileListSearchMaxBytes = 128;
+function utf8ByteLength(value) {
+  return new TextEncoder().encode(value).length;
+}
+var workspaceFileWorkspaceKindSchema = external_exports.enum(["execution_workspace", "project_workspace"]);
+var workspaceFileSelectorSchema = external_exports.enum(["auto", "execution", "project"]).default("auto");
+var workspaceFileListModeSchema = external_exports.enum(["all", "recent", "changed"]).default("all");
+var workspaceFilePreviewKindSchema = external_exports.enum(["text", "image", "video", "pdf", "unsupported"]);
+var workspaceFileResourceKindSchema = external_exports.enum(["file", "directory", "remote_resource"]);
+var workspaceFileRefSchema = external_exports.object({
+  kind: external_exports.literal("workspace_file"),
+  issueId: external_exports.string().uuid().optional(),
+  projectId: external_exports.string().uuid().optional(),
+  projectName: external_exports.string().min(1).optional(),
+  workspaceKind: workspaceFileWorkspaceKindSchema,
+  workspaceId: external_exports.string().uuid(),
+  relativePath: external_exports.string().min(1),
+  line: external_exports.number().int().positive().nullable().optional(),
+  column: external_exports.number().int().positive().nullable().optional(),
+  displayPath: external_exports.string().min(1)
+});
+var workspaceFileResourceQuerySchema = external_exports.object({
+  projectId: external_exports.string().uuid().optional(),
+  workspaceId: external_exports.string().uuid().optional(),
+  path: external_exports.string().min(1).refine((value) => !/[\x00-\x1f\x7f]/.test(value), {
+    message: "Workspace file path contains an invalid character",
+    params: { code: "invalid_path" }
+  }),
+  workspace: workspaceFileSelectorSchema.optional()
+}).refine((value) => Boolean(value.projectId) === Boolean(value.workspaceId), {
+  message: "Workspace file target requires both projectId and workspaceId",
+  path: ["workspaceId"],
+  params: { code: "invalid_target" }
+});
+var workspaceFileListQuerySchema = external_exports.object({
+  projectId: external_exports.string().uuid().optional(),
+  workspaceId: external_exports.string().uuid().optional(),
+  workspace: workspaceFileSelectorSchema.optional(),
+  path: external_exports.string().min(1).refine((value) => !/[\x00-\x1f\x7f]/.test(value), {
+    message: "Workspace folder path contains an invalid character",
+    params: { code: "invalid_path" }
+  }).optional(),
+  mode: workspaceFileListModeSchema.optional(),
+  q: external_exports.string().refine((value) => !/[\x00-\x1f\x7f]/.test(value), {
+    message: "Workspace file search contains an invalid character",
+    params: { code: "invalid_query" }
+  }).refine((value) => utf8ByteLength(value.trim()) <= workspaceFileListSearchMaxBytes, {
+    message: "Workspace file search is too long",
+    params: { code: "invalid_query" }
+  }).optional(),
+  limit: external_exports.coerce.number().int().min(1).max(100).default(25),
+  offset: external_exports.coerce.number().int().min(0).max(1e4).default(0)
+}).refine((value) => Boolean(value.projectId) === Boolean(value.workspaceId), {
+  message: "Workspace file target requires both projectId and workspaceId",
+  path: ["workspaceId"],
+  params: { code: "invalid_target" }
+});
+var resolvedWorkspaceResourceSchema = external_exports.object({
+  kind: workspaceFileResourceKindSchema,
+  provider: external_exports.string().min(1),
+  title: external_exports.string().min(1),
+  displayPath: external_exports.string().min(1),
+  workspaceLabel: external_exports.string().min(1),
+  workspaceKind: workspaceFileWorkspaceKindSchema,
+  workspaceId: external_exports.string().uuid(),
+  projectId: external_exports.string().uuid().nullable().optional(),
+  projectName: external_exports.string().min(1).nullable().optional(),
+  contentType: external_exports.string().nullable().optional(),
+  byteSize: external_exports.number().int().nonnegative().nullable().optional(),
+  previewKind: workspaceFilePreviewKindSchema,
+  denialReason: external_exports.string().nullable().optional(),
+  capabilities: external_exports.object({
+    preview: external_exports.boolean(),
+    download: external_exports.boolean(),
+    listChildren: external_exports.boolean()
+  })
+});
+var workspaceFileContentSchema = external_exports.object({
+  resource: resolvedWorkspaceResourceSchema,
+  content: external_exports.object({
+    encoding: external_exports.enum(["utf8", "base64"]),
+    data: external_exports.string()
+  })
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/work-product.js
+function attachmentContentPath(attachmentId) {
+  return `/api/attachments/${attachmentId}/content`;
+}
+var issueWorkProductTypeSchema = external_exports.enum([
+  "preview_url",
+  "runtime_service",
+  "pull_request",
+  "branch",
+  "commit",
+  "artifact",
+  "document"
+]);
+var issueWorkProductStatusSchema = external_exports.enum([
+  "active",
+  "ready_for_review",
+  "approved",
+  "changes_requested",
+  "merged",
+  "closed",
+  "failed",
+  "archived",
+  "draft"
+]);
+var issueWorkProductReviewStateSchema = external_exports.enum([
+  "none",
+  "needs_board_review",
+  "approved",
+  "changes_requested"
+]);
+var attachmentArtifactWorkProductMetadataSchema = external_exports.object({
+  attachmentId: external_exports.string().uuid(),
+  contentType: external_exports.string().min(1),
+  byteSize: external_exports.number().int().nonnegative(),
+  contentPath: external_exports.string().min(1),
+  openPath: external_exports.string().min(1),
+  downloadPath: external_exports.string().min(1),
+  originalFilename: external_exports.string().optional().nullable()
+}).superRefine((value, ctx) => {
+  const contentPath = attachmentContentPath(value.attachmentId);
+  if (value.contentPath !== contentPath) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["contentPath"],
+      message: "contentPath must point to the same-origin attachment content route"
+    });
+  }
+  if (value.openPath !== contentPath) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["openPath"],
+      message: "openPath must point to the same-origin attachment content route"
+    });
+  }
+  if (value.downloadPath !== `${contentPath}?download=1`) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["downloadPath"],
+      message: "downloadPath must point to the same-origin attachment download route"
+    });
+  }
+});
+var issueWorkProductMetadataSchema = external_exports.object({
+  resourceRef: workspaceFileRefSchema.optional().nullable()
+}).passthrough();
+var createIssueWorkProductSchema = external_exports.object({
+  projectId: external_exports.string().uuid().optional().nullable(),
+  executionWorkspaceId: external_exports.string().uuid().optional().nullable(),
+  runtimeServiceId: external_exports.string().uuid().optional().nullable(),
+  type: issueWorkProductTypeSchema,
+  provider: external_exports.string().min(1),
+  externalId: external_exports.string().optional().nullable(),
+  title: external_exports.string().min(1),
+  url: external_exports.string().url().optional().nullable(),
+  status: issueWorkProductStatusSchema.default("active"),
+  reviewState: issueWorkProductReviewStateSchema.optional().default("none"),
+  isPrimary: external_exports.boolean().optional().default(false),
+  healthStatus: external_exports.enum(["unknown", "healthy", "unhealthy"]).optional().default("unknown"),
+  summary: external_exports.string().optional().nullable(),
+  metadata: issueWorkProductMetadataSchema.optional().nullable(),
+  createdByRunId: external_exports.string().uuid().optional().nullable()
+});
+var updateIssueWorkProductSchema = createIssueWorkProductSchema.partial();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/artifact.js
+var COMPANY_ARTIFACTS_DEFAULT_LIMIT = 30;
+var COMPANY_ARTIFACTS_MAX_LIMIT = 100;
+var COMPANY_ARTIFACTS_MAX_QUERY_LENGTH = 160;
+var companyArtifactSourceSchema = external_exports.enum(["document", "attachment", "work_product"]);
+var companyArtifactMediaKindSchema = external_exports.enum(["image", "video", "text", "document", "file", "empty"]);
+var companyArtifactGroupBySchema = external_exports.enum(["none", "task", "parent_task"]);
+var companyArtifactsQuerySchema = external_exports.object({
+  kind: external_exports.enum(["image", "video", "text", "document", "file", "all"]).optional().default("all"),
+  projectId: external_exports.string().uuid().optional(),
+  q: external_exports.string().trim().max(COMPANY_ARTIFACTS_MAX_QUERY_LENGTH).optional(),
+  groupBy: companyArtifactGroupBySchema.optional().default("none"),
+  groupIssueId: external_exports.string().uuid().optional(),
+  limit: external_exports.coerce.number().int().min(1).max(COMPANY_ARTIFACTS_MAX_LIMIT).optional().default(COMPANY_ARTIFACTS_DEFAULT_LIMIT),
+  cursor: external_exports.string().min(1).optional()
+});
+var companyArtifactSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  source: companyArtifactSourceSchema,
+  mediaKind: companyArtifactMediaKindSchema,
+  title: external_exports.string(),
+  previewText: external_exports.string().nullable(),
+  contentType: external_exports.string().nullable(),
+  contentPath: external_exports.string().nullable(),
+  openPath: external_exports.string().nullable(),
+  downloadPath: external_exports.string().nullable(),
+  issue: external_exports.object({
+    id: external_exports.string().uuid(),
+    identifier: external_exports.string(),
+    title: external_exports.string()
+  }),
+  project: external_exports.object({
+    id: external_exports.string().uuid(),
+    name: external_exports.string()
+  }).nullable(),
+  createdByAgent: external_exports.object({
+    id: external_exports.string().uuid(),
+    name: external_exports.string()
+  }).nullable(),
+  updatedAt: external_exports.string().datetime(),
+  href: external_exports.string().min(1)
+});
+var companyArtifactGroupSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  groupBy: companyArtifactGroupBySchema.exclude(["none"]),
+  issue: external_exports.object({
+    id: external_exports.string().uuid(),
+    identifier: external_exports.string(),
+    title: external_exports.string()
+  }),
+  title: external_exports.string(),
+  count: external_exports.number().int().min(0),
+  mediaKinds: external_exports.array(companyArtifactMediaKindSchema),
+  previewArtifacts: external_exports.array(companyArtifactSchema),
+  updatedAt: external_exports.string().datetime(),
+  href: external_exports.string().min(1)
+});
+var companyArtifactsResponseSchema = external_exports.object({
+  artifacts: external_exports.array(companyArtifactSchema),
+  groups: external_exports.array(companyArtifactGroupSchema).optional(),
+  selectedGroup: companyArtifactGroupSchema.nullable().optional(),
+  nextCursor: external_exports.string().nullable()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/goal.js
+var createGoalSchema = external_exports.object({
+  title: external_exports.string().min(1),
+  description: external_exports.string().optional().nullable(),
+  level: external_exports.enum(GOAL_LEVELS).optional().default("task"),
+  status: external_exports.enum(GOAL_STATUSES).optional().default("planned"),
+  parentId: external_exports.string().uuid().optional().nullable(),
+  ownerAgentId: external_exports.string().uuid().optional().nullable()
+});
+var updateGoalSchema = createGoalSchema.partial();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/approval.js
+var createApprovalSchema = external_exports.object({
+  type: external_exports.enum(APPROVAL_TYPES),
+  requestedByAgentId: external_exports.string().uuid().optional().nullable(),
+  payload: external_exports.record(external_exports.string(), external_exports.unknown()),
+  issueIds: external_exports.array(external_exports.string().uuid()).optional()
+});
+var resolveApprovalSchema = external_exports.object({
+  decisionNote: multilineTextSchema.optional().nullable()
+});
+var requestApprovalRevisionSchema = external_exports.object({
+  decisionNote: multilineTextSchema.optional().nullable()
+});
+var resubmitApprovalSchema = external_exports.object({
+  payload: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+});
+var addApprovalCommentSchema = external_exports.object({
+  body: multilineTextSchema.pipe(external_exports.string().min(1))
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/cost.js
+var createCostEventSchema = external_exports.object({
+  agentId: external_exports.string().uuid(),
+  issueId: external_exports.string().uuid().optional().nullable(),
+  projectId: external_exports.string().uuid().optional().nullable(),
+  goalId: external_exports.string().uuid().optional().nullable(),
+  heartbeatRunId: external_exports.string().uuid().optional().nullable(),
+  billingCode: external_exports.string().optional().nullable(),
+  provider: external_exports.string().min(1),
+  biller: external_exports.string().min(1).optional(),
+  billingType: external_exports.enum(BILLING_TYPES).optional().default("unknown"),
+  costStatus: external_exports.enum(COST_STATUSES).optional().default("reported"),
+  model: external_exports.string().min(1),
+  inputTokens: external_exports.number().int().nonnegative().optional().default(0),
+  cachedInputTokens: external_exports.number().int().nonnegative().optional().default(0),
+  outputTokens: external_exports.number().int().nonnegative().optional().default(0),
+  costCents: external_exports.number().int().nonnegative(),
+  occurredAt: external_exports.string().datetime()
+}).transform((value) => ({
+  ...value,
+  biller: value.biller ?? value.provider
+}));
+var updateBudgetSchema = external_exports.object({
+  budgetMonthlyCents: external_exports.number().int().nonnegative()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/finance.js
+var createFinanceEventSchema = external_exports.object({
+  agentId: external_exports.string().uuid().optional().nullable(),
+  issueId: external_exports.string().uuid().optional().nullable(),
+  projectId: external_exports.string().uuid().optional().nullable(),
+  goalId: external_exports.string().uuid().optional().nullable(),
+  heartbeatRunId: external_exports.string().uuid().optional().nullable(),
+  costEventId: external_exports.string().uuid().optional().nullable(),
+  billingCode: external_exports.string().optional().nullable(),
+  description: external_exports.string().max(500).optional().nullable(),
+  eventKind: external_exports.enum(FINANCE_EVENT_KINDS),
+  direction: external_exports.enum(FINANCE_DIRECTIONS).optional().default("debit"),
+  biller: external_exports.string().min(1),
+  provider: external_exports.string().min(1).optional().nullable(),
+  executionAdapterType: external_exports.enum(AGENT_ADAPTER_TYPES).optional().nullable(),
+  pricingTier: external_exports.string().min(1).optional().nullable(),
+  region: external_exports.string().min(1).optional().nullable(),
+  model: external_exports.string().min(1).optional().nullable(),
+  quantity: external_exports.number().int().nonnegative().optional().nullable(),
+  unit: external_exports.enum(FINANCE_UNITS).optional().nullable(),
+  amountCents: external_exports.number().int().nonnegative(),
+  currency: external_exports.string().length(3).optional().default("USD"),
+  estimated: external_exports.boolean().optional().default(false),
+  externalInvoiceId: external_exports.string().optional().nullable(),
+  metadataJson: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  occurredAt: external_exports.string().datetime()
+}).transform((value) => ({
+  ...value,
+  currency: value.currency.toUpperCase()
+}));
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/asset.js
+var createAssetImageMetadataSchema = external_exports.object({
+  namespace: external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9/_-]+$/).optional()
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/pipeline.js
+var routineVariableLikeNameSchema = external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/);
+var pipelineStageKindSchema = external_exports.enum(["working", "review", "done", "cancelled"]);
+var legacyPipelineStageKindSchema = external_exports.enum(["open", "working", "review", "done", "cancelled"]);
+var pipelineStageApproverSchema = external_exports.object({
+  kind: external_exports.enum(["any_human", "user", "agent"]).optional().default("any_human"),
+  id: external_exports.string().trim().min(1).max(200).optional()
+}).superRefine((value, ctx) => {
+  if (value.kind !== "any_human" && (typeof value.id !== "string" || value.id.length === 0)) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["id"],
+      message: "Specific stage approvers require an id"
+    });
+  }
+});
+var pipelineStageOnEnterSchema = external_exports.object({
+  type: external_exports.literal("run_routine"),
+  routineId: external_exports.string().uuid(),
+  id: external_exports.string().trim().min(1).max(200).optional(),
+  projectId: external_exports.string().uuid().optional().nullable(),
+  projectWorkspaceId: external_exports.string().uuid().optional().nullable(),
+  executionWorkspaceId: external_exports.string().uuid().optional().nullable(),
+  executionWorkspacePreference: external_exports.enum(ISSUE_EXECUTION_WORKSPACE_PREFERENCES).optional().nullable(),
+  executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable()
+}).passthrough();
+var pipelineStageAutomationSchema = external_exports.object({
+  routineId: external_exports.string().uuid().optional().nullable(),
+  assigneeAgentId: external_exports.string().uuid().optional().nullable(),
+  instructionsBody: external_exports.string().optional().nullable(),
+  projectId: external_exports.string().uuid().optional().nullable(),
+  projectWorkspaceId: external_exports.string().uuid().optional().nullable(),
+  executionWorkspaceId: external_exports.string().uuid().optional().nullable(),
+  executionWorkspacePreference: external_exports.enum(ISSUE_EXECUTION_WORKSPACE_PREFERENCES).optional().nullable(),
+  executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable()
+}).passthrough();
+var pipelineStageCarryOverPolicySchema = external_exports.object({
+  version: external_exports.literal(1).default(1),
+  mode: external_exports.enum(["all_except", "only"]).default("all_except"),
+  includeFields: external_exports.array(routineVariableLikeNameSchema).max(100).default([]),
+  excludeFields: external_exports.array(routineVariableLikeNameSchema).max(100).default([])
+});
+var pipelineStageBreakdownSchema = external_exports.object({
+  targetPipelineId: external_exports.string().uuid(),
+  targetStageKey: external_exports.string().trim().min(1).max(120),
+  pieceNoun: external_exports.string().trim().min(1).max(80).default("piece"),
+  carryOverPolicy: pipelineStageCarryOverPolicySchema.optional(),
+  inheritFields: external_exports.array(routineVariableLikeNameSchema).max(100).default([]),
+  advanceTo: external_exports.string().trim().min(1).max(120).optional(),
+  waitForPieces: external_exports.boolean().optional().default(false),
+  whenFinishedMoveTo: external_exports.string().trim().min(1).max(120).optional()
+}).superRefine((value, ctx) => {
+  if (value.waitForPieces && !value.whenFinishedMoveTo) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["whenFinishedMoveTo"],
+      message: "Breakdown stages that wait for pieces need a destination stage"
+    });
+  }
+});
+var pipelineStageVariableSchema = external_exports.object({
+  key: routineVariableLikeNameSchema,
+  label: external_exports.string().trim().max(120),
+  type: external_exports.enum(["select", "text", "multiline"]).default("text"),
+  options: external_exports.array(external_exports.string().trim().min(1).max(120)).max(50).optional().default([]),
+  required: external_exports.boolean().optional().default(false),
+  showInAddForm: external_exports.boolean().optional().default(false)
+}).superRefine((value, ctx) => {
+  if (value.type === "select" && value.options.length === 0) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["options"],
+      message: "Select variables require at least one option"
+    });
+  }
+  if (value.type !== "select" && value.options.length > 0) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["options"],
+      message: "Only select variables can define options"
+    });
+  }
+});
+var pipelineStageConfigSchema = external_exports.object({
+  variables: external_exports.array(pipelineStageVariableSchema).default([]),
+  disabled: external_exports.boolean().optional(),
+  disabledReason: external_exports.string().trim().max(1e3).nullable().optional(),
+  requireApproval: external_exports.boolean().optional(),
+  approver: pipelineStageApproverSchema.optional(),
+  /** Legacy input only; the server migrates it to requireApproval/approver. */
+  reviewerKind: external_exports.enum(["human", "any"]).optional(),
+  whatHappensHere: external_exports.string().trim().max(1e4).optional(),
+  onEnter: pipelineStageOnEnterSchema.optional(),
+  automation: pipelineStageAutomationSchema.optional(),
+  breakdown: pipelineStageBreakdownSchema.optional(),
+  approveToStageKey: external_exports.string().trim().min(1).max(120).optional(),
+  rejectToStageKey: external_exports.string().trim().min(1).max(120).optional(),
+  requestChangesToStageKey: external_exports.string().trim().min(1).max(120).optional(),
+  requireRejectReason: external_exports.boolean().optional(),
+  requireRequestChangesReason: external_exports.boolean().optional(),
+  requireChildrenTerminal: external_exports.boolean().optional(),
+  requireNoUnresolvedDrift: external_exports.boolean().optional()
+}).passthrough().superRefine((value, ctx) => {
+  const keys = /* @__PURE__ */ new Set();
+  value.variables.forEach((variable, index) => {
+    if (keys.has(variable.key)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: ["variables", index, "key"],
+        message: "Pipeline stage variable keys must be unique"
+      });
+    }
+    keys.add(variable.key);
+  });
+});
+var pipelineAutomationRetryScopeSchema = external_exports.enum(["current_stage", "previous_stage"]);
+var pipelineAutomationRetryCleanupOptionsSchema = external_exports.object({
+  retireDirectChildren: external_exports.boolean().default(true),
+  retireDescendants: external_exports.boolean().default(true),
+  cancelLinkedAutomationIssues: external_exports.boolean().default(true)
+});
+var pipelineAutomationRetryRequestSchema = external_exports.object({
+  scope: pipelineAutomationRetryScopeSchema,
+  targetStageId: external_exports.string().uuid().nullable().optional(),
+  expectedVersion: external_exports.number().int().positive(),
+  cleanup: pipelineAutomationRetryCleanupOptionsSchema.default({
+    retireDirectChildren: true,
+    retireDescendants: true,
+    cancelLinkedAutomationIssues: true
+  })
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/access.js
+var createCompanyInviteSchema = external_exports.object({
+  allowedJoinTypes: external_exports.enum(INVITE_JOIN_TYPES).default("both"),
+  humanRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
+  defaultsPayload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  agentMessage: external_exports.string().max(4e3).optional().nullable()
+});
+var createOpenClawInvitePromptSchema = external_exports.object({
+  agentMessage: external_exports.string().max(4e3).optional().nullable()
+});
+var acceptInviteSchema = external_exports.object({
+  requestType: external_exports.enum(JOIN_REQUEST_TYPES),
+  agentName: external_exports.string().min(1).max(120).optional(),
+  adapterType: optionalAgentAdapterTypeSchema,
+  capabilities: external_exports.string().max(4e3).optional().nullable(),
+  agentDefaultsPayload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  // OpenClaw join compatibility fields accepted at top level.
+  responsesWebhookUrl: external_exports.string().max(4e3).optional().nullable(),
+  responsesWebhookMethod: external_exports.string().max(32).optional().nullable(),
+  responsesWebhookHeaders: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+  paperclipApiUrl: external_exports.string().max(4e3).optional().nullable(),
+  webhookAuthHeader: external_exports.string().max(4e3).optional().nullable()
+});
+var listJoinRequestsQuerySchema = external_exports.object({
+  status: external_exports.enum(JOIN_REQUEST_STATUSES).optional(),
+  requestType: external_exports.enum(JOIN_REQUEST_TYPES).optional()
+});
+var listCompanyInvitesQuerySchema = external_exports.object({
+  state: external_exports.enum(["active", "revoked", "accepted", "expired"]).optional(),
+  limit: external_exports.coerce.number().int().min(1).max(100).optional().default(20),
+  offset: external_exports.coerce.number().int().min(0).optional().default(0)
+});
+var claimJoinRequestApiKeySchema = external_exports.object({
+  claimSecret: external_exports.string().min(16).max(256)
+});
+var boardCliAuthAccessLevelSchema = external_exports.enum([
+  "board",
+  "instance_admin_required"
+]);
+var createCliAuthChallengeSchema = external_exports.object({
+  command: external_exports.string().min(1).max(240),
+  clientName: external_exports.string().max(120).optional().nullable(),
+  requestedAccess: boardCliAuthAccessLevelSchema.default("board"),
+  requestedCompanyId: external_exports.string().uuid().optional().nullable()
+});
+var resolveCliAuthChallengeSchema = external_exports.object({
+  token: external_exports.string().min(16).max(256)
+});
+var createBoardApiKeySchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120).default("paperclipai cli"),
+  expiresAt: external_exports.coerce.date().optional().nullable(),
+  requestedCompanyId: external_exports.string().uuid().optional().nullable()
+});
+var updateMemberPermissionsSchema = external_exports.object({
+  grants: external_exports.array(external_exports.object({
+    permissionKey: external_exports.enum(PERMISSION_KEYS),
+    scope: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+  }))
+});
+var editableMembershipStatuses = ["pending", "active", "suspended"];
+var updateCompanyMemberSchema = external_exports.object({
+  membershipRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
+  status: external_exports.enum(editableMembershipStatuses).optional()
+}).refine((value) => value.membershipRole !== void 0 || value.status !== void 0, {
+  message: "membershipRole or status is required"
+});
+var updateCompanyMemberWithPermissionsSchema = external_exports.object({
+  membershipRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
+  status: external_exports.enum(editableMembershipStatuses).optional(),
+  grants: updateMemberPermissionsSchema.shape.grants.default([])
+}).refine((value) => value.membershipRole !== void 0 || value.status !== void 0, {
+  message: "membershipRole or status is required"
+});
+var archiveCompanyMemberSchema = external_exports.object({
+  reassignment: external_exports.object({
+    assigneeAgentId: external_exports.string().uuid().optional().nullable(),
+    assigneeUserId: external_exports.string().uuid().optional().nullable()
+  }).optional().nullable()
+}).superRefine((value, ctx) => {
+  if (value.reassignment?.assigneeAgentId && value.reassignment.assigneeUserId) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "Choose either an agent or user reassignment target",
+      path: ["reassignment"]
+    });
+  }
+});
+var updateUserCompanyAccessSchema = external_exports.object({
+  companyIds: external_exports.array(external_exports.string().uuid()).default([])
+});
+var searchAdminUsersQuerySchema = external_exports.object({
+  query: external_exports.string().trim().max(120).optional().default("")
+});
+var profileImageAssetPathPattern = /^\/api\/assets\/[^/?#]+\/content(?:\?[^#]*)?(?:#.*)?$/;
+function isValidProfileImage(value) {
+  if (profileImageAssetPathPattern.test(value))
+    return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+var profileImageSchema = external_exports.string().trim().min(1).max(4e3).refine(isValidProfileImage, { message: "Invalid profile image URL" });
+var currentUserProfileSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  email: external_exports.preprocess((v) => typeof v === "string" && v.trim() === "" ? null : v, external_exports.string().email().nullable()),
+  name: external_exports.preprocess((v) => typeof v === "string" && v.trim() === "" ? null : v, external_exports.string().min(1).max(120).nullable()),
+  image: profileImageSchema.nullable()
+});
+var authSessionSchema = external_exports.object({
+  session: external_exports.object({
+    id: external_exports.string().min(1),
+    userId: external_exports.string().min(1)
+  }),
+  user: currentUserProfileSchema
+});
+var updateCurrentUserProfileSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120),
+  image: external_exports.union([profileImageSchema, external_exports.literal(""), external_exports.null()]).optional().transform((value) => value === "" ? null : value)
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/skill-policy.js
+var SKILL_POLICY_ACTIONS = [
+  "skills.create",
+  "skills.import",
+  "skills.install",
+  "skills.edit",
+  "skills.update",
+  "skills.test",
+  "skills.reset",
+  "skills.remove"
+];
+var SKILL_POLICY_SOURCE_TYPES = [
+  "workspace",
+  "catalog",
+  "git",
+  "external_package",
+  "generated",
+  "unknown"
+];
+var skillPolicyActionSchema = external_exports.enum(SKILL_POLICY_ACTIONS);
+var skillPolicySourceTypeSchema = external_exports.enum(SKILL_POLICY_SOURCE_TYPES);
+var skillPolicyEffectSchema = external_exports.enum(["allow", "deny"]);
+var nonEmptyUniqueStrings = external_exports.array(external_exports.string().trim().min(1).max(512)).min(1).max(500).refine((values) => new Set(values).size === values.length, "Values must be unique");
+function isSafeSourceLocator(value) {
+  if (/:\/\/[^/@\s]+:[^/@\s]+@/.test(value))
+    return false;
+  try {
+    const url = new URL(value);
+    if (url.username || url.password)
+      return false;
+    const credentialParameter = /token|secret|password|api[-_]?key|authorization/i;
+    if ([...url.searchParams.keys()].some((key) => credentialParameter.test(key)))
+      return false;
+    const fragment = url.hash.slice(1);
+    return !/(?:^|[?&;])(?:token|secret|password|api[-_]?key|authorization)=/i.test(fragment);
+  } catch {
+    return true;
+  }
+}
+function normalizeSkillPolicySourceLocator(value) {
+  const trimmed = value.trim();
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return trimmed;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    return trimmed;
+  const hostname = url.hostname.toLowerCase() === "www.github.com" ? "github.com" : url.hostname.toLowerCase();
+  const segments = url.pathname.split("/").filter(Boolean);
+  const isRepoStyle = url.protocol === "https:" && !hostname.endsWith(".githubusercontent.com") && hostname !== "gist.github.com" && segments.length >= 2 && !url.pathname.endsWith(".md") && !url.username && !url.password && !url.search && !url.hash;
+  if (!isRepoStyle)
+    return url.toString();
+  const owner = segments[0].toLowerCase();
+  const repo = segments[1].replace(/\.git$/i, "").toLowerCase();
+  const suffix = segments.slice(2).join("/");
+  return `https://${hostname}/${owner}/${repo}${suffix ? `/${suffix}` : ""}`;
+}
+var skillPolicySourceLocatorSchema = external_exports.string().trim().min(1).max(2048).refine(isSafeSourceLocator, "Source locators must not contain credentials or secret query or fragment parameters").transform(normalizeSkillPolicySourceLocator);
+var skillPolicySubjectSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({ type: external_exports.literal("all_agents") }).strict(),
+  external_exports.object({
+    type: external_exports.literal("agents"),
+    agentIds: external_exports.array(external_exports.string().uuid()).min(1).max(500).refine((values) => new Set(values).size === values.length, "Agent IDs must be unique")
+  }).strict(),
+  external_exports.object({ type: external_exports.literal("roles"), roles: nonEmptyUniqueStrings }).strict()
+]);
+var skillPolicyResourceSelectorSchema = external_exports.object({
+  skillIds: external_exports.array(external_exports.string().uuid()).min(1).max(500).optional(),
+  skillKeys: nonEmptyUniqueStrings.optional(),
+  sourceTypes: external_exports.array(skillPolicySourceTypeSchema).min(1).refine((values) => new Set(values).size === values.length, "Source types must be unique").optional(),
+  sourceLocators: external_exports.array(skillPolicySourceLocatorSchema).min(1).max(500).refine((values) => new Set(values).size === values.length, "Source locators must be unique").optional()
+}).strict().refine((value) => Object.keys(value).length > 0, "At least one resource selector is required");
+var skillPolicyRuleSchema = external_exports.object({
+  id: external_exports.string().trim().min(1).max(128).regex(/^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/),
+  priority: external_exports.number().int().min(-1e6).max(1e6),
+  effect: skillPolicyEffectSchema,
+  subject: skillPolicySubjectSchema,
+  actions: external_exports.array(skillPolicyActionSchema).min(1).refine((values) => new Set(values).size === values.length, "Actions must be unique"),
+  resources: skillPolicyResourceSelectorSchema.optional()
+}).strict();
+var skillPolicyDocumentSchema = external_exports.object({
+  schemaVersion: external_exports.literal(1),
+  defaultEffect: skillPolicyEffectSchema,
+  rules: external_exports.array(skillPolicyRuleSchema).max(1e3).refine((rules) => new Set(rules.map((rule) => rule.id)).size === rules.length, "Rule IDs must be unique")
+}).strict();
+var replaceSkillPolicySchema = skillPolicyDocumentSchema.extend({
+  expectedRevision: external_exports.number().int().nonnegative()
+}).strict();
+var skillPolicyEvaluationResourceSchema = external_exports.object({
+  skillId: external_exports.string().uuid().optional(),
+  skillKey: external_exports.string().trim().min(1).max(512).optional(),
+  sourceType: skillPolicySourceTypeSchema.optional(),
+  sourceLocator: skillPolicySourceLocatorSchema.optional()
+}).strict();
+var evaluateSkillPolicySchema = external_exports.object({
+  action: skillPolicyActionSchema,
+  resource: skillPolicyEvaluationResourceSchema.default({}),
+  principal: external_exports.object({ agentId: external_exports.string().uuid() }).strict().optional()
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/api.js
 var API_PREFIX = "/api";
 var API = {
   health: `${API_PREFIX}/health`,
   companies: `${API_PREFIX}/companies`,
+  companyFolders: `${API_PREFIX}/companies/:companyId/folders`,
+  companyFolder: `${API_PREFIX}/companies/:companyId/folders/:folderId`,
+  companyFolderMove: `${API_PREFIX}/companies/:companyId/folders/:folderId/move`,
+  companyFolderItemMove: `${API_PREFIX}/companies/:companyId/folders/items/move`,
   agents: `${API_PREFIX}/agents`,
   projects: `${API_PREFIX}/projects`,
   environments: `${API_PREFIX}/environments`,
+  environmentDeleteBlastRadius: `${API_PREFIX}/environments/:id/delete-blast-radius`,
   environmentCustomImageTemplate: `${API_PREFIX}/environments/:environmentId/custom-image-template`,
   environmentCustomImageTemplateDisable: `${API_PREFIX}/environments/:environmentId/custom-image-template`,
   environmentCustomImageTemplateRollback: `${API_PREFIX}/environments/:environmentId/custom-image-template/rollback`,
@@ -9052,9 +11186,30 @@ var API = {
   issueWatchdog: `${API_PREFIX}/issues/:issueId/watchdog`,
   issueTreeControl: `${API_PREFIX}/issues/:issueId/tree-control`,
   issueTreeHolds: `${API_PREFIX}/issues/:issueId/tree-holds`,
+  summarySlot: `${API_PREFIX}/companies/:companyId/summary-slots/:scopeKind/:slotKey`,
+  summarySlotRevisions: `${API_PREFIX}/companies/:companyId/summary-slots/:scopeKind/:slotKey/revisions`,
+  summarySlotGenerate: `${API_PREFIX}/companies/:companyId/summary-slots/:scopeKind/:slotKey/generate`,
   goals: `${API_PREFIX}/goals`,
   approvals: `${API_PREFIX}/approvals`,
   secrets: `${API_PREFIX}/secrets`,
+  tools: `${API_PREFIX}/companies/:companyId/tools`,
+  toolExamples: `${API_PREFIX}/companies/:companyId/tools/examples`,
+  toolApplications: `${API_PREFIX}/companies/:companyId/tools/applications`,
+  toolConnections: `${API_PREFIX}/companies/:companyId/tools/connections`,
+  toolCatalog: `${API_PREFIX}/companies/:companyId/tools/catalog`,
+  toolProfiles: `${API_PREFIX}/companies/:companyId/tools/profiles`,
+  toolPolicies: `${API_PREFIX}/companies/:companyId/tools/policies`,
+  toolAudit: `${API_PREFIX}/companies/:companyId/tools/audit`,
+  toolRuntimeSlots: `${API_PREFIX}/companies/:companyId/tools/runtime-slots`,
+  toolRuntimeSlotStop: `${API_PREFIX}/companies/:companyId/tools/runtime-slots/:id/stop`,
+  toolRuntimeSlotRestart: `${API_PREFIX}/companies/:companyId/tools/runtime-slots/:id/restart`,
+  toolRuntimeHealth: `${API_PREFIX}/companies/:companyId/tools/runtime-health`,
+  toolGateway: `${API_PREFIX}/tool-gateway`,
+  smokeLab: `${API_PREFIX}/companies/:companyId/smoke-lab`,
+  smokeLabServices: `${API_PREFIX}/companies/:companyId/smoke-lab/services`,
+  smokeLabInstallFixtures: `${API_PREFIX}/companies/:companyId/smoke-lab/install-fixtures`,
+  smokeLabRuns: `${API_PREFIX}/companies/:companyId/smoke-lab/runs`,
+  smokeLabRunSteps: `${API_PREFIX}/companies/:companyId/smoke-lab/runs/:runId/steps`,
   userSecretDefinitions: `${API_PREFIX}/companies/:companyId/user-secret-definitions`,
   userSecretDefinition: `${API_PREFIX}/companies/:companyId/user-secret-definitions/:definitionId`,
   userSecretDefinitionCoverage: `${API_PREFIX}/companies/:companyId/user-secret-definitions/:definitionId/coverage`,
@@ -9074,7 +11229,7 @@ var API = {
   admin: `${API_PREFIX}/admin`
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/config-schema.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/config-schema.js
 var configMetaSchema = external_exports.object({
   version: external_exports.literal(1),
   updatedAt: external_exports.string(),
@@ -9230,7 +11385,7 @@ var paperclipConfigSchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.707.0/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.722.0/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
 var adapterRegistryEntrySchema = external_exports.object({
   adapterType: external_exports.string().min(1),
   enabled: external_exports.boolean().default(true),
@@ -9242,14 +11397,14 @@ var adapterRegistryEntrySchema = external_exports.object({
 }).strict();
 var adapterRegistrySchema = external_exports.array(adapterRegistryEntrySchema);
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.722.0_react@19.2.8/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 import fs from "node:fs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.722.0_react@19.2.8/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
 var JSONRPC_VERSION = "2.0";
 var JSONRPC_ERROR_CODES = {
   /** Invalid JSON was received by the server. */
@@ -9381,7 +11536,7 @@ var JsonRpcCallError = class extends Error {
   }
 };
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.707.0_react@19.2.7/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.722.0_react@19.2.8/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 var DEFAULT_RPC_TIMEOUT_MS = 3e4;
 function realpathOrResolvedPath(filePath) {
   const resolvedPath = path.resolve(filePath);
@@ -9506,8 +11661,8 @@ function startWorkerRpcHost(options) {
         return manifest;
       },
       config: {
-        async get() {
-          return callHost("config.get", {});
+        async get(companyId) {
+          return callHost("config.get", companyId ? { companyId } : {});
         }
       },
       localFolders: {
@@ -9639,8 +11794,12 @@ function startWorkerRpcHost(options) {
         }
       },
       secrets: {
-        async resolve(secretRef) {
-          return callHost("secrets.resolve", { secretRef });
+        async resolve(secretRef, options2 = {}) {
+          return callHost("secrets.resolve", {
+            secretRef,
+            companyId: options2.companyId,
+            configPath: options2.configPath
+          });
         }
       },
       activity: {
@@ -9886,7 +12045,13 @@ function startWorkerRpcHost(options) {
           return callHost("issues.listComments", { issueId, companyId });
         },
         async createComment(issueId, body, companyId, options2) {
-          return callHost("issues.createComment", { issueId, body, companyId, authorAgentId: options2?.authorAgentId });
+          return callHost("issues.createComment", {
+            issueId,
+            body,
+            companyId,
+            authorAgentId: options2?.authorAgentId,
+            actorUserId: options2?.actorUserId
+          });
         },
         async createInteraction(issueId, interaction, companyId, options2) {
           return callHost("issues.createInteraction", {
@@ -10291,6 +12456,10 @@ function startWorkerRpcHost(options) {
         return handleEnvironmentRealizeWorkspace(params);
       case "environmentExecute":
         return handleEnvironmentExecute(params);
+      case "environmentSyncIn":
+        return handleEnvironmentSyncIn(params);
+      case "environmentSyncOut":
+        return handleEnvironmentSyncOut(params);
       case "environmentStartInteractiveSetup":
         return handleEnvironmentStartInteractiveSetup(params);
       case "environmentGetInteractiveSetup":
@@ -10347,6 +12516,10 @@ function startWorkerRpcHost(options) {
       supportedMethods.push("environmentRealizeWorkspace");
     if (plugin2.definition.onEnvironmentExecute)
       supportedMethods.push("environmentExecute");
+    if (plugin2.definition.onEnvironmentSyncIn)
+      supportedMethods.push("environmentSyncIn");
+    if (plugin2.definition.onEnvironmentSyncOut)
+      supportedMethods.push("environmentSyncOut");
     if (plugin2.definition.onEnvironmentStartInteractiveSetup)
       supportedMethods.push("environmentStartInteractiveSetup");
     if (plugin2.definition.onEnvironmentGetInteractiveSetup)
@@ -10546,6 +12719,18 @@ function startWorkerRpcHost(options) {
     }
     return plugin2.definition.onEnvironmentExecute(params);
   }
+  async function handleEnvironmentSyncIn(params) {
+    if (!plugin2.definition.onEnvironmentSyncIn) {
+      throw methodNotImplemented("environmentSyncIn");
+    }
+    return plugin2.definition.onEnvironmentSyncIn(params);
+  }
+  async function handleEnvironmentSyncOut(params) {
+    if (!plugin2.definition.onEnvironmentSyncOut) {
+      throw methodNotImplemented("environmentSyncOut");
+    }
+    return plugin2.definition.onEnvironmentSyncOut(params);
+  }
   async function handleEnvironmentStartInteractiveSetup(params) {
     if (!plugin2.definition.onEnvironmentStartInteractiveSetup) {
       throw methodNotImplemented("environmentStartInteractiveSetup");
@@ -10729,6 +12914,18 @@ var GitHubClient = class {
     this.baseUrl = (config.baseUrl ?? API_BASE).replace(/\/$/, "");
   }
   async request(method, repo, pathAndQuery, body) {
+    const canRetry = typeof this.getToken.invalidate === "function";
+    const maxAttempts = canRetry ? 2 : 1;
+    let lastErr;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const res = await this.attempt(method, repo, pathAndQuery, body);
+      if (res.ok || res.status !== 401 || attempt === maxAttempts) return res;
+      this.getToken.invalidate?.(repo);
+      lastErr = res;
+    }
+    return lastErr ?? { ok: false, error: "request failed" };
+  }
+  async attempt(method, repo, pathAndQuery, body) {
     let token;
     try {
       token = await this.getToken(repo);
@@ -11031,7 +13228,7 @@ function makeBrokerTokenProvider(brokerUrl, owner, opts = {}) {
   const apiKey = (opts.apiKey ?? "").trim();
   const base = brokerUrl.replace(/\/$/, "");
   const cache = /* @__PURE__ */ new Map();
-  return async (repo) => {
+  const provider = async (repo) => {
     const key = `${owner}/${repo}`.toLowerCase();
     const hit = cache.get(key);
     if (hit && hit.expiresAt > now()) return hit.token;
@@ -11057,6 +13254,10 @@ function makeBrokerTokenProvider(brokerUrl, owner, opts = {}) {
       clearTimeout(timer);
     }
   };
+  provider.invalidate = (repo) => {
+    cache.delete(`${owner}/${repo}`.toLowerCase());
+  };
+  return provider;
 }
 function staticTokenProvider(token) {
   return async () => token;
@@ -12062,6 +14263,42 @@ function withSuppressionNote(content, suppressed) {
   return suppressed > 0 ? `${content} (+${suppressed} identical alert${suppressed === 1 ? "" : "s"} suppressed)` : content;
 }
 
+// src/delivery-log.ts
+var DELIVERY_TABLE = "github_sync_delivery";
+function qualifiedTable3(db) {
+  return `${db.namespace}.${DELIVERY_TABLE}`;
+}
+function trimDetail(detail) {
+  if (!detail) return null;
+  return detail.length > 1e3 ? `${detail.slice(0, 1e3)}\u2026` : detail;
+}
+async function recordDelivery(db, row) {
+  await db.execute(
+    `INSERT INTO ${qualifiedTable3(db)}
+       (request_id, endpoint_key, event, delivery_guid, outcome, detail, occurred_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      row.requestId,
+      row.endpointKey,
+      row.event,
+      row.deliveryGuid,
+      row.outcome,
+      trimDetail(row.detail),
+      row.occurredAt
+    ]
+  );
+}
+var WebhookRejection = class extends Error {
+  constructor(outcome, message, httpStatus = 401) {
+    super(message);
+    this.outcome = outcome;
+    this.httpStatus = httpStatus;
+    this.name = "WebhookRejection";
+  }
+  outcome;
+  httpStatus;
+};
+
 // src/ci-failure.ts
 var DEFAULT_AGENT_PR_AUTHOR = "agenticos-developer[bot]";
 var AGENT_REVIEW_CHECK_PREFIX = "agent-review/";
@@ -12553,6 +14790,25 @@ async function recordPipelineError(ctx, cfg, scope, detail, context = {}) {
   }
   await postThrottledOpsAlert(ctx, cfg, buildPipelineErrorPing(detail));
 }
+async function safeRecordDelivery(ctx, input, outcome, detail) {
+  try {
+    await recordDelivery(ctx.db, {
+      requestId: input.requestId,
+      endpointKey: input.endpointKey,
+      event: getHeader(input.headers, "x-github-event") ?? null,
+      deliveryGuid: getHeader(input.headers, "x-github-delivery") ?? null,
+      outcome,
+      detail: detail ?? null,
+      occurredAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    ctx.logger.warn("failed to persist webhook delivery outcome", {
+      endpointKey: input.endpointKey,
+      outcome,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
+}
 function makeDispatch(ctx, cfg, depsByProject, handle, eventName) {
   return async (event) => {
     try {
@@ -12662,17 +14918,14 @@ async function createMirrorIssue(ctx, cfg, bridge, payload, labels = [], runInSc
 }
 async function handleCustomInbound(ctx, cfg, input, runInScope) {
   if (!cfg.inboundWebhookSecret) {
-    ctx.logger.error("inbound webhook: no inboundWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "inbound webhook: no inboundWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.inboundWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    ctx.logger.warn("inbound webhook: signature verification failed");
-    return;
+    throw new WebhookRejection("rejected_signature", "inbound webhook: signature verification failed");
   }
   const payload = parseInboundPayload(input.parsedBody ?? safeJson(input.rawBody));
   if (!payload) {
-    ctx.logger.warn("inbound webhook: unparseable/invalid payload");
-    return;
+    throw new WebhookRejection("invalid_payload", "inbound webhook: unparseable/invalid payload");
   }
   const bridge = matchBridge(cfg, payload.repo);
   if (!bridge) {
@@ -12750,12 +15003,10 @@ async function handleAppClosure(ctx, cfg, event, runInScope) {
 }
 async function handleAppInbound(ctx, cfg, input, runInScope) {
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("app webhook: no appWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "app webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    ctx.logger.warn("app webhook: signature verification failed");
-    return;
+    throw new WebhookRejection("rejected_signature", "app webhook: signature verification failed");
   }
   const eventType = getHeader(input.headers, "x-github-event");
   if (eventType && eventType !== "issues") {
@@ -12807,15 +15058,10 @@ function captureInvocationScope() {
 }
 async function handlePrInbound(ctx, cfg, input) {
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("pr webhook: no appWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "pr webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    await recordPipelineError(ctx, cfg, "pr webhook: signature verification failed", "HMAC verification failed on a github-pr delivery", {
-      endpointKey: PR_WEBHOOK_ENDPOINT_KEY,
-      delivery: getHeader(input.headers, "x-github-delivery")
-    });
-    return;
+    throw new WebhookRejection("rejected_signature", "pr webhook: signature verification failed");
   }
   const eventType = getHeader(input.headers, "x-github-event");
   if (eventType && eventType !== "pull_request") {
@@ -13035,15 +15281,10 @@ async function seedPendingCheck(ctx, github, bridge, ev, reviewer) {
 }
 async function handleCiCompletion(ctx, cfg, input, eventType) {
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("ci webhook: no appWebhookSecret configured \u2014 rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "ci webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    await recordPipelineError(ctx, cfg, "ci webhook: signature verification failed", `HMAC verification failed on a ${eventType} delivery`, {
-      eventType,
-      delivery: getHeader(input.headers, "x-github-delivery")
-    });
-    return;
+    throw new WebhookRejection("rejected_signature", `ci webhook: signature verification failed (${eventType})`);
   }
   const ev = parseCiCompletionEvent(input.parsedBody ?? safeJson(input.rawBody), eventType);
   if (!ev) {
@@ -13559,12 +15800,18 @@ var plugin = definePlugin({
       } else {
         ctx.logger.warn("inbound webhook: unknown endpoint", { endpointKey: input.endpointKey });
       }
+      await safeRecordDelivery(ctx, input, "processed");
     } catch (err) {
+      if (err instanceof WebhookRejection) {
+        await safeRecordDelivery(ctx, input, err.outcome, err.message);
+        throw err;
+      }
       const scope = `inbound webhook: handler failed (${input.endpointKey})`;
+      const detail = err instanceof Error ? err.message : String(err);
+      await safeRecordDelivery(ctx, input, "failed_processing", detail);
       if (cfg) {
         await recordSwallowedFailure(ctx, cfg, scope, err, { endpointKey: input.endpointKey });
       } else {
-        const detail = err instanceof Error ? err.message : String(err);
         ctx.logger.error(scope, { endpointKey: input.endpointKey, error: detail });
         try {
           await recordError(ctx.db, {
@@ -13576,6 +15823,7 @@ var plugin = definePlugin({
         } catch {
         }
       }
+      throw err;
     }
   },
   async onHealth() {
