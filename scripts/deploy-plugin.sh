@@ -44,17 +44,26 @@ COMPOSE_DIR="${COMPOSE_DIR:-/opt/agenticos}"
 VALID_PLUGINS="vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin"
 
 # --- github-sync inbound webhook id-drift gate (GOL-1394) ---------------------
-# A github-sync reinstall ROTATES the plugin id (delete+install is Paperclip's
-# only update path). That id is embedded in the inbound webhook URL in THREE
-# places that must move together: the CF Access apps (cloudflare-qa-webhook.tf
-# var.github_sync_plugin_id), the GitHub App webhook URL, and the install. On
-# 2026-08-12 only the install moved → ~20h of silently-severed inbound sync
-# (every GitHub delivery 302'd at the CF edge). This gate compares the live
-# installed id against the committed TF var and, on mismatch, prints the exact
-# operator legs. Default = FAIL (can't be silently ignored); PLUGIN_ID_GATE=warn
-# downgrades to a non-fatal warning.
+# A github-sync reinstall ROTATES the plugin UUID (delete+install is Paperclip's
+# only update path). This severs inbound while the GitHub App webhook URL is
+# scoped to the UUID path: the UUID is embedded in the CF Access apps
+# (cloudflare-qa-webhook.tf var.github_sync_plugin_id) + the App webhook URL, and
+# on 2026-08-12 only the install moved → ~20h of silently-severed inbound sync
+# (every GitHub delivery 302'd at the CF edge).
+#
+# option A (GOL-1394) closes this class by moving the inbound edge + App webhook
+# URL to the id-STABLE plugin KEY path
+# (/api/plugins/agenticos.github-sync-plugin/webhooks/...), which the host
+# resolves to the current install id at request time (registry.getByKey). But
+# THAT IS A MULTI-STEP CUTOVER: leg 1 only ADDS the key-path CF Access trio; the
+# GitHub App webhook URL is still UUID-scoped until Josh flips it post-merge.
+# Until that flip is applied and verified, a UUID rotation STILL severs inbound —
+# so the gate stays strict. Default = FAIL (a rotation can't be silently ignored
+# during the cutover window); PLUGIN_ID_GATE=warn downgrades to a non-fatal
+# notice. The default flips to `warn` (cosmetic) in the post-cutover cleanup leg,
+# once the App URL is confirmed on the key path — do NOT flip it here.
 TF_WEBHOOK_FILE="${TF_WEBHOOK_FILE:-${HERE}/../infra/terraform/cloudflare-qa-webhook.tf}"
-PLUGIN_ID_GATE="${PLUGIN_ID_GATE:-fail}"   # fail | warn
+PLUGIN_ID_GATE="${PLUGIN_ID_GATE:-fail}"   # fail (default, strict) | warn (post-cutover)
 
 usage() {
   echo "Usage: $0 <plugin> [<plugin> ...]" >&2
@@ -173,8 +182,11 @@ EOF
 }
 
 # guard_id_stable LIVE TF GATE — the live github-sync id must still match the id
-# the inbound webhook path is scoped to (TF var). On drift the inbound sync is
-# SEVERED at the CF edge until an operator re-scopes all three legs (GOL-1394).
+# the inbound webhook path is scoped to (TF var). GOL-1394 leg 1 ADDED the
+# id-stable KEY path at the CF edge, but until the GitHub App webhook URL is cut
+# over to that key path (Josh, post-merge) a UUID rotation STILL severs inbound —
+# so this gate stays strict (PLUGIN_ID_GATE default=fail) through the cutover
+# window. The post-cutover cleanup leg flips the default to warn (cosmetic).
 guard_id_stable() {
   local live="$1" tf="$2" gate="$3"
   if [ -z "$tf" ]; then
@@ -189,26 +201,32 @@ guard_id_stable() {
     echo "    github-sync-plugin: inbound id gate OK (live=TF=${live})"
     return 0
   fi
-  # --- DRIFT: inbound sync is now severed at the edge -------------------------
+  # --- DRIFT: inbound severed until the App URL is on the key path ------------
   cat >&2 <<EOF
 
   ============================================================================
-  🚨 INBOUND WEBHOOK ID DRIFT — GitHub→Paperclip issue sync is SEVERED (GOL-1394)
+  🚨 INBOUND WEBHOOK ID DRIFT — GitHub→Paperclip issue sync at risk (GOL-1394)
   ============================================================================
     live installed id : ${live}
     TF-scoped id      : ${tf}   (var.github_sync_plugin_id)
 
-  The github-sync plugin id rotated on reinstall. Until all three are re-scoped
-  to ${live}, every GitHub issue/PR delivery 302s at the Cloudflare edge and NO
-  GitHub-created issue reaches the board. Operator legs (see
-  docs/runbooks/github-issue-sync.md):
+  The github-sync plugin UUID rotated on reinstall. GOL-1394 leg 1 has ADDED the
+  id-stable KEY path (/api/plugins/agenticos.github-sync-plugin/webhooks/...) at
+  the CF edge, but inbound is only safe once the GitHub App webhook URL is cut
+  over to that key path. Until Josh completes + you verify that cutover, the App
+  still delivers to the UUID path and every GitHub delivery 302s at the CF edge.
+  Preferred fix is the CUTOVER (leg 2), not chasing the UUID. Operator legs
+  (see docs/runbooks/github-issue-sync.md § cutover):
 
     1. infra/terraform/cloudflare-qa-webhook.tf: set
-         default = "${live}"  (var.github_sync_plugin_id), then \`terraform apply\`.
-    2. GitHub App "AgenticOS Developer" → webhook URL:
-         https://paperclip.gatheringatthegrove.com/api/plugins/${live}/webhooks/github-app
-    3. Update the inbound dead-man probe target (repo var GITHUB_SYNC_PLUGIN_ID
-       or the webhook URL secret) so the probe tracks the live id.
+         default = "${live}"  (var.github_sync_plugin_id), then \`terraform apply\`
+       — refreshes this bookkeeping value so the notice goes quiet.
+    2. GitHub App "AgenticOS Developer" → webhook URL: cut over to the KEY path
+         https://paperclip.gatheringatthegrove.com/api/plugins/agenticos.github-sync-plugin/webhooks/github-app
+    3. Update the inbound dead-man probe target so the probe tracks the key path.
+
+  After the key-path cutover is verified, a UUID rotation is harmless and this
+  gate flips to PLUGIN_ID_GATE=warn (cosmetic) in the cleanup leg.
   ============================================================================
 EOF
   if [ "${gate}" = "warn" ]; then
@@ -547,6 +565,6 @@ for p in "$@"; do
 done
 echo "==> done. Plugins refreshed from 1Password: $*"
 if [ "$gate_rc" -ne 0 ]; then
-  echo "==> FAIL: github-sync inbound webhook id drift (see above). Re-scope TF + GitHub App, then re-run." >&2
+  echo "==> FAIL: github-sync inbound webhook id drift (see above). Complete the key-path cutover, then re-run." >&2
   exit 1
 fi
