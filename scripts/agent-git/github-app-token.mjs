@@ -23,6 +23,7 @@
 //   node github-app-token.mjs get                      # git credential helper (stdin)
 //   node github-app-token.mjs erase                    # drop a cached token git rejected
 //   node github-app-token.mjs token <owner>[/<repo>]   # print a token (gh/curl)
+//   node github-app-token.mjs canary <owner>[/<repo>]  # mint+validate, exit 0/1 (GOL-1425)
 //
 // CONFIG (env)
 //   serve:   GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY_B64, PORT (default 9099)
@@ -31,6 +32,11 @@
 //              without one (GH_BROKER_ALLOW_UNAUTHENTICATED=1 overrides; don't).
 //            GH_BROKER_ALLOWED_OWNERS — optional comma-separated owner
 //              allowlist; requests for other owners get 403.
+//            GH_BROKER_VALIDATE_TOKENS — default on; =0 disables mint-time token
+//              validation (offline/dev). GOL-1425.
+//            GH_BROKER_CANARY_OWNER[/_REPO] — optional; enables a periodic
+//              mint+validate canary. GH_BROKER_CANARY_INTERVAL_MS (default 600000).
+//            GH_BROKER_OPS_WEBHOOK — optional Discord webhook for canary alerts.
 //   helper:  GH_TOKEN_BROKER_URL (e.g. http://gh-token-broker:9099)
 //            GH_BROKER_API_KEY / GH_BROKER_API_KEY_FILE — bearer sent to broker
 //            — or, back-compat, GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_B64
@@ -76,6 +82,13 @@ const ALLOWED_OWNERS = (process.env.GH_BROKER_ALLOWED_OWNERS || "")
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
+
+// Mint-time validation (GOL-1425 / folds #457): probe a token against GitHub
+// before serving/caching it, so a token that GitHub has already stopped honouring
+// (revoked installation, suspended App, rotated key) is detected AT MINT instead
+// of on some downstream write 45 min later. Default ON; set =0 for offline
+// unit/dev runs that have no network.
+const VALIDATE_TOKENS = process.env.GH_BROKER_VALIDATE_TOKENS !== "0";
 
 /** Timing-safe bearer check. Linear parse — no regex on the attacker-controlled
  * header (same ReDoS rationale as packages/credential-broker). */
@@ -144,19 +157,53 @@ function cacheFileFor(owner, repo) {
   return join(CACHE_DIR, `${key}.json`);
 }
 
+// Liveness probe for a minted installation token. `/rate_limit` is the cheapest
+// authenticated endpoint AND it does NOT consume the token's rate quota, so we
+// can call it on every mint for free. A live token → true; an explicit
+// 401/403 → false (revoked/suspended). Any transport error (DNS, timeout, 5xx)
+// FAILS OPEN → true: a network blip must never wedge minting, and the
+// cache-invalidation-on-401 path (github-client) is the backstop for a token
+// that slips through and is actually dead.
+async function tokenIsLive(token) {
+  try {
+    const res = await fetch(`${API}/rate_limit`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "agenticos-github-app",
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+    const live = res.status !== 401 && res.status !== 403;
+    await res.body?.cancel?.();
+    return live;
+  } catch {
+    return true; // fail open — never block minting on a transient probe failure
+  }
+}
+
 // Mint (or serve from disk cache) an installation token, returning the full
 // GitHub record `{ token, expires_at }`. Callers that only want the string use
 // `mintLocal`. Broker `serve` mode returns `expires_at` to the client so it can
 // cache against the token's REAL life, not a flat guess (GOL-799).
-async function mintLocalRecord(owner, repo) {
+async function mintLocalRecord(owner, repo, { force = false } = {}) {
   validateTarget(owner, repo);
   const cacheFile = cacheFileFor(owner, repo);
-  try {
-    const c = JSON.parse(readFileSync(cacheFile, "utf8"));
-    if (c.token && c.expires_at && Date.parse(c.expires_at) - Date.now() > 5 * 60 * 1000) {
-      return { token: c.token, expires_at: c.expires_at };
-    }
-  } catch { /* missing/stale — re-mint */ }
+  if (!force) {
+    try {
+      const c = JSON.parse(readFileSync(cacheFile, "utf8"));
+      if (c.token && c.expires_at && Date.parse(c.expires_at) - Date.now() > 5 * 60 * 1000) {
+        // A disk-cached token can be revoked before its `expires_at` (GOL-1425).
+        // Validate before serving; if GitHub has dropped it, fall through and
+        // re-mint rather than handing out a token that 401s downstream.
+        if (!VALIDATE_TOKENS || (await tokenIsLive(c.token))) {
+          return { token: c.token, expires_at: c.expires_at };
+        }
+        log(`cached token for ${owner}${repo ? `/${repo}` : ""} failed validation — re-minting`);
+      }
+    } catch { /* missing/stale — re-mint */ }
+  }
   const jwt = appJwt();
   // owner is already OWNER_RE-validated (no '/', '.', '@', ':'), but encode it
   // anyway so the value provably cannot alter the request URL — `owner` reaches
@@ -173,6 +220,14 @@ async function mintLocalRecord(owner, repo) {
     ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repositories: [repo] }) }
     : { method: "POST" };
   const tok = await api(`/app/installations/${inst.id}/access_tokens`, jwt, opts);
+  // A freshly minted token that GitHub won't honour means the App itself is
+  // broken (suspended, key rotated, install removed) — surface it now rather
+  // than caching a dead credential the whole estate will fail on (GOL-1425/#457).
+  if (VALIDATE_TOKENS && !(await tokenIsLive(tok.token))) {
+    const err = new Error(`minted token for ${owner}${repo ? `/${repo}` : ""} rejected by GitHub`);
+    err.status = 401;
+    throw err;
+  }
   try {
     mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
     writeFileSync(cacheFile, JSON.stringify(tok), { mode: 0o600 });
@@ -232,6 +287,38 @@ function credentialErase() {
   try { validateTarget(t.owner, t.repo); rmSync(cacheFileFor(t.owner, t.repo), { force: true }); } catch { /* best-effort */ }
 }
 
+// --- canary (GOL-1425) ----------------------------------------------------
+
+// Proactively prove the broker can mint a LIVE token for a known target, so a
+// dead App key/suspended install is flagged BEFORE it strands a real write.
+// Forces a fresh mint (bypasses the disk cache) and validates it. Never throws.
+async function runCanary(owner, repo) {
+  const checkedAt = new Date().toISOString();
+  try {
+    validateTarget(owner, repo);
+    const { token, expires_at } = await mintLocalRecord(owner, repo, { force: true });
+    if (!(await tokenIsLive(token))) throw new Error("minted token failed validation");
+    return { ok: true, owner, repo: repo || null, expires_at, checkedAt };
+  } catch (e) {
+    return { ok: false, owner, repo: repo || null, error: e.message, checkedAt };
+  }
+}
+
+// Best-effort ops alert. Dependency-free; failures are swallowed so a flaky
+// webhook never affects minting.
+async function postOpsAlert(text) {
+  const url = (process.env.GH_BROKER_OPS_WEBHOOK || "").trim();
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch { /* best-effort */ }
+}
+
 // --- broker server mode ---------------------------------------------------
 
 function serve() {
@@ -244,10 +331,44 @@ function serve() {
     }
   }
   const port = Number(process.env.PORT || 9099);
+
+  // Periodic canary (GOL-1425): if a target owner is configured, re-mint + validate
+  // a token on an interval so a dead App key is flagged in the logs, on /health, and
+  // (optionally) to ops Discord BEFORE it strands a real write. Off by default.
+  let lastCanary = null;
+  const canaryOwner = (process.env.GH_BROKER_CANARY_OWNER || "").trim();
+  const canaryRepo = (process.env.GH_BROKER_CANARY_REPO || "").trim() || undefined;
+  if (canaryOwner) {
+    const intervalMs = Math.max(60_000, Number(process.env.GH_BROKER_CANARY_INTERVAL_MS || 10 * 60 * 1000));
+    let wasOk = true;
+    const tick = async () => {
+      lastCanary = await runCanary(canaryOwner, canaryRepo);
+      const target = `${canaryOwner}${canaryRepo ? `/${canaryRepo}` : ""}`;
+      if (!lastCanary.ok) {
+        log(`CANARY FAIL: cannot mint a live token for ${target}: ${lastCanary.error}`);
+        if (wasOk) await postOpsAlert(`:rotating_light: gh-token-broker canary FAIL — cannot mint a live token for ${target}: ${lastCanary.error}`);
+        wasOk = false;
+      } else {
+        if (!wasOk) await postOpsAlert(`:white_check_mark: gh-token-broker canary recovered for ${target}`);
+        wasOk = true;
+      }
+    };
+    tick(); // fire once at startup so /health is populated immediately
+    setInterval(tick, intervalMs).unref?.();
+    log(`canary enabled for ${canaryOwner}${canaryRepo ? `/${canaryRepo}` : ""} every ${Math.round(intervalMs / 1000)}s`);
+  }
+
   createServer(async (req, res) => {
     try {
       const url = new URL(req.url, "http://broker");
-      if (url.pathname === "/health") { res.writeHead(200).end("ok"); return; }
+      if (url.pathname === "/health") {
+        // Always 200 while the process is up (an unhealthy exit would only take
+        // token minting fully offline, which is worse). Canary status rides in
+        // the body for monitors/deploy-gate to read.
+        res.writeHead(200, { "Content-Type": "application/json" })
+          .end(JSON.stringify({ status: "ok", canary: lastCanary }));
+        return;
+      }
       if (req.method !== "GET" || url.pathname !== "/token") { res.writeHead(404).end(); return; }
       if (BROKER_API_KEY && !bearerOk(req.headers.authorization)) {
         res.writeHead(401, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "unauthorized" }));
@@ -289,11 +410,20 @@ try {
     const [owner, repo] = (process.argv[3] || "").split("/");
     if (!owner) die("usage: github-app-token.mjs token <owner>[/<repo>]");
     process.stdout.write(`${await mintToken(owner, repo || undefined)}\n`);
+  } else if (mode === "canary") {
+    // One-shot canary for CI/cron probes: mint + validate a live token and exit
+    // 0/1. Needs the key (local mint) — the broker's own liveness (GOL-1425).
+    if (!canMintLocally()) die("canary mode requires GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_B64");
+    const [owner, repo] = (process.argv[3] || "").split("/");
+    if (!owner) die("usage: github-app-token.mjs canary <owner>[/<repo>]");
+    const result = await runCanary(owner, repo || undefined);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    if (!result.ok) { await postOpsAlert(`:rotating_light: gh-token-broker canary FAIL for ${owner}${repo ? `/${repo}` : ""}: ${result.error}`); process.exit(1); }
   } else {
-    die(`unknown mode '${mode}'. Use: serve | get | erase | token <owner>[/<repo>]`);
+    die(`unknown mode '${mode}'. Use: serve | get | erase | token <owner>[/<repo>] | canary <owner>[/<repo>]`);
   }
 } catch (e) {
-  if (mode === "token") die(e.message);
+  if (mode === "token" || mode === "canary") die(e.message);
   log(e.message);
   process.exit(0);
 }

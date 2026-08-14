@@ -102,3 +102,18 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm -w build
+
+  deploy-guardrails:
+    # Regression gate for the deploy-plugin.sh lifecycle guardrails (GOL-1429):
+    # version-bump, id-stability (extends #506), and config round-trip. The
+    # self-test injects each trap and asserts the deploy fails — no op/ssh/api,
+    # so it runs cheaply on every PR. `jq` is preinstalled on ubuntu-latest.
+    name: Deploy guardrails
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Parse-check deploy scripts
+        run: bash -n scripts/deploy-plugin.sh scripts/paperclip-lib.sh scripts/detect-manifest-bumps.sh
+      - name: deploy-plugin.sh guardrail self-test
+        run: bash scripts/deploy-plugin.sh --selftest
