@@ -49,6 +49,11 @@ TEMPLATE = r'''# Protected paths guard  —  GOL-1406 / GOL-1402 (org-wide spec,
 # via the timeline API. A label applied by any bot/App identity — including our
 # own agenticos-developer App — does NOT count.
 #
+# Stale-approval defense (GOL-1471): the label must also POST-DATE the current
+# head commit. Labels persist across `synchronize`, so an approved benign diff
+# with a malicious commit pushed on top would otherwise pass on the un-reviewed
+# commit. If the label predates the head commit, re-apply it to re-approve.
+#
 # Self-protection: `.github/workflows/**` is protected (covers this file and
 # auto-approve.yml), and the job runs on `pull_request_target` — i.e. from the
 # BASE branch definition with API-only access and no PR checkout — so a PR
@@ -157,6 +162,7 @@ jobs:
             );
             let approvedByHuman = false;
             let lastActor = null;
+            let approvalAt = null;
             for (const ev of timeline) {
               const isLabel = ev.label && ev.label.name === APPROVAL_LABEL;
               if (ev.event === 'labeled' && isLabel) {
@@ -164,9 +170,11 @@ jobs:
                 const type = ev.actor && ev.actor.type;
                 lastActor = login;
                 approvedByHuman = HUMAN_ALLOWLIST.includes(login) && type !== 'Bot';
+                approvalAt = ev.created_at;
               } else if (ev.event === 'unlabeled' && isLabel) {
                 lastActor = ev.actor && ev.actor.login;
                 approvedByHuman = false;
+                approvalAt = null;
               }
             }
 
@@ -179,7 +187,40 @@ jobs:
               return;
             }
 
-            core.info('`' + APPROVAL_LABEL + '` applied by allowlisted human `' + lastActor + '` — guard passes.');
+            // Stale-approval defense (GOL-1471): the label must POST-DATE the
+            // current head commit. Labels persist across `synchronize`, so a
+            // benign diff can be human-approved and a malicious protected-path
+            // change pushed on top — without this, the guard would pass on the
+            // un-reviewed commit. Re-fetch the PR for the authoritative head
+            // (the event payload can be stale), then compare the label's
+            // server-recorded `created_at` against the head commit's date
+            // (max of committer/author date). Read-only; no extra perms.
+            const pr = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            const headSha = pr.data.head.sha;
+            const headCommit = await github.rest.repos.getCommit({ owner, repo, ref: headSha });
+            const c = headCommit.data.commit;
+            const commitDate = new Date(Math.max(
+              c.committer && c.committer.date ? Date.parse(c.committer.date) : 0,
+              c.author && c.author.date ? Date.parse(c.author.date) : 0
+            ));
+            const approvalDate = approvalAt ? new Date(approvalAt) : null;
+
+            if (!approvalDate || approvalDate < commitDate) {
+              core.setFailed(
+                'The `' + APPROVAL_LABEL + '` label (applied ' +
+                (approvalAt || 'never') + ') predates head commit `' +
+                headSha.slice(0, 7) + '` (' + commitDate.toISOString() + ').\n' +
+                'A commit was pushed after approval, so the approved diff is ' +
+                'stale. Re-apply the label to approve the current head. ' + ASK
+              );
+              return;
+            }
+
+            core.info(
+              '`' + APPROVAL_LABEL + '` applied by allowlisted human `' + lastActor +
+              '` at ' + approvalAt + ', after head commit ' + headSha.slice(0, 7) +
+              ' (' + commitDate.toISOString() + ') — guard passes.'
+            );
 '''
 
 
