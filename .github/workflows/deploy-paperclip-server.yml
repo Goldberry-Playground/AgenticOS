@@ -1,0 +1,139 @@
+name: Deploy paperclip-server (core code)
+
+# Ship a CORE paperclip-server code change to the Droplet (GOL-1506).
+#
+# The paperclip-server compose service builds its image from the SEPARATE fork
+# clone at /opt/paperclip (build context), which cloud-init pins to a tag of
+# Paperclip-AgenticOS and only sets at provision time. Neither existing workflow
+# updates that clone:
+#   - deploy-droplet.yml ships THIS repo's tree and only force-recreates
+#     paperclip-server to re-resolve plugin bind mounts (no image rebuild);
+#   - recreate-paperclip-server.yml recreates the container from the existing
+#     image.
+# So until now there was no self-service path to land a core-server fix short of
+# re-provisioning the whole Droplet. This workflow closes that gap: it updates
+# /opt/paperclip to a chosen ref, rebuilds the image from it, and recreates the
+# container. OAuth/login/run state survives — it lives on the paperclip-data
+# volume, not the container layer.
+#
+# No host root and no new standing credential: runs on GH Actions with the
+# existing DROPLET_SSH_KEY deploy key (the deploy user is in the docker group).
+# repository_dispatch lets an in-container agent trigger it via a broker
+# contents:write token — the broker App lacks actions:write, so
+# workflow_dispatch is 403 for agents (same pattern as
+# recreate-paperclip-server.yml / disk-reclaim.yml). client_payload.ref selects
+# the ref; defaults to the cloud-init pin.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Paperclip-AgenticOS ref (tag/branch/sha) to deploy into /opt/paperclip
+        required: true
+        type: string
+        default: agenticos-v0.2.1
+  repository_dispatch:
+    types: [deploy-paperclip-server]
+
+permissions:
+  contents: read
+
+# Share the Droplet deploy lock so a core-server deploy never races
+# deploy-droplet / recreate / disk-reclaim mid-`compose build`/`up`.
+concurrency:
+  group: deploy-droplet
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Update /opt/paperclip + rebuild paperclip-server
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out composite actions
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions
+
+      - name: Resolve + validate deploy ref
+        id: ref
+        env:
+          DISPATCH_REF: ${{ github.event.client_payload.ref }}
+          INPUT_REF: ${{ github.event.inputs.ref }}
+        run: |
+          set -euo pipefail
+          REF="${DISPATCH_REF:-}"
+          [ -n "$REF" ] || REF="${INPUT_REF:-}"
+          [ -n "$REF" ] || REF="agenticos-v0.2.1"
+          # Allowlist: git ref / sha chars only. This value is interpolated into
+          # a remote shell command, so reject anything with metacharacters.
+          case "$REF" in
+            *[!A-Za-z0-9._/-]*) echo "::error::invalid ref (bad chars): $REF"; exit 1 ;;
+          esac
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Deploying paperclip-server ref: $REF"
+
+      - name: Configure SSH
+        uses: ./.github/actions/configure-ssh
+        with:
+          deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
+          host: ${{ secrets.DROPLET_HOST }}
+
+      - name: Update /opt/paperclip and rebuild paperclip-server
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+          REF: ${{ steps.ref.outputs.ref }}
+        run: |
+          # `deploy` is in the docker group — no sudo (sudo would block on a
+          # password prompt and hang the job). REF is charset-validated above.
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "REF='${REF}' bash -s" <<'REMOTE'
+            set -euo pipefail
+            cd /opt/paperclip
+            echo "current /opt/paperclip HEAD: $(git rev-parse --short HEAD)"
+            # The clone is shallow (cloud-init: --depth 1 --branch <tag>). Fetch
+            # the target ref explicitly (works for a tag, branch, or full sha on
+            # GitHub), then hard-checkout FETCH_HEAD detached.
+            git fetch --depth 1 origin "$REF" \
+              || git fetch --depth 1 origin "refs/tags/${REF}:refs/tags/${REF}"
+            git checkout --force --detach FETCH_HEAD
+            echo "updated /opt/paperclip HEAD: $(git rev-parse --short HEAD) ($REF)"
+            cd /opt/agenticos
+            # Rebuild the image from the updated build context, then recreate the
+            # container so it runs the new code. State survives on paperclip-data.
+            docker compose build paperclip-server
+            docker compose up -d paperclip-server
+            docker compose ps paperclip-server
+          REMOTE
+
+      - name: Verify server healthy + concurrency cap live
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          # Success condition (GOL-1506): the recreated container runs with
+          # PAPERCLIP_MAX_CONCURRENT_RUNS set (from docker-compose.yml) and
+          # answers its health endpoint. The resolver treats the value as the
+          # fleet cap; an unset/empty value would silently disable the gate, so
+          # assert it is present and positive.
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" '
+            set -euo pipefail
+            cd /opt/agenticos
+            val=""
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              val="$(docker compose exec -T paperclip-server printenv PAPERCLIP_MAX_CONCURRENT_RUNS 2>/dev/null || true)"
+              if [ -n "$val" ]; then break; fi
+              echo "waiting for paperclip-server to accept exec ($i/10)"; sleep 3
+            done
+            if [ -z "$val" ] || [ "$val" -le 0 ] 2>/dev/null; then
+              echo "::error::PAPERCLIP_MAX_CONCURRENT_RUNS not set/positive in container (got: '\''$val'\'') — cap would be DISABLED"; exit 1
+            fi
+            echo "concurrency cap live: PAPERCLIP_MAX_CONCURRENT_RUNS=$val"
+            # Health probe (loopback inside the container network).
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if docker compose exec -T paperclip-server sh -lc "wget -qO- http://127.0.0.1:3100/api/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:3100/api/health >/dev/null 2>&1"; then
+                echo "paperclip-server /api/health OK"; exit 0
+              fi
+              echo "waiting for /api/health ($i/10)"; sleep 3
+            done
+            echo "::error::paperclip-server did not become healthy after recreate"; exit 1'

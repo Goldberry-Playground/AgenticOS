@@ -250,6 +250,18 @@ services:
       # VPC port mapping and Docker service-name DNS.
       PAPERCLIP_DEPLOYMENT_MODE: authenticated
       PAPERCLIP_DEPLOYMENT_EXPOSURE: private
+      # Fleet-wide run-concurrency cap (GOL-1506 / GOL-557 lever 1). Bounds the
+      # company-wide count of simultaneously *running* heartbeat runs so an
+      # N-agent burst self-throttles instead of driving the box into swap/thrash
+      # (the recurring GOL-520 failure mode). Excess runs stay `queued` (deferred,
+      # never dropped) and are promoted by the periodic resumeQueuedRuns sweep as
+      # slots free. Enforced at the single queued->running chokepoint
+      # (startNextQueuedRunForAgent); soft throttle — a simultaneous burst may
+      # transiently overshoot by a few before converging on the next dispatch
+      # tick. 5 ≈ core count on this 4-vCPU box, leaving headroom. Static +
+      # non-secret, so it lives here (environment: overrides env_file:). The
+      # resolver code ships from /opt/paperclip — bump via deploy-paperclip-server.yml.
+      PAPERCLIP_MAX_CONCURRENT_RUNS: "5"
       # Public hostname the board UI is served behind (Cloudflare Access +
       # cloudflared tunnel; see infra/terraform/cloudflare-tunnel.tf). better-auth
       # reads this as its canonical base URL so cookie domain, CSRF trustedOrigins,
