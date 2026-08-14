@@ -33,13 +33,28 @@ now id-free.
 
 ### Why this ordering works
 
-Cloudflare runs URL Rewrite in the `http_request_transform` phase (phase 3) **before**
-Access enforcement (~phase 13). So by the time Access evaluates, the path is already
-the rewritten `/api/plugins/<id>/webhooks/…` — which is why the Access apps match the
-post-rewrite path with a `*` on the id segment (no id literal), not the alias path.
+> **⚠️ CORRECTION (2026-08-14, verified live after the #550 apply).** The original
+> assumption below — that URL Rewrite (`http_request_transform`) runs *before* Access
+> so Access sees the rewritten `/api/plugins/<id>/…` path — is **empirically false**.
+> Cloudflare **Access matches its applications on the ORIGINAL incoming path** (it
+> builds the login redirect from the URL the client requested). Proof: after applying
+> #550, a POST to the id-free alias `/api/gh-webhooks/github-app` still **302'd to the
+> Access login** (`goldberrygrove.cloudflareaccess.com/.../login`, `redirect_url=
+> /api/gh-webhooks/github-app`), while the literal `/api/plugins/f46075f1…/webhooks/
+> github-app` returned **502** (Access bypassed → plugin rejects the unsigned ping).
+> The rewrite only rewrites the **origin-bound** path; it does not change what Access
+> matches. The wildcarded `/api/plugins/*/webhooks/…` bypass apps therefore cover only
+> the **literal-path** App URL (still in use, so inbound stays healthy) — they do **not**
+> cover the alias. **Fix (this branch): id-free bypass Access apps scoped to the alias
+> paths `/api/gh-webhooks/github-app` and `/api/gh-webhooks/github-pr`** (see
+> `cloudflare-webhook-alias.tf`). Access then lets the alias POST through on the
+> original path; the Transform Rule still rewrites it to the plugin path for the
+> origin. Do **not** perform Step 3 (App-URL cutover) until those bypass apps are
+> applied and Step 2 shows a non-Access response on the alias.
+
 Cloudflare Access precedence is by **path specificity** (most-specific path wins,
-whether broader matches are exact or wildcard), so the deep `/webhooks/github-*`
-bypass apps still win over the host-wide `paperclip` SSO app exactly as before.
+whether broader matches are exact or wildcard), so the deep `/api/gh-webhooks/github-*`
+alias bypass apps win over the host-wide `paperclip` SSO app.
 
 ## Rollout is additive and reversible
 
