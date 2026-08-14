@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
-"""GOL-1406: generate the protected-paths-guard workflow for each repo.
+"""GOL-1406 / GOL-1478: generate the protected-paths-guard workflow per repo.
 
 The logic is byte-identical across all four repos; only PROTECTED_GLOBS and a
 one-line repo tag differ. Keeping a single generator here means the shared
 implementation can't silently drift between repos (the file is itself
-self-protecting once merged, so any future edit needs `human-approved`)."""
+self-protecting once merged, so any future edit needs an allowlisted human's
+SHA-bound approving review).
+
+GOL-1478 replaces the earlier `human-approved`-label gate (and its spoofable
+commit-date recency check) with a SHA-bound approving review: an allowlisted
+human must submit an APPROVED review whose server-set `commit_id` equals the
+CURRENT head SHA. `commit_id` is assigned by GitHub to the exact reviewed
+commit, so — unlike a git author/committer date — it cannot be forged by
+backdating a commit. Any new commit changes the head SHA and invalidates every
+prior approval. Read-only, no new permissions."""
 import os
 
 # repo dir -> (repo tag, extra protected globs beyond the shared workflow one)
@@ -38,22 +47,31 @@ REPOS = {
     ),
 }
 
-TEMPLATE = r'''# Protected paths guard  —  GOL-1406 / GOL-1402 (org-wide spec, 2026-08-13).
+TEMPLATE = r'''# Protected paths guard  —  GOL-1406 / GOL-1402 / GOL-1478 (org-wide spec).
 #
-# Sync-critical and gate-critical files require a HUMAN-applied `human-approved`
-# label to merge. A PR that touches any protected path without that label fails
-# this (required) check.
+# Sync-critical and gate-critical files require a HUMAN SHA-bound approving
+# review to merge. A PR that touches any protected path fails this (required)
+# check unless an allowlisted human has submitted an APPROVED review on the
+# CURRENT head commit.
 #
-# Label-forgery defense: the `human-approved` label only counts if it was
-# applied by a HUMAN on the allowlist (reused from auto-approve.yml), verified
-# via the timeline API. A label applied by any bot/App identity — including our
-# own agenticos-developer App — does NOT count.
+# SHA-binding (GOL-1478): the gate checks that an allowlisted human's APPROVED
+# review has `commit_id === headSha`. `commit_id` is server-assigned by GitHub
+# to the exact reviewed commit, so it cannot be forged by backdating a commit
+# (`GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` are pusher-controlled; a review's
+# `commit_id` is not). Any new commit changes the head SHA and drops every
+# prior approval, so a follow-on (even backdated) protected-path commit fails
+# the guard until it is re-reviewed.
+#
+# The `human-approved` label is NO LONGER a gate — it is retained only as an
+# optional manual re-run nudge (its `labeled` event re-triggers this workflow
+# in case the review event does not refresh the check). Approving the PR is the
+# single action that satisfies the guard.
 #
 # Self-protection: `.github/workflows/**` is protected (covers this file and
-# auto-approve.yml), and the job runs on `pull_request_target` — i.e. from the
-# BASE branch definition with API-only access and no PR checkout — so a PR
-# cannot edit this workflow to neuter its own guard. Same philosophy as
-# auto-approve.yml's workflow_run trigger.
+# auto-approve.yml), and the job runs on `pull_request_target` /
+# `pull_request_review` — i.e. from the BASE branch definition with API-only
+# access and no PR checkout — so a PR cannot edit this workflow to neuter its
+# own guard. Same philosophy as auto-approve.yml's workflow_run trigger.
 #
 # ONE shared implementation, generated for every repo from
 # gen-protected-paths-guard.py; only PROTECTED_GLOBS differs per repo. Repo: {TAG}
@@ -62,6 +80,8 @@ name: Protected paths guard
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted, dismissed, edited]
 
 permissions:
   contents: read
@@ -77,14 +97,14 @@ jobs:
     name: Protected paths guard
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce human-approved label on protected paths
+      - name: Enforce human SHA-bound approval on protected paths
         uses: actions/github-script@v7
         with:
           script: |
-            // Human allowlist — a label applied by anyone NOT in this list
-            // (including bots/Apps) does not count. Mirrors auto-approve.yml.
+            // Human allowlist — an approving review from anyone NOT in this
+            // list (including bots/Apps) does not count. Mirrors
+            // auto-approve.yml.
             const HUMAN_ALLOWLIST = ['EngineeringMoonBear'];
-            const APPROVAL_LABEL = 'human-approved';
 
             // Protected globs for THIS repo. `.github/workflows/**` is shared
             // across all repos and is self-protecting.
@@ -118,6 +138,14 @@ jobs:
             }
             const matchers = PROTECTED_GLOBS.map(globToRe);
 
+            // Re-fetch the PR so head.sha is authoritative: the event payload
+            // can be stale on labeled/review activity, and the head SHA is the
+            // value the whole gate binds to.
+            const { data: pr } = await github.rest.pulls.get({
+              owner, repo, pull_number: number,
+            });
+            const headSha = pr.head.sha;
+
             // Changed files (paginated).
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner, repo, pull_number: number, per_page: 100,
@@ -132,54 +160,61 @@ jobs:
             }
             core.warning('Protected paths touched:\n  ' + hits.join('\n  '));
 
-            // Live label state (the event payload can be stale).
-            const liveLabels = await github.paginate(
-              github.rest.issues.listLabelsOnIssue,
-              { owner, repo, issue_number: number, per_page: 100 }
-            );
-            const hasLabel = liveLabels.some(l => l.name === APPROVAL_LABEL);
+            const ASK =
+              'Have an allowlisted human (' + HUMAN_ALLOWLIST.join(', ') +
+              ') submit an APPROVING review on the current commit ' +
+              headSha.slice(0, 7) + '.';
 
-            const ASK = 'Ask Josh to review and apply the `' + APPROVAL_LABEL + '` label.';
-
-            if (!hasLabel) {
-              core.setFailed(
-                'This PR changes protected paths but is not `' + APPROVAL_LABEL + '`.\n' + ASK
-              );
-              return;
-            }
-
-            // Label-forgery defense: the CURRENT human-approved label must have
-            // been applied by an allowlisted human. Walk the timeline in order
-            // and keep the last actor to (un)label human-approved.
-            const timeline = await github.paginate(
-              github.rest.issues.listEventsForTimeline,
-              { owner, repo, issue_number: number, per_page: 100 }
-            );
-            let approvedByHuman = false;
-            let lastActor = null;
-            for (const ev of timeline) {
-              const isLabel = ev.label && ev.label.name === APPROVAL_LABEL;
-              if (ev.event === 'labeled' && isLabel) {
-                const login = ev.actor && ev.actor.login;
-                const type = ev.actor && ev.actor.type;
-                lastActor = login;
-                approvedByHuman = HUMAN_ALLOWLIST.includes(login) && type !== 'Bot';
-              } else if (ev.event === 'unlabeled' && isLabel) {
-                lastActor = ev.actor && ev.actor.login;
-                approvedByHuman = false;
+            // SHA-bound approval. Walk reviews (ascending submission order) and
+            // resolve each allowlisted human's EFFECTIVE state = their latest
+            // APPROVED / CHANGES_REQUESTED / DISMISSED review (COMMENTED and
+            // PENDING reviews do not set a state), mirroring GitHub's own
+            // review-state resolution. A bot/App identity never counts.
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
+            const effective = new Map(); // login -> { state, commit_id }
+            for (const rv of reviews) {
+              const login = rv.user && rv.user.login;
+              const type = rv.user && rv.user.type;
+              if (!login || type === 'Bot' || !HUMAN_ALLOWLIST.includes(login)) continue;
+              if (['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(rv.state)) {
+                effective.set(login, { state: rv.state, commit_id: rv.commit_id });
               }
             }
 
-            if (!approvedByHuman) {
-              core.setFailed(
-                'The `' + APPROVAL_LABEL + '` label was applied by `' + (lastActor || 'unknown') +
-                '`, who is not a human on the allowlist (' + HUMAN_ALLOWLIST.join(', ') + ').\n' +
-                'A label applied by a bot/App does not count. ' + ASK
-              );
+            let approver = null;
+            for (const [login, r] of effective) {
+              if (r.state === 'APPROVED' && r.commit_id === headSha) { approver = login; break; }
+            }
+
+            if (!approver) {
+              // Distinguish "approved, but a newer commit landed" for a clear
+              // message — this is exactly the (possibly backdated) follow-on
+              // commit that the SHA binding rejects.
+              const stale = [...effective].find(([, r]) => r.state === 'APPROVED');
+              if (stale) {
+                core.setFailed(
+                  'Allowlisted human `' + stale[0] + '` approved commit ' +
+                  String(stale[1].commit_id || 'unknown').slice(0, 7) +
+                  ', but the current head is ' + headSha.slice(0, 7) +
+                  '. A new commit invalidates prior approvals (backdating cannot ' +
+                  'forge a review\'s commit_id). Re-review the current commit.\n' + ASK
+                );
+              } else {
+                core.setFailed(
+                  'This PR changes protected paths but has no APPROVED review from ' +
+                  'an allowlisted human bound to the current commit ' +
+                  headSha.slice(0, 7) + '.\n' + ASK
+                );
+              }
               return;
             }
 
-            core.info('`' + APPROVAL_LABEL + '` applied by allowlisted human `' + lastActor + '` — guard passes.');
+            core.info(
+              'Protected paths approved by allowlisted human `' + approver +
+              '` on head ' + headSha.slice(0, 7) + ' — guard passes.'
+            );
 '''
 
 
