@@ -45,7 +45,13 @@ import { runMirrorReconcile, buildReconcilePing } from "./reconcile.js";
 import { runSignoffReconcile } from "./signoff-reconcile.js";
 import { runInboundCloseReconcile, buildInboundCloseReconcilePing } from "./inbound-close-reconcile.js";
 import { runInboundCreateReconcile, buildInboundCreateReconcilePing } from "./inbound-create-reconcile.js";
-import { recordError, buildSwallowedFailurePing, OpsPingThrottle, withSuppressionNote } from "./error-log.js";
+import {
+  recordError,
+  buildSwallowedFailurePing,
+  buildFallbackFailurePing,
+  OpsPingThrottle,
+  withSuppressionNote,
+} from "./error-log.js";
 import { recordDelivery, WebhookRejection, type DeliveryOutcome } from "./delivery-log.js";
 import {
   buildCiFixBody,
@@ -63,7 +69,7 @@ import {
   type CiCompletionEvent,
 } from "./ci-failure.js";
 import { getCiFailureRecord, upsertCiFailureRecord } from "./ci-failure-store.js";
-import { PaperclipRestClient, withRestFallback } from "./paperclip-rest.js";
+import { PaperclipRestClient, withRestFallback, type FallbackFailure } from "./paperclip-rest.js";
 
 /** Manifest-declared inbound webhook endpoint keys (GitHub → Paperclip). */
 /** Custom Actions-workflow path: a signed {repo,number,title,body,url} payload. */
@@ -302,9 +308,47 @@ function restFallbackClient(ctx: PluginContext, cfg: GithubSyncConfig): Papercli
   });
 }
 
-/** Bind the logger + REST client `withRestFallback` needs at every catch site. */
+/** Bind the logger + REST client + failure hook `withRestFallback` needs at every catch site. */
 function restFallbackDeps(ctx: PluginContext, cfg: GithubSyncConfig) {
-  return { logger: ctx.logger, rest: restFallbackClient(ctx, cfg) };
+  return {
+    logger: ctx.logger,
+    rest: restFallbackClient(ctx, cfg),
+    // GOL-1485: every fallback path routes through here, so wiring the observability hook
+    // once covers mirror.create, sync.get, reconcile.list, ci.*, close, etc. uniformly.
+    onFallbackFailure: ({ site, status }: FallbackFailure) => recordFallbackFailure(ctx, cfg, site, status),
+  };
+}
+
+/**
+ * A REST-fallback FAILURE (GOL-1485). `withRestFallback` already emitted the `logger.error`
+ * (host stderr, unchanged); this adds the two OBSERVABLE sinks so a dying fallback key (#457)
+ * is seen in real time instead of going unnoticed until mirrors visibly stop:
+ *   1. a durable `github_sync_error` row — queryable without a server.log dig;
+ *   2. a throttled ⛔ Discord ops alert — one per (site, status) per window (error-class, so it
+ *      passes every `opsPingMode`; an alert channel must never silently drop alerts).
+ * Best-effort throughout: never masks the fallback error, which `withRestFallback` rethrows.
+ */
+async function recordFallbackFailure(
+  ctx: PluginContext,
+  cfg: GithubSyncConfig,
+  site: string,
+  status: number | undefined,
+): Promise<void> {
+  const code = status === undefined ? "no HTTP status" : `HTTP ${status}`;
+  try {
+    await recordError(ctx.db, {
+      occurredAt: new Date().toISOString(),
+      scope: "rest-fallback-failed",
+      detail: `Paperclip REST fallback failed for ${site} (${code})`,
+      context: { site, status },
+    });
+  } catch (writeErr) {
+    ctx.logger.warn("failed to persist rest-fallback failure to github_sync_error", {
+      site,
+      error: writeErr instanceof Error ? writeErr.message : String(writeErr),
+    });
+  }
+  await postThrottledOpsAlert(ctx, cfg, buildFallbackFailurePing(site, status));
 }
 
 /**

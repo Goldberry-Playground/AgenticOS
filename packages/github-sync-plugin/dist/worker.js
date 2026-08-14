@@ -14214,6 +14214,10 @@ function buildSwallowedFailurePing(scope, detail) {
   const trimmed = detail.length > 500 ? `${detail.slice(0, 500)}\u2026` : detail;
   return `\u{1F6A8} github-sync failure \u2014 ${scope}: ${trimmed}`;
 }
+function buildFallbackFailurePing(site, status) {
+  const code = status === void 0 ? "no HTTP status" : `HTTP ${status}`;
+  return `\u26D4 github-sync REST fallback FAILED for ${site} (${code}) \u2014 the Paperclip REST fallback key may be dead (#457); inbound mirrors for this site will stop until it is fixed.`;
+}
 async function recordError(db, row) {
   await db.execute(
     `INSERT INTO ${qualifiedTable2(db)} (occurred_at, scope, detail, context)
@@ -14641,11 +14645,19 @@ async function withRestFallback(deps, site, fn, restFn) {
       logger.info("Paperclip REST fallback succeeded (GOL-323)", { site });
       return result;
     } catch (restErr) {
-      logger.error("Paperclip REST fallback failed (GOL-323)", {
-        site,
-        status: restErr instanceof PaperclipRestError ? restErr.status : void 0,
-        error: restErr instanceof Error ? restErr.message : String(restErr)
-      });
+      const status = restErr instanceof PaperclipRestError ? restErr.status : void 0;
+      const detail = restErr instanceof Error ? restErr.message : String(restErr);
+      logger.error("Paperclip REST fallback failed (GOL-323)", { site, status, error: detail });
+      if (deps.onFallbackFailure) {
+        try {
+          await deps.onFallbackFailure({ site, status, detail });
+        } catch (hookErr) {
+          logger.warn("onFallbackFailure hook threw (ignored)", {
+            site,
+            error: hookErr instanceof Error ? hookErr.message : String(hookErr)
+          });
+        }
+      }
       throw restErr;
     }
   }
@@ -14724,7 +14736,30 @@ function restFallbackClient(ctx, cfg) {
   });
 }
 function restFallbackDeps(ctx, cfg) {
-  return { logger: ctx.logger, rest: restFallbackClient(ctx, cfg) };
+  return {
+    logger: ctx.logger,
+    rest: restFallbackClient(ctx, cfg),
+    // GOL-1485: every fallback path routes through here, so wiring the observability hook
+    // once covers mirror.create, sync.get, reconcile.list, ci.*, close, etc. uniformly.
+    onFallbackFailure: ({ site, status }) => recordFallbackFailure(ctx, cfg, site, status)
+  };
+}
+async function recordFallbackFailure(ctx, cfg, site, status) {
+  const code = status === void 0 ? "no HTTP status" : `HTTP ${status}`;
+  try {
+    await recordError(ctx.db, {
+      occurredAt: (/* @__PURE__ */ new Date()).toISOString(),
+      scope: "rest-fallback-failed",
+      detail: `Paperclip REST fallback failed for ${site} (${code})`,
+      context: { site, status }
+    });
+  } catch (writeErr) {
+    ctx.logger.warn("failed to persist rest-fallback failure to github_sync_error", {
+      site,
+      error: writeErr instanceof Error ? writeErr.message : String(writeErr)
+    });
+  }
+  await postThrottledOpsAlert(ctx, cfg, buildFallbackFailurePing(site, status));
 }
 var opsAlertThrottle = new OpsPingThrottle();
 async function postThrottledOpsAlert(ctx, cfg, content) {

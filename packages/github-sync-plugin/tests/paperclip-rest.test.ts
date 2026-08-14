@@ -236,6 +236,77 @@ describe("withRestFallback", () => {
     ).rejects.toBe(SCOPE_ERR);
     expect(lines).toEqual([]);
   });
+
+  // --- onFallbackFailure observability hook (GOL-1485) --------------------------
+  //
+  // logger.error goes to host stderr only, which is not observable, so a fallback
+  // that fails (e.g. a silently-dead fallback key, #457) went unseen until mirrors
+  // visibly stopped. The hook is the caller's page-ops-now handle.
+
+  it("fires onFallbackFailure with site + status + detail when the REST retry fails", async () => {
+    const { logger } = makeFakeLogger();
+    const restErr = new PaperclipRestError("Paperclip REST createIssue failed: 403 Forbidden", 403);
+    const seen: Array<{ site: string; status: number | undefined; detail: string }> = [];
+    await expect(
+      withRestFallback(
+        { logger, rest: anyRest(), onFallbackFailure: (f) => void seen.push(f) },
+        "mirror.create",
+        () => Promise.reject(SCOPE_ERR),
+        () => Promise.reject(restErr),
+      ),
+    ).rejects.toBe(restErr);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ site: "mirror.create", status: 403 });
+    expect(seen[0]!.detail).toMatch(/403 Forbidden/);
+  });
+
+  it("passes status:undefined to the hook when the retry throws a non-HTTP error", async () => {
+    const { logger } = makeFakeLogger();
+    const seen: Array<{ status: number | undefined }> = [];
+    await expect(
+      withRestFallback(
+        { logger, rest: anyRest(), onFallbackFailure: (f) => void seen.push(f) },
+        "ci.comment",
+        () => Promise.reject(SCOPE_ERR),
+        () => Promise.reject(new Error("network unreachable")),
+      ),
+    ).rejects.toThrow(/network unreachable/);
+    expect(seen[0]).toMatchObject({ status: undefined });
+  });
+
+  it("does NOT fire onFallbackFailure on the healthy scope-expiry SUCCESS path", async () => {
+    const { logger } = makeFakeLogger();
+    let fired = false;
+    const out = await withRestFallback(
+      { logger, rest: anyRest(), onFallbackFailure: () => void (fired = true) },
+      "mirror.create",
+      () => Promise.reject(SCOPE_ERR),
+      async () => "from-rest",
+    );
+    expect(out).toBe("from-rest");
+    expect(fired).toBe(false);
+  });
+
+  it("never masks the REST error when the hook itself throws (best-effort)", async () => {
+    const { lines, logger } = makeFakeLogger();
+    const restErr = new PaperclipRestError("boom", 500);
+    await expect(
+      withRestFallback(
+        {
+          logger,
+          rest: anyRest(),
+          onFallbackFailure: () => {
+            throw new Error("ops webhook down");
+          },
+        },
+        "mirror.create",
+        () => Promise.reject(SCOPE_ERR),
+        () => Promise.reject(restErr),
+      ),
+    ).rejects.toBe(restErr);
+    // The hook failure is logged (warn) but swallowed; the REST error still propagates.
+    expect(lines.some((l) => l.level === "warn" && /hook threw/.test(l.message))).toBe(true);
+  });
 });
 
 // --- listIssues: the READ fallback the scheduled sweep needs (GOL-1163) ----------

@@ -210,7 +210,17 @@ var manifest = {
   //   delivery turns red. Retries stay safe: inbound create still dedupes on
   //   repo+number before writing (getByRepoNumber), preserving the GOL-352/GOL-323
   //   REST fallback. Adds migration 006 (new table) — surface otherwise unchanged.
-  version: "0.16.1",
+  // 0.16.2 = REST-fallback FAILURE alert (GOL-1485). When the GOL-323 scope-expiry
+  //   fallback FIRES but the Paperclip REST retry ITSELF fails (e.g. the fallback key
+  //   silently dies — #457: NULL responsible_user_id → 403), the only prior signal was a
+  //   `logger.error` on host stderr, which is NOT observable, so a dead fallback key went
+  //   unseen until inbound mirrors visibly stopped. withRestFallback now fires an optional
+  //   onFallbackFailure hook on that path; the worker wires it (once, at restFallbackDeps,
+  //   covering every fallback site) to a durable `github_sync_error` row + a THROTTLED
+  //   error-class ⛔ Discord ops alert carrying site + HTTP status (one per site+status per
+  //   window; error-class passes every opsPingMode). The scope-expiry SUCCESS path is
+  //   unchanged — no new pings on the healthy path. No new capability, no migration.
+  version: "0.16.2",
   displayName: "GitHub Sync",
   description: "Bidirectional issue sync between Paperclip and GitHub. Paperclip \u2192 GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub \u2192 Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo\u2194project bridges across orgs.",
   author: "AgenticOS",
