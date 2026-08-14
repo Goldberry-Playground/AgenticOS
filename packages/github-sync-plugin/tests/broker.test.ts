@@ -132,6 +132,35 @@ describe("makeBrokerTokenProvider", () => {
     });
     await expect(getToken("repo")).rejects.toThrow("returned no token");
   });
+
+  it("invalidate() evicts the cached token so the next call re-mints (GOL-1425)", async () => {
+    const fetchMock = brokerFetch("tok1");
+    const getToken = makeBrokerTokenProvider("http://b", "Org", {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+    await getToken("repo");
+    await getToken("repo"); // cached — no second fetch
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    getToken.invalidate?.("repo"); // the token got revoked before its cached expiry
+    await getToken("repo"); // must re-mint from the broker, not serve the dead token
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("invalidate() only evicts the named repo, keeping other entries cached", async () => {
+    const fetchMock = brokerFetch("t");
+    const getToken = makeBrokerTokenProvider("http://b", "Org", {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+    await getToken("repo-a");
+    await getToken("repo-b");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    getToken.invalidate?.("repo-a");
+    await getToken("repo-a"); // re-mints
+    await getToken("repo-b"); // still cached
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });
 
 describe("staticTokenProvider", () => {

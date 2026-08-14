@@ -17,7 +17,18 @@
  * honouring it. Older brokers that omit `expires_at` fall back to the flat TTL.
  */
 
-export type TokenProvider = (repo: string) => Promise<string>;
+/**
+ * Resolves a repo-scoped token, cached until near expiry. The optional
+ * `invalidate` evicts a cached token so the NEXT call re-mints from the broker —
+ * GitHubClient calls it when a request comes back 401, because an installation
+ * token can be revoked (App suspended, key rotated, permissions changed) BEFORE
+ * its cached `expires_at`, and a stacked cache would otherwise keep serving the
+ * dead token for the rest of its TTL (GOL-1425). Static providers omit it.
+ */
+export interface TokenProvider {
+  (repo: string): Promise<string>;
+  invalidate?(repo: string): void;
+}
 
 /**
  * Refresh a cached token this many ms BEFORE its GitHub `expires_at`, to absorb
@@ -63,7 +74,7 @@ export function makeBrokerTokenProvider(
   const base = brokerUrl.replace(/\/$/, "");
   const cache = new Map<string, { token: string; expiresAt: number }>();
 
-  return async (repo: string): Promise<string> => {
+  const provider: TokenProvider = async (repo: string): Promise<string> => {
     const key = `${owner}/${repo}`.toLowerCase();
     const hit = cache.get(key);
     if (hit && hit.expiresAt > now()) return hit.token;
@@ -101,6 +112,14 @@ export function makeBrokerTokenProvider(
       clearTimeout(timer);
     }
   };
+
+  // Evict a repo's cached token after a 401 so the next mint re-fetches from the
+  // broker instead of re-serving a token GitHub has already rejected (GOL-1425).
+  provider.invalidate = (repo: string): void => {
+    cache.delete(`${owner}/${repo}`.toLowerCase());
+  };
+
+  return provider;
 }
 
 /** Wrap a static token as a TokenProvider (fallback when no broker is configured). */
