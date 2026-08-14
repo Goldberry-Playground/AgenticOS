@@ -18,10 +18,13 @@
 #      discord; vault has none; github-sync is configured via its own runbook
 #   5. disable -> enable — forces the worker setup() to re-run with fresh config
 #   6. assert — plugin present and not in an error state; live manifest version
-#      matches the shipped artifact (proves the reinstall actually refreshed it)
+#      matches the shipped artifact (proves the reinstall actually refreshed it),
+#      and a manifest CONTENT change carried a version bump vs the deployed one
+#      (pre-#228 trap in full; GOL-1500 invariant #1)
 #
-# Lifecycle guardrails (GOL-1429) fail the deploy LOUDLY on the traps that have
-# bitten us. Prove them offline without op/ssh/api:  scripts/deploy-plugin.sh --selftest
+# Lifecycle guardrails (GOL-1429 / GOL-1500) fail the deploy LOUDLY on the traps
+# that have bitten us. Prove them offline without op/ssh/api:
+#   scripts/deploy-plugin.sh --selftest
 #
 # Usage: scripts/deploy-plugin.sh <plugin> [<plugin> ...]
 #   plugin ∈ vault-plugin | openviking-plugin | github-plugin | github-sync-plugin | discord-plugin
@@ -132,6 +135,43 @@ guard_version_match() {
   return 1
 }
 
+# guard_version_bumped PLUGIN OLD_BODY NEW_BODY OLD_VER NEW_VER — the pre-#228 trap
+# in its purest form (GOL-1500 invariant #1, literal): the manifest CONTENT changed
+# vs what is deployed, yet the version string did NOT bump, so the change ships
+# silently under an already-published version and every version-keyed consumer stays
+# blind. This is the sub-case guard_version_consistency (src=dist) and
+# guard_version_match (live=shipped) both PASS — all three agree on the un-bumped
+# version — so it needs the deployed manifest body as a baseline to catch.
+# OLD_BODY/NEW_BODY are the stored manifest bodies with the version field REMOVED,
+# read from the SAME serialization (the board's own JSON) so they compare byte-for-
+# byte. Empty OLD_BODY (fresh install, or a host whose API omits the manifest body)
+# => no baseline => SKIP. This guard can only ever SKIP or FAIL-on-real-drift; it
+# never false-blocks a deploy on a serialization artifact.
+guard_version_bumped() {
+  local p="$1" oldb="$2" newb="$3" oldv="$4" newv="$5"
+  if [ -z "$oldb" ]; then
+    echo "    ${p}: no deployed manifest body to compare (fresh install / API omits it) — bump check SKIPPED"
+    return 0
+  fi
+  if [ "$oldb" = "$newb" ]; then
+    echo "    ${p}: manifest content unchanged vs deployed — no version bump required OK"
+    return 0
+  fi
+  if [ "$oldv" != "$newv" ]; then
+    echo "    ${p}: manifest content changed and version bumped ${oldv} -> ${newv} OK"
+    return 0
+  fi
+  cat >&2 <<EOF
+FATAL: ${p}: manifest CONTENT changed but version did NOT bump (pre-#228 trap; GOL-1500).
+    deployed & shipping version : ${newv}   (unchanged)
+  The manifest just installed differs from the one previously deployed yet carries
+  the same version string — the change ships silently under an already-published
+  version and version-keyed consumers stay blind. Bump version: in src/manifest.ts,
+  rebuild dist, commit, then redeploy.
+EOF
+  return 1
+}
+
 # guard_id_stable LIVE TF GATE — the live github-sync id must still match the id
 # the inbound webhook path is scoped to (TF var). On drift the inbound sync is
 # SEVERED at the CF edge until an operator re-scopes all three legs (GOL-1394).
@@ -231,6 +271,27 @@ guard_version_live() {
   guard_version_match "$p" \
     "$(ver_from_manifest "${REPO_ROOT}/packages/${p}/dist/manifest.js")" \
     "$(live_plugin_version "$p")"
+}
+
+# live_manifest_body PLUGIN — the board's stored manifest for the plugin with the
+# version field stripped and keys sorted (jq -S) so two reads at different times are
+# byte-comparable. Empty when the plugin row / manifest body isn't present (fresh
+# install, or a host whose /api/plugins payload omits the manifest object) — callers
+# treat empty as "no baseline, skip", never as "changed".
+live_manifest_body() {
+  api GET /api/plugins 2>/dev/null | jq -S -c --arg k "agenticos.$1" \
+    '[ (if type=="object" then .plugins else . end)[] | select(.pluginKey==$k) ][0]
+       | (.manifest // empty) | del(.version)' 2>/dev/null || true
+}
+
+# guard_version_bumped_live PLUGIN OLD_BODY OLD_VER — post-reinstall content-vs-bump
+# check. OLD_BODY/OLD_VER are captured BEFORE the destructive delete (the deployed
+# manifest); we read the freshly-installed body/version back and hand both to the
+# pure comparator.
+guard_version_bumped_live() {
+  local p="$1" oldb="$2" oldv="$3"
+  guard_version_bumped "$p" "$oldb" "$(live_manifest_body "$p")" \
+    "$oldv" "$(live_plugin_version "$p")"
 }
 
 # config_roundtrip_live PLUGIN KEY [KEY...] — GET the stored config and assert
@@ -407,6 +468,12 @@ run_selftest() {
   expect_fail "live != shipped (stale store)" guard_version_match       t 0.16.0 0.15.0
   expect_pass "live version unknown -> skip"  guard_version_match       t 0.16.0 ""
 
+  echo "-- G1c: manifest CONTENT change REQUIRES a version bump (pre-#228) --"
+  expect_pass "no deployed baseline -> skip"       guard_version_bumped t ''           '{"a":1}' ''     0.16.0
+  expect_pass "content unchanged -> no bump req"   guard_version_bumped t '{"a":1}'    '{"a":1}' 0.16.0 0.16.0
+  expect_pass "content changed WITH a bump"        guard_version_bumped t '{"a":1}'    '{"a":2}' 0.16.0 0.17.0
+  expect_fail "content changed WITHOUT a bump"     guard_version_bumped t '{"a":1}'    '{"a":2}' 0.16.0 0.16.0
+
   echo "-- G2: plugin id unchanged vs TF (extends #506) --"
   expect_pass "live == TF"                    guard_id_stable AAA AAA fail
   expect_fail "live != TF (inbound severed)"  guard_id_stable AAA BBB fail
@@ -453,6 +520,10 @@ for p in "$@"; do
   # G1a: version agreement across src/dist/pkg — fail-fast BEFORE destructive delete.
   guard_manifest_version "$p"
   id_before="$(resolve_plugin_id "agenticos.${p}")"
+  # G1c: snapshot the DEPLOYED manifest body + version BEFORE the destructive delete
+  # so guard_version_bumped_live can prove a content change carried a version bump.
+  body_before="$(live_manifest_body "$p")"
+  ver_before="$(live_plugin_version "$p")"
   recreate_guard "$p"
   reinstall "$p"
   # G2: surface a reinstall-rotated id (fatal TF gate for github-sync is below).
@@ -464,6 +535,9 @@ for p in "$@"; do
   # G1b: the live stored manifest version must match what we just shipped —
   # proves the delete+reinstall actually refreshed the manifest.
   guard_version_live "$p"
+  # G1c: a manifest CONTENT change must carry a version bump (pre-#228 trap;
+  # GOL-1500 invariant #1). Skips when there was no deployed baseline to compare.
+  guard_version_bumped_live "$p" "$body_before" "$ver_before"
   # A github-sync reinstall rotates the id — verify the inbound path still
   # resolves. Deferred non-fatal so the rest of the deploy completes; the
   # script exits non-zero at the end so CI/the operator can't miss the drift.
