@@ -235,11 +235,61 @@ The workflow no-ops until these secrets exist.
 - **Cross-org auth = the GitHub App, not a PAT.** A fine-grained PAT is single-owner; the gh-token-broker mints repo-scoped App installation tokens for any org the App is installed on. Confirm the App is installed on **both** orgs with the synced repos selected.
 - **QA double-trigger is avoided by scoping:** QA-triage issues live in a different project, so the plugin (filtered to each bridge's project) never mirrors them.
 
-## Inbound id-drift protection (GOL-1394)
+## Inbound id-stable KEY path (GOL-1394 — the durable fix)
 
-The inbound webhook URL embeds the github-sync plugin **id**, and a plugin
-reinstall (delete+install — Paperclip's only update path) **rotates** that id.
-The id lives in THREE places that must move together, or inbound silently severs:
+**As of 2026-08-14, a github-sync reinstall no longer touches inbound sync.** The
+inbound edge and the GitHub App webhook URL are scoped to the plugin **KEY** path,
+not the rotating UUID:
+
+```
+https://paperclip.gatheringatthegrove.com/api/plugins/agenticos.github-sync-plugin/webhooks/github-app
+                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^  (manifest key, never rotates)
+```
+
+**Why it's stable:** the deployed paperclip-server (`server/src/routes/plugins.ts`
+`resolvePlugin()`) treats any **non-UUID** `:pluginId` segment as a plugin **key**
+and resolves it to the current install via `registry.getByKey()`. `pluginKey =
+manifest.id = "agenticos.github-sync-plugin"` is a source constant under a UNIQUE
+DB constraint — the install upserts by key, so the UUID rotates on reinstall but
+the key never does. Live-proven 2026-08-14: `POST …/agenticos.github-sync-plugin/webhooks/github-app`
+→ `200`; a bogus key → `404`. So a reinstall needs **zero** TF/GitHub-App edits.
+
+### One-time cutover (option A, board-approved 2026-08-14)
+
+The change is **additive and non-severing** — the key-path CF Access apps
+(`*_webhook_key` in `cloudflare-qa-webhook.tf`) sit alongside the legacy UUID apps
+so inbound never drops during the switch. Order:
+
+1. **Merge + `terraform apply`** this change. Adds the key-path Access bypass apps.
+   Purely additive (a path nothing POSTs to yet) — cannot sever inbound.
+2. **Josh flips the GitHub App webhook URL** → **hand-off below.** Only after the
+   apply in step 1.
+3. **Verify** on the key path: run the dead-man probe (`scripts/inbound-deadman-probe.sh`,
+   or the workflow) against the key URL, or open+close a scratch issue in a bridged
+   repo and confirm a twin appears. Repoint the probe's `INBOUND_WEBHOOK_URL` repo
+   variable to the key URL.
+4. **Cleanup (trivial follow-up):** once step 3 is green, delete the three legacy
+   UUID Access apps (`paperclip_plugin_webhook`, `paperclip_github_app_webhook`,
+   `paperclip_github_pr_webhook`) and `terraform apply`. Nothing POSTs to the UUID
+   path after step 2.
+
+> **Josh hand-off — flip the GitHub App webhook URL (step 2).**
+> In GitHub → the **AgenticOS Developer** App → *Settings → Webhook → URL*, change
+> only the id segment from the UUID to the key:
+> - **from:** `…/api/plugins/f46075f1-bfb9-441b-90ea-ab1976ef83ff/webhooks/github-app`
+> - **to:**   `…/api/plugins/agenticos.github-sync-plugin/webhooks/github-app`
+>
+> Keep the secret unchanged. If a separate `pull_request` webhook (`…/webhooks/github-pr`)
+> is configured anywhere, swap its id segment the same way. Click **Update webhook**;
+> GitHub will send a `ping` — expect a green ✔ (the plugin `200`s it). Tell Terra
+> once done so she runs step 3 + the cleanup.
+
+## Inbound id-drift protection (legacy UUID guards, GOL-1394)
+
+Before the key-path fix, the inbound webhook URL embedded the github-sync plugin
+**UUID**, and a plugin reinstall (delete+install — Paperclip's only update path)
+**rotated** it. The UUID lived in THREE places that had to move together, or
+inbound silently severed:
 
 1. the CF Access apps in `infra/terraform/cloudflare-qa-webhook.tf`
    (`var.github_sync_plugin_id`),
@@ -248,13 +298,15 @@ The id lives in THREE places that must move together, or inbound silently severs
 
 On 2026-08-12 only (3) moved for a window → GitHub deliveries `302`'d at the CF
 edge and no GitHub-created issue reached the board. This failed **silently**:
-the outbound hourly `mirror-reconcile` only covers board→GitHub. Two guards now
-close that class:
+the outbound hourly `mirror-reconcile` only covers board→GitHub. **The key-path
+fix above eliminates this class**; these two guards remain as defense-in-depth:
 
-- **Deploy-gate** — `scripts/deploy-plugin.sh` compares the live installed id
-  against `var.github_sync_plugin_id` after a `github-sync-plugin` reinstall and
-  **fails loudly** (default; `PLUGIN_ID_GATE=warn` downgrades) with the exact
-  re-scope legs. So a sanctioned reinstall can't leave drift unnoticed.
+- **Deploy-gate (now a cosmetic notice)** — `scripts/deploy-plugin.sh` compares
+  the live installed UUID against `var.github_sync_plugin_id` after a reinstall.
+  Since the edge is now key-stable, a rotation no longer severs inbound, so this
+  is a **non-fatal bookkeeping notice by default** (`PLUGIN_ID_GATE=warn`).
+  `PLUGIN_ID_GATE=fail` restores the old hard-fail (e.g. if the App URL is ever
+  intentionally reverted to a UUID path).
 - **Dead-man probe** — `scripts/inbound-deadman-probe.sh`, scheduled daily by
   `.github/workflows/inbound-webhook-deadman.yml`, replays a GitHub App `ping`
   (HMAC-signed, **no** CF service-token headers — exactly what GitHub sends) to
@@ -266,9 +318,8 @@ close that class:
     plugin `appWebhookSecret`) and `DISCORD_WEBHOOK_URL` (already set). No-op
     until configured. Run with **Force fail** (workflow_dispatch input) to test
     the Discord alert path.
-  - Limitation: a `200` proves the CF edge + host-accept are healthy for that id;
-    it does not by itself prove async processing. The deploy-gate covers the
-    "CF scoped to an id whose plugin was deleted" case. The durable elimination
-    is the id-stable host route (GOL-1394 leg 1) — once that lands, point
-    `INBOUND_WEBHOOK_URL` at the stable `/api/plugin-webhooks/github-sync/...`
-    path and none of the three places ever need editing on a reinstall again.
+  - Limitation: a `200` proves the CF edge + host-accept are healthy for that
+    path; it does not by itself prove async processing. Point `INBOUND_WEBHOOK_URL`
+    at the id-stable **key** URL (`…/api/plugins/agenticos.github-sync-plugin/webhooks/github-app`)
+    so the probe tracks the durable path — after the one-time cutover above, none
+    of the three places ever need editing on a reinstall again.
