@@ -314,6 +314,20 @@ services:
       # being able to read it is by design (minting for allowed owners is
       # their job); the bearer exists to shut out every OTHER network peer.
       GH_BROKER_API_KEY_FILE: /paperclip/gh-broker.key
+      # GOL-1506 (GOL-557 lever 1): fleet-wide run-concurrency self-throttle.
+      # Upstream Paperclip only bounds concurrency PER-AGENT; nothing caps the
+      # TOTAL simultaneous agent runs on the host. On this box (572389418, 4 vCPU)
+      # 6+ concurrent runs drove loadavg past core count and swapped (2026-07-19
+      # GOL-520 degradation; 2026-08-14 scheduled_retry deadlock / 409 walls).
+      # This caps company-wide `heartbeat_runs.status='running'` at 5; excess runs
+      # stay `queued` and re-promote as slots free (resumeQueuedRuns). Enforced in
+      # server/src/services/heartbeat.ts::resolveGlobalMaxConcurrentRuns (fork
+      # PR#6). Unset / non-numeric / <= 0 disables the gate (stock upstream). NOTE:
+      # the gating CODE ships only when /opt/paperclip is updated + paperclip-server
+      # is REBUILT — a bare compose recreate keeps the old image and this var is
+      # inert. Deploy both together via .github/workflows/deploy-paperclip-server.yml
+      # (see docs/runbooks/deploy-paperclip-run-cap.md).
+      PAPERCLIP_MAX_CONCURRENT_RUNS: "5"
     volumes:
       - paperclip-data:/paperclip
       - /opt/agenticos/secrets/gh-broker-client.key:/paperclip/gh-broker.key:ro

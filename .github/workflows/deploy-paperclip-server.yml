@@ -1,0 +1,139 @@
+name: Deploy paperclip-server
+
+# GOL-1506: deliberate, one-button redeploy of the paperclip-server application
+# code on the Droplet.
+#
+# Why this exists (and why deploy-droplet.yml is NOT enough):
+#   paperclip-server builds its image from a *pinned git clone* at
+#   /opt/paperclip (cloud-init clones the fork at a tag; see
+#   infra/cloud-init/droplet-bootstrap.yaml.tpl). deploy-droplet.yml ships the
+#   /opt/agenticos compose tree and force-recreates the container, but it never
+#   updates /opt/paperclip and never rebuilds the paperclip-server image. So a
+#   change merged to the fork's master (e.g. GOL-1506's run-concurrency cap in
+#   server/src/services/heartbeat.ts) does NOT reach the running server through
+#   the routine droplet deploy. Until now that gap was closed by hand over SSH.
+#
+# This workflow codifies that manual step: update /opt/paperclip to a chosen
+# ref, refresh the compose file, rebuild the image, and force-recreate the
+# container — with a health check and an env/gate assertion at the end.
+#
+# It is DISPATCH-ONLY (never on push): recreating paperclip-server briefly
+# interrupts the platform that runs every agent, so the deploy must be a
+# deliberate, timed action, not a side effect of a merge. In-flight runs are
+# re-promoted from `queued` on restart (resumeQueuedRuns), so the interruption
+# self-heals, but pick a low-traffic moment.
+#
+# Runbook: docs/runbooks/deploy-paperclip-run-cap.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Fork ref (branch, tag, or SHA) to deploy from /opt/paperclip's origin.
+        required: true
+        type: string
+        default: master
+      confirm:
+        description: Type DEPLOY to confirm you intend to restart paperclip-server.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Never run two paperclip-server deploys at once; let an in-flight one finish.
+concurrency:
+  group: deploy-paperclip-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Redeploy paperclip-server
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Guard — require explicit DEPLOY confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "DEPLOY" ]; then
+            echo "::error title=Not confirmed::You must type DEPLOY in the confirm input. This restarts the platform."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configure SSH
+        uses: ./.github/actions/configure-ssh
+        with:
+          deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
+          host: ${{ secrets.DROPLET_HOST }}
+
+      # Refresh the CI-managed compose copy so paperclip-server's environment:
+      # block (incl. PAPERCLIP_MAX_CONCURRENT_RUNS) is current before the rebuild.
+      # Additive: only overwrites the one tracked file, never touches .env.
+      - name: Ship docker-compose.yml to Droplet
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key docker-compose.yml "${USER}@${HOST}:/opt/agenticos/docker-compose.yml"
+          echo "compose shipped"
+
+      - name: Update /opt/paperclip, rebuild + recreate paperclip-server
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+          REF: ${{ inputs.ref }}
+        run: |
+          # `deploy` is in the docker group — no sudo (sudo would block on a
+          # password prompt and hang the job).
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "REF='${REF}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          echo "== updating /opt/paperclip to ${REF} =="
+          cd /opt/paperclip
+          # The cloud-init clone is --depth 1 at a tag; fetch the requested ref
+          # (branch/tag/SHA) with history enough to check it out.
+          git fetch --tags --force --depth 1 origin "${REF}"
+          git checkout --detach FETCH_HEAD
+          DEPLOYED_SHA="$(git rev-parse --short HEAD)"
+          echo "paperclip source now at ${DEPLOYED_SHA}"
+
+          echo "== rebuild + recreate paperclip-server =="
+          cd /opt/agenticos
+          docker compose build paperclip-server
+          docker compose up -d --force-recreate paperclip-server
+          docker compose ps paperclip-server
+          REMOTE
+
+      - name: Health check + gate assertion
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd /opt/agenticos
+
+          echo "== waiting for paperclip-server /api/health =="
+          ok=""
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T paperclip-server sh -c \
+                 'wget -qO- http://127.0.0.1:3100/api/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:3100/api/health >/dev/null 2>&1'; then
+              ok=1; echo "healthy on attempt ${attempt}/30"; break
+            fi
+            sleep 5
+          done
+          if [ -z "$ok" ]; then
+            echo "::error title=Unhealthy::paperclip-server did not pass /api/health within ~150s."
+            docker compose logs --tail 80 paperclip-server || true
+            exit 1
+          fi
+
+          echo "== assert the run-cap env var is present in the running container =="
+          CAP="$(docker compose exec -T paperclip-server printenv PAPERCLIP_MAX_CONCURRENT_RUNS || true)"
+          echo "PAPERCLIP_MAX_CONCURRENT_RUNS=${CAP}"
+          if [ -z "${CAP}" ]; then
+            echo "::warning title=Cap unset::PAPERCLIP_MAX_CONCURRENT_RUNS is not set in the container — the fleet cap is DISABLED (stock behavior). Check docker-compose.yml shipped."
+          fi
+          REMOTE
