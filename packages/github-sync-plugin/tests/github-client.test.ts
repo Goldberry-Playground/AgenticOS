@@ -441,3 +441,87 @@ describe("GitHubClient.listIssues", () => {
     if (!result.ok) expect(result.error).toBe("Bad credentials");
   });
 });
+
+describe("GitHubClient cache-invalidation on 401 (GOL-1425)", () => {
+  // A re-mintable provider (has `invalidate`) that hands out a fresh token string
+  // each call, so we can assert the retry used a different (re-minted) token.
+  function reMintableProvider() {
+    let n = 0;
+    const p = vi.fn(async () => `tok-${++n}`) as unknown as {
+      (repo: string): Promise<string>;
+      invalidate: (repo: string) => void;
+    };
+    p.invalidate = vi.fn();
+    return p;
+  }
+
+  // Sequential fetch: yields queued responses in order (one per attempt).
+  function seqFetch(...responses: Array<{ body: unknown; ok: boolean; status: number }>) {
+    let i = 0;
+    return vi.fn().mockImplementation(async () => {
+      const r = responses[Math.min(i++, responses.length - 1)];
+      const text = typeof r.body === "string" ? r.body : JSON.stringify(r.body);
+      return { ok: r.ok, status: r.status, json: async () => r.body, text: async () => text };
+    });
+  }
+
+  it("evicts the token and retries once with a freshly minted token on 401", async () => {
+    const fetchMock = seqFetch(
+      { body: { message: "Bad credentials" }, ok: false, status: 401 },
+      { body: { number: 7, title: "t", body: "b", state: "open", html_url: "u", labels: [] }, ok: true, status: 200 },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const getToken = reMintableProvider();
+    const client = new GitHubClient({ getToken, org: "o", timeoutMs: 5000 });
+
+    const result = await client.createIssue("r", { title: "t", body: "b" });
+
+    expect(result.ok).toBe(true);
+    expect(getToken.invalidate).toHaveBeenCalledWith("r");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // First attempt used tok-1, the retry a freshly minted tok-2.
+    expect((fetchMock.mock.calls[0][1].headers as Record<string, string>).Authorization).toBe("Bearer tok-1");
+    expect((fetchMock.mock.calls[1][1].headers as Record<string, string>).Authorization).toBe("Bearer tok-2");
+  });
+
+  it("gives up after one retry if the second attempt also 401s", async () => {
+    const fetchMock = seqFetch(
+      { body: { message: "Bad credentials" }, ok: false, status: 401 },
+      { body: { message: "Bad credentials" }, ok: false, status: 401 },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const getToken = reMintableProvider();
+    const client = new GitHubClient({ getToken, org: "o", timeoutMs: 5000 });
+
+    const result = await client.createIssue("r", { title: "t", body: "b" });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getToken.invalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry non-401 failures (a re-mint would not help)", async () => {
+    const fetchMock = seqFetch({ body: { message: "Validation Failed" }, ok: false, status: 422 });
+    vi.stubGlobal("fetch", fetchMock);
+    const getToken = reMintableProvider();
+    const client = new GitHubClient({ getToken, org: "o", timeoutMs: 5000 });
+
+    const result = await client.createIssue("r", { title: "t", body: "b" });
+
+    expect(result.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getToken.invalidate).not.toHaveBeenCalled();
+  });
+
+  it("a static token (no invalidate) makes a single attempt on 401", async () => {
+    const fetchMock = seqFetch({ body: { message: "Bad credentials" }, ok: false, status: 401 });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new GitHubClient({ token: "static", org: "o", timeoutMs: 5000 });
+
+    const result = await client.createIssue("r", { title: "t", body: "b" });
+
+    expect(result.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

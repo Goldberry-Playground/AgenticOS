@@ -171,7 +171,7 @@ const manifest: PaperclipPluginManifestV1 = {
   //   `failed`, so the next sweep sees the twin as `unmapped` and stops paging. `failed`
   //   is now purely actionable. Worker-code + mapping helper (reuses the existing table,
   //   no migration) — manifest surface unchanged bar version.
-  // 0.15.0 = inbound-CREATE reconcile sweep (GOL-1413). The inbound mirror-CREATE was
+  // 0.16.0 = inbound-CREATE reconcile sweep (GOL-1413). The inbound mirror-CREATE was
   //   event-driven only: a GitHub-native issue got a Paperclip twin solely if its
   //   webhook was delivered AND its handler survived — no feedback loop revisited one
   //   born during an inbound-webhook outage (mirror-reconcile is outbound-only;
@@ -183,7 +183,22 @@ const manifest: PaperclipPluginManifestV1 = {
   //   within an hour (the DoD self-heal net; absorbs grove-sites#473 / GOL-1300).
   //   Idempotent (pre-checks the mapping), capped per run (20 attempts), 14-day/5-page
   //   window. Reuses issues.create + jobs.schedule — no new capability, no migration.
-  version: "0.15.0",
+  // 0.15.1 = token-layer hardening (GOL-1425, folds #457). A cached installation token
+  //   can be revoked BEFORE its `expires_at` (App suspended, key rotated, install/perm
+  //   change), and the stacked caches (broker disk cache → client in-memory cache) then
+  //   keep serving the dead token for the rest of its TTL — every write 401s "Bad
+  //   credentials" through a ~45-min self-healing window. Three defences, all fail-open:
+  //   (1) MINT-TIME VALIDATION — the broker probes each token against `/rate_limit` (free,
+  //   no quota) before serving/caching; a rejected fresh mint means the App itself is
+  //   broken and throws instead of caching a dead credential (folds #457). (2) 401
+  //   CACHE-EVICTION — TokenProvider gains an optional `invalidate(repo)`; GitHubClient
+  //   evicts and re-mints ONCE on a 401 so a token revoked mid-TTL self-corrects on first
+  //   use instead of stranding the whole window. (3) BROKER CANARY — optional periodic
+  //   mint+validate (GH_BROKER_CANARY_OWNER) surfaced on /health + ops Discord, plus a
+  //   one-shot `canary` CLI mode for CI/cron, flagging a dead App key BEFORE a real write.
+  //   Broker-script + worker-code (broker.ts/github-client.ts bundled) — manifest surface
+  //   unchanged bar version.
+  version: "0.16.0",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",

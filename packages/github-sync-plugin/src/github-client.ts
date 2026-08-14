@@ -84,6 +84,31 @@ export class GitHubClient {
     pathAndQuery: string,
     body?: unknown,
   ): Promise<Result<T>> {
+    // A cached installation token can be revoked (App suspended, key rotated,
+    // permissions changed) BEFORE its cached expiry — every write with it then
+    // gets GitHub's 401 "Bad credentials" for the rest of the cache TTL
+    // (GOL-1425). So on a 401 we evict the token via the provider and retry ONCE
+    // with a freshly minted one. Only providers that expose `invalidate` (the
+    // broker) can be re-minted; a static token can't, so it makes a single try.
+    const canRetry = typeof this.getToken.invalidate === "function";
+    const maxAttempts = canRetry ? 2 : 1;
+    let lastErr: Result<T> | undefined;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const res = await this.attempt<T>(method, repo, pathAndQuery, body);
+      if (res.ok || res.status !== 401 || attempt === maxAttempts) return res;
+      // First 401 with a re-mintable provider: evict and try again.
+      this.getToken.invalidate?.(repo);
+      lastErr = res;
+    }
+    return lastErr ?? { ok: false, error: "request failed" };
+  }
+
+  private async attempt<T>(
+    method: "GET" | "POST" | "PATCH",
+    repo: string,
+    pathAndQuery: string,
+    body?: unknown,
+  ): Promise<Result<T>> {
     let token: string;
     try {
       token = await this.getToken(repo);

@@ -66,14 +66,34 @@ resource "cloudflare_zero_trust_access_policy" "paperclip_webhook_allow_service_
 # reverted the same day. Verify with:
 #   GET /api/plugins → the entry with pluginKey == "agenticos.github-sync-plugin"
 # The id is stable across normal operation but WOULD rotate on a delete+install
-# reinstall (Paperclip has no in-place update). If it ever legitimately changes,
-# THREE places must move together in one change window: this variable (3 Access-app
-# paths), the GitHub App's webhook URL, and any legacy per-repo workflow path.
-# The deploy-gate id-drift check + inbound dead-man probe (GOL-1394, PR #506)
-# exist to catch both failure modes.
+# reinstall (Paperclip has no in-place update).
+#
+# GOL-1416 shrank this landmine: the id no longer appears in the GitHub App URL
+# (that now uses the id-free `/api/gh-webhooks/*` alias, cloudflare-webhook-alias.tf)
+# and no longer appears as a LITERAL in any Access-app path (the three apps below
+# now wildcard the id segment — `/api/plugins/*/webhooks[...]`). So a legitimate
+# id rotation now touches exactly ONE place: the rewrite target in
+# cloudflare-webhook-alias.tf. The wildcard Access apps and the GitHub App URL
+# both keep working untouched. The deploy-gate id-drift check + inbound dead-man
+# probe (GOL-1394, PR #506) still guard that single remaining reference.
+#
+# Why wildcard and not the literal id: Cloudflare runs URL Rewrite (phase 3)
+# BEFORE Access (~phase 13), so Access sees the POST-rewrite `/api/plugins/<id>/
+# webhooks/...` path. A wildcard on the id segment matches that real path without
+# hardcoding the id. Cloudflare precedence is by PATH SPECIFICITY (most-specific
+# path wins, whether broader matches are exact or wildcard), so these deep
+# `/webhooks/github-*` apps still win over the host-wide `paperclip` SSO app and
+# over each other's shorter prefixes exactly as the literal-id versions did — the
+# `*` is at the same segment in all three, so their relative ordering is unchanged.
+# Blast radius of widening the id to `*`: the service-token/bypass apps now cover
+# ANY installed plugin's `/webhooks/...` path, not just github-sync's. That is a
+# SAFE default, not a regression — every plugin webhook is a machine endpoint that
+# must never be reached via human SSO, and each still independently authenticates
+# at the app layer (HMAC for github-*, service token + board auth for the generic
+# prefix). The edge match is purely "which Access policy," not "who is trusted."
 
 variable "github_sync_plugin_id" {
-  description = "Installed id of agenticos.github-sync-plugin (NOT agenticos.github-plugin — see landmine note). Path-scopes the inbound webhook Access apps; must match the GitHub App webhook URL."
+  description = "Installed id of agenticos.github-sync-plugin (NOT agenticos.github-plugin — see landmine note). Sole use: the /api/gh-webhooks/* rewrite target in cloudflare-webhook-alias.tf. The Access apps below wildcard the id segment instead of embedding it."
   type        = string
   default     = "f46075f1-bfb9-441b-90ea-ab1976ef83ff"
 }
@@ -81,9 +101,10 @@ variable "github_sync_plugin_id" {
 resource "cloudflare_zero_trust_access_application" "paperclip_plugin_webhook" {
   account_id = var.cloudflare_account_id
   name       = "AgenticOS Paperclip — plugin webhooks (service token)"
-  # Path-scoped to this one plugin's webhook endpoints. More specific than the
-  # host-wide `paperclip` SSO app, so it wins for this path.
-  domain                     = "${var.paperclip_domain}/api/plugins/${var.github_sync_plugin_id}/webhooks"
+  # Path-scoped to the plugin webhook endpoints. The `*` wildcards the plugin-id
+  # segment (no id LITERAL here) and Access matches the POST-rewrite path; more
+  # specific than the host-wide `paperclip` SSO app, so it wins for this path.
+  domain                     = "${var.paperclip_domain}/api/plugins/*/webhooks"
   type                       = "self_hosted"
   session_duration           = "0s"
   app_launcher_visible       = false
@@ -135,7 +156,7 @@ output "qa_smoke_access_client_secret" {
 resource "cloudflare_zero_trust_access_application" "paperclip_github_app_webhook" {
   account_id = var.cloudflare_account_id
   name       = "AgenticOS Paperclip — GitHub App issues webhook (HMAC, bypass)"
-  domain     = "${var.paperclip_domain}/api/plugins/${var.github_sync_plugin_id}/webhooks/github-app"
+  domain     = "${var.paperclip_domain}/api/plugins/*/webhooks/github-app"
   type       = "self_hosted"
   # Machine endpoint: no sessions, hidden from the app launcher.
   session_duration           = "0s"
@@ -173,7 +194,7 @@ resource "cloudflare_zero_trust_access_policy" "paperclip_github_app_webhook_byp
 resource "cloudflare_zero_trust_access_application" "paperclip_github_pr_webhook" {
   account_id = var.cloudflare_account_id
   name       = "AgenticOS Paperclip — GitHub App pull_request webhook (HMAC, bypass)"
-  domain     = "${var.paperclip_domain}/api/plugins/${var.github_sync_plugin_id}/webhooks/github-pr"
+  domain     = "${var.paperclip_domain}/api/plugins/*/webhooks/github-pr"
   type       = "self_hosted"
   # Machine endpoint: no sessions, hidden from the app launcher.
   session_duration           = "0s"
