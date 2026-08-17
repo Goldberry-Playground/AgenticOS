@@ -211,7 +211,16 @@ const manifest: PaperclipPluginManifestV1 = {
   //   delivery turns red. Retries stay safe: inbound create still dedupes on
   //   repo+number before writing (getByRepoNumber), preserving the GOL-352/GOL-323
   //   REST fallback. Adds migration 006 (new table) — surface otherwise unchanged.
-  version: "0.16.1",
+  // 0.16.2 = status-write flap fix (GOL-1419 / W5). The inbound-close-reconcile sweep
+  //   derived its action from an issue's CURRENT GitHub state (`open → "reopened"`),
+  //   so a steadily-open twin whose mirror an agent had deliberately closed was
+  //   dragged back to `todo` every hourly tick — the agent re-closed it next
+  //   heartbeat, an unbounded done↔todo flap (grove-sites#486 / GOL-1308 bounced
+  //   hourly for 6h). The sweep now propagates CLOSURES ONLY; an open twin is
+  //   skipped (`skippedOpen`), never re-driven as a reopen. Genuine reopens still
+  //   flow through the real `reopened` App-webhook event (handleAppClosure,
+  //   untouched). No migration, no capability change — pure sweep-logic narrowing.
+  version: "0.16.2",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",

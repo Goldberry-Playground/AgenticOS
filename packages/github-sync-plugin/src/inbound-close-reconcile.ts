@@ -29,6 +29,28 @@
  * AgenticOS keeps working event-driven and stays a no-op here (its closes reach the
  * mirror before the sweep runs, so the loop guard skips them). Idempotent and safe
  * to run every cycle: re-scanning a settled repo only produces loop-guard skips.
+ *
+ * ## Close-only: the sweep never synthesizes a reopen (GOL-1419)
+ *
+ * A sweep tick sees an issue's CURRENT GitHub state, not its transitions. Deriving
+ * `open → "reopened"` conflated "the twin is steadily open" with "the twin was just
+ * reopened", so an open twin whose mirror an agent had (deliberately) closed got
+ * dragged back to `todo` on EVERY hourly tick — and the agent's next heartbeat
+ * re-closed it, an unbounded `done ↔ todo` flap (grove-sites#486 / GOL-1308 bounced
+ * hourly for 6h; the sweep's REST-fallback writes surfaced as the board-key user).
+ * Close propagation does not have this hazard: `closed → done` then stays `done`
+ * (the loop guard returns null next tick), because closed is terminal on both sides.
+ *
+ * So this sweep now propagates ONLY closures. An open twin is skipped (counted as
+ * `skippedOpen`), never re-driven as a reopen. A genuine GitHub-side reopen still
+ * propagates via the real `reopened` App-webhook event (`handleAppClosure`), which
+ * is untouched — the sweep was only ever a *close*-recovery backstop for repos that
+ * receive no `issues` events (the doc above). The one behaviour lost: a genuine
+ * reopen on a NON-App repo (grove-sites et al., which get no webhook) no longer
+ * auto-follows into the mirror. That is rare and the flap it caused is not — a
+ * terminal-mirror/open-twin divergence should be surfaced, not silently overwritten
+ * hourly. Re-adding reopen recovery (guarded on an actual transition, not steady
+ * state) is a follow-up if the board wants it.
  */
 import type { SyncLogger } from "./sync.js";
 
@@ -62,11 +84,13 @@ export interface InboundCloseReconcileInput {
   /** List a repo's recently-updated issues (PRs pre-filtered, capped, `since`-bounded). */
   listIssues: (repoSlug: string) => Promise<ListIssuesResult>;
   /**
-   * Re-drive the SAME closure propagation the App webhook uses for one issue.
-   * `action` is derived from the issue's GitHub state (closed → "closed",
-   * open → "reopened"); the handler's `resolveMirrorClosureStatus` decides whether
-   * that actually changes the mirror, so passing "reopened" for a never-terminal
-   * mirror is a cheap loop-guard skip, not a bounce.
+   * Re-drive the SAME closure propagation the App webhook uses for one CLOSED
+   * issue. The sweep only ever passes `action: "closed"` (open twins are skipped,
+   * see the module doc / GOL-1419); the handler's `resolveMirrorClosureStatus`
+   * turns that into `done` (or a loop-guard no-op when the mirror is already
+   * terminal). The `"reopened"` variant remains in the type only because the same
+   * `handleAppClosure` handler is shared verbatim with the event-driven webhook
+   * path — this sweep never produces it.
    */
   driveClosure: (drive: {
     action: "closed" | "reopened";
@@ -83,6 +107,13 @@ export interface InboundCloseReconcileSummary {
   propagated: number;
   /** Closed/updated issue with no Paperclip twin — ignored. */
   skippedUnmapped: number;
+  /**
+   * Open GitHub twins skipped without a re-drive (GOL-1419). The sweep propagates
+   * closures only; it never synthesizes a reopen from a steady-state open twin, so
+   * an open issue is counted here and left untouched. A genuine reopen still flows
+   * through the real `reopened` webhook event.
+   */
+  skippedOpen: number;
   /** Mirror already in the target state — the loop guard. */
   skippedInSync: number;
   /**
@@ -109,6 +140,7 @@ export async function runInboundCloseReconcile(
     scanned: 0,
     propagated: 0,
     skippedUnmapped: 0,
+    skippedOpen: 0,
     skippedInSync: 0,
     pruned: 0,
     failed: 0,
@@ -130,7 +162,14 @@ export async function runInboundCloseReconcile(
 
     for (const issue of listed.issues) {
       summary.scanned++;
-      const action: "closed" | "reopened" = issue.state === "closed" ? "closed" : "reopened";
+      // Propagate closures only. An open twin is left untouched — synthesizing a
+      // reopen from steady-state openness is what flapped agent-closed mirrors
+      // (GOL-1419). A real reopen still arrives via the `reopened` webhook event.
+      if (issue.state !== "closed") {
+        summary.skippedOpen++;
+        continue;
+      }
+      const action = "closed" as const;
       try {
         const outcome = await input.driveClosure({ action, repoSlug, number: issue.number });
         switch (outcome) {

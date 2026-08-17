@@ -65,14 +65,37 @@ describe("runInboundCloseReconcile", () => {
     expect(s).toMatchObject({ scanned: 1, propagated: 0, skippedUnmapped: 1, failed: 0 });
   });
 
-  it("derives `reopened` for an open issue and propagates a reopen", async () => {
+  it("skips an open twin without a re-drive — never synthesizes a reopen (GOL-1419)", async () => {
+    // Regression guard for the done↔todo flap: an open GitHub twin whose mirror an
+    // agent has (deliberately) closed must NOT be dragged back to `todo`. The sweep
+    // propagates closures only; an open issue is counted `skippedOpen` and left alone.
     const { input, drives } = makeInput({
       listByRepo: { "org/repo": { ok: true, issues: [{ number: 3, state: "open" }], truncated: false } },
       outcomes: { "org/repo#3": "propagated" },
     });
     const s = await runInboundCloseReconcile(input);
-    expect(drives[0].action).toBe("reopened");
-    expect(s).toMatchObject({ scanned: 1, propagated: 1 });
+    expect(drives).toEqual([]); // no drive at all — the flap source is gone
+    expect(s).toMatchObject({ scanned: 1, skippedOpen: 1, propagated: 0, failed: 0 });
+  });
+
+  it("propagates closes but skips opens in a mixed batch (only `closed` is driven)", async () => {
+    const { input, drives } = makeInput({
+      listByRepo: {
+        "org/repo": {
+          ok: true,
+          issues: [
+            { number: 10, state: "closed" },
+            { number: 11, state: "open" },
+            { number: 12, state: "closed" },
+          ],
+          truncated: false,
+        },
+      },
+      outcomes: { "org/repo#10": "propagated", "org/repo#12": "in-sync" },
+    });
+    const s = await runInboundCloseReconcile(input);
+    expect(drives.map((d) => `${d.action}#${d.number}`)).toEqual(["closed#10", "closed#12"]);
+    expect(s).toMatchObject({ scanned: 3, propagated: 1, skippedInSync: 1, skippedOpen: 1, failed: 0 });
   });
 
   it("counts an unreadable mirror as a (retryable) failure, not a propagate", async () => {
@@ -156,6 +179,7 @@ describe("buildInboundCloseReconcilePing", () => {
       scanned: 12,
       propagated: 2,
       skippedUnmapped: 8,
+      skippedOpen: 0,
       skippedInSync: 2,
       pruned: 3,
       failed: 1,
