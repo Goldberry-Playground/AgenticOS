@@ -364,7 +364,7 @@ runcmd:
   # --- Clone repo ---
   - sudo -u deploy git clone https://github.com/${github_repo}.git /opt/agenticos/repo
 
-  # --- Clone Paperclip fork (pinned to agenticos-v0.2.0) ---
+  # --- Clone Paperclip fork (pinned to agenticos-v0.2.1) ---
   # Canonical fork repo name is Paperclip-AgenticOS (GitHub redirects the bare
   # `paperclip` name, but pin the real one). paperclip-server's compose service
   # builds its image from this clone at /opt/paperclip.
@@ -376,7 +376,13 @@ runcmd:
   # existing row instead of duplicating. (Tag agenticos-v0.1.2 is DEFUNCT —
   # it was cut against the pre-sync v0.1.1 base before the droplet was found
   # to be running master; deploying it would downgrade below the DB schema.)
-  - sudo -u deploy git clone --branch agenticos-v0.2.0 --depth 1 https://github.com/EngineeringMoonBear/Paperclip-AgenticOS.git /opt/paperclip
+  # v0.2.1 = v0.2.0 + fleet-wide run-concurrency cap (GOL-1506 / GOL-557 lever 1,
+  # PR #6): resolveGlobalMaxConcurrentRuns gates the queued->running chokepoint
+  # on PAPERCLIP_MAX_CONCURRENT_RUNS (set to 5 in docker-compose.yml). On a LIVE
+  # box, post-provision updates to /opt/paperclip ship via the
+  # deploy-paperclip-server.yml workflow (git checkout <tag> + rebuild); this pin
+  # is the source of truth for a fresh (re)provision.
+  - sudo -u deploy git clone --branch agenticos-v0.2.1 --depth 1 https://github.com/EngineeringMoonBear/Paperclip-AgenticOS.git /opt/paperclip
 
   # --- AgenticOS docker-compose (telemetry DB + Ollama + OpenViking + Paperclip).
   #

@@ -61,12 +61,25 @@ _agenticos_load_1password() {
     export TF_VAR_do_token="$(op read "${AGENTICOS_DO_TOKEN_REF:-op://${op_vault}/Grove Infra/do_token_scoped}" 2>/dev/null)"
     export TF_VAR_tailscale_api_key="$(op read "op://${op_vault}/${op_item}/tailscale_api_key" 2>/dev/null)"
     export TF_VAR_tailscale_tailnet="$(op read "op://${op_vault}/${op_item}/tailscale_tailnet" 2>/dev/null)"
-    # Account-owned Cloudflare token (Zero Trust / Access edit). The old user
-    # tokens stored per-item as cloudflare_api_token went 401-dead and were
-    # deleted (2026-07-08); the live credential is Grove Infra's
-    # account_cloudflare_api_token. Account tokens don't answer
+    # Cloudflare token for AgenticOS's OWN footprint: account-level Zero Trust
+    # (Access apps/policies + service tokens + IdP read) + Cloudflare Tunnel, PLUS
+    # zone DNS:Edit / Transform Rules:Edit / Zone:Read on gatheringatthegrove.com
+    # (cloudflare-tunnel.tf + cloudflare-dns.tf records, cloudflare-webhook-alias.tf
+    # http_request_transform ruleset). Account tokens don't answer
     # /user/tokens/verify — probe an account endpoint to validate, not verify.
-    export TF_VAR_cloudflare_api_token="$(op read "op://${op_vault}/Grove Infra/account_cloudflare_api_token" 2>/dev/null)"
+    #
+    # GOL-1548 / GOL-1537: the shared account-admin token (Grove Infra/
+    # account_cloudflare_api_token) is being downscoped to zone-only for odoocker
+    # and rolled/deleted. AgenticOS therefore moves to its OWN least-privilege
+    # split token stored as `cloudflare_api_token` on the AgenticOS Infra item.
+    # Read that first; fall back to the legacy shared field while the split token
+    # is unprovisioned, so this repoint is safe to merge AHEAD of the mint and
+    # activates automatically once Josh stores it. Override w/ AGENTICOS_CF_TOKEN_REF.
+    export TF_VAR_cloudflare_api_token="$(op read "${AGENTICOS_CF_TOKEN_REF:-op://${op_vault}/${op_item}/cloudflare_api_token}" 2>/dev/null)"
+    if [ -z "$TF_VAR_cloudflare_api_token" ]; then
+        # Legacy fallback: shared account-admin token (removed once Josh rolls it).
+        export TF_VAR_cloudflare_api_token="$(op read "op://${op_vault}/Grove Infra/account_cloudflare_api_token" 2>/dev/null)"
+    fi
     export TF_VAR_cloudflare_zone_id="$(op read "op://${op_vault}/${op_item}/cloudflare_zone_id" 2>/dev/null)"
     export TF_VAR_cloudflare_account_id="$(op read "op://${op_vault}/${op_item}/cloudflare_account_id" 2>/dev/null)"
 

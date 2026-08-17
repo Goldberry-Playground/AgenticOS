@@ -170,7 +170,7 @@ var manifest = {
   //   `failed`, so the next sweep sees the twin as `unmapped` and stops paging. `failed`
   //   is now purely actionable. Worker-code + mapping helper (reuses the existing table,
   //   no migration) — manifest surface unchanged bar version.
-  // 0.16.0 = inbound-CREATE reconcile sweep (GOL-1413). The inbound mirror-CREATE was
+  // 0.16.2 = inbound-CREATE reconcile sweep (GOL-1413; rebased over 0.16.1). The inbound mirror-CREATE was
   //   event-driven only: a GitHub-native issue got a Paperclip twin solely if its
   //   webhook was delivered AND its handler survived — no feedback loop revisited one
   //   born during an inbound-webhook outage (mirror-reconcile is outbound-only;
@@ -197,7 +197,20 @@ var manifest = {
   //   one-shot `canary` CLI mode for CI/cron, flagging a dead App key BEFORE a real write.
   //   Broker-script + worker-code (broker.ts/github-client.ts bundled) — manifest surface
   //   unchanged bar version.
-  version: "0.16.0",
+  // 0.16.1 = receiver honesty (GOL-1411 / W2). Before this, the webhook receiver
+  //   returned HTTP 200 {status:"success"} for EVERY delivery — including unsigned
+  //   garbage and deliveries whose downstream write failed — so GitHub's delivery
+  //   log showed green checkmarks while inbound mirroring was dead, which is why the
+  //   2026-08-12 outage stayed invisible for ~20h. Every inbound handler now VERIFIES
+  //   the HMAC BEFORE any enqueue/write and THROWS a WebhookRejection on a missing
+  //   secret / bad signature / (custom-endpoint) bad payload; onWebhook records a
+  //   per-delivery outcome to the new github_sync_delivery table (migration 006),
+  //   fires the Discord ops alert ONLY on a genuine failed_processing (not on an
+  //   unauthenticated probe), and RE-THROWS so the host returns a non-2xx and GitHub's
+  //   delivery turns red. Retries stay safe: inbound create still dedupes on
+  //   repo+number before writing (getByRepoNumber), preserving the GOL-352/GOL-323
+  //   REST fallback. Adds migration 006 (new table) — surface otherwise unchanged.
+  version: "0.16.2",
   displayName: "GitHub Sync",
   description: "Bidirectional issue sync between Paperclip and GitHub. Paperclip \u2192 GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub \u2192 Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo\u2194project bridges across orgs.",
   author: "AgenticOS",

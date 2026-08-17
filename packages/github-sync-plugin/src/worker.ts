@@ -46,6 +46,7 @@ import { runSignoffReconcile } from "./signoff-reconcile.js";
 import { runInboundCloseReconcile, buildInboundCloseReconcilePing } from "./inbound-close-reconcile.js";
 import { runInboundCreateReconcile, buildInboundCreateReconcilePing } from "./inbound-create-reconcile.js";
 import { recordError, buildSwallowedFailurePing, OpsPingThrottle, withSuppressionNote } from "./error-log.js";
+import { recordDelivery, WebhookRejection, type DeliveryOutcome } from "./delivery-log.js";
 import {
   buildCiFixBody,
   buildCiFixOpenedPing,
@@ -436,6 +437,38 @@ async function recordPipelineError(
 }
 
 /**
+ * Best-effort per-delivery outcome record (GOL-1411). NEVER throws: recording a
+ * delivery must not mask the outcome (or failure) it records, nor turn a clean
+ * success into a 500 of its own. The Discord alert + `github_sync_error` row are
+ * the loud path; this is the durable, queryable per-delivery status + the
+ * failed-processing counter (`failedDeliveryCount`).
+ */
+async function safeRecordDelivery(
+  ctx: PluginContext,
+  input: PluginWebhookInput,
+  outcome: DeliveryOutcome,
+  detail?: string,
+): Promise<void> {
+  try {
+    await recordDelivery(ctx.db, {
+      requestId: input.requestId,
+      endpointKey: input.endpointKey,
+      event: getHeader(input.headers, "x-github-event") ?? null,
+      deliveryGuid: getHeader(input.headers, "x-github-delivery") ?? null,
+      outcome,
+      detail: detail ?? null,
+      occurredAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    ctx.logger.warn("failed to persist webhook delivery outcome", {
+      endpointKey: input.endpointKey,
+      outcome,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
  * Route an issue event to the bridge for its project, with per-event error
  * isolation (a handler must never throw back onto the bus).
  *
@@ -615,19 +648,18 @@ async function handleCustomInbound(
   input: PluginWebhookInput,
   runInScope: InvocationScopeRunner,
 ): Promise<void> {
+  // Verify BEFORE any enqueue/write, and THROW (not silent-return) on failure so
+  // the receiver returns a non-2xx instead of the old dishonest 200 (GOL-1411).
   if (!cfg.inboundWebhookSecret) {
-    ctx.logger.error("inbound webhook: no inboundWebhookSecret configured — rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "inbound webhook: no inboundWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.inboundWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    ctx.logger.warn("inbound webhook: signature verification failed");
-    return;
+    throw new WebhookRejection("rejected_signature", "inbound webhook: signature verification failed");
   }
 
   const payload = parseInboundPayload(input.parsedBody ?? safeJson(input.rawBody));
   if (!payload) {
-    ctx.logger.warn("inbound webhook: unparseable/invalid payload");
-    return;
+    throw new WebhookRejection("invalid_payload", "inbound webhook: unparseable/invalid payload");
   }
 
   const bridge = matchBridge(cfg, payload.repo);
@@ -769,13 +801,14 @@ async function handleAppInbound(
   input: PluginWebhookInput,
   runInScope: InvocationScopeRunner,
 ): Promise<void> {
+  // Verify BEFORE any enqueue/write and THROW on failure (GOL-1411): the receiver
+  // must return a non-2xx for an unsigned/misconfigured delivery, not the old
+  // dishonest 200 that made GitHub's delivery log green while inbound was dead.
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("app webhook: no appWebhookSecret configured — rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "app webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    ctx.logger.warn("app webhook: signature verification failed");
-    return;
+    throw new WebhookRejection("rejected_signature", "app webhook: signature verification failed");
   }
 
   // GitHub sets X-GitHub-Event; ignore anything but `issues`. Lenient if absent.
@@ -893,16 +926,15 @@ async function handlePrInbound(
   cfg: GithubSyncConfig,
   input: PluginWebhookInput,
 ): Promise<void> {
+  // Verify BEFORE any enqueue/write and THROW on failure (GOL-1411). No Discord
+  // alert on a rejection: an unsigned/unauthenticated probe is not an outage, and
+  // paging on every probe would only be alert-noise. onWebhook records the
+  // rejection to github_sync_delivery (queryable) and re-throws for the non-2xx.
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("pr webhook: no appWebhookSecret configured — rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "pr webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    await recordPipelineError(ctx, cfg, "pr webhook: signature verification failed", "HMAC verification failed on a github-pr delivery", {
-      endpointKey: PR_WEBHOOK_ENDPOINT_KEY,
-      delivery: getHeader(input.headers, "x-github-delivery"),
-    });
-    return;
+    throw new WebhookRejection("rejected_signature", "pr webhook: signature verification failed");
   }
 
   // GitHub sets X-GitHub-Event; ignore anything but `pull_request`. Lenient if absent.
@@ -1214,16 +1246,13 @@ async function handleCiCompletion(
   input: PluginWebhookInput,
   eventType: string,
 ): Promise<void> {
+  // Verify BEFORE any enqueue/write and THROW on failure (GOL-1411); rejection is
+  // recorded + non-2xx'd by onWebhook, no Discord alert (probe noise).
   if (!cfg.appWebhookSecret) {
-    ctx.logger.error("ci webhook: no appWebhookSecret configured — rejecting");
-    return;
+    throw new WebhookRejection("rejected_config", "ci webhook: no appWebhookSecret configured");
   }
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
-    await recordPipelineError(ctx, cfg, "ci webhook: signature verification failed", `HMAC verification failed on a ${eventType} delivery`, {
-      eventType,
-      delivery: getHeader(input.headers, "x-github-delivery"),
-    });
-    return;
+    throw new WebhookRejection("rejected_signature", `ci webhook: signature verification failed (${eventType})`);
   }
 
   const ev = parseCiCompletionEvent(input.parsedBody ?? safeJson(input.rawBody), eventType);
@@ -1907,14 +1936,36 @@ const plugin = definePlugin({
       } else {
         ctx.logger.warn("inbound webhook: unknown endpoint", { endpointKey: input.endpointKey });
       }
+      // Reached only when a handler completed without throwing: signature verified
+      // (or the endpoint is a benign no-op) and any enqueue/write landed. Record the
+      // honest success so per-delivery status is queryable, not merely absent.
+      await safeRecordDelivery(ctx, input, "processed");
     } catch (err) {
+      // GOL-1411 receiver honesty: whatever happened, record the per-delivery
+      // outcome and RE-THROW so the host returns a non-2xx. The old code swallowed
+      // every failure and let the host reply 200 — GitHub's delivery log stayed
+      // green while inbound mirroring was dead (the ~20h-invisible 08-12 outage).
+      if (err instanceof WebhookRejection) {
+        // Verification / config / payload rejection detected BEFORE any enqueue.
+        // Record it (queryable) but do NOT page Discord — an unauthenticated probe
+        // is not an outage, and alerting on every probe is pure noise. Re-throw so
+        // the host turns the delivery red (W1 maps err.httpStatus → 401).
+        await safeRecordDelivery(ctx, input, err.outcome, err.message);
+        throw err;
+      }
+      // A genuine processing failure AFTER a verified signature. Record it as the
+      // failed-processing counter's source, page Discord (the loud path), and
+      // re-throw for the non-2xx so GitHub retries. Retries are safe: the inbound
+      // create dedupes on repo+number (getByRepoNumber) before writing, and the
+      // reconcile sweeps heal any create-ok/mapping-miss window.
       const scope = `inbound webhook: handler failed (${input.endpointKey})`;
+      const detail = err instanceof Error ? err.message : String(err);
+      await safeRecordDelivery(ctx, input, "failed_processing", detail);
       if (cfg) {
         await recordSwallowedFailure(ctx, cfg, scope, err, { endpointKey: input.endpointKey });
       } else {
         // The config read itself threw — we have no opsWebhookUrl to page, but the DB
         // namespace is config-independent, so still persist to the queryable sink.
-        const detail = err instanceof Error ? err.message : String(err);
         ctx.logger.error(scope, { endpointKey: input.endpointKey, error: detail });
         try {
           await recordError(ctx.db, {
@@ -1927,6 +1978,7 @@ const plugin = definePlugin({
           // best-effort; host stderr above is the floor.
         }
       }
+      throw err;
     }
   },
 
