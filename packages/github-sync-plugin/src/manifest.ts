@@ -211,7 +211,16 @@ const manifest: PaperclipPluginManifestV1 = {
   //   delivery turns red. Retries stay safe: inbound create still dedupes on
   //   repo+number before writing (getByRepoNumber), preserving the GOL-352/GOL-323
   //   REST fallback. Adds migration 006 (new table) — surface otherwise unchanged.
-  // 0.16.2 = REST-fallback FAILURE alert (GOL-1485). When the GOL-323 scope-expiry
+  // 0.16.2 = status-write flap fix (GOL-1419 / W5). The inbound-close-reconcile sweep
+  //   derived its action from an issue's CURRENT GitHub state (`open → "reopened"`),
+  //   so a steadily-open twin whose mirror an agent had deliberately closed was
+  //   dragged back to `todo` every hourly tick — the agent re-closed it next
+  //   heartbeat, an unbounded done↔todo flap (grove-sites#486 / GOL-1308 bounced
+  //   hourly for 6h). The sweep now propagates CLOSURES ONLY; an open twin is
+  //   skipped (`skippedOpen`), never re-driven as a reopen. Genuine reopens still
+  //   flow through the real `reopened` App-webhook event (handleAppClosure,
+  //   untouched). No migration, no capability change — pure sweep-logic narrowing.
+  // 0.16.3 = REST-fallback FAILURE alert (GOL-1485). When the GOL-323 scope-expiry
   //   fallback FIRES but the Paperclip REST retry ITSELF fails (e.g. the fallback key
   //   silently dies — #457: NULL responsible_user_id → 403), the only prior signal was a
   //   `logger.error` on host stderr, which is NOT observable, so a dead fallback key went
@@ -221,7 +230,7 @@ const manifest: PaperclipPluginManifestV1 = {
   //   error-class ⛔ Discord ops alert carrying site + HTTP status (one per site+status per
   //   window; error-class passes every opsPingMode). The scope-expiry SUCCESS path is
   //   unchanged — no new pings on the healthy path. No new capability, no migration.
-  version: "0.16.2",
+  version: "0.16.3",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
