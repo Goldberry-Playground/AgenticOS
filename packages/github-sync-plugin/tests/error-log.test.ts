@@ -3,6 +3,7 @@ import {
   recordError,
   recentErrors,
   buildSwallowedFailurePing,
+  buildFallbackFailurePing,
   OpsPingThrottle,
   withSuppressionNote,
   type ErrorRow,
@@ -119,6 +120,29 @@ describe("buildSwallowedFailurePing", () => {
     const msg = buildSwallowedFailurePing("scope", long);
     expect(msg).toContain("…");
     expect(msg.length).toBeLessThan(600);
+  });
+});
+
+describe("buildFallbackFailurePing (GOL-1485)", () => {
+  it("prefixes with the ⛔ marker and carries site + HTTP status", () => {
+    const msg = buildFallbackFailurePing("mirror.create", 403);
+    expect(msg).toContain("⛔");
+    expect(msg).toContain("mirror.create");
+    expect(msg).toContain("HTTP 403");
+    expect(msg).toContain("#457");
+  });
+
+  it("reports 'no HTTP status' when the retry threw a non-HTTP error", () => {
+    const msg = buildFallbackFailurePing("ci.comment", undefined);
+    expect(msg).toContain("ci.comment");
+    expect(msg).toContain("no HTTP status");
+  });
+
+  it("is deterministic per (site, status) so the ops-alert throttle collapses a burst", () => {
+    // Byte-for-byte identical content is what OpsPingThrottle keys on, so two failures
+    // for the same site+status must produce the same string (one ping per window).
+    expect(buildFallbackFailurePing("mirror.create", 403)).toBe(buildFallbackFailurePing("mirror.create", 403));
+    expect(buildFallbackFailurePing("mirror.create", 403)).not.toBe(buildFallbackFailurePing("mirror.create", 500));
   });
 });
 

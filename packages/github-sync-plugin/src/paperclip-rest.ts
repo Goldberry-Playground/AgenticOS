@@ -220,6 +220,29 @@ export interface FallbackLogger {
   error(message: string, meta?: Record<string, unknown>): void;
 }
 
+/** Details handed to {@link RestFallbackDeps.onFallbackFailure} when the retry itself fails. */
+export interface FallbackFailure {
+  site: string;
+  /** HTTP status when the retry threw a {@link PaperclipRestError}; undefined otherwise (e.g. a network error). */
+  status: number | undefined;
+  detail: string;
+}
+
+/** Wiring `withRestFallback` needs at each catch site: logger, REST client, and the failure hook. */
+export interface RestFallbackDeps {
+  logger: FallbackLogger;
+  rest: PaperclipRestClient | null;
+  /**
+   * OPTIONAL observability hook (GOL-1485). Invoked when the scope-expiry fallback FIRED
+   * but the REST retry itself failed (e.g. the fallback key silently died — #457: NULL
+   * responsible_user_id → 403). The failure is otherwise invisible: `logger.error` goes to
+   * host stderr only, so a dying fallback key would go unseen until mirrors visibly stop.
+   * MUST be best-effort — it is awaited but its own throw is caught and never masks the REST
+   * error, which is always rethrown.
+   */
+  onFallbackFailure?: (failure: FallbackFailure) => void | Promise<void>;
+}
+
 /**
  * Run `fn` (the normal scope-based `ctx.issues.*` call) and, ONLY when it fails
  * with the host's scope-expiry error and a REST client is configured, retry via
@@ -228,14 +251,16 @@ export interface FallbackLogger {
  * Every outcome is logged against `site` so the fallback's real behaviour is
  * greppable — in particular the failure path (GOL-384): before this, a fallback
  * that 403'd on every attempt rethrew silently, so a wholly broken fallback
- * looked identical to one that never fired.
+ * looked identical to one that never fired. On that failure the optional
+ * `onFallbackFailure` hook also fires (GOL-1485) so ops is paged in real time,
+ * because `logger.error` alone is host-stderr-only and not observable.
  *
  * Behaviour is otherwise preserved exactly: a non-scope-expiry error, or an
  * unconfigured fallback, rethrows the ORIGINAL error; a failed retry rethrows
  * the REST error.
  */
 export async function withRestFallback<T>(
-  deps: { logger: FallbackLogger; rest: PaperclipRestClient | null },
+  deps: RestFallbackDeps,
   site: string,
   fn: () => Promise<T>,
   restFn: (rest: PaperclipRestClient) => Promise<T>,
@@ -251,11 +276,21 @@ export async function withRestFallback<T>(
       logger.info("Paperclip REST fallback succeeded (GOL-323)", { site });
       return result;
     } catch (restErr) {
-      logger.error("Paperclip REST fallback failed (GOL-323)", {
-        site,
-        status: restErr instanceof PaperclipRestError ? restErr.status : undefined,
-        error: restErr instanceof Error ? restErr.message : String(restErr),
-      });
+      const status = restErr instanceof PaperclipRestError ? restErr.status : undefined;
+      const detail = restErr instanceof Error ? restErr.message : String(restErr);
+      logger.error("Paperclip REST fallback failed (GOL-323)", { site, status, error: detail });
+      // GOL-1485: page ops on a failed fallback (e.g. a silently-dead fallback key, #457).
+      // Best-effort — the alert must never mask the REST error we are about to rethrow.
+      if (deps.onFallbackFailure) {
+        try {
+          await deps.onFallbackFailure({ site, status, detail });
+        } catch (hookErr) {
+          logger.warn("onFallbackFailure hook threw (ignored)", {
+            site,
+            error: hookErr instanceof Error ? hookErr.message : String(hookErr),
+          });
+        }
+      }
       throw restErr;
     }
   }

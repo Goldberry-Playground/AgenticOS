@@ -42,6 +42,21 @@ export function buildSwallowedFailurePing(scope: string, detail: string): string
 }
 
 /**
+ * ⛔ alert for a REST-fallback FAILURE (GOL-1485): the GOL-323/GOL-352 scope-expiry
+ * fallback FIRED, but the Paperclip REST retry itself failed — e.g. the GitHub Sync
+ * Service key silently died (#457: NULL responsible_user_id → 403). Before this the only
+ * signal was a `logger.error` on host stderr, which is NOT observable, so a dying fallback
+ * key went unseen until inbound mirrors visibly stopped. Distinct ⛔ prefix; carries site +
+ * HTTP status. Content is DETERMINISTIC per (site, status) so the ops-alert throttle
+ * collapses a broad outage to ~one ping per site per window (the volatile error detail
+ * stays in `logger.error` + the `github_sync_error` row, not in the throttle key).
+ */
+export function buildFallbackFailurePing(site: string, status: number | undefined): string {
+  const code = status === undefined ? "no HTTP status" : `HTTP ${status}`;
+  return `⛔ github-sync REST fallback FAILED for ${site} (${code}) — the Paperclip REST fallback key may be dead (#457); inbound mirrors for this site will stop until it is fixed.`;
+}
+
+/**
  * Persist one swallowed-failure record. Callers wrap this in try/catch — the
  * failure being reported must never be masked by a secondary failure writing it
  * down (a DB outage is itself a likely root cause of the failure being recorded).

@@ -220,7 +220,17 @@ const manifest: PaperclipPluginManifestV1 = {
   //   skipped (`skippedOpen`), never re-driven as a reopen. Genuine reopens still
   //   flow through the real `reopened` App-webhook event (handleAppClosure,
   //   untouched). No migration, no capability change — pure sweep-logic narrowing.
-  version: "0.16.2",
+  // 0.16.3 = REST-fallback FAILURE alert (GOL-1485). When the GOL-323 scope-expiry
+  //   fallback FIRES but the Paperclip REST retry ITSELF fails (e.g. the fallback key
+  //   silently dies — #457: NULL responsible_user_id → 403), the only prior signal was a
+  //   `logger.error` on host stderr, which is NOT observable, so a dead fallback key went
+  //   unseen until inbound mirrors visibly stopped. withRestFallback now fires an optional
+  //   onFallbackFailure hook on that path; the worker wires it (once, at restFallbackDeps,
+  //   covering every fallback site) to a durable `github_sync_error` row + a THROTTLED
+  //   error-class ⛔ Discord ops alert carrying site + HTTP status (one per site+status per
+  //   window; error-class passes every opsPingMode). The scope-expiry SUCCESS path is
+  //   unchanged — no new pings on the healthy path. No new capability, no migration.
+  version: "0.16.3",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
