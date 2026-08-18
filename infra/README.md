@@ -422,12 +422,26 @@ template, mirrored by `infra/scripts/install-disk-hygiene.sh` for running boxes
   reclaim, catching disk pressure before the DO monitor fires at 85%. Runs as a
   host timer because in-container Paperclip agents can't read host disk or reach
   the host Docker socket.
+- **paperclip-volume-guard** (GOL-1632) — `paperclip-volume-guard.sh`
+  (`agenticos-paperclip-volume-guard.timer`, **hourly at :20**). disk-guard
+  watches only the root FS; the `paperclip-data` docker volume (hourly DB dumps +
+  `server.log`) is a **separate** filesystem, so its fill is invisible to it —
+  exactly how the 2026-08-18 disk-full P0 hit 100% with no early warning. This
+  guard checks that volume's headroom (≥80% → Discord) **and** backup freshness
+  (newest completed `*.sql.gz` older than ~95m → Discord), the latter being the
+  compensating control for silent backup failure until the server-side
+  loud-failure + retention fix ships (in `/opt/paperclip`, out of this repo's
+  write boundary). Alerts are throttled per reason (~6h) so a sustained
+  condition doesn't spam. It never auto-deletes dumps — that volume holds live
+  state; pruning is the Paperclip server's retention job.
 - **journald cap** — `/etc/systemd/journald.conf.d/10-agenticos-cap.conf` sets
   `SystemMaxUse=200M` (+ per-file / retention ceilings); cloud-init also runs
   `journalctl --vacuum-size=200M` once to apply it immediately.
-- **logrotate** — `/etc/logrotate.d/agenticos` rotates `/var/log/agenticos/*.log`
-  and the Docker container `*-json.log` files (compose sets no per-container log
-  limit in this deployment).
+- **logrotate** — `/etc/logrotate.d/agenticos` rotates `/var/log/agenticos/*.log`,
+  the Docker container `*-json.log` files (compose sets no per-container log
+  limit in this deployment), and the paperclip `server.log` on the paperclip-data
+  volume (GOL-1632; size-capped 200M, keep 7, `copytruncate` for the pino append
+  stream).
 
 Fresh Droplets get all of this from cloud-init. On an **already-running box**,
 install as root (same access model as the backup timers):

@@ -229,6 +229,45 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # paperclip-volume-guard (GOL-1632): disk-guard watches ONLY the root FS; the
+  # paperclip-data docker volume is a separate filesystem, so its fill (hourly DB
+  # dumps + server.log) is invisible to it. This hourly guard watches that
+  # volume's headroom AND backup freshness → Discord.
+  - path: /etc/systemd/system/agenticos-paperclip-volume-guard.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS paperclip-data volume guard (headroom + backup-freshness -> Discord)
+      After=network-online.target docker.service
+      Wants=network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh'
+      StandardOutput=append:/var/log/agenticos/paperclip-volume-guard.log
+      StandardError=append:/var/log/agenticos/paperclip-volume-guard.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-paperclip-volume-guard.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run AgenticOS paperclip-volume-guard hourly (:20)
+
+      [Timer]
+      OnCalendar=*-*-* *:20:00
+      Persistent=true
+      RandomizedDelaySec=120
+      Unit=agenticos-paperclip-volume-guard.service
+
+      [Install]
+      WantedBy=timers.target
+
   # journald cap: bound /var/log/journal so it never balloons the root FS.
   - path: /etc/systemd/journald.conf.d/10-agenticos-cap.conf
     permissions: "0644"
@@ -260,6 +299,22 @@ write_files:
           daily
           rotate 3
           maxsize 50M
+          missingok
+          notifempty
+          compress
+          delaycompress
+          copytruncate
+          su root root
+      }
+
+      # Paperclip origin log (GOL-1632): the paperclip-server container appends
+      # its pino stream to server.log on the paperclip-data volume; unrotated it
+      # reached 2.2G in the 2026-08-18 disk-full P0. Glob matches the host-side
+      # volume mountpoint (compose namespaces it <project>_paperclip-data).
+      /var/lib/docker/volumes/*paperclip-data/_data/instances/*/logs/server.log {
+          daily
+          rotate 7
+          maxsize 200M
           missingok
           notifempty
           compress
@@ -606,11 +661,13 @@ runcmd:
   # --- Disk hygiene (GOL-131): weekly docker reclaim + daily disk-guard ---
   # Ensure the reclaim scripts are executable, apply the journald cap now
   # (config alone only bounds FUTURE growth), then enable the timers.
-  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh
   - systemctl restart systemd-journald
   - journalctl --vacuum-size=200M || true
   - systemctl enable --now agenticos-docker-prune.timer
   - systemctl enable --now agenticos-disk-guard.timer
+  # paperclip-data volume headroom + backup-freshness watch (GOL-1632)
+  - systemctl enable --now agenticos-paperclip-volume-guard.timer
 
   # --- Unattended security upgrades ---
   - echo 'APT::Periodic::Unattended-Upgrade "1";' > /etc/apt/apt.conf.d/20auto-upgrades
