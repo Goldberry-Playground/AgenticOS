@@ -2,8 +2,11 @@
 # Install (or refresh) AgenticOS disk-hygiene on a running Droplet (GOL-131):
 #   - agenticos-docker-prune.service/.timer  (weekly `docker system prune -af`)
 #   - agenticos-disk-guard.service/.timer     (daily df check + Discord + reclaim)
+#   - agenticos-paperclip-volume-guard.*      (hourly paperclip-data headroom +
+#                                              backup-freshness check → Discord; GOL-1632)
 #   - journald cap                            (SystemMaxUse=200M drop-in + vacuum)
-#   - logrotate                               (container + /var/log/agenticos logs)
+#   - logrotate                               (container + /var/log/agenticos logs
+#                                              + paperclip server.log; GOL-1632)
 #
 # Fresh Droplets get all of this from cloud-init (droplet-bootstrap.yaml.tpl,
 # which carries the same unit + config bodies inline so a fresh provision never
@@ -29,7 +32,8 @@ LOG_DIR="${LOG_DIR:-/var/log/agenticos}"
 mkdir -p "${LOG_DIR}"
 
 # Make sure the reclaim scripts are executable (they ship from the repo clone).
-chmod +x "${REPO}/infra/scripts/docker-prune.sh" "${REPO}/infra/scripts/disk-guard.sh" 2>/dev/null || true
+chmod +x "${REPO}/infra/scripts/docker-prune.sh" "${REPO}/infra/scripts/disk-guard.sh" \
+         "${REPO}/infra/scripts/paperclip-volume-guard.sh" 2>/dev/null || true
 
 write_file() { # $1 = dest path; body on stdin
   cat >"$1"
@@ -97,6 +101,39 @@ Unit=agenticos-disk-guard.service
 WantedBy=timers.target
 UNIT
 
+# --- paperclip-volume-guard: hourly (GOL-1632) ---
+# disk-guard watches ONLY the root FS; the paperclip-data docker volume is a
+# separate filesystem, so its fill (hourly DB dumps + server.log) is invisible
+# to it. This guard watches that volume's headroom AND backup freshness.
+write_file /etc/systemd/system/agenticos-paperclip-volume-guard.service <<UNIT
+[Unit]
+Description=AgenticOS paperclip-data volume guard (headroom + backup-freshness → Discord)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=${REPO}
+ExecStart=/bin/bash -lc '${REPO}/infra/scripts/paperclip-volume-guard.sh'
+StandardOutput=append:${LOG_DIR}/paperclip-volume-guard.log
+StandardError=append:${LOG_DIR}/paperclip-volume-guard.log
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+write_file /etc/systemd/system/agenticos-paperclip-volume-guard.timer <<UNIT
+[Unit]
+Description=Run AgenticOS paperclip-volume-guard hourly (:20)
+[Timer]
+OnCalendar=*-*-* *:20:00
+Persistent=true
+RandomizedDelaySec=120
+Unit=agenticos-paperclip-volume-guard.service
+[Install]
+WantedBy=timers.target
+UNIT
+
 # --- journald cap: 200M ---
 mkdir -p /etc/systemd/journald.conf.d
 write_file /etc/systemd/journald.conf.d/10-agenticos-cap.conf <<'CONF'
@@ -140,11 +177,30 @@ write_file /etc/logrotate.d/agenticos <<'CONF'
     copytruncate
     su root root
 }
+
+# Paperclip origin log (GOL-1632). The paperclip-server container appends its
+# pino stream to server.log on the `paperclip-data` docker volume; unrotated it
+# reached 2.2G in the 2026-08-18 disk-full P0. The glob matches the host-side
+# volume mountpoint (compose namespaces it <project>_paperclip-data). pino writes
+# in append mode, so copytruncate is safe (the container keeps writing to the
+# same inode). size-driven so a burst can't outrun the daily cron.
+/var/lib/docker/volumes/*paperclip-data/_data/instances/*/logs/server.log {
+    daily
+    rotate 7
+    maxsize 200M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su root root
+}
 CONF
 
 echo "Reloading systemd + journald…"
 systemctl daemon-reload
-systemctl enable --now agenticos-docker-prune.timer agenticos-disk-guard.timer
+systemctl enable --now agenticos-docker-prune.timer agenticos-disk-guard.timer \
+                       agenticos-paperclip-volume-guard.timer
 
 # Apply the journald cap immediately (config alone only bounds future growth).
 systemctl restart systemd-journald
@@ -152,9 +208,11 @@ journalctl --vacuum-size=200M || true
 
 echo
 echo "Enabled. Scheduled runs:"
-systemctl list-timers 'agenticos-docker-prune.timer' 'agenticos-disk-guard.timer' --no-pager || true
+systemctl list-timers 'agenticos-docker-prune.timer' 'agenticos-disk-guard.timer' \
+                      'agenticos-paperclip-volume-guard.timer' --no-pager || true
 echo
 echo "Smoke-test the reclaim now (root):"
 echo "  ${REPO}/infra/scripts/docker-prune.sh   # reclaims + prints df before/after"
 echo "  WARN_PCT=0 ${REPO}/infra/scripts/disk-guard.sh   # force the alert path once"
+echo "  WARN_PCT=0 STALE_MIN=0 REPAGE_MIN=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # force both alert paths"
 echo "  df -h /                                  # confirm root FS under ~70%"
