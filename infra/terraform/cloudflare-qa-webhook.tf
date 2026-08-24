@@ -46,29 +46,19 @@ resource "cloudflare_zero_trust_access_policy" "paperclip_webhook_allow_service_
   }
 }
 
-# --- Step 9 inbound: GitHub → Paperclip via the github-sync-plugin webhook ------
-# The plugin exposes a public inbound webhook at
-#   POST /api/plugins/<plugin-id>/webhooks/github-issue
-# That lives under /api/plugins/* — NOT /api/routine-triggers/public — so the app
-# above does not cover it, and GitHub Actions would be 302'd to SSO. Add a SECOND
-# path-scoped Access app for this plugin's /webhooks prefix, reusing the SAME
-# service token. Scoped to the plugin's webhooks path only, so the token can't
-# reach /api/plugins/<id>/config or /install (those also require board auth at the
-# app layer — this keeps least-privilege at the edge too). Signature verification
-# is still the plugin's job (HMAC).
-#
 # ============================================================================
 # KEY-STABLE INBOUND PATH (GOL-1394, option A — board-approved 2026-08-14) —
-# the id-rotation-severs-inbound CLASS is now closed at the edge. This SUPERSEDES
-# the GOL-1416 wildcard mitigation as the DURABLE fix; the GOL-1416 wildcard apps
-# + the id-free alias still coexist below/alongside as the zero-gap cutover bridge.
+# the id-rotation-severs-inbound CLASS is closed at the edge. The inbound Access
+# apps and the GitHub App webhook URL are scoped to the plugin KEY path, which the
+# host resolves to the current install id at request time and which never rotates
+# on reinstall.
 # ============================================================================
 # WHY THE UUID USED TO BE A LANDMINE: a github-sync reinstall ROTATES the plugin
 # UUID (delete+install is Paperclip's only update path). The UUID was embedded in
-# the inbound webhook URL in THREE places that had to move together — the CF
-# Access apps below, the GitHub App webhook URL, and the install — and on
-# 2026-08-12 only the install moved → ~20h of silently-severed inbound sync
-# (every GitHub delivery 302'd at the CF edge).
+# the inbound webhook URL in THREE places that had to move together — the CF Access
+# apps, the GitHub App webhook URL, and the install — and on 2026-08-12 only the
+# install moved → ~20h of silently-severed inbound sync (every GitHub delivery
+# 302'd at the CF edge).
 #
 # THE FIX: the deployed paperclip-server resolves a NON-UUID `:pluginId` path
 # segment as a plugin KEY via `registry.getByKey()` (server/src/routes/plugins.ts
@@ -85,29 +75,13 @@ resource "cloudflare_zero_trust_access_policy" "paperclip_webhook_allow_service_
 # naive "github" search. That confusion caused PR #503 (2026-08-13, reverted same
 # day). It is otherwise immutable.
 #
-# COEXISTING GOL-1416 MITIGATION (still live below): before the key path, GOL-1416
-# already (a) removed the UUID from the GitHub App URL via the id-free
-# `/api/gh-webhooks/*` alias (cloudflare-webhook-alias.tf) and (b) removed the UUID
-# LITERAL from the Access-app paths by wildcarding the id segment
-# (`/api/plugins/*/webhooks[...]`). Those wildcard apps are the pre-key-path apps
-# and now serve as the cutover BRIDGE. Cloudflare runs URL Rewrite (phase 3) before
-# Access (~phase 13) and selects by PATH SPECIFICITY (most-specific path wins,
-# exact or wildcard), so the more-specific literal KEY-path apps below win over the
-# `*` bridge apps for the github-sync key path, while the `*` apps keep covering any
-# other plugin's `/webhooks/...` — a SAFE machine-only default, since every plugin
-# webhook still independently authenticates at the app layer (HMAC for github-*,
-# service token + board auth for the generic prefix). The edge match is purely
-# "which Access policy," not "who is trusted."
-#
-# BRIDGE / DEPROVISION: the wildcard (GOL-1416) Access apps + the id-free alias are
-# kept ONLY as a zero-gap cutover bridge so inbound never drops during the switch.
-# Once Josh has repointed the GitHub App webhook URL to the KEY path and a live
-# delivery is verified on it (see docs/runbooks/github-issue-sync.md), delete the
-# pre-key-path apps + the alias in a trivial follow-up — nothing will POST to the
-# UUID/alias path after the App URL flip. Adding the key-path apps is purely
-# ADDITIVE and cannot sever anything, so `terraform apply` of this change is safe on
-# its own. The deploy-gate id-drift check + inbound dead-man probe (GOL-1394, PR
-# #506) still guard the one remaining UUID reference (the alias rewrite target).
+# CUTOVER COMPLETE (GOL-1720, 2026-08-24): Josh flipped the GitHub App webhook URL
+# to the KEY path (11:50 EDT) and sustained signed 200s were verified on it with
+# zero legacy-path traffic. The GOL-1416 cutover BRIDGE — the wildcard
+# `/api/plugins/*/webhooks[...]` Access apps and the id-free `/api/gh-webhooks/*`
+# alias (formerly cloudflare-webhook-alias.tf) — has been removed here; only the
+# KEY-path apps below remain as the inbound edge scope. The inbound dead-man probe
+# (GOL-1394) now targets the KEY-path URL.
 
 # Stable plugin KEY — resolved to the current install id at request time by the
 # host. NEVER rotates on reinstall; this is the durable inbound scope (GOL-1394).
@@ -117,39 +91,16 @@ variable "github_sync_plugin_key" {
   default     = "agenticos.github-sync-plugin"
 }
 
-# Legacy live install UUID. NO LONGER path-load-bearing — retained only for the
-# UUID-scoped BRIDGE Access apps (deleted post-cutover) and as the deploy-gate's
-# cosmetic drift signal (scripts/deploy-plugin.sh). It may safely drift from the
-# live id after a reinstall; the key-path apps carry inbound regardless.
+# Legacy live install UUID. NO LONGER path-load-bearing anywhere in the edge
+# config — the UUID-scoped bridge Access apps and the /api/gh-webhooks/* alias
+# that referenced it were removed at the GOL-1720 cutover teardown. Retained SOLELY
+# as the deploy-gate's cosmetic drift signal (scripts/deploy-plugin.sh parses this
+# committed default). It may safely drift from the live id after a reinstall; the
+# key-path apps carry inbound regardless.
 variable "github_sync_plugin_id" {
-  description = "Legacy install UUID of agenticos.github-sync-plugin (NOT agenticos.github-plugin — see landmine note). NOT id-stable and no longer the durable inbound scope (see github_sync_plugin_key); no longer embedded as a LITERAL in any Access-app path (those wildcard the id segment or use the key path). Remaining uses: the /api/gh-webhooks/* rewrite target in cloudflare-webhook-alias.tf (GOL-1416) and the deploy-gate drift tripwire in scripts/deploy-plugin.sh. Both are deleted/relaxed post-cutover."
+  description = "Legacy install UUID of agenticos.github-sync-plugin (NOT agenticos.github-plugin — see landmine note). NOT id-stable and not the durable inbound scope (see github_sync_plugin_key). No longer embedded in any Access-app path or URL rewrite (the /api/gh-webhooks/* alias was removed in GOL-1720). Sole remaining use: the deploy-gate drift tripwire in scripts/deploy-plugin.sh."
   type        = string
   default     = "f46075f1-bfb9-441b-90ea-ab1976ef83ff"
-}
-
-resource "cloudflare_zero_trust_access_application" "paperclip_plugin_webhook" {
-  account_id = var.cloudflare_account_id
-  name       = "AgenticOS Paperclip — plugin webhooks (service token)"
-  # Path-scoped to the plugin webhook endpoints. The `*` wildcards the plugin-id
-  # segment (no id LITERAL here) and Access matches the POST-rewrite path; more
-  # specific than the host-wide `paperclip` SSO app, so it wins for this path.
-  domain                     = "${var.paperclip_domain}/api/plugins/*/webhooks"
-  type                       = "self_hosted"
-  session_duration           = "0s"
-  app_launcher_visible       = false
-  http_only_cookie_attribute = true
-}
-
-resource "cloudflare_zero_trust_access_policy" "paperclip_plugin_webhook_allow_service_token" {
-  account_id     = var.cloudflare_account_id
-  application_id = cloudflare_zero_trust_access_application.paperclip_plugin_webhook.id
-  name           = "Allow issue-sync service token"
-  precedence     = 1
-  decision       = "non_identity"
-
-  include {
-    service_token = [cloudflare_zero_trust_access_service_token.qa_smoke_webhook.id]
-  }
 }
 
 # The CI client credentials. Put them in odoocker's GitHub Actions secrets
@@ -165,82 +116,6 @@ output "qa_smoke_access_client_secret" {
   description = "Cloudflare Access service-token Client-Secret. Capture once (terraform output -raw) into 1Password + odoocker GH secret CF_ACCESS_CLIENT_SECRET."
   value       = cloudflare_zero_trust_access_service_token.qa_smoke_webhook.client_secret
   sensitive   = true
-}
-
-# --- Native GitHub App issues webhook (inbound v2, PR #228) --------------------
-# GitHub App deliveries carry ONLY an HMAC signature (X-Hub-Signature-256) —
-# GitHub cannot attach Cloudflare Access service-token headers, so the
-# Service-Auth app above 403s every delivery at the edge (verified live
-# 2026-07-08: POST → 403 with cf-access-domain, deliveries dead on arrival).
-#
-# Fix: a MORE specific Access application scoped to exactly the github-app
-# endpoint with a Bypass policy. Cloudflare matches the most-specific app per
-# path, so:
-#   /api/plugins/<id>/webhooks/github-app  → this app (Bypass — GitHub can POST)
-#   /api/plugins/<id>/webhooks/*           → service-token app above (unchanged)
-# Authentication for this path is the plugin's job and already implemented:
-# onWebhook verifies X-Hub-Signature-256 against config.appWebhookSecret and
-# drops anything unsigned/invalid. This is the standard GitHub-webhook trust
-# model (same as the QA-smoke HMAC), minus the service token GitHub can't send.
-resource "cloudflare_zero_trust_access_application" "paperclip_github_app_webhook" {
-  account_id = var.cloudflare_account_id
-  name       = "AgenticOS Paperclip — GitHub App issues webhook (HMAC, bypass)"
-  domain     = "${var.paperclip_domain}/api/plugins/*/webhooks/github-app"
-  type       = "self_hosted"
-  # Machine endpoint: no sessions, hidden from the app launcher.
-  session_duration           = "0s"
-  app_launcher_visible       = false
-  http_only_cookie_attribute = true
-}
-
-resource "cloudflare_zero_trust_access_policy" "paperclip_github_app_webhook_bypass" {
-  account_id     = var.cloudflare_account_id
-  application_id = cloudflare_zero_trust_access_application.paperclip_github_app_webhook.id
-  name           = "Bypass — GitHub App deliveries (HMAC-verified by the plugin)"
-  precedence     = 1
-  decision       = "bypass"
-
-  include {
-    everyone = true
-  }
-}
-
-# --- Native GitHub App pull_request webhook (PR review pipeline, GOL-158) ------
-# The agent PR review pipeline (github-sync-plugin v0.7.0) adds a THIRD inbound
-# endpoint, `…/webhooks/github-pr`, fed by the App's `pull_request` events. Like
-# the github-app issues webhook, GitHub can only attach an HMAC signature — it
-# cannot send Cloudflare Access service-token headers — so without a more-specific
-# Bypass app the service-token app above 403s every delivery at the edge.
-#
-# Same trust model as github-app: a MORE specific Access application scoped to
-# exactly this endpoint with a Bypass policy. Cloudflare matches most-specific:
-#   /api/plugins/<id>/webhooks/github-pr   → this app (Bypass — GitHub can POST)
-#   /api/plugins/<id>/webhooks/github-app  → the issues bypass app (unchanged)
-#   /api/plugins/<id>/webhooks/*           → service-token app (unchanged)
-# Authentication is the plugin's job: onWebhook verifies X-Hub-Signature-256
-# against config.appWebhookSecret (the SAME secret as github-app) and drops
-# anything unsigned/invalid.
-resource "cloudflare_zero_trust_access_application" "paperclip_github_pr_webhook" {
-  account_id = var.cloudflare_account_id
-  name       = "AgenticOS Paperclip — GitHub App pull_request webhook (HMAC, bypass)"
-  domain     = "${var.paperclip_domain}/api/plugins/*/webhooks/github-pr"
-  type       = "self_hosted"
-  # Machine endpoint: no sessions, hidden from the app launcher.
-  session_duration           = "0s"
-  app_launcher_visible       = false
-  http_only_cookie_attribute = true
-}
-
-resource "cloudflare_zero_trust_access_policy" "paperclip_github_pr_webhook_bypass" {
-  account_id     = var.cloudflare_account_id
-  application_id = cloudflare_zero_trust_access_application.paperclip_github_pr_webhook.id
-  name           = "Bypass — GitHub App pull_request deliveries (HMAC-verified by the plugin)"
-  precedence     = 1
-  decision       = "bypass"
-
-  include {
-    everyone = true
-  }
 }
 
 # ============================================================================
