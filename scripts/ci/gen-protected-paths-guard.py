@@ -73,6 +73,16 @@ TEMPLATE = r'''# Protected paths guard  —  GOL-1406 / GOL-1402 / GOL-1478 (org
 # access and no PR checkout — so a PR cannot edit this workflow to neuter its
 # own guard. Same philosophy as auto-approve.yml's workflow_run trigger.
 #
+# Merge queue (GOL-1406): this check is REQUIRED, and a required check must
+# report on the merge group or the queue wedges ("Expected — waiting for
+# status"). We therefore also trigger on `merge_group` and report success
+# there: the PR-level `pull_request_target` gate is what a PR must satisfy to
+# be enqueued, so a protected-path PR can only enter the queue AFTER an
+# allowlisted human's SHA-bound approval. The merge-group commit is synthetic
+# (approved PR head + base), introduces no new protected-path content, and has
+# no PR/review context to bind to — so enforcement stays at the PR gate and the
+# merge group passes. Mirrors ci.yml, which already runs on `merge_group`.
+#
 # ONE shared implementation, generated for every repo from
 # gen-protected-paths-guard.py; only PROTECTED_GLOBS differs per repo. Repo: {TAG}
 name: Protected paths guard
@@ -82,6 +92,7 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   pull_request_review:
     types: [submitted, dismissed, edited]
+  merge_group:
 
 permissions:
   contents: read
@@ -89,7 +100,7 @@ permissions:
   issues: read
 
 concurrency:
-  group: protected-paths-${{ github.event.pull_request.number }}
+  group: protected-paths-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -98,9 +109,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Enforce human SHA-bound approval on protected paths
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
+            // Merge-queue pass-through (GOL-1406). On `merge_group` there is no
+            // PR/review context and the commit is a synthetic merge of an
+            // already-approved PR head with the base. Enforcement happened at
+            // the required `pull_request_target` gate the PR had to pass to be
+            // enqueued, so report success here to satisfy the required check for
+            // the merge group instead of throwing on the missing PR payload.
+            if (context.eventName === 'merge_group') {
+              core.info('merge_group event — protected-path enforcement happens ' +
+                'at the PR gate (required to enqueue); passing for the merge group.');
+              return;
+            }
+
             // Human allowlist — an approving review from anyone NOT in this
             // list (including bots/Apps) does not count. Mirrors
             // auto-approve.yml.
