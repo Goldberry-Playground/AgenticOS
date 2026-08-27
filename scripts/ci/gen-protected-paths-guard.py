@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""GOL-1406 / GOL-1478: generate the protected-paths-guard workflow per repo.
+"""GOL-1406 / GOL-1478 / GOL-1733: generate the per-repo protected-paths
+artifacts — the protected-paths-guard workflow AND .github/CODEOWNERS.
 
-The logic is byte-identical across all four repos; only PROTECTED_GLOBS and a
-one-line repo tag differ. Keeping a single generator here means the shared
-implementation can't silently drift between repos (the file is itself
-self-protecting once merged, so any future edit needs an allowlisted human's
-SHA-bound approving review).
+The workflow logic is byte-identical across all four repos; only PROTECTED_GLOBS
+and a one-line repo tag differ. CODEOWNERS mirrors the same protected surface
+(GOL-1733). Keeping a single generator here means neither list can silently
+drift between repos (the workflow is itself self-protecting once merged, so any
+future edit needs an allowlisted human's SHA-bound approving review).
 
 GOL-1478 replaces the earlier `human-approved`-label gate (and its spoofable
 commit-date recency check) with a SHA-bound approving review: an allowlisted
@@ -16,35 +17,128 @@ backdating a commit. Any new commit changes the head SHA and invalidates every
 prior approval. Read-only, no new permissions."""
 import os
 
-# repo dir -> (repo tag, extra protected globs beyond the shared workflow one)
+# Single source of truth for BOTH per-repo artifacts (GOL-1733):
+#   * `.github/workflows/protected-paths-guard.yml`  (PROTECTED_GLOBS = "globs")
+#   * `.github/CODEOWNERS`                            ("codeowners" entries)
+# The guard is the ACTIVE enforcement (a required check); CODEOWNERS mirrors the
+# same protected surface for GitHub-native code-owner review once a ruleset with
+# "Require review from Code Owners" is enabled. Generating both here keeps the
+# two lists from silently drifting apart.
+#
+# The "globs" are the narrow tier-0 (money/gate/infra) surface enforced by the
+# guard. `.github/workflows/**` is prepended to every repo's guard list (the
+# workflow is self-protecting). Every glob below was confirmed to match >=1 real
+# file on origin/main (GOL-1733 verify-list report d5ba1ea3); zero-match globs
+# were dropped.
+#
+# CODEOWNERS is allowed to be slightly coarser than the guard (whole-dir
+# ownership) — it is a review-routing hint, not the merge gate.
+OWNER = "@EngineeringMoonBear"
+
 REPOS = {
-    "AgenticOS": (
-        "AgenticOS",
-        [
+    "AgenticOS": {
+        "tag": "AgenticOS",
+        "globs": [
             "infra/terraform/cloudflare-qa-webhook.tf",
             "packages/github-sync-plugin/**/manifest*",
             "scripts/deploy-plugin.sh",
             "infra/terraform/github-*.tf",
         ],
-    ),
-    "odoocker": (
-        "odoocker-goldberrygrove",
-        [
-            "infra/terraform/environments/production/**",
+        # Preserves the hand-curated CODEOWNERS from the 2026-07-12 security
+        # review (finding M2) verbatim; broader than the guard by design.
+        "codeowners_header": (
+            "# CODEOWNERS — sensitive paths that must not merge on agent auto-approval\n"
+            "# alone (security review 2026-07-12, finding M2).\n"
+            "#\n"
+            "# ENFORCEMENT NOTE: CODEOWNERS review-requirement only binds when a branch\n"
+            "# protection ruleset with \"Require review from Code Owners\" is enabled. Until\n"
+            "# that ruleset exists, the auto-approve workflow enforces the SAME list\n"
+            "# operationally: agent PRs touching these paths are never auto-approved or\n"
+            "# auto-merged (see .github/workflows/auto-approve.yml). Keep the two lists in\n"
+            "# sync.\n"
+            "#\n"
+            "# Rationale per path:\n"
+            "#   .github/           — workflows are the merge/deploy gates themselves\n"
+            "#   infra/             — terraform + cloud-init: infra takeover surface\n"
+            "#   docker-compose.yml — service topology, port bindings, secret mounts\n"
+            "#   scripts/agent-git/ — GitHub App token broker (credential surface)\n"
+            "#   packages/credential-broker/ — 1Password secret broker (credential surface)\n"
+            "#   .gitleaks.toml     — weakening secret-scanning from a PR\n"
+            "#   Dockerfile*        — image provenance"
+        ),
+        "codeowners": [
+            "/.github/",
+            "/infra/",
+            "/docker-compose.yml",
+            "/docker-compose.override.example.yml",
+            "/scripts/agent-git/",
+            "/packages/credential-broker/",
+            "/.gitleaks.toml",
+            "Dockerfile*",
         ],
-    ),
-    "grove-sites": (
-        "grove-sites",
-        [
-            "ownership.yml",
+        # AgenticOS aligns owners at column 32 (pad 31 + one space); the single
+        # over-length pattern overflows with one space. Preserve that width so
+        # regeneration is a byte-for-byte round-trip (no spurious diff).
+        "codeowners_pad": 31,
+    },
+    "odoocker": {
+        "tag": "odoocker-goldberrygrove",
+        # There is NO top-level `terraform/` dir; the real IaC lives under
+        # `infra/terraform/**` (128 files). `nginx/**` (6 files) is edge routing
+        # + CORS/security-header config = gate-critical.
+        "globs": [
+            "infra/terraform/**",
+            "nginx/**",
         ],
-    ),
-    "grove-odoo-modules": (
-        "grove-odoo-modules",
-        [
-            "ownership.yml",
+        "codeowners": [
+            "/.github/",
+            "/infra/terraform/",
+            "/nginx/",
         ],
-    ),
+    },
+    "grove-sites": {
+        "tag": "grove-sites",
+        # Checkout / publish-webhook money path (all present on origin/main).
+        "globs": [
+            "apps/*/app/api/checkout/route.ts",
+            "apps/*/app/api/checkout/session/route.ts",
+            "apps/*/app/api/webhooks/publish/route.ts",
+            "packages/checkout/**",
+            "apps/*/tenant.config.ts",
+            "apps/hub/data/marketplace.ts",
+        ],
+        # `ownership.yml` moves from the guard list to CODEOWNERS: governance
+        # metadata belongs to code-owner review, not the money-path merge gate.
+        "codeowners": [
+            "/.github/",
+            "/ownership.yml",
+            "apps/*/app/api/checkout/route.ts",
+            "apps/*/app/api/checkout/session/route.ts",
+            "apps/*/app/api/webhooks/publish/route.ts",
+            "/packages/checkout/",
+            "apps/*/tenant.config.ts",
+            "/apps/hub/data/marketplace.ts",
+        ],
+    },
+    "grove-odoo-modules": {
+        "tag": "grove-odoo-modules",
+        # Payment/Stripe/webhook boundary. `**/*webhook*` (not `*.py`) so it
+        # covers the existing `publish-webhook-contract.md` boundary doc AND any
+        # future webhook handler; the `.py`-suffixed form matched zero files.
+        # Dropped the zero-match `grove_headless/**/auth*.py` and
+        # `grove_headless/controllers/order*` proposals.
+        "globs": [
+            "**/*payment*.py",
+            "**/*stripe*",
+            "**/*webhook*",
+        ],
+        "codeowners": [
+            "/.github/",
+            "**/*payment*.py",
+            "**/*stripe*",
+            "**/*webhook*",
+        ],
+    },
 }
 
 TEMPLATE = r'''# Protected paths guard  —  GOL-1406 / GOL-1402 / GOL-1478 (org-wide spec).
@@ -241,16 +335,39 @@ jobs:
 '''
 
 
-def render(tag, extra_globs):
+def render_workflow(tag, extra_globs):
     globs = ["                '.github/workflows/**',"]
     for g in extra_globs:
         globs.append("                '%s'," % g)
     return TEMPLATE.replace("{TAG}", tag).replace("{GLOBS}", "\n".join(globs))
 
 
+DEFAULT_CODEOWNERS_HEADER = (
+    "# CODEOWNERS — protected paths for {TAG} (GOL-1406 / GOL-1733).\n"
+    "#\n"
+    "# Mirrors PROTECTED_GLOBS in .github/workflows/protected-paths-guard.yml.\n"
+    "# The guard workflow is the ACTIVE required check; this file additionally\n"
+    "# routes GitHub-native code-owner review once a branch-protection ruleset\n"
+    "# with \"Require review from Code Owners\" is enabled. Keep the two in sync\n"
+    "# via scripts/ci/gen-protected-paths-guard.py in the AgenticOS repo."
+)
+
+
+def render_codeowners(cfg):
+    header = cfg.get("codeowners_header") or DEFAULT_CODEOWNERS_HEADER.replace(
+        "{TAG}", cfg["tag"]
+    )
+    entries = cfg["codeowners"]
+    pad = cfg.get("codeowners_pad") or max(len(p) for p in entries)
+    lines = [header, ""]
+    for pat in entries:
+        lines.append("%-*s %s" % (pad, pat, OWNER))
+    return "\n".join(lines) + "\n"
+
+
 # Base dir holding sibling repo checkouts (…/AgenticOS, …/grove-sites, …).
 # Override with $PPG_BASE or argv[1]; defaults to this repo's parent so a fresh
-# checkout can regenerate all four workflows from one source.
+# checkout can regenerate all four repos' artifacts from one source.
 import sys
 
 BASE = (
@@ -259,11 +376,17 @@ BASE = (
     else os.environ.get("PPG_BASE")
     or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-for repo_dir, (tag, extra) in REPOS.items():
-    out = os.path.join(BASE, repo_dir, ".github", "workflows", "protected-paths-guard.yml")
-    if not os.path.isdir(os.path.dirname(out)):
-        print("skip (no checkout):", out)
+for repo_dir, cfg in REPOS.items():
+    repo_root = os.path.join(BASE, repo_dir)
+    if not os.path.isdir(os.path.join(repo_root, ".github")):
+        print("skip (no checkout):", repo_root)
         continue
-    with open(out, "w") as f:
-        f.write(render(tag, extra))
-    print("wrote", out)
+    wf = os.path.join(repo_root, ".github", "workflows", "protected-paths-guard.yml")
+    os.makedirs(os.path.dirname(wf), exist_ok=True)
+    with open(wf, "w") as f:
+        f.write(render_workflow(cfg["tag"], cfg["globs"]))
+    print("wrote", wf)
+    co = os.path.join(repo_root, ".github", "CODEOWNERS")
+    with open(co, "w") as f:
+        f.write(render_codeowners(cfg))
+    print("wrote", co)
