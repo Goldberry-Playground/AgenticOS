@@ -77,6 +77,20 @@ jobs:
           fi
           echo "gate passed: $REASON"
 
+          # ── Gate 1b: Tier-0 protected-paths carve-out (GOL-1406-A) ──
+          # automerge-gate.mjs owns author/size/SENSITIVE policy; this adds the
+          # protected-paths-guard's EXACT PROTECTED_GLOBS so auto-approve can
+          # never stamp a PR the guard would block. Same globs, one source
+          # (scripts/ci/gen-protected-paths-guard.py) — they cannot drift. Runs
+          # from the base-branch checkout above, so a PR cannot edit the carve-out
+          # to approve itself. Fail-closed: a nonzero exit (incl. a missing file)
+          # withholds. PR_FILES is already exported above.
+          if ! REASON=$(node scripts/ci/protected-paths-carveout.mjs); then
+            echo "PR #$PR not auto-approved: $REASON"
+            exit 0
+          fi
+          echo "carve-out passed: no protected path touched"
+
           # ── Gate 2: ALL checks on the head SHA must be green, not just CI ──
           # This workflow fires when the "CI" workflow succeeds, but CodeQL /
           # gitleaks / actionlint run as separate workflows and may still be
