@@ -1,0 +1,136 @@
+# `fix:` touches a test  —  GOL-1735 / GOL-1406-D (P0 CI hardening).
+#
+# Regression-guard convention: a change that claims to FIX a bug must also
+# touch at least one test, so the bug it fixes cannot silently regress. This
+# is the "checks that test behavior, not just form" gate from Josh's
+# "Human Code / Agent Code" proposal, aimed at the "regressions of fixed
+# behavior" failure class.
+#
+# A PR is treated as a fix when its title OR any of its commit messages starts
+# with the Conventional-Commits `fix` type (`fix:`, `fix(scope):`, `fix!:`).
+# When it is a fix, at least one changed file must match a TEST glob. A fix
+# with a genuinely untestable surface (pure infra/config/docs) can bypass by
+# applying the `fix-no-test` label, which the author must justify in a comment.
+#
+# CONVENTION OWNER: exact `fix:` detection (title vs commits), the test globs,
+# and the escape-hatch label are the review-lane convention Ada owns for the
+# app/plugin code — this workflow is the enforcement; treat the constants below
+# as the proposed default, adjustable in review.
+#
+# Merge-queue safety (GOL-1406): triggers on `merge_group` and reports success
+# there (metadata check, no PR payload; enforcement already happened at the PR
+# gate) so it can be made a required check without wedging the queue.
+name: fix touches a test
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: fix-touches-test-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  fix-test:
+    name: fix touches a test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a test change on fix PRs
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // Merge-queue pass-through: no PR payload on merge_group; the check
+            // already ran at the PR gate. Report success for the merge group.
+            if (context.eventName === 'merge_group') {
+              core.info('merge_group event — fix/test rule enforced at the PR gate; passing for the merge group.');
+              return;
+            }
+
+            // Proposed default convention (Ada owns final wording).
+            const BYPASS_LABEL = 'fix-no-test';
+            // Conventional-Commits `fix` type at the start of a subject line.
+            const FIX_RE = /^\s*fix(\([^)]*\))?!?:/i;
+            // A changed file counts as a test if it matches any of these.
+            const TEST_GLOBS = [
+              '**/*.test.*',
+              '**/*.spec.*',
+              '**/*_test.*',
+              '**/*_spec.*',
+              '**/__tests__/**',
+              '**/tests/**',
+              '**/test/**',
+              'scripts/tests/**',
+            ];
+
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request.number;
+
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+
+            // Escape hatch: an explicit, justified label.
+            const labels = (pr.labels || []).map(l => (l && l.name) || '');
+            if (labels.includes(BYPASS_LABEL)) {
+              core.warning('`' + BYPASS_LABEL + '` present — skipping the fix/test rule. ' +
+                'The author must justify why this fix needs no test.');
+              return;
+            }
+
+            // Is this a fix? Title OR any commit subject.
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
+            const subjects = [pr.title || '', ...commits.map(c => (c.commit && c.commit.message || '').split('\n')[0])];
+            const isFix = subjects.some(s => FIX_RE.test(s));
+
+            if (!isFix) {
+              core.info('Not a `fix:` change (no fix-typed title or commit) — rule does not apply; passing.');
+              return;
+            }
+
+            function globToRe(g) {
+              let re = '^';
+              for (let i = 0; i < g.length; i++) {
+                const c = g[i];
+                if (c === '*') {
+                  if (g[i + 1] === '*') {
+                    i++;
+                    if (g[i + 1] === '/') { i++; re += '(?:.*/)?'; }
+                    else { re += '.*'; }
+                  } else {
+                    re += '[^/]*';
+                  }
+                } else if ('\\^$.|?+()[]{}/'.includes(c)) {
+                  re += '\\' + c;
+                } else {
+                  re += c;
+                }
+              }
+              return new RegExp(re + '$');
+            }
+            const matchers = TEST_GLOBS.map(globToRe);
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
+            // Only count added/modified test files (a pure deletion is not a
+            // regression guard).
+            const testHits = files
+              .filter(f => f.status !== 'removed')
+              .map(f => f.filename)
+              .filter(fn => matchers.some(re => re.test(fn)));
+
+            if (testHits.length > 0) {
+              core.info('fix PR touches a test:\n  ' + testHits.join('\n  ') + '\nRule satisfied.');
+              return;
+            }
+
+            core.setFailed(
+              'This is a `fix:` change but it touches no test. Add a regression test that would ' +
+              'have caught the bug, or apply the `' + BYPASS_LABEL + '` label with a justification ' +
+              'comment if the fix has no testable surface.\nTest globs: ' + TEST_GLOBS.join(', ')
+            );

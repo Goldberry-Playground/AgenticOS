@@ -1,0 +1,122 @@
+# Config-freeze lock  —  GOL-1735 / GOL-1406-D (P0 CI hardening).
+#
+# A repo-level HARD STOP on config drift. When `.github/config-freeze.json`
+# has `frozen: true`, this (intended-to-be-required) check FAILS any PR that
+# touches a frozen path — overriding the normal Tier-0 human-approval path.
+# Its purpose is the class of incident Josh named in the "Human Code / Agent
+# Code" proposal: URL / webhook / workflow changes landing at the wrong time.
+# Flip it on during an incident, a deploy window, or a market-season stability
+# freeze to stop ALL config change; flip it back to false to resume.
+#
+# Config source is read from the BASE branch via the contents API (no PR code
+# is checked out or executed — same self-protecting posture as
+# protected-paths-guard). `.github/config-freeze.json` is deliberately NOT one
+# of its own frozen `paths`, so a freeze can always be lifted by editing it
+# (that edit still needs the human SHA-bound approval the guard requires).
+#
+# Merge-queue safety (GOL-1406): also triggers on `merge_group` and reports
+# success there — a metadata check has no PR payload on the synthetic merge
+# commit, and enforcement already happened at the PR gate. Mirrors
+# protected-paths-guard.yml / ci.yml so this can be made a required check
+# without wedging the queue ("Expected — waiting for status").
+name: Config freeze
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: config-freeze-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  freeze:
+    name: Config freeze
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce config-freeze lock
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // Merge-queue pass-through: no PR payload on merge_group, and the
+            // freeze was already enforced at the PR gate that let the PR
+            // enqueue. Report success to satisfy the required check.
+            if (context.eventName === 'merge_group') {
+              core.info('merge_group event — freeze enforced at the PR gate; passing for the merge group.');
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request.number;
+            const baseSha = context.payload.pull_request.base.sha;
+
+            // Read the freeze manifest from the BASE ref (never the PR head) so
+            // a PR cannot lift the freeze for itself. getContent at the base
+            // SHA returns base content even for a PR-target event.
+            let manifest;
+            try {
+              const { data } = await github.rest.repos.getContent({
+                owner, repo, path: '.github/config-freeze.json', ref: baseSha,
+              });
+              manifest = JSON.parse(Buffer.from(data.content, data.encoding).toString('utf8'));
+            } catch (e) {
+              core.info('No .github/config-freeze.json on base (' + e.message + ') — nothing to freeze; passing.');
+              return;
+            }
+
+            if (manifest.frozen !== true) {
+              core.info('Config freeze is OFF (frozen != true) — passing.');
+              return;
+            }
+
+            const paths = Array.isArray(manifest.paths) ? manifest.paths : [];
+            if (paths.length === 0) {
+              core.warning('Config freeze is ON but `paths` is empty — nothing to enforce; passing.');
+              return;
+            }
+
+            // glob -> RegExp (supports **, *, literals; '/' is literal). Same
+            // implementation as protected-paths-guard.
+            function globToRe(g) {
+              let re = '^';
+              for (let i = 0; i < g.length; i++) {
+                const c = g[i];
+                if (c === '*') {
+                  if (g[i + 1] === '*') {
+                    i++;
+                    if (g[i + 1] === '/') { i++; re += '(?:.*/)?'; }
+                    else { re += '.*'; }
+                  } else {
+                    re += '[^/]*';
+                  }
+                } else if ('\\^$.|?+()[]{}/'.includes(c)) {
+                  re += '\\' + c;
+                } else {
+                  re += c;
+                }
+              }
+              return new RegExp(re + '$');
+            }
+            const matchers = paths.map(globToRe);
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
+            const hits = files.map(f => f.filename).filter(fn => matchers.some(re => re.test(fn)));
+
+            if (hits.length === 0) {
+              core.info('Config freeze is ON, but this PR touches no frozen paths — passing.');
+              return;
+            }
+
+            const reason = manifest.reason ? (' Reason: ' + manifest.reason) : '';
+            core.setFailed(
+              'CONFIG FREEZE is in effect — this PR changes frozen config paths and cannot merge ' +
+              'until the freeze is lifted (set `frozen: false` in .github/config-freeze.json).' + reason +
+              '\nFrozen paths touched:\n  ' + hits.join('\n  ')
+            );
