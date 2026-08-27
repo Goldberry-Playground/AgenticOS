@@ -16,11 +16,15 @@ Two modes:
                     `merge_group` in `on:`. No network, no token, safe on PRs
                     and on `merge_group` itself.
 
-  --reconcile       Additionally call the GitHub API (needs GH_TOKEN with
-                    administration:read and GH_REPO=owner/repo) and fail if the
-                    live branch-protection required contexts differ from
-                    required-checks.json. Run on a schedule / workflow_dispatch,
-                    where an elevated token is available.
+  --reconcile       Additionally call the GitHub API (needs a repo-admin
+                    GH_TOKEN and GH_REPO=owner/repo) and fail if the live
+                    branch-protection required contexts differ from
+                    required-checks.json. Reading branch protection requires an
+                    admin token — the default Actions GITHUB_TOKEN cannot — so
+                    if the token is under-privileged (401/403/404) this leg
+                    soft-skips with a warning instead of hard-failing. Run on a
+                    schedule / workflow_dispatch, where an elevated token is
+                    available.
 
 Exit non-zero on any failure.
 """
@@ -128,6 +132,7 @@ def static_audit():
 
 
 def reconcile():
+    import urllib.error
     import urllib.request
     token = os.environ.get("GH_TOKEN")
     repo = os.environ.get("GH_REPO")
@@ -145,8 +150,21 @@ def reconcile():
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     })
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.load(resp)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.load(resp)
+    except urllib.error.HTTPError as e:
+        # Reading branch protection requires a repo-admin token. An
+        # under-privileged token (default GITHUB_TOKEN) 403s / 404s here — treat
+        # that as a soft skip so the scheduled job doesn't go permanently red
+        # before an admin-scoped REQUIRED_CHECKS_ADMIN_TOKEN is provisioned.
+        if e.code in (401, 403, 404):
+            print(f"::warning::--reconcile skipped: token lacks branch-protection "
+                  f"admin on {repo}@{branch} (HTTP {e.code}). Provision an "
+                  f"admin-scoped REQUIRED_CHECKS_ADMIN_TOKEN secret to enable the "
+                  f"live drift check; the static audit above still gates.")
+            return 0
+        raise
     live = sorted(c["context"] for c in data.get("checks", []))
     if live == declared:
         print(f"PASS: required-checks.json matches live branch protection: {live}")

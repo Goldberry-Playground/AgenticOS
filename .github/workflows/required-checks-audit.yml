@@ -56,14 +56,17 @@ jobs:
 
   reconcile:
     name: Reconcile declared vs live required checks
-    # Live branch-protection read needs an elevated token, so only on the
-    # schedule / manual paths, not on untrusted PR events.
+    # Live branch-protection read needs a repo-admin token. The default
+    # GITHUB_TOKEN can never read branch protection (no `administration` scope
+    # exists for it), so this leg only does real work when an elevated secret
+    # `REQUIRED_CHECKS_ADMIN_TOKEN` is provisioned; without it the reconcile
+    # step soft-skips with a warning instead of hard-failing. Runs only on the
+    # schedule / manual paths, never on untrusted PR events.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
-      administration: read
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -73,6 +76,8 @@ jobs:
         run: python3 -m pip install --quiet pyyaml
       - name: Static audit + live reconcile
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Falls back to GITHUB_TOKEN so the static audit still runs; the live
+          # reconcile self-skips when the token lacks branch-protection admin.
+          GH_TOKEN: ${{ secrets.REQUIRED_CHECKS_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: python3 .github/scripts/audit-required-merge-group.py --reconcile
