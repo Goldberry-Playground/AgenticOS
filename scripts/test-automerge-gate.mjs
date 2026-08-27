@@ -95,6 +95,38 @@ check("sensitive gate ON still allows ordinary paths", () => {
   assert.equal(evaluateGate({ ...base, sensitiveGate: true, changedFiles: ["src/a.ts"] }).allow, true);
 });
 
+// ── GOL-1732 Tier-0 carve-out: SENSITIVE ⊇ guard PROTECTED_GLOBS ─────────────
+// The auto-merge gate must be a superset of the protected-paths guard's
+// PROTECTED_GLOBS so a guard-protected agent PR is never auto-approved before an
+// allowlisted human's SHA-bound review (the guard is not yet a required check).
+// One representative concrete path per AgenticOS guard glob — keep in lockstep
+// with scripts/ci/gen-protected-paths-guard.py REPOS["AgenticOS"].
+const GUARD_PROTECTED_EXAMPLES = [
+  ".github/workflows/protected-paths-guard.yml", // .github/workflows/**
+  ".github/workflows/auto-approve.yml",          // .github/workflows/** (self-protecting)
+  "infra/terraform/cloudflare-qa-webhook.tf",    // literal
+  "infra/terraform/github-rulesets.tf",          // infra/terraform/github-*.tf
+  "packages/github-sync-plugin/manifest.ts",     // packages/github-sync-plugin/**/manifest* (depth 0)
+  "packages/github-sync-plugin/src/manifest.ts", // packages/github-sync-plugin/**/manifest* (nested)
+  "scripts/deploy-plugin.sh",                    // literal
+];
+
+check("Tier-0: every guard-protected path is blocked from auto-merge (SENSITIVE ⊇ PROTECTED_GLOBS)", () => {
+  for (const f of GUARD_PROTECTED_EXAMPLES) {
+    const r = evaluateGate({ ...base, sensitiveGate: true, changedFiles: [f] });
+    assert.equal(r.allow, false, `guard-protected path was auto-approved: ${f}`);
+    assert.match(r.reason, /sensitive path/);
+  }
+});
+
+check("Tier-0: the two previously-uncovered guard globs are now blocked", () => {
+  // Regression anchors for the exact gaps GOL-1732 closes: before this change
+  // deploy-plugin.sh and a plugin manifest bump would auto-merge.
+  for (const f of ["scripts/deploy-plugin.sh", "packages/github-sync-plugin/src/manifest.ts"]) {
+    assert.equal(evaluateGate({ ...base, sensitiveGate: true, changedFiles: [f] }).allow, false, f);
+  }
+});
+
 // ── Dependabot eligibility (2026-08-03) ──────────────────────────────────────
 // Real titles taken verbatim from open PRs on this repo.
 const dbot = { ...base, authorLogin: "app/dependabot" };

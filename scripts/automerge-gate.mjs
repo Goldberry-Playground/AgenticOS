@@ -61,6 +61,17 @@ const SENSITIVE = [
   /^packages\/credential-broker\//,
   /^\.gitleaks\.toml$/,
   /(^|\/)Dockerfile/,
+  // GOL-1732 (Tier-0 carve-out): this SENSITIVE set MUST be a superset of the
+  // protected-paths guard's PROTECTED_GLOBS (.github/workflows/protected-paths-
+  // guard.yml, single-sourced from scripts/ci/gen-protected-paths-guard.py), so
+  // an agent PR touching a guard-protected path is NEVER auto-approved before an
+  // allowlisted human's SHA-bound review. The guard is not yet a required check,
+  // so this operational gate is the defense-in-depth that lands first. The
+  // `.github/` and `infra/` entries above already cover the guard's
+  // `.github/workflows/**` + `infra/terraform/*.tf` globs; these two close the
+  // remaining gaps. test-automerge-gate.mjs asserts the superset invariant.
+  /^scripts\/deploy-plugin\.sh$/,                     // guard: scripts/deploy-plugin.sh
+  /^packages\/github-sync-plugin\/(?:.*\/)?manifest/, // guard: packages/github-sync-plugin/**/manifest*
 ];
 
 export function evaluateGate(input) {

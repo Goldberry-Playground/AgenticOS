@@ -16,12 +16,21 @@
 #   packages/credential-broker/ — 1Password secret broker (credential surface)
 #   .gitleaks.toml     — weakening secret-scanning from a PR
 #   Dockerfile*        — image provenance
+#   scripts/deploy-plugin.sh    — plugin deploy path (guard PROTECTED_GLOBS, GOL-1732)
+#   packages/github-sync-plugin/**/manifest* — plugin manifest/version (guard PROTECTED_GLOBS, GOL-1732)
+#
+# GOL-1732: the last two entries mirror the protected-paths guard's
+# PROTECTED_GLOBS so this list stays a superset of the guard — keep in sync with
+# scripts/automerge-gate.mjs (SENSITIVE) and
+# scripts/ci/gen-protected-paths-guard.py.
 
 /.github/                       @EngineeringMoonBear
 /infra/                         @EngineeringMoonBear
 /docker-compose.yml             @EngineeringMoonBear
 /docker-compose.override.example.yml @EngineeringMoonBear
 /scripts/agent-git/             @EngineeringMoonBear
+/scripts/deploy-plugin.sh       @EngineeringMoonBear
 /packages/credential-broker/    @EngineeringMoonBear
+/packages/github-sync-plugin/**/manifest* @EngineeringMoonBear
 /.gitleaks.toml                 @EngineeringMoonBear
 Dockerfile*                     @EngineeringMoonBear
