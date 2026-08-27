@@ -9,7 +9,8 @@
 #       export OP_SERVICE_ACCOUNT_TOKEN=...   # read-only, scoped to the vault
 #       source infra/scripts/load-secrets.sh  # no `op signin` needed
 #     The service account must be READ-ONLY and have access to the
-#     "Goldberry Grove - Admin" vault (items: AgenticOS Infra + Grove Infra).
+#     "Goldberry Grove - Admin" vault (items: AgenticOS Infra + Grove Infra)
+#     AND read access to the "Grove Prod" vault (item: Cloudflare API Token).
 #     NOTE (1Password Families cap ≈ 1000 reads/day/account): fine for occasional
 #     `terraform apply` (~19 reads/run); do NOT wire high-frequency callers to raw
 #     `op read` — that's the caching broker's job.
@@ -38,9 +39,10 @@ _agenticos_load_1password() {
     #     is set and `op` authenticates as the service account non-interactively.
     #     `op account get` does NOT work for a service account, so we skip it — the
     #     `op item get` below proves both liveness AND vault access. The service
-    #     account MUST be read-only and scoped to the "$op_vault" vault (it reads the
-    #     AgenticOS Infra + Grove Infra items). This is the ADR-0001 machine-identity
-    #     path; keep high-frequency callers behind the broker's cache, not raw op.
+    #     account MUST be read-only and scoped to the "$op_vault" vault (it reads
+    #     the AgenticOS Infra + Grove Infra items) plus the "Grove Prod" vault
+    #     (Cloudflare API Token item). This is the ADR-0001 machine-identity path;
+    #     keep high-frequency callers behind the broker's cache, not raw op.
     #   • Interactive (local dev): a signed-in `op` session, verified here.
     if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] && ! op account get >/dev/null 2>&1; then
         return 1
@@ -69,17 +71,19 @@ _agenticos_load_1password() {
     # /user/tokens/verify — probe an account endpoint to validate, not verify.
     #
     # GOL-1548 / GOL-1537: the shared account-admin token (Grove Infra/
-    # account_cloudflare_api_token) is being downscoped to zone-only for odoocker
-    # and rolled/deleted. AgenticOS therefore moves to its OWN least-privilege
-    # split token stored as `cloudflare_api_token` on the AgenticOS Infra item.
-    # Read that first; fall back to the legacy shared field while the split token
-    # is unprovisioned, so this repoint is safe to merge AHEAD of the mint and
-    # activates automatically once Josh stores it. Override w/ AGENTICOS_CF_TOKEN_REF.
-    export TF_VAR_cloudflare_api_token="$(op read "${AGENTICOS_CF_TOKEN_REF:-op://${op_vault}/${op_item}/cloudflare_api_token}" 2>/dev/null)"
-    if [ -z "$TF_VAR_cloudflare_api_token" ]; then
-        # Legacy fallback: shared account-admin token (removed once Josh rolls it).
-        export TF_VAR_cloudflare_api_token="$(op read "op://${op_vault}/Grove Infra/account_cloudflare_api_token" 2>/dev/null)"
-    fi
+    # account_cloudflare_api_token) has been downscoped for odoocker and is
+    # EXPIRED as of 2026-08-19 — it is intentionally NOT a fallback here; a dead
+    # fallback only masks a misconfigured primary as a silent empty token.
+    # AgenticOS uses its OWN least-privilege token, minted 2026-08-25 as a
+    # user-owned token (id a9caef2f…, no expiry) covering exactly this footprint:
+    # Zone:Read + DNS:Edit + Transform Rules:Edit on gatheringatthegrove.com,
+    # plus account-level Access (Apps & Policies, Identity Providers:Read,
+    # Service Tokens). It lives on the "Cloudflare API Token" item in the
+    # "Grove Prod" vault, field `credential` — NOT on AgenticOS Infra (the
+    # `cloudflare_api_token` field there was deliberately never created).
+    # Override with AGENTICOS_CF_TOKEN_REF. If this resolves empty the run fails
+    # loudly at the required-six check below — that's the intended behaviour.
+    export TF_VAR_cloudflare_api_token="$(op read "${AGENTICOS_CF_TOKEN_REF:-op://Grove Prod/Cloudflare API Token/credential}" 2>/dev/null)"
     export TF_VAR_cloudflare_zone_id="$(op read "op://${op_vault}/${op_item}/cloudflare_zone_id" 2>/dev/null)"
     export TF_VAR_cloudflare_account_id="$(op read "op://${op_vault}/${op_item}/cloudflare_account_id" 2>/dev/null)"
 
