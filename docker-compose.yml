@@ -244,6 +244,16 @@ services:
       # initialize. A separate `paperclip` DB also decouples it from the legacy
       # Hermes tables. The bootstrap creates this DB (CREATE DATABASE paperclip).
       DATABASE_URL: postgresql://agenticos:${AGENTICOS_DB_PASSWORD}@agenticos-db:5432/paperclip
+      # DB backup cadence (GOL-1632). Default is hourly (config.ts = 60) → 24
+      # dumps/day. With the tuned 3-day hourly retention that is ~13G steady
+      # state on the paperclip-data volume (dumps are ~181M and still growing),
+      # which is what let the volume reach 99–100% and deadlock the backup on
+      # ENOSPC twice (2026-08-18, 2026-08-30). A 4-hourly cadence cuts steady
+      # state to ~3G (3 days × 6 dumps ≈ 1.1G + weekly/monthly tail), widening
+      # the disk-full margin ahead of the 2026-09-01 launch. Read at
+      # server/src/config.ts (PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES). Non-secret,
+      # env-only: `docker compose up -d paperclip-server` recreates (no rebuild).
+      PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES: "240"
       # `authenticated` + `private`: login required, binds non-loopback (HOST
       # 0.0.0.0 = "lan"), reachable over the VPC/Tailscale. `local_trusted`
       # cannot be used here — it requires loopback binding, which breaks the
