@@ -1,0 +1,83 @@
+# Required-checks / merge_group audit  —  GOL-1735 / GOL-1406-D.
+#
+# Guards against the merge-queue wedge failure mode: a *required* status check
+# whose workflow does not trigger on `merge_group` never reports on the
+# synthetic merge commit, so the queue entry hangs at "Expected — waiting for
+# status" and blocks every merge. This audit makes that a loud pre-merge error.
+#
+#   static (PR + merge_group + push): parse workflows + .github/required-checks.json
+#     and assert every declared required context is produced by a job whose
+#     workflow lists `merge_group`. No token needed; runs on merge_group itself.
+#   reconcile (weekly + manual): compare required-checks.json to live branch
+#     protection so the declared list can't silently drift from reality.
+#
+# This audit is itself safe to make a required check: it runs fully on
+# `merge_group` (it only parses repo files, no PR payload needed).
+name: Required-checks audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/required-checks.json'
+      - '.github/scripts/audit-required-merge-group.py'
+  merge_group:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/required-checks.json'
+  schedule:
+    - cron: '17 8 * * 1'   # Mondays 08:17 UTC — weekly drift reconcile
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: required-checks-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Required-checks audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+      - name: Install PyYAML
+        run: python3 -m pip install --quiet pyyaml
+      - name: Static audit (every required check reports on merge_group)
+        run: python3 .github/scripts/audit-required-merge-group.py
+
+  reconcile:
+    name: Reconcile declared vs live required checks
+    # Live branch-protection read needs a repo-admin token. The default
+    # GITHUB_TOKEN can never read branch protection (no `administration` scope
+    # exists for it), so this leg only does real work when an elevated secret
+    # `REQUIRED_CHECKS_ADMIN_TOKEN` is provisioned; without it the reconcile
+    # step soft-skips with a warning instead of hard-failing. Runs only on the
+    # schedule / manual paths, never on untrusted PR events.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+      - name: Install PyYAML
+        run: python3 -m pip install --quiet pyyaml
+      - name: Static audit + live reconcile
+        env:
+          # Falls back to GITHUB_TOKEN so the static audit still runs; the live
+          # reconcile self-skips when the token lacks branch-protection admin.
+          GH_TOKEN: ${{ secrets.REQUIRED_CHECKS_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 .github/scripts/audit-required-merge-group.py --reconcile

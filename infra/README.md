@@ -90,11 +90,19 @@ ssh-keygen -t ed25519 -f ~/.ssh/agenticos-droplet -C "agenticos-droplet"
   - Verify either value works by running `bash infra/scripts/check-auth.sh`.
 
 **Cloudflare** (Profile → API Tokens → Create Token → Custom token):
-- Permissions:
+- Permissions (all six are exercised by a full `terraform apply` — omitting any
+  yields a silent `success:true, count:0` false-negative on refresh, not a 403):
   - Zone → DNS → Edit (on `gatheringatthegrove.com`)
+  - Zone → Zone → Read (on `gatheringatthegrove.com`)
+  - Zone → Transform Rules → Edit (on `gatheringatthegrove.com`) — `cloudflare-webhook-alias.tf`
   - Account → Access: Apps and Policies → Edit
-- Save as `cloudflare_api_token`
+  - Account → Access: Identity Providers → Read — `cloudflare-access.tf` google IdP data source
+  - Account → Access: Service Tokens → Read — `cloudflare-qa-webhook.tf`
+- Store on the **`Cloudflare API Token`** item in the **`Grove Prod`** vault,
+  field `credential` (this is what `load-secrets.sh` reads by default; the
+  `cloudflare_api_token` field on `AgenticOS Infra` is intentionally unused).
 - From the zone Overview page sidebar, copy the **Zone ID** and **Account ID**
+  (these still live as `cloudflare_zone_id` / `cloudflare_account_id` on `AgenticOS Infra`)
 
 ### 3a. Store the tokens — pick ONE path
 
@@ -115,9 +123,13 @@ op item edit "AgenticOS Infra" --vault "Goldberry Grove - Admin" \
     do_token="dop_v1_..." \
     tailscale_api_key="tskey-api-..." \
     tailscale_tailnet="goldberrygrove.farm" \
-    cloudflare_api_token="..." \
     cloudflare_zone_id="..." \
     cloudflare_account_id="..."
+
+# The Cloudflare API token itself lives on a SEPARATE item/vault (least-privilege,
+# not the shared account-admin token). load-secrets.sh reads it by default from:
+op item edit "Cloudflare API Token" --vault "Grove Prod" \
+    credential="..."
 
 # Verify the loader picks them up
 source infra/scripts/load-secrets.sh

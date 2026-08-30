@@ -5,15 +5,19 @@
 # `github-actions[bot]` — a DISTINCT identity from the PR-author App — and
 # enables auto-merge once CI is green, so agent PRs merge hands-free.
 #
-# DIVERGENCE FROM grove-sites:
-#   1. Gated on the "CI" workflow (this repo has no "Claude Code Review"
-#      agent-review workflow).
-#   2. This repo currently has NO active branch-protection ruleset requiring a
-#      review (the `ClaudeLimits` ruleset is disabled). So the approval is a
-#      no-op for the merge gate today; the value here is auto-merge-on-green.
-#      If a review-requiring ruleset is enabled later, this satisfies it
-#      automatically with no change. Auto-merge still waits for any required
-#      checks before it merges.
+# Review gate (unified GOL-1734 / GOL-1738, Ada sign-off — Option B):
+#   Fires on the "CI" workflow, then requires the company-wide `agent-review/*`
+#   check-run (emitted by the github-sync plugin, SHA-bound to the head) to be
+#   `success` before approving. The reviewer is COMMENT-only — the machine
+#   signal is a check-run, never a GitHub APPROVE event. The old standalone
+#   "Claude Code Review" workflow was removed in the same change.
+#
+# NOTE on the merge gate: this repo currently has NO active branch-protection
+#   ruleset requiring a review (the `ClaudeLimits` ruleset is disabled), so the
+#   github-actions[bot] approval is a no-op for the merge gate today; the value
+#   here is agent-review-gated auto-merge-on-green. If a review-requiring
+#   ruleset is enabled later, the approval satisfies it automatically with no
+#   change. Auto-merge still waits for any required checks before it merges.
 #
 # Guardrails:
 #   - Never auto-approves human or external PRs (author must be the agent App bot).
@@ -77,6 +81,17 @@ jobs:
           fi
           echo "gate passed: $REASON"
 
+          # Gate 1b then Gate 1.5 — BOTH apply. They answer different questions
+          # and neither subsumes the other: the carve-out asks "does this PR touch
+          # a protected path?", the agent-review gate asks "did a reviewer sign off
+          # on THIS head SHA?". Both are fail-closed; dropping either would widen
+          # the auto-approve path both were written to narrow.
+          #
+          # ORDER IS DELIBERATE: the carve-out is a local script over PR_FILES,
+          # while the agent-review gate polls for up to 15 minutes (30 x 30s).
+          # Running the cheap fail-closed check FIRST means a protected-path PR
+          # exits at once instead of burning a quarter hour to reach the same
+          # verdict. Mirrors the resolution taken in grove-odoo-modules#119.
           # ── Gate 1b: Tier-0 protected-paths carve-out (GOL-1406-A) ──
           # automerge-gate.mjs owns author/size/SENSITIVE policy; this adds the
           # protected-paths-guard's EXACT PROTECTED_GLOBS so auto-approve can
@@ -90,6 +105,39 @@ jobs:
             exit 0
           fi
           echo "carve-out passed: no protected path touched"
+
+          # ── Gate 1.5: unified agent-review gate (GOL-1734 / GOL-1738) ──
+          # The github-sync plugin emits exactly one `agent-review/<reviewer>`
+          # check-run per non-draft agent PR: seeded `in_progress` on open,
+          # flipped to `success` ON THAT HEAD SHA only when the reviewer signs
+          # the review issue `done`. COMMENT-only — the signal is a check-run,
+          # never a GitHub APPROVE event. Require it PRESENT and `success` on the
+          # CURRENT head SHA: absent / in_progress / neutral / failure /
+          # success-on-old-SHA => BLOCK. (Gate 2's name-agnostic all-checks-green
+          # also catches an in_progress agent-review; this makes the
+          # absent => BLOCK case explicit and testable.) We poll so a sign-off
+          # landing shortly after CI is caught; a later sign-off re-fires on the
+          # next CI run.
+          HEAD_SHA=$(gh pr view "$PR" --repo "$REPO" --json headRefOid -q '.headRefOid')
+          REVIEW_STATE=absent
+          for i in $(seq 1 30); do   # up to ~15 min (30 × 30s)
+            REVIEW_STATE=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" \
+              -q '[.check_runs[] | select(.name | startswith("agent-review/"))]
+                   | if length==0 then "absent"
+                     elif any(.[]; .status=="completed" and .conclusion=="success") then "success"
+                     elif all(.[]; .status=="completed") then "completed-not-success"
+                     else "pending" end')
+            case "$REVIEW_STATE" in
+              success|completed-not-success) break ;;
+            esac
+            echo "agent-review/* on $HEAD_SHA: $REVIEW_STATE (poll $i/30)…"
+            sleep 30
+          done
+          if [ "$REVIEW_STATE" != "success" ]; then
+            echo "PR #$PR agent-review/* gate not satisfied on $HEAD_SHA (state: $REVIEW_STATE); not approving. The reviewer must sign off (COMMENT-only gate — GOL-1734)."
+            exit 0
+          fi
+          echo "agent-review/* is success on $HEAD_SHA; proceeding."
 
           # ── Gate 2: ALL checks on the head SHA must be green, not just CI ──
           # This workflow fires when the "CI" workflow succeeds, but CodeQL /
