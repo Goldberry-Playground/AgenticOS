@@ -1,0 +1,19 @@
+{
+  "//": "Config-freeze lock (GOL-1735 / GOL-1406-D). A repo-level hard stop on config drift.",
+  "//frozen": "When true, the `Config freeze` required check FAILS any PR that touches a path in `paths`, overriding normal Tier-0 human approval. Use during incidents, deploy windows, or market-season stability freezes to stop ALL config change, then flip back to false.",
+  "//lift": "Flipping this file is itself a protected-path change (protected-paths-guard), so engaging or lifting a freeze needs an allowlisted human's SHA-bound approval. This file is intentionally NOT in `paths` so a freeze can always be lifted.",
+  "//reason": "Human-readable reason shown in the failing check while frozen.",
+  "frozen": false,
+  "reason": "",
+  "paths": [
+    ".github/workflows/**",
+    ".github/actions/**",
+    ".github/CODEOWNERS",
+    ".github/dependabot.yml",
+    ".github/required-checks.json",
+    "infra/terraform/**",
+    "packages/github-sync-plugin/**/manifest*",
+    "scripts/deploy-plugin.sh",
+    "scripts/paperclip-lib.sh"
+  ]
+}
