@@ -365,6 +365,113 @@ def render_codeowners(cfg):
     return "\n".join(lines) + "\n"
 
 
+# ─── GOL-1406-A: Tier-0 carve-out consumed by each repo's auto-approve.yml ───
+#
+# The protected-paths-guard above is the merge gate, but it is not (yet) a
+# REQUIRED branch-protection check — Josh's flip (step 8) hasn't happened. Until
+# it does, an agent-authored PR touching a protected path would still be
+# auto-approved + auto-merged, because none of the four auto-approve.yml
+# workflows check `changed files ∩ PROTECTED_GLOBS = ∅`. This standalone script,
+# invoked from each auto-approve.yml before it stamps its approval, closes that
+# hole: it WITHHOLDS auto-approval whenever the change set intersects the SAME
+# PROTECTED_GLOBS the guard uses. Strictly one-way-tighter — it never loosens
+# any existing author/size gate.
+#
+# It is generated from the SAME REPOS table as the guard, so the carve-out and
+# the guard can never disagree about what "protected" means, and a later glob
+# correction (item B) flows to both from one edit. `globToRe` is kept
+# byte-for-byte identical to the guard's matcher (asserted by
+# scripts/ci/protected-paths-carveout.test.mjs).
+CARVEOUT_TEMPLATE = r'''#!/usr/bin/env node
+// protected-paths-carveout.mjs — Tier-0 carve-out for auto-approve (GOL-1406-A).
+//
+// GENERATED from scripts/ci/gen-protected-paths-guard.py — do not edit by hand;
+// edit the generator and regenerate. Only PROTECTED_GLOBS differs per repo.
+//
+// Why this exists: the protected-paths-guard.yml merge gate is not yet a
+// REQUIRED branch-protection check. Until it is, an agent PR touching a
+// protected path would still be auto-approved + merged. This script, called by
+// auto-approve.yml before it stamps its approval, WITHHOLDS approval whenever
+// the PR's changed files intersect PROTECTED_GLOBS — the SAME list the guard
+// enforces, so the two can never disagree. Defense-in-depth, strictly
+// one-way-tighter: it only ever withholds, never loosens author/size gates.
+//
+// Contract (CLI):
+//   env PR_FILES = newline-separated changed paths (`gh pr view --json files
+//                  -q '.files[].path'`).
+//   exit 0 -> no protected path touched; caller may proceed to approve.
+//   exit 1 -> a protected path is touched; reason on stdout; caller WITHHOLDS.
+// Fail-closed: the workflow runs this inside an `if` whose false branch
+// withholds, so a throw / missing file / nonzero exit all withhold approval.
+import { pathToFileURL } from "node:url";
+
+// PROTECTED_GLOBS for THIS repo — the only thing that differs between repos.
+// `.github/workflows/**` is shared and self-protecting (covers this file, the
+// guard, and auto-approve.yml).
+export const PROTECTED_GLOBS = [
+{GLOBS}
+];
+
+// glob -> RegExp (supports **, *, and literals; '/' is literal). MUST stay
+// byte-for-byte equivalent to the guard's globToRe in protected-paths-guard.yml
+// — both are generated from this one source and the test asserts they match.
+export function globToRe(g) {
+  let re = '^';
+  for (let i = 0; i < g.length; i++) {
+    const c = g[i];
+    if (c === '*') {
+      if (g[i + 1] === '*') {
+        i++;
+        if (g[i + 1] === '/') { i++; re += '(?:.*/)?'; }
+        else { re += '.*'; }
+      } else {
+        re += '[^/]*';
+      }
+    } else if ('\\^$.|?+()[]{}/'.includes(c)) {
+      re += '\\' + c;
+    } else {
+      re += c;
+    }
+  }
+  return new RegExp(re + '$');
+}
+
+// The protected paths a change set touches (empty => safe to auto-approve).
+export function protectedHits(files, globs = PROTECTED_GLOBS) {
+  const matchers = globs.map(globToRe);
+  return files
+    .map((f) => (f || "").trim())
+    .filter(Boolean)
+    .filter((fn) => matchers.some((re) => re.test(fn)));
+}
+
+// CLI entrypoint — only when executed directly, not when imported by the test.
+// pathToFileURL (not a naive `file://${path}`) so a script path needing
+// URL-encoding still matches, mirroring automerge-gate.mjs.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const files = (process.env.PR_FILES || "").split("\n");
+  const hits = protectedHits(files);
+  if (hits.length === 0) {
+    process.stdout.write("no protected path touched — carve-out clear");
+    process.exit(0);
+  }
+  process.stdout.write(
+    "protected path(s) touched, withholding auto-approval (GOL-1406-A carve-out): " +
+      hits.join(", ") +
+      " — needs an allowlisted human's SHA-bound approving review (protected-paths-guard)."
+  );
+  process.exit(1);
+}
+'''
+
+
+def render_carveout(extra_globs):
+    globs = ["  '.github/workflows/**',"]
+    for g in extra_globs:
+        globs.append("  '%s'," % g)
+    return CARVEOUT_TEMPLATE.replace("{GLOBS}", "\n".join(globs))
+
+
 # Base dir holding sibling repo checkouts (…/AgenticOS, …/grove-sites, …).
 # Override with $PPG_BASE or argv[1]; defaults to this repo's parent so a fresh
 # checkout can regenerate all four repos' artifacts from one source.
@@ -390,3 +497,12 @@ for repo_dir, cfg in REPOS.items():
     with open(co, "w") as f:
         f.write(render_codeowners(cfg))
     print("wrote", co)
+    # GOL-1406-A: the Tier-0 carve-out that auto-approve.yml calls. Generated
+    # from the SAME REPOS row as the guard + CODEOWNERS, so the three can never
+    # disagree about what "protected" means. Ported to main's dict-shaped REPOS
+    # (cfg["globs"]); it previously read the old (tag, extra) tuple.
+    cv = os.path.join(repo_root, "scripts", "ci", "protected-paths-carveout.mjs")
+    os.makedirs(os.path.dirname(cv), exist_ok=True)
+    with open(cv, "w") as f:
+        f.write(render_carveout(cfg["globs"]))
+    print("wrote", cv)

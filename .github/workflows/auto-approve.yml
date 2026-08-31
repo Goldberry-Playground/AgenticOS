@@ -81,6 +81,31 @@ jobs:
           fi
           echo "gate passed: $REASON"
 
+          # Gate 1b then Gate 1.5 — BOTH apply. They answer different questions
+          # and neither subsumes the other: the carve-out asks "does this PR touch
+          # a protected path?", the agent-review gate asks "did a reviewer sign off
+          # on THIS head SHA?". Both are fail-closed; dropping either would widen
+          # the auto-approve path both were written to narrow.
+          #
+          # ORDER IS DELIBERATE: the carve-out is a local script over PR_FILES,
+          # while the agent-review gate polls for up to 15 minutes (30 x 30s).
+          # Running the cheap fail-closed check FIRST means a protected-path PR
+          # exits at once instead of burning a quarter hour to reach the same
+          # verdict. Mirrors the resolution taken in grove-odoo-modules#119.
+          # ── Gate 1b: Tier-0 protected-paths carve-out (GOL-1406-A) ──
+          # automerge-gate.mjs owns author/size/SENSITIVE policy; this adds the
+          # protected-paths-guard's EXACT PROTECTED_GLOBS so auto-approve can
+          # never stamp a PR the guard would block. Same globs, one source
+          # (scripts/ci/gen-protected-paths-guard.py) — they cannot drift. Runs
+          # from the base-branch checkout above, so a PR cannot edit the carve-out
+          # to approve itself. Fail-closed: a nonzero exit (incl. a missing file)
+          # withholds. PR_FILES is already exported above.
+          if ! REASON=$(node scripts/ci/protected-paths-carveout.mjs); then
+            echo "PR #$PR not auto-approved: $REASON"
+            exit 0
+          fi
+          echo "carve-out passed: no protected path touched"
+
           # ── Gate 1.5: unified agent-review gate (GOL-1734 / GOL-1738) ──
           # The github-sync plugin emits exactly one `agent-review/<reviewer>`
           # check-run per non-draft agent PR: seeded `in_progress` on open,
