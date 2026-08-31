@@ -108,8 +108,12 @@ J
 cat >"$FIX/rulesets_legacy-thread.json" <<'J'
 [ {"id":901,"name":"Code Quality Copilot review for default branch","enforcement":"disabled"} ]
 J
+# NOTE: live branch protection returns `checks` with an `app_id` binding (and a
+# deprecated `contexts` mirror). The full-PUT reconstruction must preserve the
+# app_id pin — re-PUTting `contexts` would null it out and let any App satisfy
+# the gate (GOL-1819 review defect). Fixture carries both shapes, app_id=15368.
 cat >"$FIX/protection_legacy-thread_4.x.json" <<'J'
-{ "required_status_checks":{"strict":true,"contexts":["A","B"]},
+{ "required_status_checks":{"strict":true,"contexts":["A","B"],"checks":[{"context":"A","app_id":15368},{"context":"B","app_id":15368}]},
   "enforce_admins":{"enabled":false},
   "required_pull_request_reviews":{"dismiss_stale_reviews":true,"require_code_owner_reviews":false,"required_approving_review_count":0,"require_last_push_approval":false},
   "restrictions":{"users":[{"login":"josh"}],"teams":[],"apps":[]},
@@ -162,6 +166,19 @@ n1=$(wc -l <"$FAKE_GH_CALLS")
 [ "$n1" -gt 0 ] || fail "--apply must record writes on off-target state"
 echo "    ok: $n1 write call(s) recorded:"
 sed 's/^/      /' "$FAKE_GH_CALLS"
+
+echo "### 3a. legacy full-PUT preserves app_id pin on every required check"
+ptc="$FIX/protection_legacy-thread_4.x.json"
+# After the full PUT the stored protection must still carry a checks[] array with
+# a non-null app_id on every context (the GOL-1819 review defect: reconstructing
+# `contexts` instead of `checks` nulled these out, loosening the gate).
+nchecks=$(jq '.required_status_checks.checks | length' "$ptc")
+[ "$nchecks" -eq 2 ] || fail "expected 2 required checks preserved, got $nchecks"
+unpinned=$(jq '[.required_status_checks.checks[] | select(.app_id == null)] | length' "$ptc")
+[ "$unpinned" -eq 0 ] || fail "$unpinned required check(s) lost their app_id pin"
+allpinned=$(jq '[.required_status_checks.checks[] | select(.app_id == 15368)] | length' "$ptc")
+[ "$allpinned" -eq 2 ] || fail "expected app_id=15368 on both checks, got $allpinned"
+echo "    ok: both required checks still pinned to app_id=15368"
 
 echo "### 4. --check again (expect exit 0, aligned)"
 run --check >/dev/null 2>&1 || fail "--check should pass after apply"

@@ -220,13 +220,19 @@ process_legacy_repo() { # <row-json>
     # required_conversation_resolution can only be set via the full protection PUT,
     # so reconstruct the whole protection body from current state and override all
     # managed fields in one declarative, idempotent call.
+    #
+    # required_status_checks is rebuilt as `checks` (context + app_id), NOT the
+    # deprecated `contexts` array: `contexts` carries no App binding, so PUTting it
+    # would null out the app_id pin on every required check and let any GitHub App
+    # satisfy the gate — a real loosening introduced as a side effect of flipping
+    # the booleans. `checks[]?` preserves the existing pins verbatim.
     local body
     body=$(jq \
       --argjson strict "$strict" --argjson dismiss "$dismiss" --argjson thread "$thread" '
       {
         required_status_checks: (if .required_status_checks==null then null else
           {strict: (if $strict!=null then $strict else .required_status_checks.strict end),
-           contexts: (.required_status_checks.contexts // [])} end),
+           checks: [.required_status_checks.checks[]? | {context, app_id}]} end),
         enforce_admins: (.enforce_admins.enabled // false),
         required_pull_request_reviews: (if .required_pull_request_reviews==null then null else
           {dismiss_stale_reviews: (if $dismiss!=null then $dismiss else .required_pull_request_reviews.dismiss_stale_reviews end),
