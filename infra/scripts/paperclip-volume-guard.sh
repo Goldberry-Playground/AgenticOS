@@ -50,11 +50,19 @@ WARN_PCT="${WARN_PCT:-80}"
 # is down or the env var unreadable, fall back to the hourly assumption: no
 # running server means no backups, and that SHOULD page. Explicit STALE_MIN in
 # the environment still overrides everything.
+# NOTE the trailing `|| true`: the script runs under `set -euo pipefail`, so a
+# non-zero `docker inspect` (container ABSENT — the recreate window, or a dead
+# daemon) would otherwise abort the guard on this bare assignment, before the
+# fallback below and before any check runs. Same idiom as the mountpoint probe.
 BACKUP_INTERVAL_MIN="$(docker inspect paperclip-server \
   --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
-  | sed -n 's/^PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES=//p' | head -1)"
+  | sed -n 's/^PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES=//p' | head -1 || true)"
+BACKUP_INTERVAL_SRC="paperclip-server env"
 case "${BACKUP_INTERVAL_MIN}" in
-  ''|*[!0-9]*) BACKUP_INTERVAL_MIN=60 ;;
+  ''|*[!0-9]*)
+    BACKUP_INTERVAL_MIN=60
+    BACKUP_INTERVAL_SRC="fallback, container down or env unset"
+    ;;
 esac
 STALE_MIN="${STALE_MIN:-$((BACKUP_INTERVAL_MIN + 35))}"
 REPAGE_MIN="${REPAGE_MIN:-360}"
@@ -142,7 +150,7 @@ else
   now="$(date +%s)"
   if [ -n "${newest_gz}" ]; then
     age_min=$(( (now - newest_epoch) / 60 ))
-    log "newest completed dump: ${newest_gz} (age ${age_min}m; stale threshold ${STALE_MIN}m)"
+    log "newest completed dump: ${newest_gz} (age ${age_min}m; stale threshold ${STALE_MIN}m = ${BACKUP_INTERVAL_MIN}m interval + 35m, ${BACKUP_INTERVAL_SRC})"
   else
     age_min=999999
     log "no completed *.sql.gz dump found; partial present: ${partial:-none}"
@@ -150,7 +158,7 @@ else
   if [ "${age_min}" -gt "${STALE_MIN}" ]; then
     ctx=""
     [ -n "${partial}" ] && ctx=" A partial dump ($(basename "${partial}")) exists — a dump died mid-write."
-    alert backup-stale ":rotating_light: **${HOSTNAME_SHORT}** Paperclip DB backup is STALE — newest completed dump is ${age_min}m old (hourly expected; threshold ${STALE_MIN}m). Backups may be failing silently.${ctx} Check paperclip-server logs (GOL-1632)."
+    alert backup-stale ":rotating_light: **${HOSTNAME_SHORT}** Paperclip DB backup is STALE — newest completed dump is ${age_min}m old (expected every ${BACKUP_INTERVAL_MIN}m; threshold ${STALE_MIN}m). Backups may be failing silently.${ctx} Check paperclip-server logs (GOL-1632)."
   fi
 fi
 
