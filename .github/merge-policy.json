@@ -1,0 +1,49 @@
+{
+  "//": "Declared merge-policy target state across the active Goldberry-Playground repos (GOL-1819).",
+  "//gate": "Ruleset and branch-protection WRITES are board-gated and not agent-executable (same class as GOL-392 / GOL-1207). scripts/ci/apply-merge-policy.sh --check is safe for anyone; --apply is Josh-only and needs an admin token. This file is the single source of truth so future drift is a diff, not archaeology.",
+  "//systems": "GitHub unions two policy systems. 'ruleset' repos carry the settings in their named repository ruleset; 'legacy' repos carry them in classic branch protection on 'branch'. The script maps the canonical target keys below to the right API surface per system.",
+  "//fields": "Canonical target keys (a key that is absent for a repo is NOT managed there): strict = require branch up-to-date with base (ruleset required_status_checks.strict_required_status_checks_policy | legacy required_status_checks.strict); dismiss_stale_reviews = dismiss approvals on push (ruleset pull_request.dismiss_stale_reviews_on_push | legacy required_pull_request_reviews.dismiss_stale_reviews); thread_resolution = require all review threads resolved (ruleset pull_request.required_review_thread_resolution | legacy required_conversation_resolution); extra_approval_unattributed = require a second approval for unattributed commits (ruleset pull_request.require_extra_approval_for_unattributed_changes | legacy: n/a).",
+  "//out-of-scope": "Not changed by this policy: required_approving_review_count, the required-check context lists, and the merge-queue rulesets themselves.",
+  "dormant_reviewer_ruleset_name": "Code Quality Copilot review for default branch",
+  "repos": [
+    {
+      "repo": "AgenticOS",
+      "system": "legacy",
+      "branch": "main",
+      "targets": { "strict": false }
+    },
+    {
+      "repo": "AgriforestryOS",
+      "system": "legacy",
+      "branch": "4.x",
+      "targets": { "strict": false, "dismiss_stale_reviews": false, "thread_resolution": false },
+      "delete_dormant_reviewer_ruleset": true
+    },
+    {
+      "repo": "grove-sites",
+      "system": "ruleset",
+      "protection_ruleset": "main-branch-protection",
+      "targets": { "strict": false, "dismiss_stale_reviews": false, "thread_resolution": false, "extra_approval_unattributed": false },
+      "delete_dormant_reviewer_ruleset": true
+    },
+    {
+      "repo": "grove-odoo-modules",
+      "system": "ruleset",
+      "protection_ruleset": "main-branch-protection",
+      "targets": { "strict": false, "dismiss_stale_reviews": false, "thread_resolution": false, "extra_approval_unattributed": false },
+      "delete_dormant_reviewer_ruleset": true
+    },
+    {
+      "repo": "odoocker-goldberrygrove",
+      "system": "ruleset",
+      "protection_ruleset": "main-branch-protection",
+      "targets": { "strict": false, "dismiss_stale_reviews": false, "thread_resolution": false, "extra_approval_unattributed": false },
+      "delete_dormant_reviewer_ruleset": true
+    },
+    {
+      "repo": "Paperclip-AgenticOS",
+      "system": "out-of-scope",
+      "note": "Baseline ruleset only; gate posture needs a Josh decision first (GOL-1819 out of scope). Reported read-only, carries no targets."
+    }
+  ]
+}
