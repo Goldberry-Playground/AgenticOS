@@ -184,6 +184,16 @@ echo "### 4. --check again (expect exit 0, aligned)"
 run --check >/dev/null 2>&1 || fail "--check should pass after apply"
 echo "    ok: no drift"
 
+echo "### 4a. converged --check emits ZERO 'OFF' rows (display matches summary)"
+# The exit code alone (test #4) missed a display defect: a deleted dormant ruleset
+# rendered its row as 'absent -> deleted' = OFF even though summary() counted it
+# on-target. Assert no row is painted OFF once converged, so the per-row table can
+# never contradict the green summary line.
+chk4a="$(run --check 2>&1)"
+offrows=$(printf '%s\n' "$chk4a" | grep -c -w 'OFF' || true)
+[ "$offrows" -eq 0 ] || { printf '%s\n' "$chk4a" | grep -w 'OFF'; fail "converged --check printed $offrows OFF row(s)"; }
+echo "    ok: zero OFF rows on a converged fleet"
+
 echo "### 5. --apply again (expect exit 0 and ZERO new writes — idempotent)"
 : >"$FAKE_GH_CALLS"
 run --apply >/dev/null 2>&1 || fail "second --apply should exit 0"

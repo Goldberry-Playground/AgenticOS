@@ -143,7 +143,9 @@ process_ruleset_repo() { # <row-json>
   if [ "$(jq -r '.delete_dormant_reviewer_ruleset // false' <<<"$row")" = "true" ]; then
     del_name=$(jq -r '.dormant_reviewer_ruleset_name' <<<"$CONFIG_JSON")
     del_id=$(ruleset_id_by_name "$repo" "$del_name")
-    if [ -n "$del_id" ]; then row "dormant-reviewer-ruleset" "present" "deleted"; off_here=1; else row "dormant-reviewer-ruleset" "absent" "deleted"; fi
+    # Target renders as "absent" once the ruleset is gone so a converged --check
+    # paints the row green; "deleted" is only the target while it still exists.
+    if [ -n "$del_id" ]; then row "dormant-reviewer-ruleset" "present" "deleted"; off_here=1; else row "dormant-reviewer-ruleset" "absent" "absent"; fi
   fi
 
   [ "$MODE" = apply ] || return 0
@@ -204,7 +206,9 @@ process_legacy_repo() { # <row-json>
   if [ "$(jq -r '.delete_dormant_reviewer_ruleset // false' <<<"$row")" = "true" ]; then
     del_name=$(jq -r '.dormant_reviewer_ruleset_name' <<<"$CONFIG_JSON")
     del_id=$(ruleset_id_by_name "$repo" "$del_name")
-    if [ -n "$del_id" ]; then row "dormant-reviewer-ruleset" "present" "deleted"; off_here=1; else row "dormant-reviewer-ruleset" "absent" "deleted"; fi
+    # Target renders as "absent" once the ruleset is gone so a converged --check
+    # paints the row green; "deleted" is only the target while it still exists.
+    if [ -n "$del_id" ]; then row "dormant-reviewer-ruleset" "present" "deleted"; off_here=1; else row "dormant-reviewer-ruleset" "absent" "absent"; fi
   fi
 
   [ "$MODE" = apply ] || return 0
