@@ -99,7 +99,15 @@ REPOS = {
     "grove-sites": {
         "tag": "grove-sites",
         # Checkout / publish-webhook money path (all present on origin/main).
+        # `.github/config-freeze.json` is the config-freeze lock manifest
+        # (GOL-1735 / GOL-1812): engaging OR lifting a freeze edits this file,
+        # and that must take the same EngineeringMoonBear SHA-bound approval as
+        # any protected path — otherwise an agent can self-lift its own freeze
+        # (frozen:true -> false) with 0 humans. It is deliberately NOT one of
+        # the freeze's own `paths`, so a freeze can always be lifted; the guard
+        # is what makes that lift require a human.
         "globs": [
+            ".github/config-freeze.json",
             "apps/*/app/api/checkout/route.ts",
             "apps/*/app/api/checkout/session/route.ts",
             "apps/*/app/api/webhooks/publish/route.ts",
