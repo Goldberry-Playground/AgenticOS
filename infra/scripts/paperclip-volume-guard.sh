@@ -22,7 +22,9 @@
 #      (retention) or a board-gated manual action, never an automatic rm here.
 #
 #   2. BACKUP FRESHNESS — the newest completed *.sql.gz under the backups dir.
-#      Older than STALE_MIN (default 95 = one hourly cycle + slack) → alert. This
+#      Older than STALE_MIN (default = the server's configured backup interval
+#      + 35m slack, read from the paperclip-server container env; 60m assumed
+#      if the container is down) → alert. This
 #      is the compensating control for silent backup failure until the
 #      server-side loud-failure fix ships (that fix is in /opt/paperclip, out of
 #      this repo's write boundary; tracked on GOL-1632). A dangling *.sql partial
@@ -42,7 +44,19 @@
 set -euo pipefail
 
 WARN_PCT="${WARN_PCT:-80}"
-STALE_MIN="${STALE_MIN:-95}"
+# Staleness threshold tracks the server's actual backup cadence
+# (PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES, read from the running container) plus
+# 35m slack — the historical 95 default was 60m hourly + 35. If the container
+# is down or the env var unreadable, fall back to the hourly assumption: no
+# running server means no backups, and that SHOULD page. Explicit STALE_MIN in
+# the environment still overrides everything.
+BACKUP_INTERVAL_MIN="$(docker inspect paperclip-server \
+  --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+  | sed -n 's/^PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES=//p' | head -1)"
+case "${BACKUP_INTERVAL_MIN}" in
+  ''|*[!0-9]*) BACKUP_INTERVAL_MIN=60 ;;
+esac
+STALE_MIN="${STALE_MIN:-$((BACKUP_INTERVAL_MIN + 35))}"
 REPAGE_MIN="${REPAGE_MIN:-360}"
 ENV_FILE="${ENV_FILE:-/opt/agenticos/.env}"
 VOLUME="${PAPERCLIP_VOLUME:-paperclip-data}"
