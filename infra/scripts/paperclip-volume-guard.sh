@@ -22,7 +22,9 @@
 #      (retention) or a board-gated manual action, never an automatic rm here.
 #
 #   2. BACKUP FRESHNESS — the newest completed *.sql.gz under the backups dir.
-#      Older than STALE_MIN (default 95 = one hourly cycle + slack) → alert. This
+#      Older than STALE_MIN (default = the server's configured backup interval
+#      + 35m slack, read from the paperclip-server container env; 60m assumed
+#      if the container is down) → alert. This
 #      is the compensating control for silent backup failure until the
 #      server-side loud-failure fix ships (that fix is in /opt/paperclip, out of
 #      this repo's write boundary; tracked on GOL-1632). A dangling *.sql partial
@@ -42,7 +44,27 @@
 set -euo pipefail
 
 WARN_PCT="${WARN_PCT:-80}"
-STALE_MIN="${STALE_MIN:-95}"
+# Staleness threshold tracks the server's actual backup cadence
+# (PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES, read from the running container) plus
+# 35m slack — the historical 95 default was 60m hourly + 35. If the container
+# is down or the env var unreadable, fall back to the hourly assumption: no
+# running server means no backups, and that SHOULD page. Explicit STALE_MIN in
+# the environment still overrides everything.
+# NOTE the trailing `|| true`: the script runs under `set -euo pipefail`, so a
+# non-zero `docker inspect` (container ABSENT — the recreate window, or a dead
+# daemon) would otherwise abort the guard on this bare assignment, before the
+# fallback below and before any check runs. Same idiom as the mountpoint probe.
+BACKUP_INTERVAL_MIN="$(docker inspect paperclip-server \
+  --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+  | sed -n 's/^PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES=//p' | head -1 || true)"
+BACKUP_INTERVAL_SRC="paperclip-server env"
+case "${BACKUP_INTERVAL_MIN}" in
+  ''|*[!0-9]*)
+    BACKUP_INTERVAL_MIN=60
+    BACKUP_INTERVAL_SRC="fallback, container down or env unset"
+    ;;
+esac
+STALE_MIN="${STALE_MIN:-$((BACKUP_INTERVAL_MIN + 35))}"
 REPAGE_MIN="${REPAGE_MIN:-360}"
 ENV_FILE="${ENV_FILE:-/opt/agenticos/.env}"
 VOLUME="${PAPERCLIP_VOLUME:-paperclip-data}"
@@ -128,7 +150,7 @@ else
   now="$(date +%s)"
   if [ -n "${newest_gz}" ]; then
     age_min=$(( (now - newest_epoch) / 60 ))
-    log "newest completed dump: ${newest_gz} (age ${age_min}m; stale threshold ${STALE_MIN}m)"
+    log "newest completed dump: ${newest_gz} (age ${age_min}m; stale threshold ${STALE_MIN}m = ${BACKUP_INTERVAL_MIN}m interval + 35m, ${BACKUP_INTERVAL_SRC})"
   else
     age_min=999999
     log "no completed *.sql.gz dump found; partial present: ${partial:-none}"
@@ -136,7 +158,7 @@ else
   if [ "${age_min}" -gt "${STALE_MIN}" ]; then
     ctx=""
     [ -n "${partial}" ] && ctx=" A partial dump ($(basename "${partial}")) exists — a dump died mid-write."
-    alert backup-stale ":rotating_light: **${HOSTNAME_SHORT}** Paperclip DB backup is STALE — newest completed dump is ${age_min}m old (hourly expected; threshold ${STALE_MIN}m). Backups may be failing silently.${ctx} Check paperclip-server logs (GOL-1632)."
+    alert backup-stale ":rotating_light: **${HOSTNAME_SHORT}** Paperclip DB backup is STALE — newest completed dump is ${age_min}m old (expected every ${BACKUP_INTERVAL_MIN}m; threshold ${STALE_MIN}m). Backups may be failing silently.${ctx} Check paperclip-server logs (GOL-1632)."
   fi
 fi
 
