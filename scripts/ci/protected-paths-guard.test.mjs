@@ -41,13 +41,22 @@ const guard = new Function(
 const HEAD = 'a'.repeat(40); // current head SHA in most scenarios
 const OLD = 'b'.repeat(40); // an earlier commit SHA
 const HUMAN = 'EngineeringMoonBear';
+const PROT = '.github/workflows/protected-paths-guard.yml';
+// The named PR's approved unified-diff patch for the protected file. The
+// content-attribution check (GOL-1999) compares the merge-group diff for each
+// protected file against this; a single-PR / clean batch reproduces it exactly.
+const PATCH_A = '@@ -1,2 +1,3 @@\n line one\n line two\n+added by the named PR';
 
 // Build a mock harness. `reviews` is the array listReviews returns;
 // `protectedHit` decides whether a protected file appears in listFiles.
 // merge_group scenarios (GOL-1991) additionally set `eventName: 'merge_group'`,
 // an optional `headRef` (defaults to a well-formed queue ref for PR #1), and
-// `groupFiles` = the merge-group diff (defaults to the named PR's own files, a
-// single-PR group). `compareCommitsWithBasehead` returns those group files.
+// `groupFiles` = the merge-group diff. Each `groupFiles` entry is either a
+// plain filename (its patch defaults to the named PR's own patch for that file
+// — a clean single-PR / identical-content batch) or a `{ filename, patch }`
+// object, used to model a co-batched edit whose content differs from (or is
+// missing relative to) the named PR's approved diff (GOL-1999).
+// `prPatch` overrides the patch the named PR carries for the protected file.
 function harness({
   reviews = [],
   protectedHit = true,
@@ -55,6 +64,7 @@ function harness({
   eventName = 'pull_request_target',
   headRef,
   groupFiles,
+  prPatch = PATCH_A,
 }) {
   const calls = { failed: null, info: [], warn: [] };
   const core = {
@@ -63,9 +73,17 @@ function harness({
     warning: (m) => calls.warn.push(m),
   };
   const files = protectedHit
-    ? [{ filename: '.github/workflows/protected-paths-guard.yml' }]
-    : [{ filename: 'README.md' }];
-  const cmpFiles = (groupFiles ?? files.map((f) => f.filename)).map((fn) => ({ filename: fn }));
+    ? [{ filename: PROT, patch: prPatch }]
+    : [{ filename: 'README.md', patch: PATCH_A }];
+  // Named PR's patch per file, so a `groupFiles` filename string reproduces the
+  // named PR's exact change (clean batch); undefined for files the named PR
+  // does not touch (they can only reach the uncovered/co-batched branch).
+  const prPatchByName = new Map(files.map((f) => [f.filename, f.patch]));
+  const cmpFiles = (groupFiles ?? files.map((f) => f.filename)).map((g) =>
+    typeof g === 'string'
+      ? { filename: g, patch: prPatchByName.get(g) }
+      : { filename: g.filename, patch: g.patch }
+  );
   const github = {
     paginate: async (fn) => fn.__data,
     rest: {
@@ -214,9 +232,64 @@ const scenarios = [
     setup: {
       eventName: 'merge_group',
       reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
-      groupFiles: ['.github/workflows/protected-paths-guard.yml', 'docs/notes.md'],
+      groupFiles: [PROT, 'docs/notes.md'],
     },
     pass: true,
+  },
+
+  // ── same-file co-batch: content attribution (GOL-1999) ───────────────────
+  // The residual gap #654's filename-only check left open: a co-batched PR
+  // edits a protected file the NAMED PR also touches, on non-overlapping lines,
+  // so the queue merges them into one file diff. Filename attribution passes
+  // (the file IS in the named PR); content attribution must catch the extra
+  // hunk and fail closed.
+  {
+    name: 'MERGE_GROUP SAME-FILE CO-BATCH: extra co-batched hunk on a protected file the named PR also touches -> fail closed (GOL-1999)',
+    setup: {
+      eventName: 'merge_group',
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+      // named PR #1's approved change is PATCH_A; the merge group carries
+      // PATCH_A PLUS a non-overlapping hunk injected by a co-batched PR.
+      groupFiles: [
+        { filename: PROT, patch: PATCH_A + '\n@@ -40,1 +41,2 @@\n forty\n+injected by a co-batched PR' },
+      ],
+    },
+    pass: false,
+    expect: /not covered by the SHA-bound approval|CONTENT/,
+  },
+  {
+    name: 'MERGE_GROUP SAME-FILE: identical protected content in group and named PR -> pass (no false positive) (GOL-1999)',
+    setup: {
+      eventName: 'merge_group',
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+      groupFiles: [{ filename: PROT, patch: PATCH_A }],
+    },
+    pass: true,
+  },
+  {
+    name: 'MERGE_GROUP SAME-FILE: reordered hunks, same +/- content -> pass (line-shift tolerant) (GOL-1999)',
+    setup: {
+      eventName: 'merge_group',
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+      // named PR patch has two added lines; the merge-group diff presents the
+      // SAME two added lines in the opposite hunk order (a benign shift). The
+      // signature sorts +/- lines, so it must still match.
+      prPatch: '@@ -1,1 +1,2 @@\n a\n+first\n@@ -9,1 +10,2 @@\n b\n+second',
+      groupFiles: [
+        { filename: PROT, patch: '@@ -9,1 +10,2 @@\n b\n+second\n@@ -1,1 +1,2 @@\n a\n+first' },
+      ],
+    },
+    pass: true,
+  },
+  {
+    name: 'MERGE_GROUP SAME-FILE: protected file patch missing from merge-group diff -> fail closed (unprovable) (GOL-1999)',
+    setup: {
+      eventName: 'merge_group',
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+      groupFiles: [{ filename: PROT, patch: undefined }],
+    },
+    pass: false,
+    expect: /not covered by the SHA-bound approval|unprovable|CONTENT/,
   },
 ];
 

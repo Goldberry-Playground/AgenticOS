@@ -148,42 +148,90 @@ jobs:
             const prFiles = files.map(f => f.filename);
             const hits = prFiles.filter(fn => matchers.some(re => re.test(fn)));
 
-            // ── Merge-queue batch safety (GOL-1991) ──────────────────────────
+            // ── Merge-queue batch safety (GOL-1991 / GOL-1999) ───────────────
             // A merge group can BATCH several queued PRs into one synthetic
-            // commit while the head ref names only one of them. Diff the whole
-            // merge-group commit (base_sha...head_sha) and require every
-            // protected path in the batch to be present in the named PR's file
-            // set — i.e. attributable to the PR whose approval we verify below.
-            // A protected path introduced by a co-batched PR is NOT in the named
-            // PR's files => fail closed (that PR clears the guard on its own
-            // merge group). No-op for single-PR groups. Must run BEFORE the
-            // hits-empty early pass, so a clean named PR cannot let a dirty
-            // co-batched PR through.
+            // commit while the head ref names only one of them. We verify the
+            // named PR's SHA-bound approval below, but that approval only covers
+            // the named PR's OWN diff. So diff the whole merge-group commit
+            // (base_sha...head_sha) and require every protected-path change in
+            // the batch to be attributable to the named PR — BY CONTENT, not by
+            // filename (GOL-1999). Two failure modes, both fail closed:
+            //   • a protected file the named PR does not touch at all
+            //     (a co-batched PR introduced it); and
+            //   • a protected file the named PR ALSO touches, but whose
+            //     merge-group diff carries changed lines the named PR's approved
+            //     diff does not — a co-batched PR edited the same file on
+            //     non-overlapping lines and would otherwise ride in under the
+            //     named PR's filename-scoped approval.
+            // Comparison is on the multiset of +/- body lines (hunk @@ headers
+            // and context stripped), so pure line-number shifts from unrelated
+            // batched edits do not trip it; only real content the approval never
+            // covered does. A missing/undecodable patch on a protected file is
+            // unprovable => fail closed. No-op for a clean single-PR group. Runs
+            // BEFORE the hits-empty early pass so a clean named PR cannot let a
+            // dirty co-batched PR through.
             if (context.eventName === 'merge_group') {
               const mg = context.payload.merge_group;
               const cmp = await github.rest.repos.compareCommitsWithBasehead({
                 owner, repo, basehead: mg.base_sha + '...' + mg.head_sha,
               });
-              const groupFiles = (cmp.data.files || []).map(f => f.filename);
+              const groupFileObjs = cmp.data.files || [];
               // The compare API caps `files` at 300; a truncated diff means we
               // cannot prove the batch is clean, so fail closed.
-              if (groupFiles.length >= 300) {
+              if (groupFileObjs.length >= 300) {
                 core.setFailed(
                   'merge_group: the merge-group diff hit the 300-file compare cap, ' +
                   'so protected-path coverage cannot be proven — failing closed.'
                 );
                 return;
               }
+              // Multiset of changed (+/-) body lines for a unified-diff patch,
+              // sorted so hunk order is irrelevant; null when the patch is
+              // absent/empty (binary or elided) => unprovable, fail closed.
+              // GitHub's per-file `patch` starts at the first `@@` (no +++/---
+              // file-header lines), so every line beginning with +/- is a real
+              // added/removed content line.
+              const changedLineSig = (patch) => {
+                if (typeof patch !== 'string' || patch.length === 0) return null;
+                const out = [];
+                for (const line of patch.split('\n')) {
+                  const c = line[0];
+                  if (c === '+' || c === '-') out.push(line);
+                }
+                out.sort();
+                return out;
+              };
               const prFileSet = new Set(prFiles);
-              const uncovered = groupFiles
-                .filter(fn => matchers.some(re => re.test(fn)))
-                .filter(fn => !prFileSet.has(fn));
-              if (uncovered.length) {
+              const prPatchByFile = new Map(files.map(f => [f.filename, f.patch]));
+              const uncovered = [];  // protected file absent from the named PR
+              const mismatched = []; // protected file present, content not covered
+              for (const gf of groupFileObjs) {
+                if (!matchers.some(re => re.test(gf.filename))) continue;
+                if (!prFileSet.has(gf.filename)) { uncovered.push(gf.filename); continue; }
+                const groupSig = changedLineSig(gf.patch);
+                const prSig = changedLineSig(prPatchByFile.get(gf.filename));
+                if (groupSig === null || prSig === null ||
+                    JSON.stringify(groupSig) !== JSON.stringify(prSig)) {
+                  mismatched.push(gf.filename);
+                }
+              }
+              if (uncovered.length || mismatched.length) {
+                const parts = [];
+                if (uncovered.length) {
+                  parts.push('  changed only by a co-batched PR (absent from the named PR):\n    ' +
+                    uncovered.join('\n    '));
+                }
+                if (mismatched.length) {
+                  parts.push('  co-batched content on a file the named PR also touches, ' +
+                    'or an unprovable patch:\n    ' + mismatched.join('\n    '));
+                }
                 core.setFailed(
-                  'merge_group: protected path(s) changed by a co-batched PR, not ' +
-                  'the named PR #' + number + ':\n  ' + uncovered.join('\n  ') +
-                  '\nFailing closed — each protected-path PR must clear this guard ' +
-                  'on its own merge group.'
+                  'merge_group: protected path(s) not covered by the SHA-bound approval ' +
+                  'on named PR #' + number + ':\n' + parts.join('\n') +
+                  '\nAttribution is by CONTENT, not filename (GOL-1999): every ' +
+                  'protected-path change in the merge group must exactly match the ' +
+                  'named PR\'s approved diff for that file. Failing closed — each ' +
+                  'protected-path change must clear this guard on its own merge group.'
                 );
                 return;
               }
