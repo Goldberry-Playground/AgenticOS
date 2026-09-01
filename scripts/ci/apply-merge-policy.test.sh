@@ -66,7 +66,12 @@ case "$method:$r1" in
     kv(){ for x in "${F[@]}"; do case "$x" in $1=*) echo "${x#*=}";; esac; done; }
     pf="$FIX/protection_${repo}_$r2.json"
     if [ "$sub" = "required_status_checks" ]; then
-      v=$(kv strict); jq ".required_status_checks.strict = ($v)" "$pf" >"$FIX/.t" && mv "$FIX/.t" "$pf"
+      if [ -n "$input" ]; then
+        # JSON body on stdin, e.g. {"checks":[{"context":..,"app_id":..}]} (GOL-1953).
+        body=$(cat); jq --argjson b "$body" '.required_status_checks.checks = $b.checks' "$pf" >"$FIX/.t" && mv "$FIX/.t" "$pf"
+      else
+        v=$(kv strict); jq ".required_status_checks.strict = ($v)" "$pf" >"$FIX/.t" && mv "$FIX/.t" "$pf"
+      fi
     elif [ "$sub" = "required_pull_request_reviews" ]; then
       v=$(kv dismiss_stale_reviews); jq ".required_pull_request_reviews.dismiss_stale_reviews = ($v)" "$pf" >"$FIX/.t" && mv "$FIX/.t" "$pf"
     fi ;;
@@ -127,7 +132,7 @@ cat >"$FIX/rulesets_legacy-strict.json" <<'J'
 []
 J
 cat >"$FIX/protection_legacy-strict_main.json" <<'J'
-{ "required_status_checks":{"strict":true,"contexts":["Lint","Build"]},
+{ "required_status_checks":{"strict":true,"contexts":["Lint","Build"],"checks":[{"context":"Lint","app_id":15368},{"context":"Build","app_id":15368}]},
   "enforce_admins":{"enabled":true},
   "required_pull_request_reviews":null,
   "required_conversation_resolution":{"enabled":false} }
@@ -139,11 +144,13 @@ cat >"$WORK/merge-policy.json" <<'J'
   "repos":[
     {"repo":"rs-repo","system":"ruleset","protection_ruleset":"main-branch-protection",
      "targets":{"strict":false,"dismiss_stale_reviews":false,"thread_resolution":false,"extra_approval_unattributed":false},
+     "required_contexts":["Build","New guard"],
      "delete_dormant_reviewer_ruleset":true},
     {"repo":"legacy-thread","system":"legacy","branch":"4.x",
      "targets":{"strict":false,"dismiss_stale_reviews":false,"thread_resolution":false},
      "delete_dormant_reviewer_ruleset":true},
     {"repo":"legacy-strict","system":"legacy","branch":"main",
+     "required_contexts":["Build","Lint","New legacy guard"],
      "targets":{"strict":false}}
   ] }
 J
@@ -179,6 +186,18 @@ unpinned=$(jq '[.required_status_checks.checks[] | select(.app_id == null)] | le
 allpinned=$(jq '[.required_status_checks.checks[] | select(.app_id == 15368)] | length' "$ptc")
 [ "$allpinned" -eq 2 ] || fail "expected app_id=15368 on both checks, got $allpinned"
 echo "    ok: both required checks still pinned to app_id=15368"
+
+echo "### 3b. ruleset required_contexts converged to the declared set (GOL-1953)"
+rsc=$(jq -r '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]|sort|join(",")' "$FIX/ruleset_100.json")
+[ "$rsc" = "Build,New guard" ] || fail "ruleset required contexts = [$rsc], expected [Build,New guard]"
+echo "    ok: ruleset required_status_checks = [$rsc]"
+
+echo "### 3c. legacy granular required_contexts set with app_id-pinned checks (GOL-1953)"
+lsc=$(jq -r '[.required_status_checks.checks[].context]|sort|join(",")' "$FIX/protection_legacy-strict_main.json")
+[ "$lsc" = "Build,Lint,New legacy guard" ] || fail "legacy required contexts = [$lsc]"
+newpin=$(jq -r '.required_status_checks.checks[]|select(.context=="New legacy guard").app_id' "$FIX/protection_legacy-strict_main.json")
+[ "$newpin" = "15368" ] || fail "new legacy context app_id=$newpin, expected 15368 (inherited from existing checks)"
+echo "    ok: legacy checks = [$lsc], new context pinned to app_id=$newpin"
 
 echo "### 4. --check again (expect exit 0, aligned)"
 run --check >/dev/null 2>&1 || fail "--check should pass after apply"

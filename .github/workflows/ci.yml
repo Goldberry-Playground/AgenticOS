@@ -151,6 +151,20 @@ jobs:
             echo "::endgroup::"
           done
           exit $fail
+      - name: Run scripts/ci/*.test.sh
+        run: |
+          # Bash test harnesses (e.g. apply-merge-policy.test.sh — the offline
+          # check/apply/idempotency harness for the merge-policy tool, GOL-1819 /
+          # GOL-1953) were previously runnable only by hand. Gate them here too.
+          shopt -s nullglob
+          tests=(scripts/ci/*.test.sh)
+          fail=0
+          for f in "${tests[@]}"; do
+            echo "::group::bash $f"
+            bash "$f" || fail=1
+            echo "::endgroup::"
+          done
+          exit $fail
       - name: Assert protected-paths artifacts match generator (no drift)
         run: |
           # The generator writes into <BASE>/<repo-key>/… for each repo it finds;

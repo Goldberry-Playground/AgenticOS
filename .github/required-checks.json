@@ -6,6 +6,14 @@
     "Lint",
     "Typecheck",
     "Unit tests",
-    "Build"
+    "Build",
+    "Protected paths guard",
+    "Config freeze",
+    "fix touches a test",
+    "CI scripts",
+    "Required-checks audit",
+    "gitleaks",
+    "markdownlint",
+    "actionlint"
   ]
 }

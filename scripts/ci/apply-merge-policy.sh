@@ -100,6 +100,51 @@ legacy_current() { # <protection-json> <canonical-key>
   jq -r "[ $path ] | $_boolstr" <<<"$json"
 }
 
+# ---- required-context helpers (GOL-1953) -----------------------------------
+# The guard layer (protected-paths / config-freeze / fix-touches-test / CI
+# scripts / required-checks-audit + per-repo security checks) only bound
+# agent-authored PRs via auto-approve's shell logic; the branch merge gate
+# ignored them. Promote each verified context (it must report success on an
+# actual `merge_group` commit first — acceptance #1) into the required list.
+
+# Newline-separated sorted required-check contexts currently set on a RULESET.
+ruleset_required_contexts() { # <ruleset-json>
+  jq -r '[.rules[]?|select(.type=="required_status_checks")
+          .parameters.required_status_checks[]?.context] | sort | .[]' <<<"$1"
+}
+# Newline-separated sorted required-check contexts on LEGACY branch protection.
+# Reads the app_id-pinned `checks[]`, not the deprecated `contexts[]` mirror.
+legacy_required_contexts() { # <protection-json>
+  jq -r '[.required_status_checks.checks[]?.context] | sort | .[]' <<<"$1"
+}
+
+# Render the required_contexts row: green when the live set equals the declared
+# set, else OFF with an explicit +add / -remove breakdown. Bumps OFFTARGET on
+# drift and returns 1 (so the caller can set off_here); returns 0 when aligned.
+req_contexts_row() { # <live-newline> <declared-newline>
+  local live decl livej declj add rem
+  live=$(printf '%s\n' "$1" | sed '/^$/d' | sort -u)
+  decl=$(printf '%s\n' "$2" | sed '/^$/d' | sort -u)
+  livej=$(printf '%s' "$live" | paste -sd, -); declj=$(printf '%s' "$decl" | paste -sd, -)
+  if [ "$livej" = "$declj" ]; then
+    printf '    %-34s %s\n' "required_contexts" "${C_GRN}ok${C_RST} ${C_DIM}(${livej:-none})${C_RST}"
+    return 0
+  fi
+  OFFTARGET=$((OFFTARGET+1))
+  printf '    %-34s %s\n' "required_contexts" "${C_RED}OFF${C_RST}"
+  add=$(comm -13 <(printf '%s\n' "$live") <(printf '%s\n' "$decl"))
+  rem=$(comm -23 <(printf '%s\n' "$live") <(printf '%s\n' "$decl"))
+  [ -n "$add" ] && printf '%s\n' "$add" | sed "s/^/        ${C_GRN}+ require:${C_RST} /"
+  [ -n "$rem" ] && printf '%s\n' "$rem" | sed "s/^/        ${C_RED}- drop:${C_RST}    /"
+  return 1
+}
+
+# The declared required-context list for a repo row, newline-separated (empty =
+# not managed for this repo, i.e. `required_contexts` key absent).
+declared_contexts() { # <row-json>
+  jq -r '(.required_contexts // [])[]' <<<"$1"
+}
+
 # Resolve a ruleset id by name for a repo; empty if absent.
 ruleset_id_by_name() { # <repo> <name>
   ghapi "/repos/$OWNER/$1/rulesets" --jq "map(select(.name==\"$2\"))[0].id // empty" 2>/dev/null || true
@@ -138,6 +183,15 @@ process_ruleset_repo() { # <row-json>
     [ "$OFFTARGET" -gt "$before" ] && off_here=1
   done
 
+  # Required-check contexts (GOL-1953) — managed only when the row declares them.
+  local manages_ctx="no" declared_ctx="" live_ctx=""
+  if jq -e 'has("required_contexts")' <<<"$row" >/dev/null; then
+    manages_ctx="yes"
+    declared_ctx=$(declared_contexts "$row")
+    live_ctx=$(ruleset_required_contexts "$detail")
+    req_contexts_row "$live_ctx" "$declared_ctx" || off_here=1
+  fi
+
   # Dormant second-reviewer ruleset — target: deleted.
   local del_name del_id=""
   if [ "$(jq -r '.delete_dormant_reviewer_ruleset // false' <<<"$row")" = "true" ]; then
@@ -152,17 +206,21 @@ process_ruleset_repo() { # <row-json>
   [ "$off_here" = 1 ] || { echo "    ${C_GRN}already aligned — no change${C_RST}"; return 0; }
 
   # Build the mutated ruleset PUT body: override only managed pull_request /
-  # required_status_checks params, preserve everything else.
-  local strict dismiss thread extra
+  # required_status_checks params, preserve everything else. When required
+  # contexts are managed, rebuild the required_status_checks[] array to the
+  # declared set — preserving the integration_id pin for any context that
+  # already carried one, so we never loosen an app-pinned check (GOL-1819).
+  local strict dismiss thread extra ctx_json
   strict=$(target_val "$row" strict)
   dismiss=$(target_val "$row" dismiss_stale_reviews)
   thread=$(target_val "$row" thread_resolution)
   extra=$(target_val "$row" extra_approval_unattributed)
+  if [ "$manages_ctx" = yes ]; then ctx_json=$(jq -R . <<<"$declared_ctx" | jq -s 'map(select(.!=""))'); else ctx_json="null"; fi
 
   local body
   body=$(jq \
     --argjson strict "$strict" --argjson dismiss "$dismiss" \
-    --argjson thread "$thread" --argjson extra "$extra" '
+    --argjson thread "$thread" --argjson extra "$extra" --argjson ctx "$ctx_json" '
     {name, target, enforcement, bypass_actors, conditions,
      rules: (.rules | map(
        if .type=="pull_request" then
@@ -171,6 +229,11 @@ process_ruleset_repo() { # <row-json>
          | (if $extra!=null then .parameters.require_extra_approval_for_unattributed_changes=$extra else . end)
        elif .type=="required_status_checks" then
          (if $strict!=null then .parameters.strict_required_status_checks_policy=$strict else . end)
+         | (if $ctx!=null then
+              (.parameters.required_status_checks) as $cur
+              | .parameters.required_status_checks = ($ctx | map(. as $c
+                  | (($cur // [])[] | select(.context==$c)) // {context:$c}))
+            else . end)
        else . end))}' <<<"$detail")
 
   say_write "PUT ruleset '$rs_name' ($rs_id) with aligned pull_request/status params"
@@ -202,6 +265,15 @@ process_legacy_repo() { # <row-json>
     [ "$OFFTARGET" -gt "$before" ] && off_here=1
   done
 
+  # Required-check contexts (GOL-1953).
+  local manages_ctx="no" declared_ctx="" live_ctx=""
+  if jq -e 'has("required_contexts")' <<<"$row" >/dev/null; then
+    manages_ctx="yes"
+    declared_ctx=$(declared_contexts "$row")
+    live_ctx=$(legacy_required_contexts "$prot")
+    req_contexts_row "$live_ctx" "$declared_ctx" || off_here=1
+  fi
+
   local del_name del_id=""
   if [ "$(jq -r '.delete_dormant_reviewer_ruleset // false' <<<"$row")" = "true" ]; then
     del_name=$(jq -r '.dormant_reviewer_ruleset_name' <<<"$CONFIG_JSON")
@@ -214,11 +286,18 @@ process_legacy_repo() { # <row-json>
   [ "$MODE" = apply ] || return 0
   [ "$off_here" = 1 ] || { echo "    ${C_GRN}already aligned — no change${C_RST}"; return 0; }
 
-  local strict dismiss thread manages_thread
+  local strict dismiss thread manages_thread ctx_json default_app="-1"
   strict=$(target_val "$row" strict)
   dismiss=$(target_val "$row" dismiss_stale_reviews)
   thread=$(target_val "$row" thread_resolution)
   manages_thread=$(jq -r 'if (.targets|has("thread_resolution")) then "yes" else "no" end' <<<"$row")
+  # New required contexts inherit the app_id shared by the repo's existing
+  # Actions checks (unanimous → that id; else -1 = any app). Existing contexts
+  # keep their own pin. This never loosens an already-pinned check (GOL-1819).
+  if [ "$manages_ctx" = yes ]; then
+    default_app=$(jq -r '[.required_status_checks.checks[]?.app_id]|unique|if length==1 then (.[0]|tostring) else "-1" end' <<<"$prot")
+    ctx_json=$(jq -R . <<<"$declared_ctx" | jq -s 'map(select(.!=""))')
+  else ctx_json="null"; fi
 
   if [ "$manages_thread" = "yes" ]; then
     # required_conversation_resolution can only be set via the full protection PUT,
@@ -232,11 +311,16 @@ process_legacy_repo() { # <row-json>
     # the booleans. `checks[]?` preserves the existing pins verbatim.
     local body
     body=$(jq \
-      --argjson strict "$strict" --argjson dismiss "$dismiss" --argjson thread "$thread" '
-      {
+      --argjson strict "$strict" --argjson dismiss "$dismiss" --argjson thread "$thread" \
+      --argjson ctx "$ctx_json" --argjson defapp "$default_app" '
+      ([.required_status_checks.checks[]? | {context, app_id}]) as $existing
+      | ($existing
+         | if $ctx==null then .
+           else ($ctx | map(. as $c | (($existing[] | select(.context==$c)) // {context:$c, app_id:$defapp}))) end) as $checks
+      | {
         required_status_checks: (if .required_status_checks==null then null else
           {strict: (if $strict!=null then $strict else .required_status_checks.strict end),
-           checks: [.required_status_checks.checks[]? | {context, app_id}]} end),
+           checks: $checks} end),
         enforce_admins: (.enforce_admins.enabled // false),
         required_pull_request_reviews: (if .required_pull_request_reviews==null then null else
           {dismiss_stale_reviews: (if $dismiss!=null then $dismiss else .required_pull_request_reviews.dismiss_stale_reviews end),
@@ -253,15 +337,27 @@ process_legacy_repo() { # <row-json>
         lock_branch: (.lock_branch.enabled // false),
         allow_fork_syncing: (.allow_fork_syncing.enabled // false)
       }' <<<"$prot")
-    say_write "PUT full branch protection on $branch (strict/dismiss/thread_resolution overridden)"
+    local ctxnote=""; [ "$manages_ctx" = yes ] && ctxnote="/required_contexts"
+    say_write "PUT full branch protection on $branch (strict/dismiss/thread_resolution${ctxnote} overridden)"
     CHANGES=$((CHANGES+1))
     [ "$DRY" = 1 ] || printf '%s' "$body" | ghapi --method PUT "/repos/$OWNER/$repo/branches/$branch/protection" --input - >/dev/null
   else
-    # Only strict / dismiss managed — use the granular sub-endpoints (smaller blast radius).
+    # Only strict / dismiss / required contexts managed — granular sub-endpoints
+    # (smaller blast radius than the full-protection PUT).
     if [ "$strict" != "null" ]; then
       say_write "PATCH required_status_checks.strict=$strict on $branch"
       CHANGES=$((CHANGES+1))
       [ "$DRY" = 1 ] || ghapi --method PATCH "/repos/$OWNER/$repo/branches/$branch/protection/required_status_checks" -F "strict=$strict" >/dev/null
+    fi
+    if [ "$manages_ctx" = yes ]; then
+      # Rebuild the app_id-pinned checks[] to the declared set. `contexts` is
+      # intentionally omitted — sending it would null the app_id pins.
+      local ckbody
+      ckbody=$(jq -n --argjson ctx "$ctx_json" --argjson defapp "$default_app" --argjson cur "$(jq -c '[.required_status_checks.checks[]? | {context, app_id}]' <<<"$prot")" \
+        '{checks: ($ctx | map(. as $c | (($cur[] | select(.context==$c)) // {context:$c, app_id:$defapp})))}')
+      say_write "PATCH required_status_checks.checks on $branch (declared required_contexts, app_id-pinned)"
+      CHANGES=$((CHANGES+1))
+      [ "$DRY" = 1 ] || printf '%s' "$ckbody" | ghapi --method PATCH "/repos/$OWNER/$repo/branches/$branch/protection/required_status_checks" --input - >/dev/null
     fi
     if [ "$dismiss" != "null" ]; then
       say_write "PATCH required_pull_request_reviews.dismiss_stale_reviews=$dismiss on $branch"
@@ -319,16 +415,25 @@ summary() {
     [ "$system" = "out-of-scope" ] && continue
     local keys k tgt cur detail prot rs_id rs_name branch
     keys=$(jq -r '.targets|keys[]' <<<"$rowjson")
+    local decl_ctx live_ctx
     if [ "$system" = ruleset ]; then
       rs_name=$(jq -r '.protection_ruleset' <<<"$rowjson")
       rs_id=$(ruleset_id_by_name "$repo" "$rs_name")
       [ -z "$rs_id" ] && { off=$((off+1)); continue; }
       detail=$(ghapi "/repos/$OWNER/$repo/rulesets/$rs_id")
       for k in $keys; do tgt=$(jq -r ".targets.$k" <<<"$rowjson"); cur=$(ruleset_current "$detail" "$k"); [ "$cur" = "$tgt" ] || off=$((off+1)); done
+      if jq -e 'has("required_contexts")' <<<"$rowjson" >/dev/null; then
+        decl_ctx=$(declared_contexts "$rowjson" | sort -u | paste -sd, -); live_ctx=$(ruleset_required_contexts "$detail" | sort -u | paste -sd, -)
+        [ "$decl_ctx" = "$live_ctx" ] || off=$((off+1))
+      fi
     else
       branch=$(jq -r '.branch' <<<"$rowjson")
       prot=$(ghapi "/repos/$OWNER/$repo/branches/$branch/protection")
       for k in $keys; do tgt=$(jq -r ".targets.$k" <<<"$rowjson"); cur=$(legacy_current "$prot" "$k"); [ "$cur" = "$tgt" ] || off=$((off+1)); done
+      if jq -e 'has("required_contexts")' <<<"$rowjson" >/dev/null; then
+        decl_ctx=$(declared_contexts "$rowjson" | sort -u | paste -sd, -); live_ctx=$(legacy_required_contexts "$prot" | sort -u | paste -sd, -)
+        [ "$decl_ctx" = "$live_ctx" ] || off=$((off+1))
+      fi
     fi
     if [ "$(jq -r '.delete_dormant_reviewer_ruleset // false' <<<"$rowjson")" = "true" ]; then
       local dn di; dn=$(jq -r '.dormant_reviewer_ruleset_name' <<<"$CONFIG_JSON"); di=$(ruleset_id_by_name "$repo" "$dn")

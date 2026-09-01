@@ -76,8 +76,63 @@ def job_context_names(job_id, job):
     return name if name else job_id
 
 
+# A workflow may list `merge_group` in `on:` yet still fail to report a given
+# check there, because the *job* is conditionally skipped on merge_group. GitHub
+# treats a skipped required check as never-reporting, so the merge queue wedges
+# exactly as if the workflow were PR-only (GOL-1735 / GOL-1953). The audit must
+# therefore look past `on:` to per-job `if:` and `needs:`.
+_EVENT_NAME_RE = re.compile(r"github\.event_name")
+
+
+def if_excludes_merge_group(cond):
+    """Heuristic: does this job `if:` deterministically skip on `merge_group`?
+
+    Conservative — only True when the condition keys on `github.event_name` and
+    never mentions `merge_group` (e.g. `if: github.event_name == 'pull_request'`,
+    the exact gate on dependency-review / codeql preflights that makes them skip
+    on the queue). We deliberately do NOT try to evaluate arbitrary expressions;
+    a false negative just falls back to the old on:-only behaviour, while a false
+    positive would wrongly fail a healthy required check.
+    """
+    if not cond or not isinstance(cond, str):
+        return False
+    if "merge_group" in cond:
+        return False
+    return bool(_EVENT_NAME_RE.search(cond))
+
+
+def _needs_of(job):
+    n = (job or {}).get("needs") if isinstance(job, dict) else None
+    if n is None:
+        return []
+    return [n] if isinstance(n, str) else list(n)
+
+
+def merge_group_unsafe_jobs(jobs):
+    """Set of job ids that will NOT report on merge_group: their own `if:`
+    excludes it, OR they `needs:` a job that is itself skipped on merge_group
+    (a skipped dependency skips the dependent). Computed to a fixpoint."""
+    unsafe = {jid for jid, j in jobs.items()
+              if if_excludes_merge_group((j or {}).get("if") if isinstance(j, dict) else None)}
+    changed = True
+    while changed:
+        changed = False
+        for jid, j in jobs.items():
+            if jid in unsafe:
+                continue
+            if any(dep in unsafe for dep in _needs_of(j)):
+                unsafe.add(jid)
+                changed = True
+    return unsafe
+
+
 def load_workflows():
-    """[(path, has_merge_group, {context_name: templated_bool})]"""
+    """[(path, has_merge_group, {context_name: {"templated": bool, "mg_safe": bool}})]
+
+    mg_safe is False when the producing job is skipped on merge_group (its `if:`
+    excludes it, or it `needs:` a job that is). A context is only a valid
+    merge_group producer when the workflow triggers on merge_group AND the job is
+    mg_safe."""
     out = []
     paths = sorted(glob.glob(os.path.join(WF_DIR, "*.yml")) +
                    glob.glob(os.path.join(WF_DIR, "*.yaml")))
@@ -95,13 +150,18 @@ def load_workflows():
         # PyYAML parses the bare key `on:` as the boolean True.
         on = doc.get("on", doc.get(True))
         mg = on_has_merge_group(on)
+        jobs = doc.get("jobs") or {}
+        unsafe = merge_group_unsafe_jobs(jobs)
         contexts = {}
-        for job_id, job in (doc.get("jobs") or {}).items():
+        for job_id, job in jobs.items():
             ctx = job_context_names(job_id, job)
-            contexts[ctx] = ("${{" in ctx)
-        # Commit-status contexts posted via the statuses API (not job names).
+            contexts[ctx] = {"templated": ("${{" in ctx),
+                             "mg_safe": job_id not in unsafe}
+        # Commit-status contexts posted via the statuses API (not job names). We
+        # cannot tie these to a job, so assume mg_safe (conservative — avoids a
+        # false failure on a status that does report).
         for _q, ctx in STATUS_CTX_RE.findall(raw):
-            contexts.setdefault(ctx, ("${{" in ctx))
+            contexts.setdefault(ctx, {"templated": ("${{" in ctx), "mg_safe": True})
         out.append((path, mg, contexts))
     return out
 
@@ -116,26 +176,38 @@ def static_audit():
     print(f"Auditing {len(required)} required context(s) against "
           f"{len(workflows)} workflow(s):\n")
     for ctx in required:
-        producers = [(path, mg) for (path, mg, ctxs) in workflows if ctx in ctxs]
+        producers = [(path, mg, ctxs[ctx]) for (path, mg, ctxs) in workflows if ctx in ctxs]
         if not producers:
             # Also flag templated names that *might* match, to avoid a false miss.
             templated = [path for (path, _mg, ctxs) in workflows
-                         for name, t in ctxs.items() if t]
+                         for name, meta in ctxs.items() if meta["templated"]]
             hint = (f" (workflows with templated job/status names that may produce "
                     f"it: {sorted(set(templated))})") if templated else ""
             failures.append(f"required check '{ctx}' is produced by NO workflow "
                             f"job or status — renamed or removed?{hint}")
             print(f"  ✗ {ctx!r}: no producing workflow found")
             continue
-        on_mg = [p for (p, mg) in producers if mg]
+        on_mg = [p for (p, mg, _m) in producers if mg]
         if not on_mg:
-            paths = ", ".join(os.path.basename(p) for (p, _mg) in producers)
+            paths = ", ".join(os.path.basename(p) for (p, _mg, _m) in producers)
             failures.append(f"required check '{ctx}' is PR-only — its workflow(s) "
                             f"[{paths}] do not trigger on `merge_group`; the merge "
                             f"queue will wedge. Add `merge_group:` to `on:`.")
             print(f"  ✗ {ctx!r}: produced by [{paths}] but none trigger on merge_group")
             continue
-        print(f"  ✓ {ctx!r}: {os.path.basename(on_mg[0])} triggers on merge_group")
+        # Workflow triggers on merge_group — but is the producing JOB actually
+        # reached there, or is it skipped by an `if:`/`needs:` gate (GOL-1953)?
+        safe_mg = [p for (p, mg, meta) in producers if mg and meta["mg_safe"]]
+        if not safe_mg:
+            paths = ", ".join(os.path.basename(p) for (p, mg, _m) in producers if mg)
+            failures.append(f"required check '{ctx}' is skipped on `merge_group` — "
+                            f"its job in [{paths}] is gated by an `if:` that excludes "
+                            f"merge_group (or `needs:` a job that is), so it never "
+                            f"reports and the merge queue will wedge. Make the job "
+                            f"run unconditionally on merge_group before requiring it.")
+            print(f"  ✗ {ctx!r}: produced by [{paths}] on merge_group but the job is skipped there")
+            continue
+        print(f"  ✓ {ctx!r}: {os.path.basename(safe_mg[0])} triggers on merge_group")
 
     print()
     if failures:
