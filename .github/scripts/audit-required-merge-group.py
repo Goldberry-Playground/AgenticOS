@@ -207,25 +207,34 @@ def reconcile():
     elif err in (401, 403):
         auth_failures += 1
 
-    # Soft-skip only when BOTH live reads were unauthorized — i.e. the token
-    # genuinely lacks branch-protection/ruleset admin. Otherwise we have a real
-    # live picture (possibly empty) to compare against.
-    if sources == 0 and auth_failures:
-        # GOL-1907: distinguish "no admin token provisioned" (soft-skip is fine —
-        # the default GITHUB_TOKEN provably cannot read protection) from "admin
-        # token provisioned but under-scoped" (hard-fail — a silent skip here is
-        # exactly how the reconcile leg stayed invisible fleet-wide).
+    # We can only trust `live` if BOTH admin-gated reads completed without an
+    # authorization rejection. If ANY read returned 401/403 the live picture is
+    # partial, and comparing it against `declared` would emit a *phantom* drift:
+    # the ruleset endpoint (/rules/branches) needs only metadata:read and happily
+    # answers 200 for the default GITHUB_TOKEN, while the classic-protection
+    # endpoint 403s — so a classic-protection repo read without an admin token
+    # yields sources>=1 with live=[] and false-reports "drift" (GOL-1907: this is
+    # exactly the phantom `live=[]` the pre-token weekly cron produced). So on any
+    # auth failure we never compare; we decide skip-vs-fail purely on whether an
+    # admin token was provisioned.
+    if auth_failures:
+        # An admin token that is present but rejected is a hard error — a silent
+        # skip is how the reconcile leg stayed invisible fleet-wide, and how an
+        # expired fine-grained PAT (capped at 1yr) would silently revert every
+        # repo on a one-year timer. Absence of the token is the legitimate
+        # opt-out: the default GITHUB_TOKEN provably cannot read classic branch
+        # protection, so soft-skip with a notice.
         if os.environ.get("REQUIRED_CHECKS_ADMIN_TOKEN_SET") == "true":
             print(f"::error::--reconcile FAILED: REQUIRED_CHECKS_ADMIN_TOKEN is set "
-                  f"but cannot read branch-protection / rulesets on {repo}@{branch} "
-                  f"(every live read returned 401/403). The credential is present but "
-                  f"under-scoped — grant it fine-grained Administration: read (or a "
-                  f"classic token with `repo` scope + admin) so the live drift check "
-                  f"can run. Refusing to soft-skip a present-but-insufficient token.")
+                  f"but was rejected (401/403) reading branch-protection / rulesets "
+                  f"on {repo}@{branch}. The credential is present but under-scoped or "
+                  f"expired — grant it fine-grained Administration: read (or a classic "
+                  f"token with `repo` scope + admin) so the live drift check can run. "
+                  f"Refusing to soft-skip a present-but-insufficient token.")
             return 1
         print(f"::warning::--reconcile skipped: no REQUIRED_CHECKS_ADMIN_TOKEN "
-              f"provisioned; the default GITHUB_TOKEN cannot read branch-protection / "
-              f"rulesets on {repo}@{branch}. Provision an admin-scoped "
+              f"provisioned; the default GITHUB_TOKEN cannot read branch-protection "
+              f"on {repo}@{branch}. Provision an admin-scoped "
               f"REQUIRED_CHECKS_ADMIN_TOKEN secret (fine-grained: Administration "
               f"read) to enable the live drift check; the static audit above still "
               f"gates.")

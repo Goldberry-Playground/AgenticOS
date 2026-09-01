@@ -56,3 +56,7 @@ vendor/
 
 # Docker Compose local override (copy from docker-compose.override.example.yml)
 docker-compose.override.yml
+
+# Python bytecode (stray audit-script compile artifacts — GOL-1907)
+__pycache__/
+*.pyc
