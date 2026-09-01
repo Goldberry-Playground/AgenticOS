@@ -79,5 +79,8 @@ jobs:
           # Falls back to GITHUB_TOKEN so the static audit still runs; the live
           # reconcile self-skips when the token lacks branch-protection admin.
           GH_TOKEN: ${{ secrets.REQUIRED_CHECKS_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+          # Boolean-only signal (never the secret value) so the script can tell an
+          # under-scoped admin token from an absent one and hard-fail the former.
+          REQUIRED_CHECKS_ADMIN_TOKEN_SET: ${{ secrets.REQUIRED_CHECKS_ADMIN_TOKEN != '' }}
           GH_REPO: ${{ github.repository }}
         run: python3 .github/scripts/audit-required-merge-group.py --reconcile

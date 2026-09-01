@@ -211,8 +211,21 @@ def reconcile():
     # genuinely lacks branch-protection/ruleset admin. Otherwise we have a real
     # live picture (possibly empty) to compare against.
     if sources == 0 and auth_failures:
-        print(f"::warning::--reconcile skipped: token lacks branch-protection / "
-              f"ruleset read admin on {repo}@{branch}. Provision an admin-scoped "
+        # GOL-1907: distinguish "no admin token provisioned" (soft-skip is fine —
+        # the default GITHUB_TOKEN provably cannot read protection) from "admin
+        # token provisioned but under-scoped" (hard-fail — a silent skip here is
+        # exactly how the reconcile leg stayed invisible fleet-wide).
+        if os.environ.get("REQUIRED_CHECKS_ADMIN_TOKEN_SET") == "true":
+            print(f"::error::--reconcile FAILED: REQUIRED_CHECKS_ADMIN_TOKEN is set "
+                  f"but cannot read branch-protection / rulesets on {repo}@{branch} "
+                  f"(every live read returned 401/403). The credential is present but "
+                  f"under-scoped — grant it fine-grained Administration: read (or a "
+                  f"classic token with `repo` scope + admin) so the live drift check "
+                  f"can run. Refusing to soft-skip a present-but-insufficient token.")
+            return 1
+        print(f"::warning::--reconcile skipped: no REQUIRED_CHECKS_ADMIN_TOKEN "
+              f"provisioned; the default GITHUB_TOKEN cannot read branch-protection / "
+              f"rulesets on {repo}@{branch}. Provision an admin-scoped "
               f"REQUIRED_CHECKS_ADMIN_TOKEN secret (fine-grained: Administration "
               f"read) to enable the live drift check; the static audit above still "
               f"gates.")
