@@ -1,0 +1,55 @@
+# Missing-required-check sweep — GOL-1958.
+#
+# A *required* status check that never STARTS (a dropped GitHub trigger) is
+# indistinguishable from one that is still running: the PR hangs at
+# "Expected — waiting for status" forever and only a human notices, hours later.
+# grove-odoo-modules #141 sat unmergeable ~6.5h this way and was force-merged by
+# hand — exactly the escape hatch branch-protection tightening is meant to stop.
+#
+# CRITICAL DESIGN: this detector runs on `schedule` + `workflow_dispatch`, NOT
+# `pull_request`. A pull_request-triggered detector would have been dropped
+# alongside the CI run it is meant to catch. It is a cheap, API-only sweep — it
+# never checks out or runs PR code.
+#
+# Logic lives once in the shared action; this file only wires the schedule.
+#   Shared action: Goldberry-Playground/grove-sites/.github/actions/ci-failure-router@main
+# It reads the declared required contexts from .github/required-checks.json,
+# reads check-runs AND commit statuses on each open non-draft PR's head SHA
+# (some repos post a required context as a commit status, not a check-run), and
+# mints one deduped `ci-failure` issue — mirrored to Paperclip — per PR whose
+# required context is absent past the grace window. Findings are alert-only; the
+# issue body carries the one-step close/reopen remediation for a human to run.
+name: Missing required-check sweep
+
+on:
+  schedule:
+    - cron: "7,27,47 * * * *" # every 20 min (offset to avoid the top-of-hour herd)
+  workflow_dispatch:
+    inputs:
+      grace-minutes:
+        description: Minutes a head SHA must age before a missing check is flagged.
+        required: false
+        default: "20"
+
+permissions:
+  contents: read # read required-checks.json + head commit date
+  pull-requests: read # list open PRs
+  checks: read # check-runs on the head SHA
+  statuses: read # commit statuses on the head SHA
+  issues: write # mint/close the deduped ci-failure issue
+
+concurrency:
+  group: missing-checks-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Sweep open PRs for required checks that never started
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: Goldberry-Playground/grove-sites/.github/actions/ci-failure-router@main
+        with:
+          mode: missing-checks
+          github-token: ${{ github.token }}
+          grace-minutes: ${{ github.event.inputs.grace-minutes || '20' }}
