@@ -4,11 +4,14 @@
   "//systems": "GitHub unions two policy systems. 'ruleset' repos carry the settings in their named repository ruleset; 'legacy' repos carry them in classic branch protection on 'branch'. The script maps the canonical target keys below to the right API surface per system.",
   "//fields": "Canonical target keys (a key that is absent for a repo is NOT managed there): strict = require branch up-to-date with base (ruleset required_status_checks.strict_required_status_checks_policy | legacy required_status_checks.strict); dismiss_stale_reviews = dismiss approvals on push (ruleset pull_request.dismiss_stale_reviews_on_push | legacy required_pull_request_reviews.dismiss_stale_reviews); thread_resolution = require all review threads resolved (ruleset pull_request.required_review_thread_resolution | legacy required_conversation_resolution); extra_approval_unattributed = require a second approval for unattributed commits (ruleset pull_request.require_extra_approval_for_unattributed_changes | legacy: n/a).",
   "//required_contexts": "GOL-1953: the full required status-check context set for the branch (ruleset required_status_checks.required_status_checks[] | legacy required_status_checks.checks[]). This is the DECLARED TARGET — the guard layer (protected-paths / config-freeze / fix-touches-test / CI scripts / required-checks-audit + per-repo security checks) is promoted from advisory to branch-binding here. EVERY listed context was verified to report success on an actual merge_group commit first (acceptance #1) — a context whose job is skipped/conditional on merge_group (e.g. AgenticOS 'Dependency review', gated by a pull_request-only preflight) is DELIBERATELY EXCLUDED because it would wedge the merge queue. On --apply, legacy new contexts inherit the app_id shared by existing checks (15368 = GitHub Actions) and existing pins are preserved (never loosened); ruleset entries preserve any integration_id. LOCKSTEP: this list must equal the same repo's .github/required-checks.json (GOL-1907's reconcile leg hard-fails on declared-vs-live drift). Apply a repo (`--apply --repo X`) in the same batch as that repo's required-checks.json bump so a weekly reconcile never sees a mismatch. For a repo whose promotion PR has not landed yet, --check will show this as pending drift — expected, not a failure.",
+  "//guard-hold": "GOL-1953 (board 2026-09-01): 'Protected paths guard' is DELIBERATELY EXCLUDED from every required_contexts set below. Under a merge queue GitHub evaluates required checks against the merge-group commit, and protected-paths-guard.yml passes through unconditionally on `merge_group` (enforcement is PR-level by design). So requiring it as-is gates nothing on the merge group (cosmetic) while its PR-level failure on any .github/workflows/** edit is not what the queue evaluates. Re-add it here ONLY after it is redesigned to enforce on `merge_group` (resolve the queued PR from gh-readonly-queue/{base}/pr-{N}-{sha} and re-check its files) — tracked as a child of GOL-1953. The rest of the list (config-freeze / fix-touches-test / CI scripts / required-checks-audit + per-repo security checks) genuinely runs and reports on merge_group and gates for real.",
+  "//sequencing": "GOL-1953 promotion is paused pending GOL-1958 (missing-check sweep) landing first; more required contexts multiply the surface for a dropped trigger to hang a PR, and the sweep is what detects that. This file is the declared TARGET only; nothing here is live until Josh runs `apply-merge-policy.sh --apply` per repo in lockstep with that repo's required-checks.json bump.",
   "//out-of-scope": "Not changed by this policy: required_approving_review_count and the merge-queue rulesets themselves.",
   "dormant_reviewer_ruleset_name": "Code Quality Copilot review for default branch",
   "repos": [
     {
       "repo": "AgenticOS",
+      "//pause": "GOL-1953 pause (board 2026-09-01): required_contexts is held EQUAL to live branch protection (the pre-promotion baseline) so the in-repo lockstep test (scripts/ci/merge-policy-required-contexts.test.mjs) and GOL-1907's reconcile leg both stay green while the promotion is paused pending GOL-1958 and the Protected-paths-guard merge_group question. The verified go-forward AgenticOS target is the same shape as the sibling repos below (add: Config freeze, fix touches a test, CI scripts, Required-checks audit, gitleaks, markdownlint, actionlint — NOT Protected paths guard, see //guard-hold). Re-introduce that set here IN THE SAME PR as `apply-merge-policy.sh --apply --repo AgenticOS` so declared==live==applied at all times.",
       "system": "legacy",
       "branch": "main",
       "targets": {
@@ -18,15 +21,7 @@
         "Lint",
         "Typecheck",
         "Unit tests",
-        "Build",
-        "Protected paths guard",
-        "Config freeze",
-        "fix touches a test",
-        "CI scripts",
-        "Required-checks audit",
-        "gitleaks",
-        "markdownlint",
-        "actionlint"
+        "Build"
       ]
     },
     {
@@ -63,7 +58,6 @@
         "Route byte budget",
         "Component CSS budget",
         "Lighthouse CI",
-        "Protected paths guard",
         "Config freeze",
         "fix touches a test",
         "CI scripts",
@@ -89,7 +83,6 @@
         "Lint Python",
         "Validate Module Manifests",
         "Validate Tenant Slug Map",
-        "Protected paths guard",
         "Config freeze",
         "fix touches a test",
         "CI scripts",
@@ -118,7 +111,6 @@
         "Validate Nginx Config",
         "Lint Python (Odoo Modules)",
         "prod-plan-guard",
-        "Protected paths guard",
         "Config freeze",
         "fix touches a test",
         "CI scripts",
