@@ -27,9 +27,23 @@
 name: Auto-approve verified agent PRs
 
 on:
+  # GOL-1938: three entrypoints, ALL evaluated from the BASE-branch workflow
+  # definition. workflow_run / check_run / pull_request_review each run the
+  # default-branch copy of this file, never a PR-supplied one, so the "a PR
+  # cannot edit this workflow to approve itself" property is preserved.
+  #   - workflow_run:         CI finished (the original trigger).
+  #   - check_run:            an agent-review/* check flipped to success AFTER CI
+  #                           had already finished — the case that used to stall
+  #                           forever because nothing re-fired the workflow.
+  #   - pull_request_review:  a human maintainer submitted an approving review —
+  #                           enqueues without waiting for a fresh push.
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  check_run:
+    types: [completed]
+  pull_request_review:
+    types: [submitted]
 
 permissions:
   contents: read
@@ -37,10 +51,21 @@ permissions:
 
 jobs:
   auto-approve:
+    # GOL-1938: gate hard at the job level so (a) high-volume check_run events
+    # that are NOT an agent-review/* success never start a runner [acceptance
+    # #3], and (b) the bot's OWN approving review never re-triggers this
+    # workflow [acceptance #4].
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.pull_requests[0] != null
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.pull_requests[0] != null) ||
+      (github.event_name == 'check_run' &&
+       github.event.check_run.conclusion == 'success' &&
+       startsWith(github.event.check_run.name, 'agent-review/')) ||
+      (github.event_name == 'pull_request_review' &&
+       github.event.review.state == 'approved' &&
+       github.event.review.user.login != 'github-actions[bot]')
     runs-on: ubuntu-latest
     steps:
       - name: Check out base-branch scripts
@@ -49,13 +74,92 @@ jobs:
           ref: main
           persist-credentials: false
 
+      # GOL-1938: the target PR is carried differently by each trigger. Resolve
+      # it once here and hand it to the shared gate body below via $GITHUB_ENV,
+      # so the entrypoints share the gate instead of copy-pasting it.
+      - name: Resolve target PR number
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          WR_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+          REVIEW_PR: ${{ github.event.pull_request.number }}
+          CR_PR: ${{ github.event.check_run.pull_requests[0].number }}
+          CR_SHA: ${{ github.event.check_run.head_sha }}
+        run: |
+          set -euo pipefail
+          PR=""
+          case "$EVENT_NAME" in
+            workflow_run)        PR="$WR_PR" ;;
+            pull_request_review) PR="$REVIEW_PR" ;;
+            check_run)
+              # check_run carries PR context in .pull_requests[], but that array
+              # can be EMPTY (App-created check-runs, or a fork PR). Fall back to
+              # a head-SHA -> open-PR lookup so those still resolve. (GOL-1938)
+              PR="$CR_PR"
+              if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+                PR=$(gh api "repos/$REPO/commits/$CR_SHA/pulls" \
+                  --jq '[.[] | select(.state=="open")][0].number' 2>/dev/null || true)
+              fi
+              ;;
+          esac
+          if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+            echo "No open target PR resolved for event '$EVENT_NAME'; nothing to do."
+            PR=""
+          else
+            echo "Resolved target PR #$PR (event: $EVENT_NAME)."
+          fi
+          echo "PR=${PR}" >> "$GITHUB_ENV"
+
       - name: Approve (as github-actions[bot]) + enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          PR: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
           set -euo pipefail
+
+          # PR is resolved by the previous step. Empty when the event
+          # carried no actionable PR (e.g. a check_run whose head SHA
+          # has no open PR); nothing to do in that case. (GOL-1938)
+          if [ -z "${PR:-}" ]; then
+            echo "No target PR to process; exiting."
+            exit 0
+          fi
+
+          # ── Human-maintainer path (GOL-1938; parity with GOL-1207 which
+          # landed in grove-sites / grove-odoo-modules / odoocker but NEVER in
+          # AgenticOS — so a Josh-authored PR in the repo that HOSTS the tooling
+          # could not auto-clear the review gate; flow 2 was broken here). A
+          # trusted human maintainer's OWN PR hits the required-review wall from
+          # the other side: GitHub blocks approving your own PR. We clear it by
+          # approving as github-actions[bot] (a DISTINCT identity, so no
+          # self-approval), but deliberately do NOT enable auto-merge — the human
+          # keeps control of WHEN it merges. The Tier-0 protected-paths carve-out
+          # still applies; only the agent-review sign-off gate (for bot authors)
+          # is skipped. Match a bare login ONLY (never "app/<login>"): the agent
+          # App is handled by automerge-gate.mjs below. (GOL-1372 / GOL-1322)
+          MAINTAINERS="EngineeringMoonBear"
+          MAINT_AUTHOR=$(gh pr view "$PR" --repo "$REPO" --json author -q '.author.login')
+          for m in $MAINTAINERS; do
+            if [ "$MAINT_AUTHOR" = "$m" ]; then
+              echo "PR #$PR author '$MAINT_AUTHOR' is a trusted maintainer; clearing the review gate (approve only, no auto-merge)."
+              PR_FILES=$(gh pr view "$PR" --repo "$REPO" --json files -q '.files[].path')
+              if ! REASON=$(PR_FILES="$PR_FILES" node scripts/ci/protected-paths-carveout.mjs); then
+                echo "PR #$PR not auto-approved: $REASON"
+                exit 0
+              fi
+              echo "carve-out passed: no protected path touched"
+              ALREADY=$(gh api "repos/$REPO/pulls/$PR/reviews" \
+                -q '[.[] | select(.user.login=="github-actions[bot]" and .state=="APPROVED")] | length')
+              if [ "${ALREADY:-0}" -gt 0 ]; then
+                echo "PR #$PR already approved by github-actions[bot]."
+              else
+                gh pr review "$PR" --repo "$REPO" --approve --body \
+                  "Auto-approved by github-actions[bot]: trusted maintainer PR, review gate cleared. This identity is distinct from the PR author, so it satisfies any review requirement without self-approval. Required status checks still gate the merge; the maintainer decides when to merge (no auto-merge). (GOL-1207 parity / GOL-1938)"
+              fi
+              exit 0
+            fi
+          done
 
           # ── Gate 1: author + blast-radius + optional sensitive-path policy ──
           # Decision lives in scripts/automerge-gate.mjs so it is unit-tested
