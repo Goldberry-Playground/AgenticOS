@@ -1,0 +1,166 @@
+# Agent-review merge-queue mirror  —  GOL-1954 (GOL-159 Phase 3 prerequisite).
+#
+# WHY THIS EXISTS
+#   `agent-review/ada` is the intended single, globally-required review gate
+#   (packages/github-sync-plugin/src/pr-signoff.ts). The github-sync plugin
+#   seeds/completes it on the PR HEAD SHA (seedPendingCheck -> handleReviewSignoff).
+#   The merge queue, however, builds a NEW synthetic commit on
+#   `gh-readonly-queue/...` that carries NO `agent-review/*` result. So the moment
+#   `agent-review/ada` is made a required status check it would park every queue
+#   entry at "Expected — waiting for status" until `check_response_timeout_minutes`
+#   (30m) expires, then fail — fleet-wide. The plugin has no `merge_group`
+#   awareness (`git grep merge_group -- src` is empty) and the App is not
+#   subscribed to `merge_group`, so this workflow is the merge-queue leg.
+#
+# WHAT IT DOES  (Option B — workflow-side mirror, no droplet/App change)
+#   On `merge_group`, resolve the queued PR from the queue branch ref, read the
+#   `agent-review/*` check-runs the plugin posted on the PR head, and MIRROR the
+#   verdict onto the merge_group head SHA as a commit status of the SAME name.
+#   GitHub matches required status checks by NAME and treats commit statuses and
+#   check-runs uniformly, so a commit status `agent-review/ada=success` on the
+#   queue commit satisfies the required context exactly as the PR-head check-run
+#   does. (A commit status is used rather than a check-run deliberately: it is the
+#   primitive `.github/scripts/audit-required-merge-group.py` recognizes via its
+#   `context: '...'` literal parse — see that script's docstring — so this
+#   workflow is provably merge_group-safe with no audit change.)
+#
+# FAIL CLOSED
+#   `agent-review/ada` is the lead gate and is ALWAYS posted: `success` only when
+#   the PR-head `agent-review/ada` is `completed/success`, otherwise `failure`
+#   (absent / in_progress / any non-success / PR unresolvable). A fast red is the
+#   correct outcome — never stay silent and let the queue burn the 30m timeout.
+#
+# STALE-REVIEW SEMANTICS
+#   The queue commit is the PR head merged onto the CURRENT base. Mirroring the
+#   PR-head verdict asserts Ada reviewed the PRE-MERGE content, not the merged
+#   result. That is inherent to any queue-based review gate; the queue still
+#   re-runs the functional checks (CI, guards) against the merged commit. This
+#   gate certifies "a human/agent reviewer signed off on the PR content", not
+#   "the exact merged bytes were re-reviewed".
+#
+# `agent-review/iris` is CONDITIONAL (seeded only when changed paths match the
+#   plugin's frontend globs). It is mirrored here for consistency ONLY when it
+#   exists on the PR head, and must NEVER be promoted to required — requiring a
+#   conditional check would wedge every PR that does not touch frontend paths.
+#
+# PROMOTION IS SEPARATE (GOL-1953). This ships the mirror only. Adding
+#   `agent-review/ada` to `.github/required-checks.json` + live branch protection
+#   happens in one lockstep PR there, after this is proven green on real queue
+#   entries.
+name: Agent-review merge-queue mirror
+
+on:
+  merge_group:
+
+permissions:
+  contents: read
+  checks: read
+  statuses: write
+  pull-requests: read
+
+concurrency:
+  group: agent-review-mirror-${{ github.event.merge_group.head_sha || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    name: Mirror agent-review onto the queue commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mirror agent-review verdicts onto merge_group head
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const mg = context.payload.merge_group || {};
+            const queueSha = mg.head_sha;
+
+            async function post(contextLiteralState, description) {
+              // contextLiteralState is a pre-built {context, state}; context is a
+              // string LITERAL at the call site so the required-checks audit's
+              // `context: '...'` parse recognizes it as merge_group-produced.
+              await github.rest.repos.createCommitStatus({
+                owner, repo, sha: queueSha,
+                context: contextLiteralState.context,
+                state: contextLiteralState.state,
+                description: String(description).slice(0, 140),
+              });
+              core.info(`posted ${contextLiteralState.context}=${contextLiteralState.state} ` +
+                        `on ${String(queueSha).slice(0, 7)}: ${description}`);
+            }
+
+            // Fail-closed on the lead gate: post agent-review/ada=failure so the
+            // queue entry goes red fast instead of timing out.
+            async function leadFailClosed(reason) {
+              await github.rest.repos.createCommitStatus({
+                owner, repo, sha: queueSha,
+                context: 'agent-review/ada', state: 'failure',
+                description: String(reason).slice(0, 140),
+              });
+              core.warning(`agent-review/ada fail-closed on ${String(queueSha).slice(0, 7)}: ${reason}`);
+            }
+
+            try {
+              // 1) Resolve the PR number from the queue branch ref:
+              //    gh-readonly-queue/{base}/pr-{number}-{base_sha}
+              const headRef = mg.head_ref || '';
+              const m = headRef.match(/\/pr-(\d+)-[0-9a-f]+$/);
+              if (!m) {
+                await leadFailClosed(`cannot parse PR number from merge_group head_ref '${headRef}'`);
+                return;
+              }
+              const prNumber = Number(m[1]);
+
+              // 2) Read the PR head SHA — the commit the plugin posted checks on.
+              let prHeadSha;
+              try {
+                const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+                prHeadSha = pr.head.sha;
+              } catch (e) {
+                await leadFailClosed(`cannot resolve PR #${prNumber}: ${e.message}`);
+                return;
+              }
+              const short = String(prHeadSha).slice(0, 7);
+
+              // 3) Collect agent-review/* check-runs on the PR head, newest per name.
+              const runs = await github.paginate(github.rest.checks.listForRef, {
+                owner, repo, ref: prHeadSha, per_page: 100,
+              });
+              const byName = new Map();
+              for (const r of runs) {
+                if (!r.name.startsWith('agent-review/')) continue;
+                const prev = byName.get(r.name);
+                if (!prev || String(r.started_at || '') >= String(prev.started_at || '')) {
+                  byName.set(r.name, r);
+                }
+              }
+
+              // 4a) Lead gate `agent-review/ada` — ALWAYS posted, fail-closed.
+              const lead = byName.get('agent-review/ada');
+              const leadGreen = lead && lead.status === 'completed' && lead.conclusion === 'success';
+              if (leadGreen) {
+                await post({ context: 'agent-review/ada', state: 'success' },
+                           `mirrored: PR #${prNumber} head ${short} agent-review/ada success`);
+              } else {
+                const detail = lead ? `${lead.status}/${lead.conclusion}` : 'absent';
+                await post({ context: 'agent-review/ada', state: 'failure' },
+                           `fail-closed: PR #${prNumber} head ${short} agent-review/ada is ${detail}`);
+              }
+
+              // 4b) Conditional gate `agent-review/iris` — mirror only when present;
+              //     never fail-closed, never required (would wedge non-frontend PRs).
+              const cond = byName.get('agent-review/iris');
+              if (cond) {
+                const condGreen = cond.status === 'completed' && cond.conclusion === 'success';
+                await post({ context: 'agent-review/iris', state: condGreen ? 'success' : 'failure' },
+                           `mirrored: PR #${prNumber} head ${short} agent-review/iris ${cond.status}/${cond.conclusion}`);
+              } else {
+                core.info('agent-review/iris not present on PR head — not applicable, skipping.');
+              }
+            } catch (e) {
+              // Genuine malfunction — still fail closed on the lead gate so the
+              // queue goes red fast rather than timing out, then surface the error.
+              try { await leadFailClosed(`mirror error: ${e.message}`); } catch (_) { /* best effort */ }
+              core.setFailed(`agent-review merge-queue mirror failed: ${e.stack || e.message}`);
+            }
