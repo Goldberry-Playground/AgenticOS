@@ -268,6 +268,47 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # host-clone drift-guard (GOL-1976): the host timers all run scripts out of the
+  # /opt/agenticos/repo clone. GOL-1965/AgenticOS#650 fixed the PUSH path
+  # (deploy-host-scripts.yml reset-hards the clone on infra/scripts or scripts
+  # changes). This is the DETECTION layer — read-only fetch + HEAD-vs-origin/main
+  # + origin-URL assertion, a few times/day, Discord on drift. It NEVER
+  # resets/pulls (repair is #650's job). Runs as User=deploy (repo owner → same
+  # fetch context #650 uses). Keep in sync with infra/scripts/install-drift-guard.sh.
+  - path: /etc/systemd/system/agenticos-host-clone-drift.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS host-clone drift-guard (read-only HEAD-vs-origin/main + origin-URL check -> Discord)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      User=deploy
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/host-clone-drift-guard.sh'
+      StandardOutput=append:/var/log/agenticos/host-clone-drift.log
+      StandardError=append:/var/log/agenticos/host-clone-drift.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-host-clone-drift.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run AgenticOS host-clone drift-guard 4x/day (00/06/12/18:07 local)
+
+      [Timer]
+      OnCalendar=*-*-* 00/6:07:00
+      Persistent=true
+      RandomizedDelaySec=300
+      Unit=agenticos-host-clone-drift.service
+
+      [Install]
+      WantedBy=timers.target
+
   # journald cap: bound /var/log/journal so it never balloons the root FS.
   - path: /etc/systemd/journald.conf.d/10-agenticos-cap.conf
     permissions: "0644"
@@ -668,6 +709,11 @@ runcmd:
   - systemctl enable --now agenticos-disk-guard.timer
   # paperclip-data volume headroom + backup-freshness watch (GOL-1632)
   - systemctl enable --now agenticos-paperclip-volume-guard.timer
+
+  # --- Host-clone drift-guard (GOL-1976): read-only detection that the on-box
+  # clone the host timers run from has drifted from origin/main. ---
+  - chmod +x /opt/agenticos/repo/infra/scripts/host-clone-drift-guard.sh
+  - systemctl enable --now agenticos-host-clone-drift.timer
 
   # --- Unattended security upgrades ---
   - echo 'APT::Periodic::Unattended-Upgrade "1";' > /etc/apt/apt.conf.d/20auto-upgrades
