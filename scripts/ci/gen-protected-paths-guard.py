@@ -283,6 +283,55 @@ jobs:
               core.info('No protected paths touched by this PR — guard passes.');
               return;
             }
+
+            // ── Dependabot `uses:`-only carve-out (GOL-1905) ─────────────────
+            // A Dependabot action bump edits a `uses:` pin INSIDE a workflow
+            // file, so it necessarily touches `.github/workflows/**` (Tier-0)
+            // and would fail this guard forever — a security-UPDATE path blocked
+            // by a security guard, leaving the pinned-action SHAs to silently
+            // rot. Pass such a PR, but ONLY when it is narrow enough that it
+            // cannot become a workflow-edit backdoor. EVERY condition must hold;
+            // anything ambiguous falls through to the human-approval requirement
+            // below (fail closed):
+            //   1. author is exactly `dependabot[bot]` AND a Bot identity — the
+            //      `pull_request_target` payload author is set by GitHub from the
+            //      base-branch context, so it cannot be spoofed by the PR;
+            //   2. every changed file is under `.github/workflows/**`, is
+            //      `modified` (not added/removed/renamed/copied), and carries an
+            //      inspectable text patch (a missing patch => fail closed);
+            //   3. within each patch, every added/removed line is a `uses:` pin
+            //      line (an optional YAML `- ` sequence dash is allowed). A
+            //      `run:` / `permissions:` / trigger change => a non-`uses:`
+            //      changed line => fail closed.
+            // Runs from the base-branch definition like the rest of the guard,
+            // so a PR cannot edit this carve-out to exempt itself.
+            function usesOnlyWorkflowBump(prUser, changedFiles) {
+              if (!prUser || prUser.login !== 'dependabot[bot]' || prUser.type !== 'Bot') return false;
+              if (!changedFiles.length) return false;
+              const WORKFLOW_FILE = /^\.github\/workflows\/.+/;
+              const USES_LINE = /^\s*(?:-\s+)?uses:\s/;
+              for (const f of changedFiles) {
+                if (!WORKFLOW_FILE.test(f.filename)) return false;
+                if (f.status !== 'modified') return false;
+                if (typeof f.patch !== 'string' || f.patch.length === 0) return false;
+                for (const line of f.patch.split('\n')) {
+                  const sign = line[0];
+                  if (sign !== '+' && sign !== '-') continue; // context / @@ hunk header / "\ No newline"
+                  if (!USES_LINE.test(line.slice(1))) return false;
+                }
+              }
+              return true;
+            }
+            // end-usesOnlyWorkflowBump (extraction sentinel — see the test)
+            if (usesOnlyWorkflowBump(pr.user, files)) {
+              core.info(
+                'Dependabot action bump: every changed line is a `uses:` pin in ' +
+                '.github/workflows/** and no other path is touched — narrow ' +
+                'carve-out (GOL-1905), guard passes.'
+              );
+              return;
+            }
+
             core.warning('Protected paths touched:\n  ' + hits.join('\n  '));
 
             const ASK =
@@ -390,6 +439,21 @@ def render_codeowners(cfg):
 # correction (item B) flows to both from one edit. `globToRe` is kept
 # byte-for-byte identical to the guard's matcher (asserted by
 # scripts/ci/protected-paths-carveout.test.mjs).
+#
+# GOL-1905 — the Dependabot `uses:`-only carve-out is DELIBERATELY guard-only.
+# The guard now PASSES a narrow Dependabot action bump (author == dependabot[bot],
+# only `uses:` pin lines under `.github/workflows/**`) so the required check goes
+# green and the pinned-action SHAs the audit praised can be kept fresh. It is NOT
+# mirrored here: auto-approve continues to WITHHOLD on any `.github/**` change
+# (this carve-out's `.github/workflows/**` glob AND automerge-gate.mjs's M2
+# SENSITIVE `/^\.github\//` gate both fire), so a human still clicks merge. That
+# is the fail-closed direction the issue calls "not dangerous". Making Dependabot
+# workflow bumps hands-free auto-mergeable would mean loosening TWO auto-merge
+# gates plus the agent-review gate (Dependabot PRs get no `agent-review/*`
+# check-run) — a materially larger change to the money/gate auto-merge surface
+# that needs explicit board sign-off, tracked separately if wanted. Green-and-
+# one-human-click already unblocks the security-update path with minimal blast
+# radius, so the carve-out below is intentionally left untouched by GOL-1905.
 CARVEOUT_TEMPLATE = r'''#!/usr/bin/env node
 // protected-paths-carveout.mjs — Tier-0 carve-out for auto-approve (GOL-1406-A).
 //
