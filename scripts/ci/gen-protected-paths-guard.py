@@ -480,6 +480,73 @@ def render_carveout(extra_globs):
     return CARVEOUT_TEMPLATE.replace("{GLOBS}", "\n".join(globs))
 
 
+# ─── GOL-1920: wire the carve-out ≡ guard invariant into required CI ─────────
+#
+# The carve-out (protected-paths-carveout.mjs) and the guard
+# (protected-paths-guard.yml) are both generated from this file, and
+# scripts/ci/protected-paths-carveout.test.mjs asserts they stay identical
+# (same PROTECTED_GLOBS + same glob→RegExp matcher). But that test was never
+# RUN in CI on any repo, so the two silently drifted on odoocker &
+# grove-odoo-modules (GOL-1912) — the carve-out grew LOOSER than the guard, so
+# auto-approve could have stamped a PR the human-approval gate blocks. This
+# workflow runs that invariant on every PR / push / merge_group so drift can
+# never reach main unnoticed again. Byte-identical across all carve-out repos:
+# the test path and the guard/carve-out filenames are the same everywhere, so
+# there is nothing per-repo to template. Lives under .github/workflows/** →
+# self-protected by the guard, and reads no secrets (pure Node built-in test
+# runner: no install, no network).
+INVARIANT_TEMPLATE = r'''# Protected paths carve-out ≡ guard invariant  —  GOL-1920 (org-wide).
+#
+# Runs scripts/ci/protected-paths-carveout.test.mjs, which asserts that the
+# Tier-0 list in scripts/ci/protected-paths-carveout.mjs (what auto-approve.yml
+# uses to WITHHOLD auto-approval) stays byte-for-byte in sync with the
+# PROTECTED_GLOBS and glob→RegExp matcher in
+# .github/workflows/protected-paths-guard.yml (the human-approval merge gate).
+# If the two drift, auto-approve could stamp a PR the guard blocks — the exact
+# hole GOL-1406-A closed and GOL-1912 found reopened by drift. This makes the
+# invariant a CI check so that can never silently reach main again.
+#
+# Pure Node built-in test runner: no dependency install, no secrets, no
+# network. Runs on `pull_request` (validates the PR's merged tree at head),
+# `push` to main, and `merge_group` — a REQUIRED check must report on the merge
+# group or the queue wedges ("Expected — waiting for status"), and the merge
+# commit contains the same files, so the invariant is checked there too.
+#
+# GENERATED for every carve-out repo from gen-protected-paths-guard.py in the
+# AgenticOS repo — byte-identical across repos; edit the generator, not this
+# file. This workflow is under .github/workflows/**, so it is itself covered by
+# the protected-paths guard and cannot be neutered without an allowlisted
+# human's SHA-bound approving review.
+name: Protected paths invariant
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protected-paths-invariant-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  invariant:
+    name: carve-out matches guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Assert carve-out is identical to the protected-paths guard
+        run: node --test scripts/ci/protected-paths-carveout.test.mjs
+'''
+
+
 # Base dir holding sibling repo checkouts (…/AgenticOS, …/grove-sites, …).
 # Override with $PPG_BASE or argv[1]; defaults to this repo's parent so a fresh
 # checkout can regenerate all four repos' artifacts from one source.
@@ -514,3 +581,10 @@ for repo_dir, cfg in REPOS.items():
     with open(cv, "w") as f:
         f.write(render_carveout(cfg["globs"]))
     print("wrote", cv)
+    # GOL-1920: CI check that runs the carve-out ≡ guard invariant test on every
+    # PR / push / merge_group, so the drift GOL-1912 found can never silently
+    # reach main again. Byte-identical across all carve-out repos.
+    iv = os.path.join(repo_root, ".github", "workflows", "protected-paths-invariant.yml")
+    with open(iv, "w") as f:
+        f.write(INVARIANT_TEMPLATE)
+    print("wrote", iv)

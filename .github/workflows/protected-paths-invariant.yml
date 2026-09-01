@@ -1,0 +1,49 @@
+# Protected paths carve-out ≡ guard invariant  —  GOL-1920 (org-wide).
+#
+# Runs scripts/ci/protected-paths-carveout.test.mjs, which asserts that the
+# Tier-0 list in scripts/ci/protected-paths-carveout.mjs (what auto-approve.yml
+# uses to WITHHOLD auto-approval) stays byte-for-byte in sync with the
+# PROTECTED_GLOBS and glob→RegExp matcher in
+# .github/workflows/protected-paths-guard.yml (the human-approval merge gate).
+# If the two drift, auto-approve could stamp a PR the guard blocks — the exact
+# hole GOL-1406-A closed and GOL-1912 found reopened by drift. This makes the
+# invariant a CI check so that can never silently reach main again.
+#
+# Pure Node built-in test runner: no dependency install, no secrets, no
+# network. Runs on `pull_request` (validates the PR's merged tree at head),
+# `push` to main, and `merge_group` — a REQUIRED check must report on the merge
+# group or the queue wedges ("Expected — waiting for status"), and the merge
+# commit contains the same files, so the invariant is checked there too.
+#
+# GENERATED for every carve-out repo from gen-protected-paths-guard.py in the
+# AgenticOS repo — byte-identical across repos; edit the generator, not this
+# file. This workflow is under .github/workflows/**, so it is itself covered by
+# the protected-paths guard and cannot be neutered without an allowlisted
+# human's SHA-bound approving review.
+name: Protected paths invariant
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protected-paths-invariant-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  invariant:
+    name: carve-out matches guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Assert carve-out is identical to the protected-paths guard
+        run: node --test scripts/ci/protected-paths-carveout.test.mjs
