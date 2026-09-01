@@ -1,0 +1,102 @@
+name: Deploy Host Scripts
+
+# GOL-1965: refresh the Droplet git clone at /opt/agenticos/repo when the host
+# scripts change on main.
+#
+# The six scheduled host jobs (systemd timers installed by
+# infra/scripts/install-backup-timers.sh + install-disk-hygiene.sh, and the
+# curator timer) all `ExecStart` out of /opt/agenticos/repo — a real git
+# checkout, NOT the /opt/agenticos rsync/tarball snapshot that deploy-droplet.yml
+# ships to. Nothing kept that clone current on a host-script change:
+#
+#   • deploy-droplet.yml deliberately does NOT git-pull (it tar-extracts the
+#     committed tree onto /opt/agenticos) and its path filter has no
+#     infra/scripts/**, so it never touches /opt/agenticos/repo.
+#   • deploy-droplet-plugins.yml is the ONLY thing that `git reset --hard`s the
+#     clone — but only on packages/<plugin>/** changes.
+#
+# So a fix under infra/scripts/ or scripts/ reached production only as a side
+# effect of an unrelated plugin deploy. PR #622 (GOL-1632) sat un-applied on the
+# box for ~20h — the volume guard ran a stale script the whole time, exactly the
+# silent-stale-backup class the guard itself exists to catch, one layer down.
+#
+# This workflow closes that gap: on a push to main touching the host scripts, it
+# `git reset --hard origin/main` on /opt/agenticos/repo — the same proven step
+# deploy-droplet-plugins.yml already uses. No rebuild: these are plain bash
+# scripts, picked up on the timer's next fire. It also asserts the clone's origin
+# is the canonical Goldberry-Playground URL, repointing it if a future org
+# transfer leaves it resolving only through GitHub's redirect (GOL-1965 finding).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/scripts/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-host-scripts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Share the Droplet deploy lock with deploy-droplet.yml / deploy-droplet-plugins.yml
+# so a host-script refresh never runs git/docker on the box at the same time as a
+# vault-server or plugin deploy (both of which also touch the clone / snapshot).
+concurrency:
+  group: deploy-droplet
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Refresh /opt/agenticos/repo
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out composite actions
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions
+
+      - name: Configure SSH
+        uses: ./.github/actions/configure-ssh
+        with:
+          deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
+          host: ${{ secrets.DROPLET_HOST }}
+
+      - name: Assert remote + pull /opt/agenticos/repo to origin/main
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          # bash -lc → login shell so git is on PATH (matches the plugins deploy).
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" 'bash -lc '"'"'
+            set -euo pipefail
+
+            REPO=/opt/agenticos/repo
+            CANONICAL=https://github.com/Goldberry-Playground/AgenticOS.git
+
+            cd "$REPO"
+
+            # Assert the origin URL. On 2026-09-01 the clone still pointed at the
+            # pre-transfer EngineeringMoonBear path, fetching only through the
+            # GitHub transfer redirect — a silent time-bomb if that redirect is
+            # ever retired. Repoint to the canonical URL, idempotently.
+            CUR="$(git remote get-url origin)"
+            if [ "$CUR" != "$CANONICAL" ]; then
+              echo "origin was $CUR -> repointing to $CANONICAL"
+              git remote set-url origin "$CANONICAL"
+            fi
+
+            OLD="$(git rev-parse HEAD)"
+            git fetch --quiet origin main
+            git checkout --quiet main
+            git reset --hard --quiet origin/main
+            NEW="$(git rev-parse HEAD)"
+
+            echo "origin=$(git remote get-url origin)"
+            if [ "$OLD" = "$NEW" ]; then
+              echo "already current at $NEW"
+            else
+              echo "advanced $OLD -> $NEW"
+            fi
+          '"'"''
