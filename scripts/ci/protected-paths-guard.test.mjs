@@ -44,7 +44,18 @@ const HUMAN = 'EngineeringMoonBear';
 
 // Build a mock harness. `reviews` is the array listReviews returns;
 // `protectedHit` decides whether a protected file appears in listFiles.
-function harness({ reviews = [], protectedHit = true, headSha = HEAD }) {
+// merge_group scenarios (GOL-1991) additionally set `eventName: 'merge_group'`,
+// an optional `headRef` (defaults to a well-formed queue ref for PR #1), and
+// `groupFiles` = the merge-group diff (defaults to the named PR's own files, a
+// single-PR group). `compareCommitsWithBasehead` returns those group files.
+function harness({
+  reviews = [],
+  protectedHit = true,
+  headSha = HEAD,
+  eventName = 'pull_request_target',
+  headRef,
+  groupFiles,
+}) {
   const calls = { failed: null, info: [], warn: [] };
   const core = {
     setFailed: (m) => { calls.failed = m; },
@@ -54,6 +65,7 @@ function harness({ reviews = [], protectedHit = true, headSha = HEAD }) {
   const files = protectedHit
     ? [{ filename: '.github/workflows/protected-paths-guard.yml' }]
     : [{ filename: 'README.md' }];
+  const cmpFiles = (groupFiles ?? files.map((f) => f.filename)).map((fn) => ({ filename: fn }));
   const github = {
     paginate: async (fn) => fn.__data,
     rest: {
@@ -62,9 +74,21 @@ function harness({ reviews = [], protectedHit = true, headSha = HEAD }) {
         listFiles: Object.assign(async () => files, { __data: files }),
         listReviews: Object.assign(async () => reviews, { __data: reviews }),
       },
+      repos: {
+        compareCommitsWithBasehead: async () => ({ data: { files: cmpFiles } }),
+      },
     },
   };
-  const context = { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: { number: 1 } } };
+  const mgHeadRef =
+    headRef ?? 'refs/heads/gh-readonly-queue/main/pr-1-' + 'c'.repeat(40);
+  const context = {
+    eventName,
+    repo: { owner: 'o', repo: 'r' },
+    payload:
+      eventName === 'merge_group'
+        ? { merge_group: { head_ref: mgHeadRef, base_sha: 'd'.repeat(40), head_sha: 'e'.repeat(40) } }
+        : { pull_request: { number: 1 } },
+  };
   return { github, context, core, calls };
 }
 
@@ -133,6 +157,64 @@ const scenarios = [
         review({ state: 'APPROVED', commit_id: HEAD }),
         review({ state: 'COMMENTED', commit_id: HEAD }),
       ],
+    },
+    pass: true,
+  },
+
+  // ── merge_group enforcement (GOL-1991) ──────────────────────────────────
+  {
+    name: 'MERGE_GROUP: protected path, approved at HEAD, single-PR group -> pass',
+    setup: {
+      eventName: 'merge_group',
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+    },
+    pass: true,
+  },
+  {
+    name: 'MERGE_GROUP: protected path, NO approval -> fail (would have merged before)',
+    setup: { eventName: 'merge_group', reviews: [] },
+    pass: false,
+  },
+  {
+    name: 'MERGE_GROUP: protected path, approval bound to OLD sha -> fail',
+    setup: {
+      eventName: 'merge_group',
+      reviews: [review({ state: 'APPROVED', commit_id: OLD })],
+    },
+    pass: false,
+  },
+  {
+    name: 'MERGE_GROUP: no protected path anywhere in the group -> pass',
+    setup: { eventName: 'merge_group', protectedHit: false },
+    pass: true,
+  },
+  {
+    name: 'MERGE_GROUP: unparseable head_ref -> fail closed',
+    setup: {
+      eventName: 'merge_group',
+      headRef: 'refs/heads/gh-readonly-queue/main/not-a-pr-ref',
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+    },
+    pass: false,
+    expect: /cannot parse the queued PR number/,
+  },
+  {
+    name: 'MERGE_GROUP BATCH: co-batched PR touches a protected path not in named PR -> fail closed',
+    setup: {
+      eventName: 'merge_group',
+      protectedHit: false, // named PR #1 touches only README.md
+      groupFiles: ['README.md', '.github/workflows/coworker.yml'],
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+    },
+    pass: false,
+    expect: /co-batched PR/,
+  },
+  {
+    name: 'MERGE_GROUP BATCH: co-batched PR touches only unprotected paths -> pass',
+    setup: {
+      eventName: 'merge_group',
+      reviews: [review({ state: 'APPROVED', commit_id: HEAD })],
+      groupFiles: ['.github/workflows/protected-paths-guard.yml', 'docs/notes.md'],
     },
     pass: true,
   },
