@@ -21,6 +21,7 @@ on:
       - 'packages/openviking-plugin/**'
       - 'packages/github-plugin/**'
       - 'scripts/agent-git/**'
+      - 'scripts/agent-shell-rlimits.sh'
       - 'docs/agent-house-rules.md'
       - 'docker-compose.yml'
       - 'infra/otel/**'
