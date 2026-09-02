@@ -24,12 +24,19 @@ inbound.
 | `find / -name '*.log'`          | `find . -name '*.ts'`                     |
 | `rg needle /opt`                | `rg needle src/`                          |
 | `grep -ri secret $HOME`         | `grep -n foo /etc/hosts` (no `-r`)        |
-| `tree /`, `ls -R /`, `fd . /`   | `ls -la /` (not a recursive search)       |
+| `tree /`, `ls -R /`, `fd . /`   | `ls -la /`, `ls -lr /` (not recursive)    |
+| `grep -rn foo /var`             | `rg "/health"`, `grep -rn "/login" ./src` |
 
 Covered commands: `grep`/`egrep`/`fgrep` (only with `-r`/`-R`/`--recursive`),
-`rg`, `fd`/`fdfind`, `find`, `tree` (recursive by default), and `ls` (with
-`-R`). Transparent wrappers (`sudo`, `nice -n N`, `ionice`, `time`, `nohup`,
-`env VAR=…`) and simple `; && || |` chaining are seen through.
+`rg`, `fd`/`fdfind`, `find`, `tree` (recursive by default), and `ls` (only with
+`-R`/`--recursive` — `-r` is reverse-sort, not recursion). Transparent wrappers
+(`sudo`, `nice -n N`, `ionice`, `time`, `nohup`, `env VAR=…`) and simple
+`; && || |` chaining are seen through.
+
+For pattern-first tools (`grep`/`rg`/`fd`), the **search pattern** is not a path
+and is excluded from the root check — so a route-like pattern (`rg "/health"`,
+`grep -rn "/login" ./src`) is allowed. A real dangerous root supplied as a *path*
+argument after the pattern (`rg foo /`) is still blocked.
 
 Commands with **no** path argument (e.g. bare `rg foo`, `grep -r foo`) are
 **allowed** — they search the current directory, whose depth the hook cannot

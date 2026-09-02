@@ -44,6 +44,13 @@ const BLOCK = [
   "true; find / -name y",
   "ls | grep -r z /proc",
   "grep -rn foo ./src /", // one safe root + one dangerous root → block
+  // GOL-2045: a real dangerous PATH after the pattern is still caught for
+  // pattern-first tools (only the pattern token is skipped, not path args).
+  "rg foo /", // pattern "foo", path "/" → block
+  "rg /login /", // pattern "/login" skipped, path "/" → still block
+  "fd pattern /opt", // pattern "pattern", path "/opt" → block
+  "grep -rn /login ./src /var", // pattern "/login" skipped, "/var" → block
+  "ls -lR /var", // ls recurses only via -R (clustered) → block
 ];
 
 // --- Commands that MUST be allowed (scoped, non-recursive, or unrelated) ---
@@ -63,6 +70,16 @@ const ALLOW = [
   "echo grep -r x /", // echo, not a real search (base is echo)
   "npm run build",
   "find /home/node/project/src -name '*.js'",
+  // GOL-2045: route-like search patterns are the pattern, not a recursion root.
+  'rg "/health"', // bare rg, pattern is a route string → allowed
+  "rg /login", // bare rg, pattern is a route string → allowed
+  'grep -rn "/login" ./src', // scoped grep, pattern is a route → allowed
+  'grep -rn "/metrics" ./src', // scoped grep, pattern is a route → allowed
+  'fd "/tmp"', // fd pattern is a route/path string, search root is cwd → allowed
+  "egrep -r /api packages/api", // scoped egrep, pattern "/api" → allowed
+  // GOL-2045: `ls -r` is reverse-sort, not recursive.
+  "ls -lr /var", // -r = reverse order, not recursion → allowed
+  "ls -r /", // reverse-sort listing of / (non-recursive) → allowed
 ];
 
 for (const cmd of BLOCK) {

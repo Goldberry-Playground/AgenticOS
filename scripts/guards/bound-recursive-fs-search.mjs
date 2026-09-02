@@ -32,6 +32,12 @@ import { pathToFileURL } from "node:url";
 const RECURSIVE_BY_DEFAULT = new Set(["find", "rg", "fd", "fdfind", "tree"]);
 const GREP_LIKE = new Set(["grep", "egrep", "fgrep"]);
 const LS_LIKE = new Set(["ls"]);
+// Tools whose first non-flag argument is the search PATTERN, not a path. For
+// these the pattern must be excluded from the dangerous-root scan — otherwise a
+// route-like pattern (`/login`, `/health`, `/api`) reads as a recursion root and
+// blocks a scoped or bare search. `find`/`tree`/`ls` take paths positionally and
+// are NOT in this set.
+const PATTERN_FIRST = new Set(["grep", "egrep", "fgrep", "rg", "fd", "fdfind"]);
 
 /** Shell operators that separate independent simple-commands. */
 const SEGMENT_SPLIT = /(?:&&|\|\||[;\n|])/;
@@ -47,6 +53,14 @@ function readStdin() {
 /** True if a short-flag cluster (e.g. "-rn", "-Rl") requests recursion. */
 function shortFlagHasRecursion(tok) {
   return /^-[a-zA-Z]*[rR][a-zA-Z]*$/.test(tok);
+}
+
+/**
+ * True if a short-flag cluster requests recursion via upper-case `-R` only.
+ * For `ls`, `-r` is reverse-sort (not recursive); only `-R` recurses.
+ */
+function shortFlagHasUppercaseRecursion(tok) {
+  return /^-[a-zA-Z]*R[a-zA-Z]*$/.test(tok);
 }
 
 /**
@@ -115,17 +129,28 @@ function dangerousRootsInSegment(segment) {
       (t) => t === "--recursive" || t === "-R" || t === "--dereference-recursive" || shortFlagHasRecursion(t),
     );
   } else if (LS_LIKE.has(base)) {
-    recursive = rest.some((t) => t === "--recursive" || shortFlagHasRecursion(t));
+    recursive = rest.some((t) => t === "--recursive" || shortFlagHasUppercaseRecursion(t));
   }
   if (!recursive) return [];
 
-  // Any non-flag argument that looks like a dangerous root triggers the guard.
-  // (We check every non-flag token — including a grep pattern — because telling
-  // pattern from path robustly in bash is not worth the added surface; a
-  // literal "/" or "/opt" pattern is vanishingly rare and blocking it is safe.)
+  // Any non-flag path argument that looks like a dangerous root triggers the
+  // guard. For grep/rg/fd the FIRST non-flag token is the search PATTERN, not a
+  // path, so we skip it — otherwise a route-like pattern (`rg "/health"`,
+  // `grep -rn "/login" ./src`) would falsely read as a recursion root and block
+  // a scoped or bare search. This is grammar-correct for the bare-pattern form;
+  // the `-e PATTERN` / `-f FILE` forms are a known imperfection, but a real
+  // dangerous root (`/`, `/opt`) still appears as a later positional token there
+  // and is still caught. `find`/`tree`/`ls` take paths positionally, so every
+  // non-flag token is scanned.
+  const skipPattern = PATTERN_FIRST.has(base);
   const hits = [];
+  let patternSkipped = false;
   for (const t of rest) {
     if (t.startsWith("-")) continue;
+    if (skipPattern && !patternSkipped) {
+      patternSkipped = true; // drop the search pattern; keep scanning path args
+      continue;
+    }
     if (isDangerousRoot(t)) hits.push(t);
   }
   return hits;
