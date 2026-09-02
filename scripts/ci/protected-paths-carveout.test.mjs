@@ -1,68 +1,36 @@
 #!/usr/bin/env node
-// Behavioral + invariant tests for the Tier-0 auto-approve carve-out
-// (GOL-1406-A). Run: `node scripts/ci/protected-paths-carveout.test.mjs`
+// Behavioral tests for the Tier-0 auto-approve carve-out (GOL-1406-A).
+// Run: `node scripts/ci/protected-paths-carveout.test.mjs`
 //
-// The load-bearing assertion is CARVE-OUT ≡ GUARD: the carve-out's
-// PROTECTED_GLOBS and its glob→RegExp matcher must be identical to the
-// protected-paths-guard.yml the merge gate runs. If they drift, auto-approve
-// could stamp a PR the guard would block (or vice-versa) — the exact hole this
-// item closes. Both are generated from scripts/ci/gen-protected-paths-guard.py,
-// and this test fails CI if a hand-edit desyncs them.
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+// The carve-out is called by auto-approve.yml before it stamps its approval and
+// WITHHOLDS approval whenever a PR's changed files intersect PROTECTED_GLOBS —
+// so an agent-authored PR touching `.github/workflows/**`, `infra/terraform/**`,
+// etc. can never be auto-approved by the bot and sail into the merge queue.
+//
+// GOL-2013 removed the protected-paths guard workflow and its single-source
+// generator; branch protection's `dismiss_stale_reviews_on_push` now closes the
+// approve-then-push hole that the guard's SHA-binding used to. The carve-out is
+// no longer generated and no longer mirrors a guard, so the old CARVE-OUT ≡ GUARD
+// invariants are gone — this test now exercises the module's own behavior.
 import assert from 'node:assert/strict';
 import { protectedHits, globToRe, PROTECTED_GLOBS } from './protected-paths-carveout.mjs';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const workflow = readFileSync(
-  join(here, '..', '..', '.github', 'workflows', 'protected-paths-guard.yml'),
-  'utf8'
+// ── Guard-rail: the shared, self-protecting glob must always be present ──────
+// `.github/workflows/**` covers this file, auto-approve.yml, and every other
+// workflow; losing it would let a workflow edit be auto-approved. Fail loudly.
+assert.ok(
+  PROTECTED_GLOBS.includes('.github/workflows/**'),
+  'PROTECTED_GLOBS must include .github/workflows/** (self-protecting)'
 );
 
-// ── Invariant 1: same PROTECTED_GLOBS as the guard ──────────────────────────
-// Extract the guard's `const PROTECTED_GLOBS = [ … ];` string literals.
-function guardGlobs(src) {
-  const start = src.indexOf('const PROTECTED_GLOBS = [');
-  assert.ok(start !== -1, "guard has no PROTECTED_GLOBS");
-  const end = src.indexOf('];', start);
-  const block = src.slice(start, end);
-  return [...block.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-}
-assert.deepEqual(
-  PROTECTED_GLOBS,
-  guardGlobs(workflow),
-  'carve-out PROTECTED_GLOBS drifted from the guard — regenerate from the generator'
-);
-
-// ── Invariant 2: identical glob→RegExp matcher as the guard ─────────────────
-// Compile the guard's globToRe out of the shipped workflow and compare the
-// RegExp source it produces for every glob against the carve-out's matcher.
-function guardGlobToReSource(src) {
-  const marker = 'function globToRe(g) {';
-  const i = src.indexOf(marker);
-  assert.ok(i !== -1, 'guard has no globToRe');
-  const j = src.indexOf('return new RegExp(re + ', i);
-  const k = src.indexOf('}', j);
-  const bodyRaw = src.slice(i + marker.length, k);
-  const body = bodyRaw.split('\n').map((l) => l.trim()).join('\n');
-  // eslint-disable-next-line no-new-func
-  return new Function('g', body + '\nreturn new RegExp(re + "$");');
-}
-const guardGlobToRe = guardGlobToReSource(workflow);
-for (const g of [
-  '.github/workflows/**',
-  'infra/terraform/github-*.tf',
-  'packages/github-sync-plugin/**/manifest*',
-  'a/b/c.ts',
-  '*.md',
-]) {
-  assert.equal(
-    globToRe(g).source,
-    guardGlobToRe(g).source,
-    `globToRe drift for '${g}'`
-  );
-}
+// ── glob → RegExp semantics ─────────────────────────────────────────────────
+// `**` matches nested and root; `*` does not cross `/`; literals are anchored.
+assert.ok(globToRe('.github/workflows/**').test('.github/workflows/ci.yml'));
+assert.ok(globToRe('.github/workflows/**').test('.github/workflows/nested/x.yml'));
+assert.ok(!globToRe('a/*.ts').test('a/b/c.ts'), "'*' must not cross '/'");
+assert.ok(globToRe('a/*.ts').test('a/b.ts'));
+assert.ok(!globToRe('*.md').test('docs/x.md'), "leading '*' does not cross '/'");
+assert.ok(globToRe('*.md').test('README.md'));
 
 // ── Behavioral matrix ───────────────────────────────────────────────────────
 // AC2: only non-protected paths -> no hits (auto-approve proceeds).

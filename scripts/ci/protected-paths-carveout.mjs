@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 // protected-paths-carveout.mjs — Tier-0 carve-out for auto-approve (GOL-1406-A).
 //
-// GENERATED from scripts/ci/gen-protected-paths-guard.py — do not edit by hand;
-// edit the generator and regenerate. Only PROTECTED_GLOBS differs per repo.
+// Standalone, hand-maintained module. (GOL-2013 removed the protected-paths
+// guard workflow and its single-source generator; this file used to be
+// generated alongside the guard, but it now stands on its own. Only
+// PROTECTED_GLOBS differs per repo — edit that list directly here.)
 //
-// Why this exists: the protected-paths-guard.yml merge gate is not yet a
-// REQUIRED branch-protection check. Until it is, an agent PR touching a
-// protected path would still be auto-approved + merged. This script, called by
-// auto-approve.yml before it stamps its approval, WITHHOLDS approval whenever
-// the PR's changed files intersect PROTECTED_GLOBS — the SAME list the guard
-// enforces, so the two can never disagree. Defense-in-depth, strictly
-// one-way-tighter: it only ever withholds, never loosens author/size gates.
+// Why this exists: branch protection requires a human review + dismisses stale
+// approvals on push, but the agent auto-approve bot (auto-approve.yml) still
+// stamps its OWN approving review on green agent PRs. Without this carve-out an
+// agent PR touching `.github/workflows/**`, `infra/terraform/**`, etc. would be
+// auto-approved + merged with no human in the loop. This script, called by
+// auto-approve.yml before it stamps its approval, WITHHOLDS that approval
+// whenever the PR's changed files intersect PROTECTED_GLOBS. Defense-in-depth,
+// strictly one-way-tighter: it only ever withholds, never loosens author/size
+// gates, so a sensitive-path PR falls back to a real human review.
 //
 // Contract (CLI):
 //   env PR_FILES = newline-separated changed paths (`gh pr view --json files
@@ -22,8 +26,8 @@
 import { pathToFileURL } from "node:url";
 
 // PROTECTED_GLOBS for THIS repo — the only thing that differs between repos.
-// `.github/workflows/**` is shared and self-protecting (covers this file, the
-// guard, and auto-approve.yml).
+// `.github/workflows/**` is shared and self-protecting (covers this file and
+// auto-approve.yml).
 export const PROTECTED_GLOBS = [
   '.github/workflows/**',
   'infra/terraform/cloudflare-qa-webhook.tf',
@@ -32,9 +36,7 @@ export const PROTECTED_GLOBS = [
   'infra/terraform/github-*.tf',
 ];
 
-// glob -> RegExp (supports **, *, and literals; '/' is literal). MUST stay
-// byte-for-byte equivalent to the guard's globToRe in protected-paths-guard.yml
-// — both are generated from this one source and the test asserts they match.
+// glob -> RegExp (supports **, *, and literals; '/' is literal).
 export function globToRe(g) {
   let re = '^';
   for (let i = 0; i < g.length; i++) {
@@ -78,7 +80,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   process.stdout.write(
     "protected path(s) touched, withholding auto-approval (GOL-1406-A carve-out): " +
       hits.join(", ") +
-      " — needs an allowlisted human's SHA-bound approving review (protected-paths-guard)."
+      " — needs a human maintainer's review under branch protection (stale approvals are dismissed on push)."
   );
   process.exit(1);
 }
