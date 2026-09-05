@@ -62,6 +62,8 @@ REPOS = {
             "#   infra/             — terraform + cloud-init: infra takeover surface\n"
             "#   docker-compose.yml — service topology, port bindings, secret mounts\n"
             "#   scripts/agent-git/ — GitHub App token broker (credential surface)\n"
+            "#   scripts/ci/        — merge-policy / protected-paths CI tooling: the code\n"
+            "#                        that computes the carve-out and merge gates themselves\n"
             "#   packages/credential-broker/ — 1Password secret broker (credential surface)\n"
             "#   .gitleaks.toml     — weakening secret-scanning from a PR\n"
             "#   Dockerfile*        — image provenance"
@@ -72,6 +74,7 @@ REPOS = {
             "/docker-compose.yml",
             "/docker-compose.override.example.yml",
             "/scripts/agent-git/",
+            "/scripts/ci/",
             "/packages/credential-broker/",
             "/.gitleaks.toml",
             "Dockerfile*",
