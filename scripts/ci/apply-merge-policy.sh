@@ -254,7 +254,18 @@ process_legacy_repo() { # <row-json>
   local repo branch; repo=$(jq -r '.repo' <<<"$row"); branch=$(jq -r '.branch' <<<"$row")
   echo "  [$repo]  (legacy branch protection: $branch)"
 
-  local prot; prot=$(ghapi "/repos/$OWNER/$repo/branches/$branch/protection")
+  # Surface guard (GOL-2049 regression): a repo declared `legacy` that has since
+  # been migrated to a ruleset 404s here. Without this, `gh api` exits nonzero
+  # under `set -euo pipefail` and kills the WHOLE run on the first such repo —
+  # which is exactly what happened when AgenticOS migrated. Report it as drift
+  # with an actionable message instead of taking the tool down.
+  local prot
+  if ! prot=$(ghapi "/repos/$OWNER/$repo/branches/$branch/protection" 2>/dev/null); then
+    echo "    ${C_RED}ERROR${C_RST}: declared system=legacy but '$branch' has no classic branch protection."
+    echo "           Surface mismatch — has this repo migrated to a ruleset? Repoint this entry"
+    echo "           to system=ruleset + protection_ruleset in .github/merge-policy.json (see //systems)."
+    OFFTARGET=$((OFFTARGET+1)); return
+  fi
 
   local keys; keys=$(jq -r '.targets|keys[]' <<<"$row")
   local off_here=0 k tgt cur
@@ -428,7 +439,8 @@ summary() {
       fi
     else
       branch=$(jq -r '.branch' <<<"$rowjson")
-      prot=$(ghapi "/repos/$OWNER/$repo/branches/$branch/protection")
+      # Same surface guard as process_legacy_repo — count as drift, never crash.
+      prot=$(ghapi "/repos/$OWNER/$repo/branches/$branch/protection" 2>/dev/null) || { off=$((off+1)); continue; }
       for k in $keys; do tgt=$(jq -r ".targets.$k" <<<"$rowjson"); cur=$(legacy_current "$prot" "$k"); [ "$cur" = "$tgt" ] || off=$((off+1)); done
       if jq -e 'has("required_contexts")' <<<"$rowjson" >/dev/null; then
         decl_ctx=$(declared_contexts "$rowjson" | sort -u | paste -sd, -); live_ctx=$(legacy_required_contexts "$prot" | sort -u | paste -sd, -)
