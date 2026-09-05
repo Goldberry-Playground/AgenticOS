@@ -197,12 +197,15 @@ jobs:
           # exits at once instead of burning a quarter hour to reach the same
           # verdict. Mirrors the resolution taken in grove-odoo-modules#119.
           # ── Gate 1b: Tier-0 protected-paths carve-out (GOL-1406-A) ──
-          # automerge-gate.mjs owns author/size/SENSITIVE policy; this adds the
-          # protected-paths-guard's EXACT PROTECTED_GLOBS so auto-approve can
-          # never stamp a PR the guard would block. Same globs, one source
-          # (scripts/ci/gen-protected-paths-guard.py) — they cannot drift. Runs
-          # from the base-branch checkout above, so a PR cannot edit the carve-out
-          # to approve itself. Fail-closed: a nonzero exit (incl. a missing file)
+          # automerge-gate.mjs owns author/size/SENSITIVE policy; this withholds
+          # the bot's approval whenever a PR touches a sensitive path
+          # (PROTECTED_GLOBS in protected-paths-carveout.mjs) so a workflow /
+          # terraform change falls back to a real human review under branch
+          # protection instead of being auto-approved. (GOL-2013 removed the
+          # protected-paths guard + generator; this standalone module is the
+          # remaining stop on bot auto-approval of sensitive paths.) Runs from
+          # the base-branch checkout above, so a PR cannot edit the carve-out to
+          # approve itself. Fail-closed: a nonzero exit (incl. a missing file)
           # withholds. PR_FILES is already exported above.
           if ! REASON=$(node scripts/ci/protected-paths-carveout.mjs); then
             echo "PR #$PR not auto-approved: $REASON"

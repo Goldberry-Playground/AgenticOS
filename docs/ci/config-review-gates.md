@@ -23,8 +23,9 @@ A repo-level **hard stop** on config drift, driven by `.github/config-freeze.jso
 { "frozen": false, "reason": "", "paths": [ ".github/workflows/**", "infra/terraform/**", ... ] }
 ```
 
-- `frozen: false` (default) → the check always passes. Normal Tier-0 human
-  approval still governs those paths via `protected-paths-guard`.
+- `frozen: false` (default) → the check always passes. Normal branch-protection
+  review (a required human approval, with stale approvals dismissed on push)
+  still governs those paths.
 - `frozen: true` → **any** PR that touches a path in `paths` fails the
   `Config freeze` check, overriding approval. This is the incident / deploy-window
   / market-season switch: stop *all* config change, then flip back to false.
@@ -32,16 +33,16 @@ A repo-level **hard stop** on config drift, driven by `.github/config-freeze.jso
 **Runbook — engage / lift a freeze**
 
 1. Edit `.github/config-freeze.json`, set `frozen: true` and a `reason`.
-2. Open a PR. `.github/config-freeze.json` is itself a protected path, so an
-   allowlisted human SHA-bound approval is required to land the freeze (and to
-   lift it). The file is deliberately **not** in its own `paths`, so a freeze can
-   always be lifted.
+2. Open a PR. Landing the freeze (and lifting it) goes through the normal PR
+   flow, which requires a human approving review under branch protection (stale
+   approvals are dismissed on push). The file is deliberately **not** in its own
+   `paths`, so a freeze can always be lifted.
 3. While frozen, config PRs fail with the reason. Lift by setting
    `frozen: false`.
 
 The check reads the manifest from the **base** branch via the contents API and
-never checks out or runs PR code (same self-protecting posture as
-`protected-paths-guard`).
+never checks out or runs PR code (a self-protecting posture: a PR cannot edit
+the check to weaken it).
 
 ## 2. `fix:` touches a test — `.github/workflows/fix-touches-test.yml`
 
