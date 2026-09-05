@@ -32,6 +32,23 @@ assert.ok(globToRe('a/*.ts').test('a/b.ts'));
 assert.ok(!globToRe('*.md').test('docs/x.md'), "leading '*' does not cross '/'");
 assert.ok(globToRe('*.md').test('README.md'));
 
+// ── GOL-2051: scripts/ci/ must stay protected across the GOL-2013 removal ───
+// #665 added `/scripts/ci/` to the (now-deleted) guard generator's globs. That
+// protection has to live here instead, or merging GOL-2013 reverts it.
+assert.ok(
+  PROTECTED_GLOBS.includes('scripts/ci/**'),
+  'PROTECTED_GLOBS must include scripts/ci/** (GOL-2051 merge-gate tooling)'
+);
+assert.deepEqual(
+  protectedHits(['scripts/ci/apply-merge-policy.sh']),
+  ['scripts/ci/apply-merge-policy.sh']
+);
+assert.deepEqual(
+  protectedHits(['scripts/ci/protected-paths-carveout.mjs']),
+  ['scripts/ci/protected-paths-carveout.mjs']
+);
+assert.deepEqual(protectedHits(['scripts/deploy-droplet.sh']), [], 'scripts/ outside ci/ is not protected by this glob');
+
 // ── Behavioral matrix ───────────────────────────────────────────────────────
 // AC2: only non-protected paths -> no hits (auto-approve proceeds).
 assert.deepEqual(protectedHits(['README.md', 'apps/hub/page.tsx']), []);

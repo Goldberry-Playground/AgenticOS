@@ -30,6 +30,11 @@ import { pathToFileURL } from "node:url";
 // auto-approve.yml).
 export const PROTECTED_GLOBS = [
   '.github/workflows/**',
+  // GOL-2051: scripts/ci/ hosts the merge-policy + carve-out tooling that
+  // computes the merge gates themselves (apply-merge-policy.sh, and this file).
+  // #665 added it to the guard's globs; the guard is deleted here, so the glob
+  // moves to the carve-out or the protection is silently lost on this merge.
+  'scripts/ci/**',
   'infra/terraform/cloudflare-qa-webhook.tf',
   'packages/github-sync-plugin/**/manifest*',
   'scripts/deploy-plugin.sh',

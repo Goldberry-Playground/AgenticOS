@@ -13,6 +13,8 @@
 #   infra/             — terraform + cloud-init: infra takeover surface
 #   docker-compose.yml — service topology, port bindings, secret mounts
 #   scripts/agent-git/ — GitHub App token broker (credential surface)
+#   scripts/ci/        — merge-policy / protected-paths CI tooling: the code
+#                        that computes the carve-out and merge gates themselves
 #   packages/credential-broker/ — 1Password secret broker (credential surface)
 #   .gitleaks.toml     — weakening secret-scanning from a PR
 #   Dockerfile*        — image provenance
@@ -22,6 +24,7 @@
 /docker-compose.yml             @EngineeringMoonBear
 /docker-compose.override.example.yml @EngineeringMoonBear
 /scripts/agent-git/             @EngineeringMoonBear
+/scripts/ci/                    @EngineeringMoonBear
 /packages/credential-broker/    @EngineeringMoonBear
 /.gitleaks.toml                 @EngineeringMoonBear
 Dockerfile*                     @EngineeringMoonBear
