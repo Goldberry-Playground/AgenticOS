@@ -237,12 +237,22 @@ echo "### 6. legacy repo migrated to a ruleset (404 on classic protection) — G
 # missing file, which exits non-zero — a faithful stand-in for the 404 the guard
 # is written against. `migrated-legacy` is listed FIRST so the healthy repo's
 # section AND the final summary line only appear if NEITHER loop aborted on it.
+#
+# migrated-legacy also declares `required_contexts` on purpose: it is what pins
+# the summary() leg's guard specifically. `OFF=$(summary)` runs in a command
+# substitution, where bash disables errexit — so a missing summary guard would
+# NOT crash; it would silently leave `prot` empty and then run legacy_current /
+# legacy_required_contexts against that empty JSON. With the guard, summary()
+# short-circuits to a single off++ and `continue` (drift == 1). Without it, the
+# empty-prot contexts comparison fires a SECOND off++ (drift == 2) — so the
+# `drift: 1` assertion below fails iff the summary() guard is removed, which is
+# how this case genuinely covers that leg and not just process_legacy_repo's.
 GUARD_CFG="$WORK/merge-policy-guard.json"
 cat >"$GUARD_CFG" <<'J'
 { "dormant_reviewer_ruleset_name":"Code Quality Copilot review for default branch",
   "repos":[
     {"repo":"migrated-legacy","system":"legacy","branch":"main",
-     "targets":{"strict":false}},
+     "targets":{"strict":false},"required_contexts":["Build"]},
     {"repo":"healthy-legacy","system":"legacy","branch":"main",
      "targets":{"strict":false}}
   ] }
@@ -257,11 +267,12 @@ cat >"$FIX/protection_healthy-legacy_main.json" <<'J'
 J
 
 if guard_out="$("$SCRIPT" --config "$GUARD_CFG" --check 2>&1)"; then guard_rc=0; else guard_rc=$?; fi
-# (a) drift → non-zero exit. Reaching the printed summary line at all also proves
-#     summary() did not crash on the 404 — `OFF=$(summary)` would have aborted the
-#     whole script before that echo. off-count is exactly 1 (only migrated repo;
-#     the healthy repo contributes 0), i.e. the summary leg's off++ fired and the
-#     summary loop continued to the next repo.
+# (a) drift → non-zero exit. off-count is exactly 1: the migrated repo declares
+#     strict + required_contexts, but the summary() guard short-circuits to ONE
+#     off++ and `continue` before either is compared, and the healthy repo
+#     contributes 0. A missing summary guard would instead compare both against an
+#     empty protection and report `drift: 2` — so this line pins the summary leg's
+#     off++/continue (see the config comment above).
 [ "$guard_rc" -ne 0 ] || { printf '%s\n' "$guard_out"; fail "migrated legacy repo should make --check exit non-zero"; }
 printf '%s\n' "$guard_out" | grep -q 'drift: 1 setting(s) off-target' \
   || { printf '%s\n' "$guard_out"; fail "expected summary to count exactly the migrated repo as drift (summary leg off++ / loop continues)"; }
