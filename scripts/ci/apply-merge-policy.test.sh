@@ -7,6 +7,8 @@
 #   2. --apply converges every write path (ruleset PUT, legacy full PUT, legacy
 #      granular PATCH, dormant-ruleset DELETE),
 #   3. a second --apply reports ZERO changes (idempotent),
+#   4. a repo declared system=legacy that has migrated to a ruleset (404 on classic
+#      branch protection) is surfaced as drift, not a crash (GOL-2049 guard),
 # without ever touching a board-gated production setting.
 set -euo pipefail
 
@@ -220,5 +222,68 @@ n2=$(wc -l <"$FAKE_GH_CALLS")
 [ "$n2" -eq 0 ] || { echo "second apply wrote:"; cat "$FAKE_GH_CALLS"; fail "second --apply must make zero writes"; }
 echo "    ok: second apply made zero writes"
 
+echo "### 6. legacy repo migrated to a ruleset (404 on classic protection) — GOL-2049/GOL-2105"
+# Regression for the surface guard added in AgenticOS#666. A repo declared
+# system=legacy that has since migrated to a ruleset makes GitHub's classic
+# branch-protection endpoint 404. Before the guard, `gh api` exited non-zero under
+# `set -euo pipefail` and killed the WHOLE run on the FIRST such repo — the GOL-2049
+# tool-down. Assert the run instead: (a) reports the repo as OFFTARGET drift and
+# still exits, (b) prints the actionable surface-mismatch message, and (c) keeps
+# processing the remaining repos in BOTH the display loop and summary().
+#
+# Own config + fixtures so the permanent 404 never perturbs the convergence
+# assertions above (#4/#4a/#5). The stub 404s by simply having no
+# protection_<repo>_<branch>.json fixture: its GET falls through to `cat` on a
+# missing file, which exits non-zero — a faithful stand-in for the 404 the guard
+# is written against. `migrated-legacy` is listed FIRST so the healthy repo's
+# section AND the final summary line only appear if NEITHER loop aborted on it.
+#
+# migrated-legacy also declares `required_contexts` on purpose: it is what pins
+# the summary() leg's guard specifically. `OFF=$(summary)` runs in a command
+# substitution, where bash disables errexit — so a missing summary guard would
+# NOT crash; it would silently leave `prot` empty and then run legacy_current /
+# legacy_required_contexts against that empty JSON. With the guard, summary()
+# short-circuits to a single off++ and `continue` (drift == 1). Without it, the
+# empty-prot contexts comparison fires a SECOND off++ (drift == 2) — so the
+# `drift: 1` assertion below fails iff the summary() guard is removed, which is
+# how this case genuinely covers that leg and not just process_legacy_repo's.
+GUARD_CFG="$WORK/merge-policy-guard.json"
+cat >"$GUARD_CFG" <<'J'
+{ "dormant_reviewer_ruleset_name":"Code Quality Copilot review for default branch",
+  "repos":[
+    {"repo":"migrated-legacy","system":"legacy","branch":"main",
+     "targets":{"strict":false},"required_contexts":["Build"]},
+    {"repo":"healthy-legacy","system":"legacy","branch":"main",
+     "targets":{"strict":false}}
+  ] }
+J
+# healthy-legacy is present and already on-target (strict=false); migrated-legacy
+# has NO fixture on purpose — that absence IS the 404.
+cat >"$FIX/protection_healthy-legacy_main.json" <<'J'
+{ "required_status_checks":{"strict":false,"contexts":[],"checks":[]},
+  "enforce_admins":{"enabled":false},
+  "required_pull_request_reviews":null,
+  "required_conversation_resolution":{"enabled":false} }
+J
+
+if guard_out="$("$SCRIPT" --config "$GUARD_CFG" --check 2>&1)"; then guard_rc=0; else guard_rc=$?; fi
+# (a) drift → non-zero exit. off-count is exactly 1: the migrated repo declares
+#     strict + required_contexts, but the summary() guard short-circuits to ONE
+#     off++ and `continue` before either is compared, and the healthy repo
+#     contributes 0. A missing summary guard would instead compare both against an
+#     empty protection and report `drift: 2` — so this line pins the summary leg's
+#     off++/continue (see the config comment above).
+[ "$guard_rc" -ne 0 ] || { printf '%s\n' "$guard_out"; fail "migrated legacy repo should make --check exit non-zero"; }
+printf '%s\n' "$guard_out" | grep -q 'drift: 1 setting(s) off-target' \
+  || { printf '%s\n' "$guard_out"; fail "expected summary to count exactly the migrated repo as drift (summary leg off++ / loop continues)"; }
+# (b) actionable surface-mismatch message from the process_legacy_repo guard.
+printf '%s\n' "$guard_out" | grep -q "no classic branch protection" \
+  || { printf '%s\n' "$guard_out"; fail "expected surface-mismatch ERROR for the migrated legacy repo"; }
+# (c) the display loop continued PAST the migrated repo to the healthy one — had the
+#     404 aborted the run, this section would never have printed.
+printf '%s\n' "$guard_out" | grep -q '\[healthy-legacy\]' \
+  || { printf '%s\n' "$guard_out"; fail "run aborted on the migrated repo — remaining repos were not processed"; }
+echo "    ok: 404 surfaced as drift, message shown, remaining repos still processed (display + summary)"
+
 echo
-echo "PASS — check/apply/idempotency verified across ruleset PUT, legacy full-PUT, legacy granular PATCH, and dormant-ruleset DELETE."
+echo "PASS — check/apply/idempotency verified across ruleset PUT, legacy full-PUT, legacy granular PATCH, dormant-ruleset DELETE, and the legacy→ruleset surface guard (GOL-2049)."
