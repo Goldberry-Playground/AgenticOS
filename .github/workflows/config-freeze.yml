@@ -9,16 +9,15 @@
 # freeze to stop ALL config change; flip it back to false to resume.
 #
 # Config source is read from the BASE branch via the contents API (no PR code
-# is checked out or executed — same self-protecting posture as
-# protected-paths-guard). `.github/config-freeze.json` is deliberately NOT one
-# of its own frozen `paths`, so a freeze can always be lifted by editing it
-# (that edit still needs the human SHA-bound approval the guard requires).
+# is checked out or executed). `.github/config-freeze.json` is deliberately NOT
+# one of its own frozen `paths`, so a freeze can always be lifted by editing it
+# (that edit still needs the human approval branch protection requires).
 #
 # Merge-queue safety (GOL-1406): also triggers on `merge_group` and reports
 # success there — a metadata check has no PR payload on the synthetic merge
-# commit, and enforcement already happened at the PR gate. Mirrors
-# protected-paths-guard.yml / ci.yml so this can be made a required check
-# without wedging the queue ("Expected — waiting for status").
+# commit, and enforcement already happened at the PR gate. Mirrors ci.yml so
+# this can be made a required check without wedging the queue ("Expected —
+# waiting for status").
 name: Config freeze
 
 on:
@@ -80,8 +79,7 @@ jobs:
               return;
             }
 
-            // glob -> RegExp (supports **, *, literals; '/' is literal). Same
-            // implementation as protected-paths-guard.
+            // glob -> RegExp (supports **, *, literals; '/' is literal).
             function globToRe(g) {
               let re = '^';
               for (let i = 0; i < g.length; i++) {

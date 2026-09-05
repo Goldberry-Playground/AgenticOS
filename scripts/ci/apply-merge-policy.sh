@@ -101,10 +101,9 @@ legacy_current() { # <protection-json> <canonical-key>
 }
 
 # ---- required-context helpers (GOL-1953) -----------------------------------
-# The guard layer (protected-paths / config-freeze / fix-touches-test / CI
-# scripts / required-checks-audit + per-repo security checks) only bound
-# agent-authored PRs via auto-approve's shell logic; the branch merge gate
-# ignored them. Promote each verified context (it must report success on an
+# The guard layer (config-freeze / fix-touches-test / CI scripts /
+# required-checks-audit + per-repo security checks) only bound agent-authored
+# PRs via auto-approve's shell logic; the branch merge gate ignored them. Promote each verified context (it must report success on an
 # actual `merge_group` commit first — acceptance #1) into the required list.
 
 # Newline-separated sorted required-check contexts currently set on a RULESET.

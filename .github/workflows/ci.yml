@@ -120,14 +120,12 @@ jobs:
 
   ci-scripts:
     # GOL-1919: `scripts/` is not a pnpm workspace, so `pnpm -w test` (turbo)
-    # never runs scripts/ci/*.test.mjs — the protected-paths guard/carve-out
-    # tests (incl. the GOL-1905 dependabot carve-out) previously ran only by
-    # hand. Run them here as a live gate. Then re-run the single-source
-    # generator and assert the committed guard/CODEOWNERS/carve-out artifacts
-    # still match its output, so they cannot silently drift (auto-approve.yml
-    # depends on the carve-out and the guard agreeing). The tests use node
-    # builtins only — no pnpm install — and python3 is preinstalled on
-    # ubuntu-latest, so this job stays cheap.
+    # never runs scripts/ci/*.test.mjs — the auto-approve carve-out test
+    # previously ran only by hand. Run it here as a live gate. The tests use
+    # node builtins only — no pnpm install — so this job stays cheap.
+    # (GOL-2013 removed the protected-paths guard + its single-source generator;
+    # the carve-out is now a standalone, hand-maintained module with its own
+    # behavioral test, so there is no generator artifact left to drift-check.)
     name: CI scripts
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -141,7 +139,7 @@ jobs:
           shopt -s nullglob
           tests=(scripts/ci/*.test.mjs)
           if [ ${#tests[@]} -eq 0 ]; then
-            echo "::error::no scripts/ci/*.test.mjs found — expected the protected-paths tests"
+            echo "::error::no scripts/ci/*.test.mjs found — expected the auto-approve carve-out test"
             exit 1
           fi
           fail=0
@@ -165,18 +163,3 @@ jobs:
             echo "::endgroup::"
           done
           exit $fail
-      - name: Assert protected-paths artifacts match generator (no drift)
-        run: |
-          # The generator writes into <BASE>/<repo-key>/… for each repo it finds;
-          # symlink this workspace under its repo key so it regenerates in place,
-          # then fail if the committed artifacts differ from freshly generated.
-          tmp="$(mktemp -d)"
-          ln -s "$GITHUB_WORKSPACE" "$tmp/AgenticOS"
-          python3 scripts/ci/gen-protected-paths-guard.py "$tmp"
-          if ! git diff --exit-code -- \
-              .github/workflows/protected-paths-guard.yml \
-              .github/CODEOWNERS \
-              scripts/ci/protected-paths-carveout.mjs; then
-            echo "::error::protected-paths artifacts are stale — run 'python3 scripts/ci/gen-protected-paths-guard.py' and commit the result"
-            exit 1
-          fi
