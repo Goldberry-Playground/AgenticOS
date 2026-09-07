@@ -4,7 +4,7 @@
   "//systems": "GitHub unions two policy systems. 'ruleset' repos carry the settings in their named repository ruleset; 'legacy' repos carry them in classic branch protection on 'branch'. The script maps the canonical target keys below to the right API surface per system.",
   "//fields": "Canonical target keys (a key that is absent for a repo is NOT managed there): strict = require branch up-to-date with base (ruleset required_status_checks.strict_required_status_checks_policy | legacy required_status_checks.strict); dismiss_stale_reviews = dismiss approvals on push (ruleset pull_request.dismiss_stale_reviews_on_push | legacy required_pull_request_reviews.dismiss_stale_reviews); thread_resolution = require all review threads resolved (ruleset pull_request.required_review_thread_resolution | legacy required_conversation_resolution); extra_approval_unattributed = require a second approval for unattributed commits (ruleset pull_request.require_extra_approval_for_unattributed_changes | legacy: n/a).",
   "//required_contexts": "GOL-1953: the full required status-check context set for the branch (ruleset required_status_checks.required_status_checks[] | legacy required_status_checks.checks[]). This is the DECLARED TARGET \u2014 the guard layer (config-freeze / fix-touches-test / CI scripts / required-checks-audit + per-repo security checks) is promoted from advisory to branch-binding here. EVERY listed context was verified to report success on an actual merge_group commit first (acceptance #1) \u2014 a context whose job is skipped/conditional on merge_group (e.g. AgenticOS 'Dependency review', gated by a pull_request-only preflight) is DELIBERATELY EXCLUDED because it would wedge the merge queue. On --apply, legacy new contexts inherit the app_id shared by existing checks (15368 = GitHub Actions) and existing pins are preserved (never loosened); ruleset entries preserve any integration_id. LOCKSTEP: this list must equal the same repo's .github/required-checks.json (GOL-1907's reconcile leg hard-fails on declared-vs-live drift). Apply a repo (`--apply --repo X`) in the same batch as that repo's required-checks.json bump so a weekly reconcile never sees a mismatch. For a repo whose promotion PR has not landed yet, --check will show this as pending drift \u2014 expected, not a failure.",
-  "//guard-hold": "GOL-2013 (board 2026-09-01, supersedes the GOL-1953 guard-hold): the 'Protected paths guard' workflow was REMOVED from all repos. It was never a required check here, and the only non-duplicate thing it did \u2014 SHA-binding an approval to the head commit so approve-then-push could not slip a change past review \u2014 is now done natively by branch protection's `dismiss_stale_reviews_on_push`. So it is no longer a promotion candidate and must NOT be re-added to any required_contexts set below. The rest of the list (config-freeze / fix-touches-test / CI scripts / required-checks-audit + per-repo security checks) genuinely runs and reports on merge_group and gates for real.",
+  "//guard-hold": "GOL-2013 (board 2026-09-01, supersedes the GOL-1953 guard-hold): the 'Protected paths guard' workflow was REMOVED from all repos. It was never a required check here, and the only non-duplicate thing it did \u2014 SHA-binding an approval to the head commit so approve-then-push could not slip a change past review \u2014 is now done natively by branch protection's `dismiss_stale_reviews_on_push`. So it is no longer a promotion candidate and must NOT be re-added to any required_contexts set below. SEQUENCING DEFECT (found 2026-09-07): the guard removal shipped in all three repos that carried it (grove-sites #667, grove-odoo-modules #167, odoocker-goldberrygrove #600) while `dismiss_stale_reviews` was still declared AND live `false` in each \u2014 so the approve-then-push window this directive said was covered natively was in fact covered by nothing from the moment each of those PRs merged. This change flips the declared target to `true` for exactly those three (AgenticOS is handled in #666, and is already live true from the GOL-2049 migration). It does NOT become live until Josh converges each repo; until then --check reports it as drift, which is the point. AgriforestryOS is deliberately NOT flipped: it never carried the guard or the auto-approve carve-out, so there is no removed protection to replace there and turning this on would be a new policy decision, not a restoration. `scripts/ci/merge-policy-guard-replacement.test.mjs` holds this invariant so a future removal cannot again ship without its replacement. The rest of the list (config-freeze / fix-touches-test / CI scripts / required-checks-audit + per-repo security checks) genuinely runs and reports on merge_group and gates for real.",
   "//sequencing": "GOL-1953 promotion is paused pending GOL-1958 (missing-check sweep) landing first; more required contexts multiply the surface for a dropped trigger to hang a PR, and the sweep is what detects that. This file is the declared TARGET only; nothing here is live until Josh runs `apply-merge-policy.sh --apply` per repo in lockstep with that repo's required-checks.json bump.",
   "//out-of-scope": "Not changed by this policy: required_approving_review_count and the merge-queue rulesets themselves.",
   "dormant_reviewer_ruleset_name": "Code Quality Copilot review for default branch",
@@ -52,7 +52,7 @@
       "protection_ruleset": "main-branch-protection",
       "targets": {
         "strict": false,
-        "dismiss_stale_reviews": false,
+        "dismiss_stale_reviews": true,
         "thread_resolution": false,
         "extra_approval_unattributed": false
       },
@@ -78,7 +78,7 @@
       "protection_ruleset": "main-branch-protection",
       "targets": {
         "strict": false,
-        "dismiss_stale_reviews": false,
+        "dismiss_stale_reviews": true,
         "thread_resolution": false,
         "extra_approval_unattributed": false
       },
@@ -105,7 +105,7 @@
       "protection_ruleset": "main-branch-protection",
       "targets": {
         "strict": false,
-        "dismiss_stale_reviews": false,
+        "dismiss_stale_reviews": true,
         "thread_resolution": false,
         "extra_approval_unattributed": false
       },
