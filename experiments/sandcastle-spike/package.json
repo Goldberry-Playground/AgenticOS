@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@ai-hero/sandcastle": "^0.12.0",
-    "tsx": "^4.23.1",
-    "zod": "^4.4.3"
+    "tsx": "^4.23.13",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
