@@ -22,8 +22,11 @@ describe("worker boot-scope hardening", () => {
   it("no plugin source imports child_process or calls execSync/spawnSync", () => {
     const offenders: string[] = [];
     for (const file of srcFiles()) {
-      const text = readFileSync(file, "utf8");
-      if (/child_process|execSync|spawnSync/.test(text)) offenders.push(file);
+      // Scan code only: comments legitimately cite the 2026-09-09 execSync incident.
+      const code = readFileSync(file, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
+      if (/child_process|execSync|spawnSync/.test(code)) offenders.push(file);
     }
     expect(offenders).toEqual([]);
   });

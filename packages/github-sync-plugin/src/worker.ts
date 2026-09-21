@@ -2114,33 +2114,47 @@ const plugin = definePlugin({
   async onHealth() {
     // Liveness surface (GOL-2371): expose the heartbeat so the host / an external
     // monitor can read last-alive, this process's boot time (a change = respawn),
-    // and whether the worker has gone stale. `status` stays "ok" while the worker is
-    // answering (it is at least alive); "stale" flags a worker whose heartbeat has
-    // aged past the threshold, "unknown" one that has never stamped. The health read
-    // itself never fails on a heartbeat-read blip.
+    // and whether the worker has gone stale. The SDK contract only admits
+    // "ok" | "degraded" | "error", so the liveness verdict rides in
+    // `details.liveness` ("ok" | "stale" | "unknown") and `status` maps it:
+    // "ok" while the worker is answering (it is at least alive), "degraded" when
+    // its heartbeat has aged past the threshold. "unknown" (never stamped yet, e.g.
+    // just booted) stays "ok". The health read itself never fails on a
+    // heartbeat-read blip.
     const ctx = currentContext;
-    if (!ctx) return { status: "unknown" as const, heartbeat: null };
+    if (!ctx) {
+      return {
+        status: "ok" as const,
+        message: "worker context not initialised yet",
+        details: { liveness: "unknown", heartbeat: null },
+      };
+    }
     try {
       const hb = await getHeartbeat(ctx.db);
       const ageMs = heartbeatAgeMs(hb, Date.now());
       const stale = ageMs !== null && ageMs > HEARTBEAT_STALE_MS;
+      const liveness = hb ? (stale ? "stale" : "ok") : "unknown";
       return {
-        status: hb ? (stale ? ("stale" as const) : ("ok" as const)) : ("unknown" as const),
-        heartbeat: hb
-          ? {
-              lastHeartbeatAt: hb.updatedAt,
-              ageSeconds: ageMs !== null ? Math.round(ageMs / 1000) : null,
-              workerBootedAt: hb.workerBootedAt,
-              workerVersion: hb.workerVersion,
-              staleThresholdSeconds: Math.round(HEARTBEAT_STALE_MS / 1000),
-            }
-          : null,
+        status: stale ? ("degraded" as const) : ("ok" as const),
+        ...(stale ? { message: "worker heartbeat is stale" } : {}),
+        details: {
+          liveness,
+          heartbeat: hb
+            ? {
+                lastHeartbeatAt: hb.updatedAt,
+                ageSeconds: ageMs !== null ? Math.round(ageMs / 1000) : null,
+                workerBootedAt: hb.workerBootedAt,
+                workerVersion: hb.workerVersion,
+                staleThresholdSeconds: Math.round(HEARTBEAT_STALE_MS / 1000),
+              }
+            : null,
+        },
       };
     } catch (err) {
       ctx.logger.warn("onHealth heartbeat read failed", {
         error: err instanceof Error ? err.message : String(err),
       });
-      return { status: "ok" as const, heartbeat: null };
+      return { status: "ok" as const, details: { liveness: "unknown", heartbeat: null } };
     }
   },
 });
