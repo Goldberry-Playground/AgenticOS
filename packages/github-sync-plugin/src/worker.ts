@@ -45,6 +45,9 @@ import { runMirrorReconcile, buildReconcilePing } from "./reconcile.js";
 import { runSignoffReconcile } from "./signoff-reconcile.js";
 import { runInboundCloseReconcile, buildInboundCloseReconcilePing } from "./inbound-close-reconcile.js";
 import { runInboundCreateReconcile, buildInboundCreateReconcilePing } from "./inbound-create-reconcile.js";
+import { recordHeartbeat, getHeartbeat, heartbeatAgeMs, HEARTBEAT_STALE_MS } from "./heartbeat.js";
+import { bootWithRetry } from "./boot.js";
+import manifest from "./manifest.js";
 import {
   recordError,
   buildSwallowedFailurePing,
@@ -111,6 +114,13 @@ const INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
 
 /** Captured in setup() so onWebhook (which only receives `input`) can reach ctx. */
 let currentContext: PluginContext | null = null;
+
+/**
+ * This worker PROCESS's boot time, captured once at module load. Stamped into
+ * every heartbeat (GOL-2371) so a monitor can distinguish a live refresh from a
+ * respawn: `worker_booted_at` changes only when the process restarts.
+ */
+const WORKER_BOOTED_AT = new Date().toISOString();
 
 function safeJson(raw: string): unknown {
   try {
@@ -1571,6 +1581,23 @@ async function processCiPr(
 
 const plugin = definePlugin({
   async setup(ctx) {
+    // Capture ctx BEFORE init so onWebhook stays reachable even if bridge init
+    // fails: onWebhook reads config per-delivery and does not depend on the
+    // depsByProject/jobs built below, so a degraded boot keeps the inbound receiver
+    // honest instead of silently 502ing (GOL-2371 / GOL-2279).
+    currentContext = ctx;
+
+    // Boot resilience (GOL-2371, D3 of GOL-2344; follow-up to GOL-2279): run init
+    // inside bootWithRetry — try/catch + bounded exponential backoff — so a transient
+    // boot failure self-heals and a fatal one degrades (worker stays up, onWebhook
+    // still answers, the liveness heartbeat stops advancing so the watchdog respawns)
+    // instead of a bare throw out of setup — the GOL-2279 silent-death path. On
+    // exhaustion we page ops ⛔ best-effort (unthrottled — a boot failure is rare and
+    // load-bearing). `init` re-runs safely on retry: its sole throwing await is the
+    // LEADING ctx.config.get(), which precedes every ctx.events.on / ctx.jobs.register,
+    // so a retry reaches registration only on the attempt that succeeds.
+    await bootWithRetry(
+      async (): Promise<void> => {
     ctx.logger.info("GitHub Sync plugin starting");
 
     // Capture ctx for onWebhook (the inbound handler only receives `input`).
@@ -1918,9 +1945,67 @@ const plugin = definePlugin({
       }
     });
 
+    // Worker liveness heartbeat (GOL-2371, D3 of GOL-2344; follow-up to GOL-2279).
+    // Every few minutes stamp the single-row github_sync_heartbeat so an external
+    // watchdog (a monitor polling over DATABASE_URL, or the host supervisor) can
+    // tell a dead worker from a merely quiet one — github_sync_delivery only advances
+    // on a real webhook, so a silent inbound window and a crashed worker look
+    // identical from outside. A dead worker stops refreshing this row; that staleness
+    // is the detect-and-respawn / page signal that closes the 5-day silent-outage gap.
+    // Best-effort: a heartbeat write must never take the worker down.
+    ctx.jobs.register("worker-heartbeat", async () => {
+      try {
+        await recordHeartbeat(ctx.db, {
+          updatedAt: new Date().toISOString(),
+          workerBootedAt: WORKER_BOOTED_AT,
+          workerVersion: manifest.version,
+        });
+      } catch (err) {
+        // Do NOT route through recordSwallowedFailure: a DB blip here is not an outage
+        // to page on, and the missed tick is itself observable as row staleness.
+        ctx.logger.warn("worker-heartbeat write failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    // Boot heartbeat: stamp the liveness row immediately so a monitor sees this
+    // process as alive from t0, not only after the first scheduled tick fires.
+    try {
+      await recordHeartbeat(ctx.db, {
+        updatedAt: new Date().toISOString(),
+        workerBootedAt: WORKER_BOOTED_AT,
+        workerVersion: manifest.version,
+      });
+    } catch (err) {
+      ctx.logger.warn("failed to write boot heartbeat", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     ctx.logger.info("github sync listening", {
       projects: Array.from(depsByProject.keys()),
     });
+      },
+      {
+        logger: ctx.logger,
+        // Fatal boot: page ops ⛔ so a dead inbound path is loud, not silent for days.
+        // Config may itself be the failing read, so guard it; unthrottled by design.
+        onExhausted: async (err) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          try {
+            const cfg = readConfig(await ctx.config.get());
+            await postOpsPing(
+              ctx,
+              cfg.opsWebhookUrl,
+              `⛔ github-sync worker init FAILED after retries — inbound sync is DOWN until respawn. Last error: ${detail}`,
+            );
+          } catch {
+            // Nothing more we can do; host stderr (logger.error) is the floor.
+          }
+        },
+      },
+    );
   },
 
   /**
@@ -2027,7 +2112,36 @@ const plugin = definePlugin({
   },
 
   async onHealth() {
-    return { status: "ok" };
+    // Liveness surface (GOL-2371): expose the heartbeat so the host / an external
+    // monitor can read last-alive, this process's boot time (a change = respawn),
+    // and whether the worker has gone stale. `status` stays "ok" while the worker is
+    // answering (it is at least alive); "stale" flags a worker whose heartbeat has
+    // aged past the threshold, "unknown" one that has never stamped. The health read
+    // itself never fails on a heartbeat-read blip.
+    const ctx = currentContext;
+    if (!ctx) return { status: "unknown" as const, heartbeat: null };
+    try {
+      const hb = await getHeartbeat(ctx.db);
+      const ageMs = heartbeatAgeMs(hb, Date.now());
+      const stale = ageMs !== null && ageMs > HEARTBEAT_STALE_MS;
+      return {
+        status: hb ? (stale ? ("stale" as const) : ("ok" as const)) : ("unknown" as const),
+        heartbeat: hb
+          ? {
+              lastHeartbeatAt: hb.updatedAt,
+              ageSeconds: ageMs !== null ? Math.round(ageMs / 1000) : null,
+              workerBootedAt: hb.workerBootedAt,
+              workerVersion: hb.workerVersion,
+              staleThresholdSeconds: Math.round(HEARTBEAT_STALE_MS / 1000),
+            }
+          : null,
+      };
+    } catch (err) {
+      ctx.logger.warn("onHealth heartbeat read failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return { status: "ok" as const, heartbeat: null };
+    }
   },
 });
 
