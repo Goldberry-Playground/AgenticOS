@@ -262,23 +262,42 @@ export interface SignoffGateInput {
 }
 
 /**
+ * Reviewers whose `agent-review/*` check gates the merge (GOL-159 Phase 3: only
+ * `agent-review/ada` is branch-protection-required). Every other reviewer is
+ * ADVISORY — its check is still emitted, but it never withholds a required one.
+ */
+export const REQUIRED_REVIEWERS: readonly Reviewer[] = ["ada"];
+
+/**
  * Which `agent-review/*` checks may be completed green given the current review
- * states (GOL-186). Pure — the worker maps each returned reviewer to a success
- * check-run on that reviewer's row head SHA.
+ * states (GOL-186; decoupled GOL-2390). Pure — the worker maps each returned
+ * reviewer to a success check-run on that reviewer's row head SHA.
  *
- *  - `iris`  → green when the frontend review issue is done.
- *  - `ada` (the REQUIRED check under Phase 3) → green only when Ada is done AND
- *    there is no frontend review OR the frontend review is also done. This encodes
- *    the spec rule "Ada's sign-off confirms Iris's check is green when a frontend
- *    review issue exists," so a single required `agent-review/ada` gates the whole
- *    PR. A done→done in either order converges: whichever issue.updated lands last
- *    re-evaluates the full gate and posts ada green.
+ * Each check is emitted INDEPENDENTLY, keyed only on its own reviewer's done-state:
+ *  - `iris` → green when the frontend review issue exists and is done.
+ *  - `ada`  → green when Ada's review issue is done — regardless of Iris.
+ *
+ * The old rule ("Ada's sign-off confirms Iris's check is green") made the required
+ * `agent-review/ada` a conjunction over ALL seeded reviewers, so an advisory Iris
+ * review sitting `blocked` withheld Ada's required check and stalled the merge
+ * (`gate not yet green; adaDone:true irisDone:false`, GOL-2320/GOL-2321 Defect B).
+ * The merge gate is now the REQUIRED_REVIEWERS set alone (isSignoffGateGreen).
  */
 export function evaluateSignoffGate(input: SignoffGateInput): Reviewer[] {
   const out: Reviewer[] = [];
   if (input.irisPresent && input.irisDone) out.push("iris");
-  if (input.adaDone && (!input.irisPresent || input.irisDone)) out.push("ada");
+  if (input.adaDone) out.push("ada");
   return out;
+}
+
+/**
+ * The overall/merge sign-off: true when every REQUIRED reviewer is done. Advisory
+ * reviewers (Iris) are deliberately excluded — their pending/blocked state must
+ * not hold the merge (GOL-2390).
+ */
+export function isSignoffGateGreen(input: SignoffGateInput): boolean {
+  const done: Record<Reviewer, boolean> = { ada: input.adaDone, iris: input.irisPresent && input.irisDone };
+  return REQUIRED_REVIEWERS.every((r) => done[r]);
 }
 
 // --- Discord state-change pings (spec System 3) ---------------------------------

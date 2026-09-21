@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Issue } from "@paperclipai/plugin-sdk";
-import { evaluateSignoffGate } from "../src/pr-review.js";
+import { evaluateSignoffGate, isSignoffGateGreen, REQUIRED_REVIEWERS } from "../src/pr-review.js";
 import { handleReviewSignoff } from "../src/pr-signoff.js";
 import type { SyncConfig, SyncDeps, SyncLogger } from "../src/sync.js";
 import type { GitHubClient } from "../src/github-client.js";
@@ -18,8 +18,8 @@ describe("evaluateSignoffGate — Phase 3 merge gate (GOL-186)", () => {
     expect(evaluateSignoffGate({ adaDone: false, irisPresent: false, irisDone: false })).toEqual([]);
   });
 
-  it("ada+iris: iris pending → neither green (ada gated on iris)", () => {
-    expect(evaluateSignoffGate({ adaDone: true, irisPresent: true, irisDone: false })).toEqual([]);
+  it("ada+iris: iris pending/blocked → ada still green (advisory iris never withholds ada, GOL-2390)", () => {
+    expect(evaluateSignoffGate({ adaDone: true, irisPresent: true, irisDone: false })).toEqual(["ada"]);
   });
 
   it("ada+iris: iris done, ada pending → iris green only", () => {
@@ -28,6 +28,25 @@ describe("evaluateSignoffGate — Phase 3 merge gate (GOL-186)", () => {
 
   it("ada+iris: both done → both green (converges regardless of order)", () => {
     expect(evaluateSignoffGate({ adaDone: true, irisPresent: true, irisDone: true })).toEqual(["iris", "ada"]);
+  });
+});
+
+describe("isSignoffGateGreen — merge gate on REQUIRED reviewers only (GOL-2390)", () => {
+  it("required set is ada alone", () => {
+    expect(REQUIRED_REVIEWERS).toEqual(["ada"]);
+  });
+
+  it("ada done, iris pending/blocked → merge gate green", () => {
+    expect(isSignoffGateGreen({ adaDone: true, irisPresent: true, irisDone: false })).toBe(true);
+  });
+
+  it("ada pending, iris done → merge gate NOT green", () => {
+    expect(isSignoffGateGreen({ adaDone: false, irisPresent: true, irisDone: true })).toBe(false);
+  });
+
+  it("ada-only PR tracks ada", () => {
+    expect(isSignoffGateGreen({ adaDone: true, irisPresent: false, irisDone: false })).toBe(true);
+    expect(isSignoffGateGreen({ adaDone: false, irisPresent: false, irisDone: false })).toBe(false);
   });
 });
 
@@ -178,13 +197,19 @@ describe("handleReviewSignoff", () => {
     expect(ping).toHaveBeenCalledWith(expect.stringContaining("agent-review/ada"));
   });
 
-  it("ada+iris, ada signs off first with iris pending → posts nothing (ada gated)", async () => {
+  it("ada+iris, ada signs off with iris BLOCKED → posts agent-review/ada only (GOL-2390 Defect B)", async () => {
     const db = makeStoreDb();
     await seedRows(db, { iris: true });
     const createCheckRun = okCheck();
-    const deps = makeDeps(db, { "pi-ada": "done", "pi-iris": "todo" }, createCheckRun);
+    const deps = makeDeps(db, { "pi-ada": "done", "pi-iris": "blocked" }, createCheckRun);
     await handleReviewSignoff(deps, { issueId: "pi-ada", companyId: "co-1" });
-    expect(createCheckRun).not.toHaveBeenCalled();
+
+    expect(createCheckRun).toHaveBeenCalledTimes(1);
+    expect(createCheckRun.mock.calls[0][1]).toMatchObject({
+      name: "agent-review/ada",
+      headSha: ADA_SHA,
+      conclusion: "success",
+    });
   });
 
   it("ada+iris, iris closes last with ada already done → posts BOTH on their own head SHAs", async () => {
