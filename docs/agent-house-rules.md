@@ -80,3 +80,12 @@ Goldberry-Playground, …).
 - **Scope:** the App grants Contents + Pull requests (+ Workflows). No admin, no
   secrets. If a push 404s/403s, the App likely isn't installed on that owner, or
   that repo wasn't selected in the installation — say so rather than retrying.
+- **Think the token broker is down? Check it the right way first.** The broker
+  is a separate container at `$GH_TOKEN_BROKER_URL` (`http://gh-token-broker:9099`),
+  **not** `localhost` — `curl localhost:9099` is *always* connection-refused from
+  your shell and does not mean an outage. Run
+  `node /paperclip/agent-git/github-app-token.mjs health`; if that prints `200`,
+  the broker is fine and you should just run the real `git push`. The helper
+  already retries transient broker failures (restarts during deploys) with
+  backoff, so only a push that still fails after that is a real blocker — quote
+  its actual error when you escalate.
