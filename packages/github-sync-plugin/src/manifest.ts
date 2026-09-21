@@ -230,7 +230,7 @@ const manifest: PaperclipPluginManifestV1 = {
   //   error-class ⛔ Discord ops alert carrying site + HTTP status (one per site+status per
   //   window; error-class passes every opsPingMode). The scope-expiry SUCCESS path is
   //   unchanged — no new pings on the healthy path. No new capability, no migration.
-  // 0.16.5 = worker-respawn watchdog: boot resilience + liveness heartbeat (GOL-2371,
+  // 0.16.6 = worker-respawn watchdog: boot resilience + liveness heartbeat (GOL-2371,
   //   D3 of GOL-2344; follow-up to GOL-2279). On 2026-09-09 a boot-time execSync crash
   //   in the worker supervisor left this plugin dead ~5 days — every inbound webhook
   //   502'd — with no auto-respawn and no alert, because nothing external could tell a
@@ -247,7 +247,7 @@ const manifest: PaperclipPluginManifestV1 = {
   //   heartbeat (last-alive, this process's boot time, stale flag). Detection/respawn at
   //   the host boundary is DevOps (Terra) — GOL-2287 Part A/B. Reuses jobs.schedule +
   //   database.namespace.*; adds migration 007 under the existing `database` block.
-  version: "0.16.5",
+  version: "0.16.6",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
