@@ -410,10 +410,10 @@ export class GitHubClient {
   async listPulls(
     repo: string,
     opts: { maxPages?: number } = {},
-  ): Promise<Result<{ prs: Array<{ number: number; headSha: string; title: string; htmlUrl: string; draft: boolean }>; truncated: boolean }>> {
+  ): Promise<Result<{ prs: Array<{ number: number; headSha: string; title: string; htmlUrl: string; draft: boolean; fullName: string }>; truncated: boolean }>> {
     const PER_PAGE = 100;
     const maxPages = opts.maxPages ?? 3;
-    const prs: Array<{ number: number; headSha: string; title: string; htmlUrl: string; draft: boolean }> = [];
+    const prs: Array<{ number: number; headSha: string; title: string; htmlUrl: string; draft: boolean; fullName: string }> = [];
     for (let page = 1; page <= maxPages; page++) {
       const qs = new URLSearchParams({
         state: "open",
@@ -436,6 +436,12 @@ export class GitHubClient {
           title: String(raw.title ?? ""),
           htmlUrl: String(raw.html_url ?? ""),
           draft: raw.draft === true,
+          // GOL-2395: the PR's canonical base-repo `owner/repo` (mixed case preserved).
+          // The review-twin store is case-sensitive and the webhook keys twins under
+          // `repository.full_name`; the sweep must key its DB pre-check + synthetic
+          // event on this SAME casing, not the lowercased client slug, or a mixed-case
+          // repo (e.g. Goldberry-Playground/AgenticOS) never matches and double-twins.
+          fullName: String(raw.base?.repo?.full_name ?? ""),
         });
       }
       if (batch.length < PER_PAGE) return { ok: true, data: { prs, truncated: false } };

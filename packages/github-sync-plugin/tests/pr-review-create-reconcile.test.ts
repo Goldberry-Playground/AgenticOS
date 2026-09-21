@@ -19,6 +19,7 @@ function pr(number: number, over: Partial<InboundPrRef> = {}): InboundPrRef {
     title: `pr ${number}`,
     url: `https://github.com/org/repo/pull/${number}`,
     draft: false,
+    fullName: `org/repo`,
     ...over,
   };
 }

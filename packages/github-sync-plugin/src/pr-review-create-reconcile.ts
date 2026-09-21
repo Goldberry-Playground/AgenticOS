@@ -59,6 +59,15 @@ export interface InboundPrRef {
   url: string;
   /** Draft PRs are never reviewed (a `ready_for_review` re-enters the pipeline). */
   draft: boolean;
+  /**
+   * Canonical `owner/repo` from the PR's `base.repo.full_name` (GOL-2395), casing
+   * preserved. The review-twin store is case-sensitive and the webhook keys twins
+   * under `repository.full_name`; the sweep's `driveReview` MUST key its DB pre-check
+   * + synthetic event on THIS value, not the lowercased client slug, so a mixed-case
+   * repo detects its webhook-created twin instead of double-creating one. May be `""`
+   * if the API omitted it — the drive falls back to the sweep slug.
+   */
+  fullName: string;
 }
 
 /** Result of listing one repo's open PRs; `{ ok:false }` is a transient read

@@ -246,7 +246,18 @@ const manifest: PaperclipPluginManifestV1 = {
   //   match, pending check seed — through the GOL-323 REST fallback (cron ticks have no
   //   ambient scope). Idempotent (a settled PR is a cheap `skipped-current`); capped per
   //   run so a first sweep over a backlog trickles out.
-  version: "0.16.4",
+  // 0.16.7 = pr-review-reconcile mixed-case repo key fix (GOL-2395). The 0.16.4 sweep
+  //   keyed its DB idempotency pre-check + synthetic review event on the lowercased
+  //   `clientsBySlug` slug, while the webhook stores twins under the case-sensitive
+  //   `repository.full_name`. On a mixed-case repo (Goldberry-Playground/AgenticOS the
+  //   headline case) the lowercase lookup never matched the webhook row, so every sweep
+  //   re-drove and double-created a second Ada review twin + a divergent lowercase
+  //   `github_pr_review` row. `listPulls` now surfaces each PR's `base.repo.full_name`,
+  //   threaded through `InboundPrRef.fullName`; `driveSweepReview` keys the pre-check and
+  //   `ev.repo` on it (matchBridge/client lookup stay case-insensitive). Bugfix only —
+  //   manifest surface unchanged bar version. (Version jumps 0.16.4→0.16.7: 0.16.5/#687,
+  //   0.16.6/#688 are the in-flight dead-man / watchdog PRs on their own branches.)
+  version: "0.16.7",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",

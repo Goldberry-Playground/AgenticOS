@@ -211,6 +211,48 @@ describe("GitHubClient.listPullFiles", () => {
   });
 });
 
+describe("GitHubClient.listPulls (GOL-2344 / GOL-2395)", () => {
+  it("projects number/headSha/title/url/draft + canonical base.repo.full_name", async () => {
+    const fetchMock = mockFetch([
+      {
+        number: 686,
+        title: "feat: reconcile",
+        html_url: "https://github.com/Goldberry-Playground/AgenticOS/pull/686",
+        head: { sha: "abc1234" },
+        draft: false,
+        // GOL-2395: full_name preserves the repo's mixed casing — the review-twin
+        // store key must match this, not a lowercased slug.
+        base: { repo: { full_name: "Goldberry-Playground/AgenticOS" } },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new GitHubClient({ token: "t", org: "Goldberry-Playground" });
+    const res = await client.listPulls("AgenticOS");
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.data.prs).toEqual([
+        {
+          number: 686,
+          headSha: "abc1234",
+          title: "feat: reconcile",
+          htmlUrl: "https://github.com/Goldberry-Playground/AgenticOS/pull/686",
+          draft: false,
+          fullName: "Goldberry-Playground/AgenticOS",
+        },
+      ]);
+      expect(res.data.truncated).toBe(false);
+    }
+  });
+
+  it("defaults fullName to '' when the API omits base.repo.full_name", async () => {
+    vi.stubGlobal("fetch", mockFetch([{ number: 1, head: { sha: "s" } }]));
+    const client = new GitHubClient({ token: "t", org: "o" });
+    const res = await client.listPulls("r");
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.data.prs[0].fullName).toBe("");
+  });
+});
+
 describe("GitHubClient.createCheckRun", () => {
   it("POSTs a pending (in_progress) run when no conclusion is given", async () => {
     const fetchMock = mockFetch({ id: 999 });
