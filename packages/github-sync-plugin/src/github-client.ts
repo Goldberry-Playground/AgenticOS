@@ -397,6 +397,53 @@ export class GitHubClient {
   }
 
   /**
+   * List a repo's open pull requests (GOL-2344 PR review-twin reconcile sweep).
+   * The `/pulls` endpoint — unlike `/issues` — returns ONLY PRs, so no
+   * `pull_request`-key filter is needed. `state:"open"` is enforced here (the
+   * sweep never twins a closed PR); drafts are returned (the caller's drive skips
+   * them, matching the webhook). Paginated at 100/page and capped at `maxPages`;
+   * `truncated` reports whether the cap cut the scan short. `/pulls` has no `since`
+   * filter, so the window is bounded by the page cap alone with `sort=updated&desc`
+   * keeping the freshest PRs first — fine because open PRs are few. Requires
+   * `pull_requests:read` (same token that already fetches PR files).
+   */
+  async listPulls(
+    repo: string,
+    opts: { maxPages?: number } = {},
+  ): Promise<Result<{ prs: Array<{ number: number; headSha: string; title: string; htmlUrl: string; draft: boolean }>; truncated: boolean }>> {
+    const PER_PAGE = 100;
+    const maxPages = opts.maxPages ?? 3;
+    const prs: Array<{ number: number; headSha: string; title: string; htmlUrl: string; draft: boolean }> = [];
+    for (let page = 1; page <= maxPages; page++) {
+      const qs = new URLSearchParams({
+        state: "open",
+        per_page: String(PER_PAGE),
+        page: String(page),
+        sort: "updated",
+        direction: "desc",
+      });
+      const res = await this.request<Array<Record<string, any>>>(
+        "GET",
+        repo,
+        `/repos/${this.org}/${repo}/pulls?${qs.toString()}`,
+      );
+      if (!res.ok) return res;
+      const batch = Array.isArray(res.data) ? res.data : [];
+      for (const raw of batch) {
+        prs.push({
+          number: Number(raw.number),
+          headSha: String(raw.head?.sha ?? ""),
+          title: String(raw.title ?? ""),
+          htmlUrl: String(raw.html_url ?? ""),
+          draft: raw.draft === true,
+        });
+      }
+      if (batch.length < PER_PAGE) return { ok: true, data: { prs, truncated: false } };
+    }
+    return { ok: true, data: { prs, truncated: true } };
+  }
+
+  /**
    * Fetch a single commit's parents + committer. Used by the `synchronize`
    * classifier to tell a GitHub-generated base-sync merge (Update branch) from
    * real author commits: GitHub's update-branch produces a 2-parent merge whose
