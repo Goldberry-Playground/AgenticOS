@@ -296,6 +296,40 @@ export class GitHubClient {
   }
 
   /**
+   * Cheapest possible "has this repo seen recent PR/issue activity?" probe for the
+   * inbound dead-man tripwire (GOL-2370). Unlike {@link listIssues}, this deliberately
+   * does NOT drop `pull_request` items: GitHub's `/issues` endpoint returns BOTH issues
+   * and PRs, and `since` filters both on `updated_at`, so a single `per_page=1&
+   * sort=updated&direction=desc` request answers "was ANY issue OR PR updated at/after
+   * `sinceIso`?" in one round-trip. `latestUpdatedAt` (the newest `updated_at` in the
+   * window, or null when quiet) feeds the alert message. Requires only `issues:read`.
+   */
+  async recentActivitySince(
+    repo: string,
+    sinceIso: string,
+  ): Promise<Result<{ active: boolean; latestUpdatedAt: string | null }>> {
+    const qs = new URLSearchParams({
+      state: "all",
+      since: sinceIso,
+      per_page: "1",
+      page: "1",
+      sort: "updated",
+      direction: "desc",
+    });
+    const res = await this.request<Array<Record<string, any>>>(
+      "GET",
+      repo,
+      `/repos/${this.org}/${repo}/issues?${qs.toString()}`,
+    );
+    if (!res.ok) return res;
+    const batch = Array.isArray(res.data) ? res.data : [];
+    const first = batch[0];
+    const latestUpdatedAt =
+      first && typeof first.updated_at === "string" ? first.updated_at : null;
+    return { ok: true, data: { active: batch.length > 0, latestUpdatedAt } };
+  }
+
+  /**
    * List a PR's changed-file paths (GOL-158). Paginated at 100/page, capped at
    * MAX_FILE_PAGES to bound cost; the `truncated` flag says whether the cap was
    * hit so the caller can log it (frontendPaths matching stays correct — a match

@@ -442,6 +442,46 @@ describe("GitHubClient.listIssues", () => {
   });
 });
 
+describe("GitHubClient.recentActivitySince (GOL-2370 dead-man probe)", () => {
+  it("reports active + latest timestamp when a PR OR issue was updated in the window", async () => {
+    // Unlike listIssues, this must NOT drop the PR item — a PR update is activity too.
+    const fetchMock = mockFetch([
+      { number: 11, updated_at: "2026-09-21T12:00:00Z", pull_request: { url: "p" } },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new GitHubClient({ token: "t", org: "o", timeoutMs: 5000 });
+    const result = await client.recentActivitySince("r", "2026-09-21T09:00:00Z");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.active).toBe(true);
+      expect(result.data.latestUpdatedAt).toBe("2026-09-21T12:00:00Z");
+    }
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.pathname).toBe("/repos/o/r/issues");
+    expect(url.searchParams.get("state")).toBe("all");
+    expect(url.searchParams.get("since")).toBe("2026-09-21T09:00:00Z");
+    expect(url.searchParams.get("per_page")).toBe("1");
+    expect(url.searchParams.get("sort")).toBe("updated");
+    expect(url.searchParams.get("direction")).toBe("desc");
+  });
+
+  it("reports inactive + null when the window is empty (quiet repo)", async () => {
+    vi.stubGlobal("fetch", mockFetch([]));
+    const client = new GitHubClient({ token: "t", org: "o", timeoutMs: 5000 });
+    const result = await client.recentActivitySince("r", "2026-09-21T09:00:00Z");
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data).toEqual({ active: false, latestUpdatedAt: null });
+  });
+
+  it("propagates a transient read failure (never silently 'quiet')", async () => {
+    vi.stubGlobal("fetch", mockFetch({ message: "Bad credentials" }, false, 401));
+    const client = new GitHubClient({ token: "t", org: "o", timeoutMs: 5000 });
+    const result = await client.recentActivitySince("r", "2026-09-21T09:00:00Z");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("Bad credentials");
+  });
+});
+
 describe("GitHubClient cache-invalidation on 401 (GOL-1425)", () => {
   // A re-mintable provider (has `invalidate`) that hands out a fresh token string
   // each call, so we can assert the retry used a different (re-minted) token.

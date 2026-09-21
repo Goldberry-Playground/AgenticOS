@@ -229,7 +229,19 @@ var manifest = {
   //   error-class ⛔ Discord ops alert carrying site + HTTP status (one per site+status per
   //   window; error-class passes every opsPingMode). The scope-expiry SUCCESS path is
   //   unchanged — no new pings on the healthy path. No new capability, no migration.
-  version: "0.16.3",
+  // 0.16.4 = PR review-twin reconcile sweep (GOL-2344 D1, PR #686). Sequenced BEFORE this.
+  // 0.16.5 = inbound dead-man tripwire (GOL-2370 / GOL-2344 D2). The reconcile sweeps
+  //   self-heal a dropped delivery SILENTLY, so a fleet-wide inbound outage (worker down /
+  //   webhook mis-routed / host not dispatching) backfills unseen for days — the 09-21
+  //   grove-sites#775 and 09-14 GOL-2279 outages, both with the same `github_sync_delivery`
+  //   cliff (no delivery row for days while GitHub kept showing PR/issue activity). A new
+  //   hourly `inbound-dead-man` job (jobs.schedule + jobs[] — manifest surface CHANGED, no
+  //   new capability, no migration) reads the delivery counter and, only when ZERO
+  //   deliveries landed in the 3h window AND GitHub's REST shows a PR/issue updated in the
+  //   same window in a bridged repo, fires a THROTTLED ⛔ error-class ops alert. A quiet
+  //   fleet (no GitHub activity) pages nothing. Read-only (no companyId/scope). Reuses the
+  //   existing broker token (issues:read); MUST deploy after 0.16.4 (monotonic hot-reload).
+  version: "0.16.5",
   displayName: "GitHub Sync",
   description: "Bidirectional issue sync between Paperclip and GitHub. Paperclip \u2192 GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub \u2192 Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo\u2194project bridges across orgs.",
   author: "AgenticOS",
@@ -305,6 +317,15 @@ var manifest = {
       // Minute 9 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
       // inbound-close-reconcile (:51) and the top of the hour so no two sweeps stack.
       schedule: "9 * * * *"
+    },
+    {
+      jobKey: "inbound-dead-man",
+      displayName: "Inbound dead-man tripwire",
+      description: "Hourly liveness check that PAGES \u26D4 when the inbound webhook ingress is dead: no `github_sync_delivery` row landed in the last 3h AND GitHub's REST API shows a PR/issue updated in the same window in a bridged repo (the exact signature of the 09-21/09-14 outages). A genuinely quiet fleet \u2014 no GitHub activity \u2014 pages nothing, and any delivery at all short-circuits the check. Read-only; throttled error-class alert (GOL-2370).",
+      // Minute 45 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
+      // inbound-close-reconcile (:51), inbound-create-reconcile (:9) and the top of the
+      // hour so no two hourly jobs ever stack.
+      schedule: "45 * * * *"
     }
   ],
   // Inbound endpoint. The workflow POSTs the GitHub issue-opened payload here;
