@@ -23,6 +23,7 @@ import {
   buildSignoffPing,
   CHECK_CONTEXT,
   evaluateSignoffGate,
+  isSignoffGateGreen,
   shortSha,
   type Reviewer,
 } from "./pr-review.js";
@@ -44,7 +45,9 @@ import { getReviewRecord, getReviewRecordByIssueId, type PrReviewRow } from "./p
  *     metadata edit; a reopen-to-`todo` (synchronize) or a `cancelled`
  *     non-approval leaves the check pending — fail-closed under the Phase 3 gate.
  *  3. Load both reviewers' rows for the (repo, PR), read each reviewer's issue
- *     status, and evaluate the pure gate (evaluateSignoffGate).
+ *     status, and evaluate the pure gate (evaluateSignoffGate). Each reviewer's
+ *     check greens on its OWN done-state — an advisory reviewer (Iris) that is
+ *     pending/blocked never withholds the required `agent-review/ada` (GOL-2390).
  *  4. Post each greenlit check-run on ITS row's current head SHA. A synchronize
  *     resets rows + reopens issues to `todo`, so a `done` issue is necessarily done
  *     against the current head — a stale head can't satisfy the gate. Re-posting is
@@ -73,16 +76,24 @@ export async function handleReviewSignoff(
   const adaDone = adaRow ? await isIssueDone(deps, adaRow, input.companyId) : false;
   const irisDone = irisRow ? await isIssueDone(deps, irisRow, input.companyId) : false;
 
-  const greenlit = evaluateSignoffGate({ adaDone, irisPresent: irisRow !== null, irisDone });
+  const gateInput = { adaDone, irisPresent: irisRow !== null, irisDone };
+  const greenlit = evaluateSignoffGate(gateInput);
   if (greenlit.length === 0) {
-    logger.info("signoff: gate not yet green; no check-run posted", {
+    logger.info("signoff: no reviewer done yet; no check-run posted", {
       repo: record.githubRepo,
       prNumber: record.prNumber,
-      adaDone,
-      irisPresent: irisRow !== null,
-      irisDone,
+      ...gateInput,
     });
     return;
+  }
+  if (!isSignoffGateGreen(gateInput)) {
+    // Advisory checks still post; the merge stays held on the required reviewer(s).
+    logger.info("signoff: posting advisory check(s); required gate not yet green", {
+      repo: record.githubRepo,
+      prNumber: record.prNumber,
+      greenlit,
+      ...gateInput,
+    });
   }
 
   const posted: Reviewer[] = [];
@@ -118,8 +129,9 @@ async function isIssueDone(deps: SyncDeps, row: PrReviewRow, companyId: string):
  * stuck-pending required check is never silent.
  *
  * We ALWAYS attempt the post — even when the PR is already merged/closed (GOL-798).
- * The gate frequently greens AFTER the PR merges: the coupled ada+iris gate only
- * completes once BOTH review issues are `done`, and an agent reviewer that has
+ * The gate frequently greens AFTER the PR merges: a review issue can reach `done`
+ * after the merge (pre-GOL-2390 the coupled ada+iris gate made this common), and
+ * an agent reviewer that has
  * bumped its issue to `in_progress` can only reach `done` via `in_progress → done`
  * (the API rejects `→ in_review` for agent reviewers). That transition still fires
  * handleReviewSignoff, but a PR whose merge raced ahead of the last sign-off would,

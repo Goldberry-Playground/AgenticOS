@@ -82,8 +82,14 @@ export class PaperclipRestClient {
   private readonly cfAccessClientSecret?: string;
 
   constructor(opts: PaperclipRestClientOptions) {
-    // Strip a trailing slash so `${baseUrl}/api/...` never double-slashes.
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
+    // Strip trailing slashes so `${baseUrl}/api/...` never double-slashes.
+    // A linear while-loop (not a `/\/+$/` regex) avoids the polynomial-ReDoS
+    // backtracking CodeQL flags (js/polynomial-redos, GOL-2398).
+    let baseUrl = opts.baseUrl;
+    while (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+    this.baseUrl = baseUrl;
     this.token = opts.token;
     this.http = opts.http;
     this.cfAccessClientId = opts.cfAccessClientId;

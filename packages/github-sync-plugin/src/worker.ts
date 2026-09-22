@@ -46,6 +46,12 @@ import { runSignoffReconcile } from "./signoff-reconcile.js";
 import { runInboundCloseReconcile, buildInboundCloseReconcilePing } from "./inbound-close-reconcile.js";
 import { runInboundCreateReconcile, buildInboundCreateReconcilePing } from "./inbound-create-reconcile.js";
 import {
+  runPrReviewReconcile,
+  buildPrReviewReconcilePing,
+  type InboundPrRef,
+  type PrReviewDriveOutcome,
+} from "./pr-review-create-reconcile.js";
+import {
   recordError,
   buildSwallowedFailurePing,
   buildFallbackFailurePing,
@@ -109,6 +115,11 @@ const INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
  */
 const INBOUND_CREATE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 const INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
+
+// PR review-twin reconcile sweep (GOL-2344): the pull-request sibling of
+// inbound-create-reconcile. `/pulls` has no `since` filter, so the scan is bounded
+// by the page cap alone (open PRs are few); 3 pages = up to 300 open PRs/repo.
+const PR_REVIEW_RECONCILE_MAX_PAGES = 3;
 
 /**
  * Inbound dead-man tripwire (GOL-2370): the lookback for BOTH sides of the check —
@@ -1251,6 +1262,104 @@ async function processReviewer(
 }
 
 /**
+ * Re-drive the SAME review pipeline the inbound webhook uses for one open PR, for the
+ * `pr-review-reconcile` sweep (GOL-2344). Owns the bridge/draft/Ada-current-idempotency
+ * guards so the sweep tallies without duplicating processReviewer's internals.
+ *
+ * GOL-2395: the DB pre-check + synthetic event key on the PR's canonical
+ * `base.repo.full_name` (`pr.fullName`, webhook casing preserved), NOT the sweep's
+ * `repoSlug` — which `clientsBySlug` lowercases. The `github_pr_review` store is
+ * case-sensitive and the webhook stores twins under `repository.full_name`, so on a
+ * mixed-case repo (e.g. `Goldberry-Playground/AgenticOS`) a lowercase lookup never
+ * matches the webhook row → `adaRec=null` → the sweep re-drives and double-creates a
+ * twin every head. Keying on `pr.fullName` makes the pre-check see the webhook twin and
+ * return `skipped-current`. `matchBridge`/`makeBridgeGithubClient` stay slug-driven
+ * (config casing can differ from `full_name`; matchBridge is intentionally
+ * case-insensitive) — only the DB key + `ev.repo` are canonicalised. Falls back to
+ * `repoSlug` if the API omitted `full_name`.
+ *
+ * No ambient scope (`(fn) => fn()`); processReviewer's `ctx.issues.*` writes go through
+ * withRestFallback, so a cron-tick scope expiry falls back to the Paperclip REST API
+ * (GOL-323).
+ */
+export async function driveSweepReview(
+  ctx: PluginContext,
+  cfg: GithubSyncConfig,
+  repoSlug: string,
+  pr: InboundPrRef,
+): Promise<PrReviewDriveOutcome> {
+  const bridge = matchBridge(cfg, repoSlug);
+  if (!bridge) return "no-bridge";
+  if (pr.draft) return "skipped-draft";
+  // Canonical repo key (webhook casing) — see the doc-comment above.
+  const canonicalRepo = pr.fullName || repoSlug;
+  // Idempotency pre-check: Ada's twin already at this head means the webhook DID land
+  // for this SHA (Ada is always created first) — a cheap skip, no GitHub file fetch. A
+  // missing/stale Ada row means the twin is absent or behind, so re-drive. (Iris, when
+  // required, is created in the same drive.)
+  const adaRec = await getReviewRecord(ctx.db, canonicalRepo, pr.number, "ada");
+  if (adaRec && adaRec.headSha === pr.headSha) return "skipped-current";
+  const github = makeBridgeGithubClient(cfg, bridge);
+  if (!github) {
+    ctx.logger.warn("pr-review-reconcile: no auth for bridge — cannot fetch PR files", { repo: repoSlug });
+    return "failed";
+  }
+  const filesRes = await github.listPullFiles(bridge.githubRepo, pr.number);
+  if (!filesRes.ok) {
+    ctx.logger.warn("pr-review-reconcile: failed to fetch PR changed files", {
+      repo: repoSlug,
+      number: pr.number,
+      error: filesRes.error,
+    });
+    return "failed";
+  }
+  const { files } = filesRes.data;
+  // Synthetic event: `reopened` is a non-synchronize actionable action, so it skips the
+  // base-sync classifier (which only applies to `synchronize`) and lets processReviewer
+  // decide create/reopen/noop off the stored head SHA — identical to how the webhook
+  // drives an out-of-band re-review. `repo` is the canonical full_name so processReviewer
+  // reads/writes the store under the SAME key the webhook uses.
+  const ev: GithubPrEvent = {
+    action: "reopened",
+    draft: false,
+    repo: canonicalRepo,
+    number: pr.number,
+    title: pr.title,
+    headSha: pr.headSha,
+    url: pr.url,
+    before: "",
+    after: "",
+  };
+  const frontendPaths = cfg.prReviewFrontendPaths?.length
+    ? cfg.prReviewFrontendPaths
+    : DEFAULT_FRONTEND_PATHS;
+  const reviewers: Array<{ reviewer: Reviewer; agentId: string }> = [
+    { reviewer: "ada", agentId: cfg.prReviewAliceAgentId! },
+  ];
+  if (anyFrontendMatch(files, frontendPaths) && cfg.prReviewIrisAgentId) {
+    reviewers.push({ reviewer: "iris", agentId: cfg.prReviewIrisAgentId });
+  }
+  let landed = false;
+  for (const { reviewer, agentId } of reviewers) {
+    const outcome = await processReviewer(
+      ctx,
+      cfg,
+      bridge,
+      github,
+      ev,
+      files,
+      reviewer,
+      agentId,
+      (fn) => fn(),
+    );
+    if (outcome === "created" || outcome === "reopened") landed = true;
+  }
+  // Ada (always required) was missing/stale by the pre-check, so a run that lands nothing
+  // means every write failed — report `failed` to retry.
+  return landed ? "twinned" : "failed";
+}
+
+/**
  * Seed/reset a pending `agent-review/*` check-run on the PR head SHA. Best-effort:
  * a failure (e.g. the App lacks `checks:write` during the Phase 2 soak) is logged
  * but never blocks review-issue creation, and — to keep the ops channel low-noise
@@ -1928,6 +2037,72 @@ const plugin = definePlugin({
         }
       } catch (err) {
         await recordSwallowedFailure(ctx, cfg, "inbound-create-reconcile job failed", err, {});
+      }
+    });
+
+    // PR review-twin reconcile sweep (GOL-2344): the pull-request sibling of
+    // inbound-create-reconcile. The agent PR-review pipeline is event-driven only —
+    // a PR gets its Ada/Iris review twin(s) + seeded `agent-review/*` check solely if
+    // its `pull_request` webhook (opened/synchronize/reopened/ready_for_review) landed
+    // AND handlePrInbound survived. If that delivery is dropped (webhook disabled /
+    // mis-delivered / a worker-crash or scope-expiry window), the PR is never revisited:
+    // signoff-reconcile only re-drives PRs that ALREADY have a `github_pr_review` row,
+    // it never CREATES a missing twin. So a maintainer PR on a GOL-1406 protected path
+    // (auto-approve withholds, the sole maintainer can't self-approve) sits unmergeable
+    // with no avenue to Ada's sign-off — exactly what stranded grove-sites#775 (its
+    // opened + 3 synchronize deliveries were all lost, GOL-2339/GOL-2344). This hourly
+    // sweep lists each bridged repo's open non-draft PRs and, for any PR whose current
+    // head has no current Ada twin, re-drives the SAME processReviewer pipeline the
+    // webhook uses (Ada always, Iris on a frontend-glob match, pending check seed) — so
+    // a dropped `pull_request` webhook self-heals within an hour instead of needing an
+    // empty-commit nudge. Idempotent; a settled PR is a cheap `skipped-current`.
+    ctx.jobs.register("pr-review-reconcile", async () => {
+      try {
+        if (!cfg.companyId) {
+          ctx.logger.warn("pr-review-reconcile: companyId not configured; skipping sweep");
+          return;
+        }
+        if (!cfg.prReviewAliceAgentId) {
+          ctx.logger.info("pr-review-reconcile: PR review pipeline disabled (no prReviewAliceAgentId); skipping sweep");
+          return;
+        }
+        const summary = await runPrReviewReconcile({
+          repoSlugs: Array.from(clientsBySlug.keys()),
+          listPrs: async (repoSlug) => {
+            const entry = clientsBySlug.get(repoSlug);
+            if (!entry) return { ok: false, error: "no client for repo" };
+            const res = await entry.github.listPulls(entry.repo, {
+              maxPages: PR_REVIEW_RECONCILE_MAX_PAGES,
+            });
+            if (!res.ok) return { ok: false, error: res.error };
+            return {
+              ok: true,
+              prs: res.data.prs.map((p) => ({
+                number: p.number,
+                headSha: p.headSha,
+                title: p.title,
+                url: p.htmlUrl,
+                draft: p.draft,
+                fullName: p.fullName,
+              })),
+              truncated: res.data.truncated,
+            };
+          },
+          // Re-drive the SAME review pipeline the inbound webhook uses. Owns the guards
+          // (bridge / draft / Ada-current idempotency) so the sweep tallies without
+          // duplicating processReviewer's internals. Extracted to `driveSweepReview` so
+          // the mixed-case-repo key wiring (GOL-2395) is unit-testable.
+          driveReview: ({ repoSlug, pr }) => driveSweepReview(ctx, cfg, repoSlug, pr),
+          logger: ctx.logger,
+        });
+        ctx.logger.info("pr-review-reconcile complete", summary as unknown as Record<string, unknown>);
+        // Page on real work only: a backfilled twin, or an actionable (retryable) failure.
+        if (summary.twinned > 0 || summary.failed > 0) {
+          if (wantPing(cfg, "outcome"))
+            await postOpsPing(ctx, cfg.opsWebhookUrl, buildPrReviewReconcilePing(summary));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "pr-review-reconcile job failed", err, {});
       }
     });
 

@@ -115,7 +115,7 @@ describe("runSignoffReconcile", () => {
       checksByHead: { sha1: [pending("agent-review/ada"), pending("agent-review/iris")] },
     });
     const s = await runSignoffReconcile(input);
-    expect(drove).toHaveLength(1); // one re-drive covers the coupled gate
+    expect(drove).toHaveLength(1); // one re-drive covers every reviewer on the PR
     expect(listCalls).toEqual(["sha1"]); // check-run read cached by head
     expect(s).toMatchObject({ scanned: 2, healed: 1, skipped: 1 });
   });

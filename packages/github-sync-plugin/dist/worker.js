@@ -30433,6 +30433,55 @@ var GitHubClient = class {
     };
   }
   /**
+   * List a repo's open pull requests (GOL-2344 PR review-twin reconcile sweep).
+   * The `/pulls` endpoint — unlike `/issues` — returns ONLY PRs, so no
+   * `pull_request`-key filter is needed. `state:"open"` is enforced here (the
+   * sweep never twins a closed PR); drafts are returned (the caller's drive skips
+   * them, matching the webhook). Paginated at 100/page and capped at `maxPages`;
+   * `truncated` reports whether the cap cut the scan short. `/pulls` has no `since`
+   * filter, so the window is bounded by the page cap alone with `sort=updated&desc`
+   * keeping the freshest PRs first — fine because open PRs are few. Requires
+   * `pull_requests:read` (same token that already fetches PR files).
+   */
+  async listPulls(repo, opts = {}) {
+    const PER_PAGE = 100;
+    const maxPages = opts.maxPages ?? 3;
+    const prs = [];
+    for (let page = 1; page <= maxPages; page++) {
+      const qs = new URLSearchParams({
+        state: "open",
+        per_page: String(PER_PAGE),
+        page: String(page),
+        sort: "updated",
+        direction: "desc"
+      });
+      const res = await this.request(
+        "GET",
+        repo,
+        `/repos/${this.org}/${repo}/pulls?${qs.toString()}`
+      );
+      if (!res.ok) return res;
+      const batch = Array.isArray(res.data) ? res.data : [];
+      for (const raw of batch) {
+        prs.push({
+          number: Number(raw.number),
+          headSha: String(raw.head?.sha ?? ""),
+          title: String(raw.title ?? ""),
+          htmlUrl: String(raw.html_url ?? ""),
+          draft: raw.draft === true,
+          // GOL-2395: the PR's canonical base-repo `owner/repo` (mixed case preserved).
+          // The review-twin store is case-sensitive and the webhook keys twins under
+          // `repository.full_name`; the sweep must key its DB pre-check + synthetic
+          // event on this SAME casing, not the lowercased client slug, or a mixed-case
+          // repo (e.g. Goldberry-Playground/AgenticOS) never matches and double-twins.
+          fullName: String(raw.base?.repo?.full_name ?? "")
+        });
+      }
+      if (batch.length < PER_PAGE) return { ok: true, data: { prs, truncated: false } };
+    }
+    return { ok: true, data: { prs, truncated: true } };
+  }
+  /**
    * Fetch a single commit's parents + committer. Used by the `synchronize`
    * classifier to tell a GitHub-generated base-sync merge (Update branch) from
    * real author commits: GitHub's update-branch produces a 2-parent merge whose
@@ -30991,11 +31040,16 @@ function buildReviewIssueBody(reviewer, ev, files) {
 function buildNewCommitsNote(reviewer, ev) {
   return `\u{1F501} New commits pushed \u2014 head is now \`${ev.headSha}\` (${ev.url || `${ev.repo}#${ev.number}`}). Re-review against the new head SHA and re-post the \`${CHECK_CONTEXT[reviewer]}\` check-run (previous sign-off is stale).`;
 }
+var REQUIRED_REVIEWERS = ["ada"];
 function evaluateSignoffGate(input2) {
   const out = [];
   if (input2.irisPresent && input2.irisDone) out.push("iris");
-  if (input2.adaDone && (!input2.irisPresent || input2.irisDone)) out.push("ada");
+  if (input2.adaDone) out.push("ada");
   return out;
+}
+function isSignoffGateGreen(input2) {
+  const done = { ada: input2.adaDone, iris: input2.irisPresent && input2.irisDone };
+  return REQUIRED_REVIEWERS.every((r) => done[r]);
 }
 function reviewerList(reviewers) {
   return reviewers.map((r) => REVIEWER_NAME[r]).join(" + ") || "\u2014";
@@ -31093,16 +31147,23 @@ async function handleReviewSignoff(deps, input2) {
   const irisRow = await getReviewRecord(db, record2.githubRepo, record2.prNumber, "iris");
   const adaDone = adaRow ? await isIssueDone(deps, adaRow, input2.companyId) : false;
   const irisDone = irisRow ? await isIssueDone(deps, irisRow, input2.companyId) : false;
-  const greenlit = evaluateSignoffGate({ adaDone, irisPresent: irisRow !== null, irisDone });
+  const gateInput = { adaDone, irisPresent: irisRow !== null, irisDone };
+  const greenlit = evaluateSignoffGate(gateInput);
   if (greenlit.length === 0) {
-    logger.info("signoff: gate not yet green; no check-run posted", {
+    logger.info("signoff: no reviewer done yet; no check-run posted", {
       repo: record2.githubRepo,
       prNumber: record2.prNumber,
-      adaDone,
-      irisPresent: irisRow !== null,
-      irisDone
+      ...gateInput
     });
     return;
+  }
+  if (!isSignoffGateGreen(gateInput)) {
+    logger.info("signoff: posting advisory check(s); required gate not yet green", {
+      repo: record2.githubRepo,
+      prNumber: record2.prNumber,
+      greenlit,
+      ...gateInput
+    });
   }
   const posted = [];
   for (const reviewer of greenlit) {
@@ -31492,6 +31553,72 @@ function buildInboundCreateReconcilePing(s) {
   return `\u{1FA9E} inbound-create-reconcile: created ${s.created} missing Paperclip twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
 }
 
+// src/pr-review-create-reconcile.ts
+var DEFAULT_MAX_DRIVES = 20;
+async function runPrReviewReconcile(input2) {
+  const maxDrives = input2.maxDrives ?? DEFAULT_MAX_DRIVES;
+  const summary = {
+    scanned: 0,
+    twinned: 0,
+    skippedCurrent: 0,
+    skippedDraft: 0,
+    failed: 0,
+    reposFailed: 0,
+    truncated: false,
+    capped: false
+  };
+  for (const repoSlug of input2.repoSlugs) {
+    const listed = await input2.listPrs(repoSlug);
+    if (!listed.ok) {
+      summary.reposFailed++;
+      input2.logger.warn("pr-review-reconcile: PR list failed; skipping repo this run", {
+        repo: repoSlug,
+        error: listed.error
+      });
+      continue;
+    }
+    if (listed.truncated) summary.truncated = true;
+    for (const pr of listed.prs) {
+      summary.scanned++;
+      if (summary.twinned + summary.failed >= maxDrives) {
+        summary.capped = true;
+        return summary;
+      }
+      try {
+        const outcome = await input2.driveReview({ repoSlug, pr });
+        switch (outcome) {
+          case "twinned":
+            summary.twinned++;
+            break;
+          case "skipped-current":
+            summary.skippedCurrent++;
+            break;
+          case "skipped-draft":
+            summary.skippedDraft++;
+            break;
+          case "no-bridge":
+            break;
+          case "failed":
+            summary.failed++;
+            break;
+        }
+      } catch (err) {
+        summary.failed++;
+        input2.logger.warn("pr-review-reconcile: review re-drive failed; continuing sweep", {
+          repo: repoSlug,
+          number: pr.number,
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
+    }
+  }
+  return summary;
+}
+function buildPrReviewReconcilePing(s) {
+  const capNote = s.capped ? " \u2014 capped, next run continues" : "";
+  return `\u{1F50D} pr-review-reconcile: created/reopened ${s.twinned} missing review twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
+}
+
 // src/error-log.ts
 var ERROR_TABLE = "github_sync_error";
 function qualifiedTable2(db) {
@@ -31867,7 +31994,11 @@ var PaperclipRestClient = class {
   cfAccessClientId;
   cfAccessClientSecret;
   constructor(opts) {
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
+    let baseUrl = opts.baseUrl;
+    while (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+    this.baseUrl = baseUrl;
     this.token = opts.token;
     this.http = opts.http;
     this.cfAccessClientId = opts.cfAccessClientId;
@@ -32021,6 +32152,7 @@ var INBOUND_CLOSE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
 var INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
 var INBOUND_CREATE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
 var INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
+var PR_REVIEW_RECONCILE_MAX_PAGES = 3;
 var INBOUND_DEADMAN_WINDOW_MS = 3 * 60 * 60 * 1e3;
 var currentContext = null;
 function safeJson(raw) {
@@ -32645,6 +32777,63 @@ async function processReviewer(ctx, cfg, bridge, github, ev, files, reviewer, ag
   await seedPendingCheck(ctx, github, bridge, ev, reviewer);
   return "reopened";
 }
+async function driveSweepReview(ctx, cfg, repoSlug, pr) {
+  const bridge = matchBridge(cfg, repoSlug);
+  if (!bridge) return "no-bridge";
+  if (pr.draft) return "skipped-draft";
+  const canonicalRepo = pr.fullName || repoSlug;
+  const adaRec = await getReviewRecord(ctx.db, canonicalRepo, pr.number, "ada");
+  if (adaRec && adaRec.headSha === pr.headSha) return "skipped-current";
+  const github = makeBridgeGithubClient(cfg, bridge);
+  if (!github) {
+    ctx.logger.warn("pr-review-reconcile: no auth for bridge \u2014 cannot fetch PR files", { repo: repoSlug });
+    return "failed";
+  }
+  const filesRes = await github.listPullFiles(bridge.githubRepo, pr.number);
+  if (!filesRes.ok) {
+    ctx.logger.warn("pr-review-reconcile: failed to fetch PR changed files", {
+      repo: repoSlug,
+      number: pr.number,
+      error: filesRes.error
+    });
+    return "failed";
+  }
+  const { files } = filesRes.data;
+  const ev = {
+    action: "reopened",
+    draft: false,
+    repo: canonicalRepo,
+    number: pr.number,
+    title: pr.title,
+    headSha: pr.headSha,
+    url: pr.url,
+    before: "",
+    after: ""
+  };
+  const frontendPaths = cfg.prReviewFrontendPaths?.length ? cfg.prReviewFrontendPaths : DEFAULT_FRONTEND_PATHS;
+  const reviewers = [
+    { reviewer: "ada", agentId: cfg.prReviewAliceAgentId }
+  ];
+  if (anyFrontendMatch(files, frontendPaths) && cfg.prReviewIrisAgentId) {
+    reviewers.push({ reviewer: "iris", agentId: cfg.prReviewIrisAgentId });
+  }
+  let landed = false;
+  for (const { reviewer, agentId } of reviewers) {
+    const outcome = await processReviewer(
+      ctx,
+      cfg,
+      bridge,
+      github,
+      ev,
+      files,
+      reviewer,
+      agentId,
+      (fn) => fn()
+    );
+    if (outcome === "created" || outcome === "reopened") landed = true;
+  }
+  return landed ? "twinned" : "failed";
+}
 async function seedPendingCheck(ctx, github, bridge, ev, reviewer) {
   const res = await github.createCheckRun(bridge.githubRepo, {
     name: CHECK_CONTEXT[reviewer],
@@ -33147,6 +33336,54 @@ var plugin = definePlugin({
         await recordSwallowedFailure(ctx, cfg, "inbound-create-reconcile job failed", err, {});
       }
     });
+    ctx.jobs.register("pr-review-reconcile", async () => {
+      try {
+        if (!cfg.companyId) {
+          ctx.logger.warn("pr-review-reconcile: companyId not configured; skipping sweep");
+          return;
+        }
+        if (!cfg.prReviewAliceAgentId) {
+          ctx.logger.info("pr-review-reconcile: PR review pipeline disabled (no prReviewAliceAgentId); skipping sweep");
+          return;
+        }
+        const summary = await runPrReviewReconcile({
+          repoSlugs: Array.from(clientsBySlug.keys()),
+          listPrs: async (repoSlug) => {
+            const entry = clientsBySlug.get(repoSlug);
+            if (!entry) return { ok: false, error: "no client for repo" };
+            const res = await entry.github.listPulls(entry.repo, {
+              maxPages: PR_REVIEW_RECONCILE_MAX_PAGES
+            });
+            if (!res.ok) return { ok: false, error: res.error };
+            return {
+              ok: true,
+              prs: res.data.prs.map((p) => ({
+                number: p.number,
+                headSha: p.headSha,
+                title: p.title,
+                url: p.htmlUrl,
+                draft: p.draft,
+                fullName: p.fullName
+              })),
+              truncated: res.data.truncated
+            };
+          },
+          // Re-drive the SAME review pipeline the inbound webhook uses. Owns the guards
+          // (bridge / draft / Ada-current idempotency) so the sweep tallies without
+          // duplicating processReviewer's internals. Extracted to `driveSweepReview` so
+          // the mixed-case-repo key wiring (GOL-2395) is unit-testable.
+          driveReview: ({ repoSlug, pr }) => driveSweepReview(ctx, cfg, repoSlug, pr),
+          logger: ctx.logger
+        });
+        ctx.logger.info("pr-review-reconcile complete", summary);
+        if (summary.twinned > 0 || summary.failed > 0) {
+          if (wantPing(cfg, "outcome"))
+            await postOpsPing(ctx, cfg.opsWebhookUrl, buildPrReviewReconcilePing(summary));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "pr-review-reconcile job failed", err, {});
+      }
+    });
     ctx.jobs.register("inbound-dead-man", async () => {
       try {
         const sinceIso = new Date(Date.now() - INBOUND_DEADMAN_WINDOW_MS).toISOString();
@@ -33245,5 +33482,6 @@ var plugin = definePlugin({
 var worker_default = plugin;
 runWorker(plugin, import.meta.url);
 export {
-  worker_default as default
+  worker_default as default,
+  driveSweepReview
 };
