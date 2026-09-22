@@ -30438,6 +30438,15 @@ var AnthropicClient = class {
 // src/sanitize.ts
 var ALLOWED_TAGS = /* @__PURE__ */ new Set(["p", "h2", "h3", "ul", "ol", "li", "strong", "em", "a"]);
 var SAFE_SCHEME = /^(https?:|mailto:)/i;
+function stripToFixedPoint(input2, pattern) {
+  let out = input2;
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(pattern, "");
+  } while (out !== prev);
+  return out;
+}
 function safeHref(attrs) {
   const m = attrs.match(/\bhref\s*=\s*("([^"]*)"|'([^']*)')/i);
   if (!m) return null;
@@ -30448,8 +30457,8 @@ function safeHref(attrs) {
 function sanitizeDraftHtml(input2) {
   if (!input2) return "";
   let html = input2;
-  html = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
-  html = html.replace(/<!--[\s\S]*?-->/g, "");
+  html = stripToFixedPoint(html, /<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi);
+  html = stripToFixedPoint(html, /<!--[\s\S]*?-->/g);
   return html.replace(/<\/?([a-zA-Z0-9]+)((?:[^>"']|"[^"]*"|'[^']*')*)>/g, (_full, rawName, attrs) => {
     const name = String(rawName).toLowerCase();
     if (!ALLOWED_TAGS.has(name)) return "";

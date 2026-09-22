@@ -13,6 +13,22 @@
 const ALLOWED_TAGS = new Set(["p", "h2", "h3", "ul", "ol", "li", "strong", "em", "a"]);
 const SAFE_SCHEME = /^(https?:|mailto:)/i;
 
+/**
+ * Apply a removal regex repeatedly until it reaches a fixed point. A single
+ * pass over nested or overlapping constructs (e.g. `<scr<script>ipt>`) can
+ * leave a residual match once the inner match is removed; iterating to a stable
+ * string closes that gap (CodeQL js/incomplete-multi-character-sanitization).
+ */
+function stripToFixedPoint(input: string, pattern: RegExp): string {
+  let out = input;
+  let prev: string;
+  do {
+    prev = out;
+    out = out.replace(pattern, "");
+  } while (out !== prev);
+  return out;
+}
+
 function safeHref(attrs: string): string | null {
   const m = attrs.match(/\bhref\s*=\s*("([^"]*)"|'([^']*)')/i);
   if (!m) return null;
@@ -27,9 +43,11 @@ function safeHref(attrs: string): string | null {
 export function sanitizeDraftHtml(input: string): string {
   if (!input) return "";
   let html = input;
-  // Strip script/style/comments entirely (tag + content).
-  html = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
-  html = html.replace(/<!--[\s\S]*?-->/g, "");
+  // Strip script/style/comments entirely (tag + content). Iterate to a fixed
+  // point so nested/overlapping constructs can't reconstruct a live match after
+  // the first removal pass.
+  html = stripToFixedPoint(html, /<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi);
+  html = stripToFixedPoint(html, /<!--[\s\S]*?-->/g);
 
   return html.replace(/<\/?([a-zA-Z0-9]+)((?:[^>"']|"[^"]*"|'[^']*')*)>/g, (_full, rawName, attrs) => {
     const name = String(rawName).toLowerCase();
