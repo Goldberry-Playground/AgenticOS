@@ -1,0 +1,27 @@
+{
+  "name": "@agenticos/grove-content-drafter-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/worker.js",
+  "paperclipPlugin": {
+    "manifest": "dist/manifest.js",
+    "worker": "dist/worker.js"
+  },
+  "scripts": {
+    "build": "esbuild src/worker.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/worker.js --external:react && esbuild src/manifest.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/manifest.js --external:react",
+    "dev": "esbuild src/worker.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/worker.js --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "2026.831.1"
+  },
+  "devDependencies": {
+    "@agenticos/tsconfig": "workspace:*",
+    "@types/node": "^26",
+    "esbuild": "^0.28.2",
+    "typescript": "^6",
+    "vitest": "^5.0.0"
+  }
+}
