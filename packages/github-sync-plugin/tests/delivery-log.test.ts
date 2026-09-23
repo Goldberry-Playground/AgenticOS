@@ -3,6 +3,7 @@ import {
   recordDelivery,
   recentDeliveries,
   failedDeliveryCount,
+  deliveryCountSince,
   isFailedOutcome,
   WebhookRejection,
   type DeliveryRow,
@@ -23,9 +24,12 @@ function makeDeliveryDb(): MappingDb & { rows: Array<Record<string, unknown>> } 
     rows,
     async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
       if (/count\(\*\)/i.test(sql)) {
-        const failed = rows.filter((r) => r.outcome !== "processed");
+        // failedDeliveryCount adds `outcome <> 'processed'`; deliveryCountSince counts
+        // every outcome. Only apply the failed filter when the SQL asks for it.
+        const onlyFailed = /outcome <>/i.test(sql);
+        const pool = onlyFailed ? rows.filter((r) => r.outcome !== "processed") : rows;
         const since = /occurred_at >=/i.test(sql) ? String(params?.[0]) : null;
-        const n = since ? failed.filter((r) => String(r.occurred_at) >= since).length : failed.length;
+        const n = since ? pool.filter((r) => String(r.occurred_at) >= since).length : pool.length;
         return [{ n }] as T[];
       }
       if (/ORDER BY occurred_at DESC/i.test(sql)) {
@@ -116,6 +120,25 @@ describe("failedDeliveryCount", () => {
 
   it("returns 0 on an empty table", async () => {
     expect(await failedDeliveryCount(makeDeliveryDb())).toBe(0);
+  });
+});
+
+describe("deliveryCountSince", () => {
+  it("counts EVERY outcome (incl. processed + rejected) in the window — the dead-man liveness signal", async () => {
+    const db = makeDeliveryDb();
+    await recordDelivery(db, row({ requestId: "1", outcome: "processed", occurredAt: "2026-09-21T02:00:00.000Z" }));
+    await recordDelivery(db, row({ requestId: "2", outcome: "rejected_signature", occurredAt: "2026-09-21T02:30:00.000Z" }));
+    // A pre-window row must not count toward liveness.
+    await recordDelivery(db, row({ requestId: "old", outcome: "processed", occurredAt: "2026-09-20T00:00:00.000Z" }));
+
+    expect(await deliveryCountSince(db, "2026-09-21T00:00:00.000Z")).toBe(2);
+  });
+
+  it("returns 0 when no delivery landed in the window (the dead-man precondition)", async () => {
+    const db = makeDeliveryDb();
+    await recordDelivery(db, row({ requestId: "old", outcome: "processed", occurredAt: "2026-09-20T00:00:00.000Z" }));
+    expect(await deliveryCountSince(db, "2026-09-21T00:00:00.000Z")).toBe(0);
+    expect(await deliveryCountSince(makeDeliveryDb(), "2026-09-21T00:00:00.000Z")).toBe(0);
   });
 });
 

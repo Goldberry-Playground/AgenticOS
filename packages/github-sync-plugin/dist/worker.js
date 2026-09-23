@@ -30322,6 +30322,35 @@ var GitHubClient = class {
     return { ok: true, data: { issues, truncated: true } };
   }
   /**
+   * Cheapest possible "has this repo seen recent PR/issue activity?" probe for the
+   * inbound dead-man tripwire (GOL-2370). Unlike {@link listIssues}, this deliberately
+   * does NOT drop `pull_request` items: GitHub's `/issues` endpoint returns BOTH issues
+   * and PRs, and `since` filters both on `updated_at`, so a single `per_page=1&
+   * sort=updated&direction=desc` request answers "was ANY issue OR PR updated at/after
+   * `sinceIso`?" in one round-trip. `latestUpdatedAt` (the newest `updated_at` in the
+   * window, or null when quiet) feeds the alert message. Requires only `issues:read`.
+   */
+  async recentActivitySince(repo, sinceIso) {
+    const qs = new URLSearchParams({
+      state: "all",
+      since: sinceIso,
+      per_page: "1",
+      page: "1",
+      sort: "updated",
+      direction: "desc"
+    });
+    const res = await this.request(
+      "GET",
+      repo,
+      `/repos/${this.org}/${repo}/issues?${qs.toString()}`
+    );
+    if (!res.ok) return res;
+    const batch = Array.isArray(res.data) ? res.data : [];
+    const first = batch[0];
+    const latestUpdatedAt = first && typeof first.updated_at === "string" ? first.updated_at : null;
+    return { ok: true, data: { active: batch.length > 0, latestUpdatedAt } };
+  }
+  /**
    * List a PR's changed-file paths (GOL-158). Paginated at 100/page, capped at
    * MAX_FILE_PAGES to bound cost; the `truncated` flag says whether the cap was
    * hit so the caller can log it (frontendPaths matching stays correct — a match
@@ -31011,11 +31040,16 @@ function buildReviewIssueBody(reviewer, ev, files) {
 function buildNewCommitsNote(reviewer, ev) {
   return `\u{1F501} New commits pushed \u2014 head is now \`${ev.headSha}\` (${ev.url || `${ev.repo}#${ev.number}`}). Re-review against the new head SHA and re-post the \`${CHECK_CONTEXT[reviewer]}\` check-run (previous sign-off is stale).`;
 }
+var REQUIRED_REVIEWERS = ["ada"];
 function evaluateSignoffGate(input2) {
   const out = [];
   if (input2.irisPresent && input2.irisDone) out.push("iris");
-  if (input2.adaDone && (!input2.irisPresent || input2.irisDone)) out.push("ada");
+  if (input2.adaDone) out.push("ada");
   return out;
+}
+function isSignoffGateGreen(input2) {
+  const done = { ada: input2.adaDone, iris: input2.irisPresent && input2.irisDone };
+  return REQUIRED_REVIEWERS.every((r) => done[r]);
 }
 function reviewerList(reviewers) {
   return reviewers.map((r) => REVIEWER_NAME[r]).join(" + ") || "\u2014";
@@ -31113,16 +31147,23 @@ async function handleReviewSignoff(deps, input2) {
   const irisRow = await getReviewRecord(db, record2.githubRepo, record2.prNumber, "iris");
   const adaDone = adaRow ? await isIssueDone(deps, adaRow, input2.companyId) : false;
   const irisDone = irisRow ? await isIssueDone(deps, irisRow, input2.companyId) : false;
-  const greenlit = evaluateSignoffGate({ adaDone, irisPresent: irisRow !== null, irisDone });
+  const gateInput = { adaDone, irisPresent: irisRow !== null, irisDone };
+  const greenlit = evaluateSignoffGate(gateInput);
   if (greenlit.length === 0) {
-    logger.info("signoff: gate not yet green; no check-run posted", {
+    logger.info("signoff: no reviewer done yet; no check-run posted", {
       repo: record2.githubRepo,
       prNumber: record2.prNumber,
-      adaDone,
-      irisPresent: irisRow !== null,
-      irisDone
+      ...gateInput
     });
     return;
+  }
+  if (!isSignoffGateGreen(gateInput)) {
+    logger.info("signoff: posting advisory check(s); required gate not yet green", {
+      repo: record2.githubRepo,
+      prNumber: record2.prNumber,
+      greenlit,
+      ...gateInput
+    });
   }
   const posted = [];
   for (const reviewer of greenlit) {
@@ -31665,6 +31706,14 @@ async function recordDelivery(db, row) {
     ]
   );
 }
+async function deliveryCountSince(db, sinceIso) {
+  const rows = await db.query(
+    `SELECT count(*) AS n FROM ${qualifiedTable3(db)} WHERE occurred_at >= $1`,
+    [sinceIso]
+  );
+  const first = rows[0];
+  return first ? Number(first.n) : 0;
+}
 var WebhookRejection = class extends Error {
   constructor(outcome, message, httpStatus = 401) {
     super(message);
@@ -31675,6 +31724,59 @@ var WebhookRejection = class extends Error {
   outcome;
   httpStatus;
 };
+
+// src/inbound-dead-man.ts
+async function runInboundDeadMan(input2) {
+  const deliveries = await input2.countDeliveries();
+  if (deliveries > 0) {
+    return {
+      verdict: "deliveries-present",
+      page: false,
+      deliveries,
+      activeRepos: [],
+      reposChecked: 0,
+      reposFailed: 0
+    };
+  }
+  const activeRepos = [];
+  let reposFailed = 0;
+  let reposChecked = 0;
+  for (const repoSlug of input2.repoSlugs) {
+    reposChecked++;
+    const res = await input2.checkActivity(repoSlug);
+    if (!res.ok) {
+      reposFailed++;
+      input2.logger.warn("inbound-dead-man: activity probe failed; skipping repo this run", {
+        repo: repoSlug,
+        error: res.error
+      });
+      continue;
+    }
+    if (res.active) activeRepos.push(repoSlug);
+  }
+  if (activeRepos.length > 0) {
+    return {
+      verdict: "webhook-dead",
+      page: true,
+      deliveries,
+      activeRepos,
+      reposChecked,
+      reposFailed
+    };
+  }
+  return {
+    verdict: "quiet-fleet",
+    page: false,
+    deliveries,
+    activeRepos,
+    reposChecked,
+    reposFailed
+  };
+}
+function buildInboundDeadManPing(s, windowHours) {
+  const repos = s.activeRepos.join(", ");
+  return `\u26D4 github-sync inbound DEAD: 0 webhook deliveries in ${windowHours}h, but GitHub shows recent PR/issue activity in ${s.activeRepos.length} bridged repo(s) (${repos}). The inbound ingress is down \u2014 mirrors/reviews are NOT landing. Check the webhook route / plugin worker.`;
+}
 
 // src/ci-failure.ts
 var DEFAULT_AGENT_PR_AUTHOR = "agenticos-developer[bot]";
@@ -31892,7 +31994,11 @@ var PaperclipRestClient = class {
   cfAccessClientId;
   cfAccessClientSecret;
   constructor(opts) {
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
+    let baseUrl = opts.baseUrl;
+    while (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+    this.baseUrl = baseUrl;
     this.token = opts.token;
     this.http = opts.http;
     this.cfAccessClientId = opts.cfAccessClientId;
@@ -32047,6 +32153,7 @@ var INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
 var INBOUND_CREATE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
 var INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
 var PR_REVIEW_RECONCILE_MAX_PAGES = 3;
+var INBOUND_DEADMAN_WINDOW_MS = 3 * 60 * 60 * 1e3;
 var currentContext = null;
 function safeJson(raw) {
   try {
@@ -33275,6 +33382,34 @@ var plugin = definePlugin({
         }
       } catch (err) {
         await recordSwallowedFailure(ctx, cfg, "pr-review-reconcile job failed", err, {});
+      }
+    });
+    ctx.jobs.register("inbound-dead-man", async () => {
+      try {
+        const sinceIso = new Date(Date.now() - INBOUND_DEADMAN_WINDOW_MS).toISOString();
+        const windowHours = Math.round(INBOUND_DEADMAN_WINDOW_MS / 36e5);
+        const summary = await runInboundDeadMan({
+          repoSlugs: Array.from(clientsBySlug.keys()),
+          // Any delivery outcome — even a rejected probe — proves the ingress is alive.
+          countDeliveries: () => deliveryCountSince(ctx.db, sinceIso),
+          // Probe GitHub for a PR OR issue updated in the same window. Uses the same
+          // per-repo client/token the sweeps use; a read failure is transient (retried
+          // next run), never counted as activity, so a flaky probe can't manufacture a page.
+          checkActivity: async (repoSlug) => {
+            const entry = clientsBySlug.get(repoSlug);
+            if (!entry) return { ok: false, error: "no client for repo" };
+            const res = await entry.github.recentActivitySince(entry.repo, sinceIso);
+            if (!res.ok) return { ok: false, error: res.error };
+            return { ok: true, active: res.data.active, latestUpdatedAt: res.data.latestUpdatedAt };
+          },
+          logger: ctx.logger
+        });
+        ctx.logger.info("inbound-dead-man complete", summary);
+        if (summary.page) {
+          await postThrottledOpsAlert(ctx, cfg, buildInboundDeadManPing(summary, windowHours));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "inbound-dead-man job failed", err, {});
       }
     });
     ctx.logger.info("github sync listening", {
