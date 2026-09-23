@@ -65,6 +65,12 @@ jobs:
               '**/tests/**',
               '**/test/**',
               'scripts/tests/**',
+              // This repo's droplet-side harnesses are named `test-<name>.mjs`
+              // (prefix, not `.test.` suffix) — scripts/test-automerge-gate.mjs,
+              // test-finish-plugin-upgrade.mjs, test-assert-plugin-versions.mjs.
+              // Without this the guard cannot see an entire family of the repo's
+              // own tests, and reds a PR that adds 30 checks to them (GOL-2496).
+              'scripts/test-*.mjs',
             ];
 
             const { owner, repo } = context.repo;
