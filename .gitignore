@@ -17,6 +17,7 @@ dist/
 !packages/openviking-plugin/dist/
 !packages/github-plugin/dist/
 !packages/github-sync-plugin/dist/
+!packages/grove-content-drafter-plugin/dist/
 build/
 out/
 .env

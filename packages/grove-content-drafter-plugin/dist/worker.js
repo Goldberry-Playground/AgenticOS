@@ -4,9 +4,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/worker.ts
-import { AsyncResource } from "node:async_hooks";
-
 // ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.831.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
 function definePlugin(definition) {
   return Object.freeze({ definition });
@@ -2041,8 +2038,8 @@ function datetime(args) {
   const opts = ["Z"];
   if (args.offset)
     opts.push(`([+-](?:[01]\\d|2[0-3]):[0-5]\\d)`);
-  const qualified3 = `${timeSource({ precision: args.precision, seconds: true })}(?:${opts.join("|")})`;
-  const timeRegex = args.local ? `${qualified3}|${timeSource({ precision: args.precision })}` : qualified3;
+  const qualified = `${timeSource({ precision: args.precision, seconds: true })}(?:${opts.join("|")})`;
+  const timeRegex = args.local ? `${qualified}|${timeSource({ precision: args.precision })}` : qualified;
   return new RegExp(`^${dateSource}T(?:${timeRegex})$`);
 }
 var anyString = /^[\s\S]{0,}$/;
@@ -30145,3200 +30142,642 @@ function startWorkerRpcHost(options) {
   };
 }
 
-// src/github-client.ts
-var API_BASE = "https://api.github.com";
-var DEFAULT_TIMEOUT_MS = 8e3;
-var GitHubClient = class {
-  getToken;
-  org;
-  timeoutMs;
+// src/xmlrpc.ts
+var XmlRpcFault = class extends Error {
+  constructor(faultCode, faultString) {
+    super(`XML-RPC fault ${faultCode}: ${faultString}`);
+    this.faultCode = faultCode;
+    this.faultString = faultString;
+    this.name = "XmlRpcFault";
+  }
+  faultCode;
+  faultString;
+};
+function escapeXml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function serializeValue(v) {
+  if (v === null || v === void 0) return "<value><nil/></value>";
+  if (typeof v === "boolean") return `<value><boolean>${v ? 1 : 0}</boolean></value>`;
+  if (typeof v === "number") {
+    return Number.isInteger(v) ? `<value><int>${v}</int></value>` : `<value><double>${v}</double></value>`;
+  }
+  if (typeof v === "string") return `<value><string>${escapeXml(v)}</string></value>`;
+  if (Array.isArray(v)) {
+    return `<value><array><data>${v.map(serializeValue).join("")}</data></array></value>`;
+  }
+  const members2 = Object.entries(v).map(([k, val]) => `<member><name>${escapeXml(k)}</name>${serializeValue(val)}</member>`).join("");
+  return `<value><struct>${members2}</struct></value>`;
+}
+function buildMethodCall(method, params) {
+  const paramXml = params.map((p) => `<param>${serializeValue(p)}</param>`).join("");
+  return `<?xml version="1.0"?><methodCall><methodName>${escapeXml(method)}</methodName><params>${paramXml}</params></methodCall>`;
+}
+function unescapeXml(s) {
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_m, d) => String.fromCodePoint(Number(d))).replace(/&#x([0-9a-fA-F]+);/g, (_m, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&amp;/g, "&");
+}
+var Reader = class {
+  constructor(s) {
+    this.s = s;
+  }
+  s;
+  i = 0;
+  skipWs() {
+    while (this.i < this.s.length && /\s/.test(this.s[this.i])) this.i++;
+  }
+  /** True if the next non-whitespace token is exactly the given open/close tag. */
+  peekTag(tag) {
+    this.skipWs();
+    return this.s.startsWith(`<${tag}>`, this.i) || this.s.startsWith(`<${tag}/>`, this.i);
+  }
+  /** Consume `<tag>` (or the self-closing `<tag/>`, returning true if self-closed). */
+  expectOpen(tag) {
+    this.skipWs();
+    if (this.s.startsWith(`<${tag}/>`, this.i)) {
+      this.i += tag.length + 3;
+      return true;
+    }
+    if (!this.s.startsWith(`<${tag}>`, this.i)) {
+      throw new Error(`XML-RPC parse: expected <${tag}> at ${this.i}: ${this.s.slice(this.i, this.i + 40)}`);
+    }
+    this.i += tag.length + 2;
+    return false;
+  }
+  expectClose(tag) {
+    this.skipWs();
+    if (!this.s.startsWith(`</${tag}>`, this.i)) {
+      throw new Error(`XML-RPC parse: expected </${tag}> at ${this.i}: ${this.s.slice(this.i, this.i + 40)}`);
+    }
+    this.i += tag.length + 3;
+  }
+  /** Read raw character data up to the next `<`. */
+  readText() {
+    const start = this.i;
+    while (this.i < this.s.length && this.s[this.i] !== "<") this.i++;
+    return unescapeXml(this.s.slice(start, this.i));
+  }
+  readValue() {
+    this.expectOpen("value");
+    this.skipWs();
+    let out;
+    if (this.s[this.i] !== "<") {
+      out = this.readText();
+      this.expectClose("value");
+      return out;
+    }
+    const typed = (tag, fn) => {
+      if (this.peekTag(tag)) {
+        const selfClosed = this.expectOpen(tag);
+        out = selfClosed ? fn() : (() => {
+          const r = fn();
+          this.expectClose(tag);
+          return r;
+        })();
+        return true;
+      }
+      return false;
+    };
+    if (typed("nil", () => null) || typed("boolean", () => this.readText() === "1") || typed("int", () => Number(this.readText())) || typed("i4", () => Number(this.readText())) || typed("double", () => Number(this.readText())) || typed("string", () => this.readText()) || typed("dateTime.iso8601", () => this.readText()) || typed("base64", () => this.readText()) || typed("array", () => this.readArray()) || typed("struct", () => this.readStruct())) {
+      this.expectClose("value");
+      return out;
+    }
+    throw new Error(`XML-RPC parse: unknown value type at ${this.i}: ${this.s.slice(this.i, this.i + 40)}`);
+  }
+  readArray() {
+    this.expectOpen("data");
+    const items = [];
+    while (this.peekTag("value")) items.push(this.readValue());
+    this.expectClose("data");
+    return items;
+  }
+  readStruct() {
+    const obj = {};
+    while (this.peekTag("member")) {
+      this.expectOpen("member");
+      this.expectOpen("name");
+      const name = this.readText();
+      this.expectClose("name");
+      obj[name] = this.readValue();
+      this.expectClose("member");
+    }
+    return obj;
+  }
+};
+function parseMethodResponse(xml) {
+  const reader = new Reader(xml.replace(/<\?xml[^>]*\?>/, ""));
+  reader.expectOpen("methodResponse");
+  if (reader.peekTag("fault")) {
+    reader.expectOpen("fault");
+    const fault = reader.readValue();
+    if (fault && typeof fault === "object" && !Array.isArray(fault)) {
+      const code = Number(fault.faultCode ?? 0);
+      const str = String(fault.faultString ?? "unknown fault");
+      throw new XmlRpcFault(code, str);
+    }
+    throw new XmlRpcFault(0, "malformed fault");
+  }
+  reader.expectOpen("params");
+  reader.expectOpen("param");
+  const value = reader.readValue();
+  return value;
+}
+
+// src/odoo-client.ts
+var OdooClient = class {
   baseUrl;
+  db;
+  username;
+  password;
+  timeoutMs;
+  uid = null;
   constructor(config2) {
-    if (config2.getToken) {
-      this.getToken = config2.getToken;
-    } else if (config2.token != null) {
-      const t = config2.token;
-      this.getToken = async () => t;
-    } else {
-      throw new Error("GitHubClient requires either `token` or `getToken`");
-    }
-    this.org = config2.org;
-    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.baseUrl = (config2.baseUrl ?? API_BASE).replace(/\/$/, "");
+    this.baseUrl = config2.baseUrl.replace(/\/$/, "");
+    this.db = config2.db;
+    this.username = config2.username;
+    this.password = config2.password;
+    this.timeoutMs = config2.timeoutMs ?? 2e4;
   }
-  async request(method, repo, pathAndQuery, body) {
-    const canRetry = typeof this.getToken.invalidate === "function";
-    const maxAttempts = canRetry ? 2 : 1;
-    let lastErr;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const res = await this.attempt(method, repo, pathAndQuery, body);
-      if (res.ok || res.status !== 401 || attempt === maxAttempts) return res;
-      this.getToken.invalidate?.(repo);
-      lastErr = res;
-    }
-    return lastErr ?? { ok: false, error: "request failed" };
-  }
-  async attempt(method, repo, pathAndQuery, body) {
-    let token;
-    try {
-      token = await this.getToken(repo);
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : "token unavailable"
-      };
-    }
+  async call(endpoint, method, params) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const res = await fetch(`${this.baseUrl}${pathAndQuery}`, {
-        method,
+      const res = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "text/xml" },
+        body: buildMethodCall(method, params)
+      });
+      const text = await res.text();
+      if (!res.ok) return { ok: false, error: `HTTP ${res.status} from ${endpoint}` };
+      return { ok: true, data: parseMethodResponse(text) };
+    } catch (err) {
+      if (err instanceof XmlRpcFault) return { ok: false, error: err.message };
+      return { ok: false, error: err instanceof Error ? err.message : "odoo unreachable" };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  /** Resolve and cache the uid for the configured Content Drafter user. */
+  async authenticate() {
+    if (this.uid !== null) return { ok: true, data: this.uid };
+    const res = await this.call("/xmlrpc/2/common", "authenticate", [
+      this.db,
+      this.username,
+      this.password,
+      {}
+    ]);
+    if (!res.ok) return res;
+    const uid = res.data;
+    if (typeof uid !== "number" || uid === 0) {
+      return { ok: false, error: "authentication failed (check the Content Drafter credentials)" };
+    }
+    this.uid = uid;
+    return { ok: true, data: uid };
+  }
+  /** `execute_kw(model, method, args, kwargs)` as the authenticated user. */
+  async execute(model, method, args, kwargs = {}) {
+    const auth = await this.authenticate();
+    if (!auth.ok) return auth;
+    const res = await this.call("/xmlrpc/2/object", "execute_kw", [
+      this.db,
+      auth.data,
+      this.password,
+      model,
+      method,
+      args,
+      kwargs
+    ]);
+    if (!res.ok) return res;
+    return { ok: true, data: res.data };
+  }
+  /** IDs of product templates whose content draft was requested (oldest first). */
+  async searchRequested(limit = 1) {
+    const res = await this.execute(
+      "product.template",
+      "search",
+      [[["grove_draft_state", "=", "requested"]]],
+      { limit, order: "write_date asc" }
+    );
+    if (!res.ok) return res;
+    return { ok: true, data: res.data ?? [] };
+  }
+  /** Read a fixed field set for one product template. */
+  async read(id, fields) {
+    const res = await this.execute("product.template", "read", [[id], fields]);
+    if (!res.ok) return res;
+    const rows = res.data;
+    if (!rows || rows.length === 0) return { ok: false, error: `product ${id} not found` };
+    return { ok: true, data: rows[0] };
+  }
+  async write(id, vals) {
+    const res = await this.execute("product.template", "write", [[id], vals]);
+    if (!res.ok) return res;
+    return { ok: true, data: Boolean(res.data) };
+  }
+  /** Post an internal note (mail.mt_note) to the product chatter. */
+  async postNote(id, bodyHtml) {
+    const res = await this.execute(
+      "product.template",
+      "message_post",
+      [[id]],
+      { body: bodyHtml, message_type: "comment", subtype_xmlid: "mail.mt_note" }
+    );
+    if (!res.ok) return res;
+    return { ok: true, data: Number(res.data) };
+  }
+};
+
+// src/anthropic.ts
+var AnthropicClient = class {
+  apiKey;
+  model;
+  maxTokens;
+  timeoutMs;
+  baseUrl;
+  constructor(config2) {
+    this.apiKey = config2.apiKey;
+    this.model = config2.model;
+    this.maxTokens = config2.maxTokens ?? 4096;
+    this.timeoutMs = config2.timeoutMs ?? 6e4;
+    this.baseUrl = (config2.baseUrl ?? "https://api.anthropic.com").replace(/\/$/, "");
+  }
+  async complete(system, user) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/messages`, {
+        method: "POST",
         signal: controller.signal,
         headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          ...body !== void 0 ? { "Content-Type": "application/json" } : {}
+          "content-type": "application/json",
+          "x-api-key": this.apiKey,
+          "anthropic-version": "2023-06-01"
         },
-        ...body !== void 0 ? { body: JSON.stringify(body) } : {}
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: this.maxTokens,
+          system,
+          messages: [{ role: "user", content: user }]
+        })
       });
-      const rawBody = await res.text();
-      let json2 = {};
-      if (rawBody) {
-        try {
-          json2 = JSON.parse(rawBody);
-        } catch {
-        }
-      }
+      const json2 = await res.json();
       if (!res.ok) {
-        const errors = Array.isArray(json2.errors) ? json2.errors : void 0;
-        const detail = errors?.length ? errors.map(
-          (e) => [e.resource, e.field, e.code, e.message].filter(Boolean).join(".")
-        ).join("; ") : void 0;
-        const base = json2.message ?? (rawBody ? `HTTP ${res.status}: ${rawBody.slice(0, 200)}` : `HTTP ${res.status}`);
-        return {
-          ok: false,
-          status: res.status,
-          error: detail ? `${base} (${detail})` : base,
-          ...errors ? { errors } : {}
-        };
+        return { ok: false, error: json2.error?.message ?? `Anthropic HTTP ${res.status}` };
       }
-      return { ok: true, data: json2 };
+      const text = (json2.content ?? []).filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text).join("").trim();
+      if (!text) return { ok: false, error: "Anthropic returned no text content" };
+      return { ok: true, data: text };
     } catch (err) {
-      const error62 = err instanceof Error ? err.name === "AbortError" ? `request timed out after ${this.timeoutMs}ms` : err.message : "github unreachable";
-      return { ok: false, error: error62 };
+      return { ok: false, error: err instanceof Error ? err.message : "Anthropic unreachable" };
     } finally {
       clearTimeout(timer);
     }
   }
-  parseIssue(raw) {
-    return {
-      number: Number(raw.number),
-      title: String(raw.title ?? ""),
-      body: typeof raw.body === "string" ? raw.body : "",
-      state: raw.state === "closed" ? "closed" : "open",
-      htmlUrl: String(raw.html_url ?? ""),
-      labels: Array.isArray(raw.labels) ? raw.labels.map((l) => typeof l === "string" ? l : String(l?.name ?? "")).filter(Boolean) : []
-    };
-  }
-  /** Create a new issue in `<org>/<repo>`. */
-  async createIssue(repo, input2) {
-    const res = await this.request(
-      "POST",
-      repo,
-      `/repos/${this.org}/${repo}/issues`,
-      {
-        title: input2.title,
-        body: input2.body,
-        ...input2.labels ? { labels: input2.labels } : {}
-      }
-    );
-    if (!res.ok) return res;
-    return { ok: true, data: this.parseIssue(res.data) };
-  }
-  /** Update an existing issue (title/body/state/labels) by number. */
-  async updateIssue(repo, num, input2) {
-    const patch = {};
-    if (input2.title !== void 0) patch.title = input2.title;
-    if (input2.body !== void 0) patch.body = input2.body;
-    if (input2.state !== void 0) patch.state = input2.state;
-    if (input2.labels !== void 0) patch.labels = input2.labels;
-    const res = await this.request(
-      "PATCH",
-      repo,
-      `/repos/${this.org}/${repo}/issues/${num}`,
-      patch
-    );
-    if (!res.ok) return res;
-    return { ok: true, data: this.parseIssue(res.data) };
-  }
-  /** Fetch a single issue by number. */
-  async getIssue(repo, num) {
-    const res = await this.request(
-      "GET",
-      repo,
-      `/repos/${this.org}/${repo}/issues/${num}`
-    );
-    if (!res.ok) return res;
-    return { ok: true, data: this.parseIssue(res.data) };
-  }
-  /**
-   * List a repo's issues (GOL-1206 inbound-close reconcile sweep). GitHub's
-   * `/issues` endpoint returns BOTH issues and pull requests — a PR item carries
-   * a `pull_request` object — so any item with that key is dropped: this sweep
-   * only reconciles *issue* closures back onto Paperclip mirrors (PR closes drive
-   * the review/CI pipelines, not the mirror). Paginated at 100/page and capped at
-   * `maxPages` to bound cost; `truncated` reports whether the cap cut the scan
-   * short. `since` (ISO 8601) filters to issues updated at/after that instant so an
-   * hourly sweep only re-examines recently-touched issues; `sort=updated&desc`
-   * keeps the freshest closures in the first page(s).
-   */
-  async listIssues(repo, opts) {
-    const PER_PAGE = 100;
-    const maxPages = opts.maxPages ?? 5;
-    const issues = [];
-    for (let page = 1; page <= maxPages; page++) {
-      const qs = new URLSearchParams({
-        state: opts.state,
-        per_page: String(PER_PAGE),
-        page: String(page),
-        sort: "updated",
-        direction: "desc"
-      });
-      if (opts.since) qs.set("since", opts.since);
-      const res = await this.request(
-        "GET",
-        repo,
-        `/repos/${this.org}/${repo}/issues?${qs.toString()}`
-      );
-      if (!res.ok) return res;
-      const batch = Array.isArray(res.data) ? res.data : [];
-      for (const raw of batch) {
-        if (raw && raw.pull_request) continue;
-        issues.push(this.parseIssue(raw));
-      }
-      if (batch.length < PER_PAGE) return { ok: true, data: { issues, truncated: false } };
-    }
-    return { ok: true, data: { issues, truncated: true } };
-  }
-  /**
-   * List a PR's changed-file paths (GOL-158). Paginated at 100/page, capped at
-   * MAX_FILE_PAGES to bound cost; the `truncated` flag says whether the cap was
-   * hit so the caller can log it (frontendPaths matching stays correct — a match
-   * in the first pages is enough; a giant PR that only touches frontend beyond
-   * page N is the rare miss we accept for a bounded request budget).
-   */
-  async listPullFiles(repo, num) {
-    const MAX_FILE_PAGES = 10;
-    const PER_PAGE = 100;
-    const files = [];
-    for (let page = 1; page <= MAX_FILE_PAGES; page++) {
-      const res = await this.request(
-        "GET",
-        repo,
-        `/repos/${this.org}/${repo}/pulls/${num}/files?per_page=${PER_PAGE}&page=${page}`
-      );
-      if (!res.ok) return res;
-      const batch = Array.isArray(res.data) ? res.data : [];
-      for (const f of batch) {
-        if (f && typeof f.filename === "string") files.push(f.filename);
-      }
-      if (batch.length < PER_PAGE) return { ok: true, data: { files, truncated: false } };
-    }
-    return { ok: true, data: { files, truncated: true } };
-  }
-  /**
-   * Create a check-run on `headSha` (GOL-158 sign-off mechanism). Pass no
-   * `conclusion` to seed/reset a pending run (`status: "in_progress"`); pass a
-   * conclusion to complete it. Requires the App's `checks:write` permission.
-   */
-  async createCheckRun(repo, input2) {
-    const body = {
-      name: input2.name,
-      head_sha: input2.headSha,
-      output: { title: input2.title, summary: input2.summary },
-      ...input2.detailsUrl ? { details_url: input2.detailsUrl } : {}
-    };
-    if (input2.conclusion) {
-      body.status = "completed";
-      body.conclusion = input2.conclusion;
-      body.completed_at = (/* @__PURE__ */ new Date()).toISOString();
-    } else {
-      body.status = "in_progress";
-    }
-    const res = await this.request(
-      "POST",
-      repo,
-      `/repos/${this.org}/${repo}/check-runs`,
-      body
-    );
-    if (!res.ok) return res;
-    return { ok: true, data: { id: Number(res.data.id) } };
-  }
-  /**
-   * Fetch a PR's author + head SHA + state (GOL-305). The CI-fix loop gates on
-   * `authorLogin === agenticos-developer[bot]` (agent-authored PRs only) and needs
-   * the head SHA to key idempotency. `merged` distinguishes a merged PR from a
-   * plain close.
-   */
-  async getPull(repo, num) {
-    const res = await this.request(
-      "GET",
-      repo,
-      `/repos/${this.org}/${repo}/pulls/${num}`
-    );
-    if (!res.ok) return res;
-    const raw = res.data;
-    return {
-      ok: true,
-      data: {
-        number: Number(raw.number),
-        title: String(raw.title ?? ""),
-        authorLogin: String(raw.user?.login ?? ""),
-        headSha: String(raw.head?.sha ?? ""),
-        htmlUrl: String(raw.html_url ?? ""),
-        state: raw.state === "closed" ? "closed" : "open",
-        draft: raw.draft === true,
-        merged: raw.merged === true
-      }
-    };
-  }
-  /**
-   * List a repo's open pull requests (GOL-2344 PR review-twin reconcile sweep).
-   * The `/pulls` endpoint — unlike `/issues` — returns ONLY PRs, so no
-   * `pull_request`-key filter is needed. `state:"open"` is enforced here (the
-   * sweep never twins a closed PR); drafts are returned (the caller's drive skips
-   * them, matching the webhook). Paginated at 100/page and capped at `maxPages`;
-   * `truncated` reports whether the cap cut the scan short. `/pulls` has no `since`
-   * filter, so the window is bounded by the page cap alone with `sort=updated&desc`
-   * keeping the freshest PRs first — fine because open PRs are few. Requires
-   * `pull_requests:read` (same token that already fetches PR files).
-   */
-  async listPulls(repo, opts = {}) {
-    const PER_PAGE = 100;
-    const maxPages = opts.maxPages ?? 3;
-    const prs = [];
-    for (let page = 1; page <= maxPages; page++) {
-      const qs = new URLSearchParams({
-        state: "open",
-        per_page: String(PER_PAGE),
-        page: String(page),
-        sort: "updated",
-        direction: "desc"
-      });
-      const res = await this.request(
-        "GET",
-        repo,
-        `/repos/${this.org}/${repo}/pulls?${qs.toString()}`
-      );
-      if (!res.ok) return res;
-      const batch = Array.isArray(res.data) ? res.data : [];
-      for (const raw of batch) {
-        prs.push({
-          number: Number(raw.number),
-          headSha: String(raw.head?.sha ?? ""),
-          title: String(raw.title ?? ""),
-          htmlUrl: String(raw.html_url ?? ""),
-          draft: raw.draft === true,
-          // GOL-2395: the PR's canonical base-repo `owner/repo` (mixed case preserved).
-          // The review-twin store is case-sensitive and the webhook keys twins under
-          // `repository.full_name`; the sweep must key its DB pre-check + synthetic
-          // event on this SAME casing, not the lowercased client slug, or a mixed-case
-          // repo (e.g. Goldberry-Playground/AgenticOS) never matches and double-twins.
-          fullName: String(raw.base?.repo?.full_name ?? "")
-        });
-      }
-      if (batch.length < PER_PAGE) return { ok: true, data: { prs, truncated: false } };
-    }
-    return { ok: true, data: { prs, truncated: true } };
-  }
-  /**
-   * Fetch a single commit's parents + committer. Used by the `synchronize`
-   * classifier to tell a GitHub-generated base-sync merge (Update branch) from
-   * real author commits: GitHub's update-branch produces a 2-parent merge whose
-   * first parent is the previous PR head and whose committer is `web-flow`.
-   * Requires only `contents:read`.
-   */
-  async getCommit(repo, sha) {
-    const res = await this.request(
-      "GET",
-      repo,
-      `/repos/${this.org}/${repo}/commits/${sha}`
-    );
-    if (!res.ok) return res;
-    const raw = res.data;
-    const parents = Array.isArray(raw.parents) ? raw.parents : [];
-    return {
-      ok: true,
-      data: {
-        sha: String(raw.sha ?? ""),
-        parents: parents.map((p) => String(p?.sha ?? "")),
-        committerLogin: String(raw.committer?.login ?? "")
-      }
-    };
-  }
-  /**
-   * List the check-runs for a commit ref (GOL-305). Used to derive the aggregate CI
-   * state on a PR head SHA regardless of whether a `check_suite` or `workflow_run`
-   * event triggered us. Single page at 100 (a suite rarely exceeds that); `output`
-   * gives a short human excerpt for the fix issue without downloading job logs.
-   * Requires the App's `checks:read` permission.
-   */
-  async listCommitCheckRuns(repo, sha) {
-    const res = await this.request(
-      "GET",
-      repo,
-      `/repos/${this.org}/${repo}/commits/${sha}/check-runs?per_page=100`
-    );
-    if (!res.ok) return res;
-    const runs = Array.isArray(res.data?.check_runs) ? res.data.check_runs : [];
-    return {
-      ok: true,
-      data: runs.map((r) => {
-        const output2 = r?.output ?? {};
-        const summary = typeof output2.summary === "string" && output2.summary ? output2.summary : typeof output2.title === "string" ? output2.title : void 0;
-        return {
-          name: String(r?.name ?? ""),
-          status: String(r?.status ?? ""),
-          conclusion: typeof r?.conclusion === "string" ? r.conclusion : null,
-          ...typeof r?.details_url === "string" && r.details_url ? { detailsUrl: r.details_url } : {},
-          ...summary ? { summary } : {}
-        };
-      })
-    };
-  }
-  /** Comment on an issue or PR (PRs share the issues comments endpoint). */
-  async createIssueComment(repo, num, body) {
-    const res = await this.request(
-      "POST",
-      repo,
-      `/repos/${this.org}/${repo}/issues/${num}/comments`,
-      { body }
-    );
-    if (!res.ok) return res;
-    return { ok: true, data: { id: Number(res.data.id) } };
-  }
 };
 
-// src/broker.ts
-var EXPIRY_SKEW_MS = 2 * 60 * 1e3;
-function makeBrokerTokenProvider(brokerUrl, owner, opts = {}) {
-  const ttlMs = opts.ttlMs ?? 50 * 60 * 1e3;
-  const timeoutMs = opts.timeoutMs ?? 5e3;
-  const now = opts.now ?? (() => Date.now());
-  const doFetch = opts.fetchImpl ?? fetch;
-  const apiKey = (opts.apiKey ?? "").trim();
-  const base = brokerUrl.replace(/\/$/, "");
-  const cache = /* @__PURE__ */ new Map();
-  const provider = async (repo) => {
-    const key = `${owner}/${repo}`.toLowerCase();
-    const hit = cache.get(key);
-    if (hit && hit.expiresAt > now()) return hit.token;
-    const url2 = new URL(`${base}/token`);
-    url2.searchParams.set("owner", owner);
-    url2.searchParams.set("repo", repo);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await doFetch(url2.toString(), {
-        signal: controller.signal,
-        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
-      });
-      if (!res.ok) throw new Error(`token broker -> ${res.status}`);
-      const body = await res.json();
-      if (!body.token) throw new Error("token broker returned no token");
-      const ttlExpiry = now() + ttlMs;
-      const realExpiry = body.expires_at ? Date.parse(body.expires_at) - EXPIRY_SKEW_MS : NaN;
-      const expiresAt = Number.isFinite(realExpiry) ? Math.min(ttlExpiry, realExpiry) : ttlExpiry;
-      if (expiresAt > now()) cache.set(key, { token: body.token, expiresAt });
-      return body.token;
-    } finally {
-      clearTimeout(timer);
-    }
-  };
-  provider.invalidate = (repo) => {
-    cache.delete(`${owner}/${repo}`.toLowerCase());
-  };
-  return provider;
-}
-function staticTokenProvider(token) {
-  return async () => token;
-}
-
-// src/mapping.ts
-var MAPPING_TABLE = "github_sync_mapping";
-function qualifiedTable(db) {
-  return `${db.namespace}.${MAPPING_TABLE}`;
-}
-function toRow(raw) {
-  return {
-    paperclipIssueId: String(raw.paperclip_issue_id),
-    githubRepo: String(raw.github_repo),
-    githubIssueNumber: Number(raw.github_issue_number),
-    lastSyncedAt: String(raw.last_synced_at),
-    origin: raw.origin === "github" ? "github" : "paperclip"
-  };
-}
-async function getByPaperclipId(db, paperclipIssueId) {
-  const rows = await db.query(
-    `SELECT paperclip_issue_id, github_repo, github_issue_number, last_synced_at, origin
-       FROM ${qualifiedTable(db)} WHERE paperclip_issue_id = $1`,
-    [paperclipIssueId]
-  );
-  const first = rows[0];
-  return first ? toRow(first) : null;
-}
-function bareRepoName(githubRepo) {
-  const slash = githubRepo.lastIndexOf("/");
-  return slash >= 0 ? githubRepo.slice(slash + 1) : githubRepo;
-}
-async function getByRepoNumber(db, githubRepo, githubIssueNumber) {
-  const rows = await db.query(
-    `SELECT paperclip_issue_id, github_repo, github_issue_number, last_synced_at, origin
-       FROM ${qualifiedTable(db)}
-      WHERE github_issue_number = $1
-        AND lower(regexp_replace(github_repo, '^[^/]+/', '')) = lower($2)`,
-    [githubIssueNumber, bareRepoName(githubRepo)]
-  );
-  const first = rows[0];
-  return first ? toRow(first) : null;
-}
-async function deleteByPaperclipIssueId(db, paperclipIssueId) {
-  const res = await db.execute(
-    `DELETE FROM ${qualifiedTable(db)} WHERE paperclip_issue_id = $1`,
-    [paperclipIssueId]
-  );
-  return res.rowCount;
-}
-async function upsert(db, row) {
-  await db.execute(
-    `INSERT INTO ${qualifiedTable(db)}
-       (paperclip_issue_id, github_repo, github_issue_number, last_synced_at, origin)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (paperclip_issue_id) DO UPDATE SET
-       github_repo = $2,
-       github_issue_number = $3,
-       last_synced_at = $4,
-       origin = $5`,
-    [
-      row.paperclipIssueId,
-      row.githubRepo,
-      row.githubIssueNumber,
-      row.lastSyncedAt,
-      row.origin
-    ]
-  );
-}
-
-// src/inbound.ts
-import { createHmac, timingSafeEqual } from "node:crypto";
-function getHeader(headers, name) {
-  const lower = name.toLowerCase();
-  for (const [k, v] of Object.entries(headers)) {
-    if (k.toLowerCase() === lower) return Array.isArray(v) ? v[0] : v;
-  }
-  return void 0;
-}
-function verifyGithubSignature(rawBody, secret, signatureHeader) {
-  if (!signatureHeader || !secret) return false;
-  const expected = `sha256=${createHmac("sha256", secret).update(rawBody, "utf8").digest("hex")}`;
-  const a = Buffer.from(signatureHeader);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-function parseInboundPayload(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw;
-  const repo = typeof o.repo === "string" ? o.repo : "";
-  const number4 = typeof o.number === "number" ? o.number : Number(o.number);
-  const title = typeof o.title === "string" ? o.title : "";
-  if (!repo || !Number.isFinite(number4) || number4 <= 0 || !title) return null;
-  return {
-    repo,
-    number: number4,
-    title,
-    body: typeof o.body === "string" ? o.body : "",
-    url: typeof o.url === "string" ? o.url : ""
-  };
-}
-function parseGithubAppIssueEvent(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw;
-  const action = typeof o.action === "string" ? o.action : "";
-  const repository = o.repository ?? {};
-  const issue2 = o.issue ?? {};
-  const repo = typeof repository.full_name === "string" ? repository.full_name : "";
-  const number4 = typeof issue2.number === "number" ? issue2.number : Number(issue2.number);
-  const title = typeof issue2.title === "string" ? issue2.title : "";
-  if (!repo || !Number.isFinite(number4) || number4 <= 0 || !title) return null;
-  const rawLabels = Array.isArray(issue2.labels) ? issue2.labels : [];
-  const labels = rawLabels.map((l) => l && typeof l === "object" ? l.name : l).filter((n) => typeof n === "string");
-  return {
-    action,
-    labels,
-    payload: {
-      repo,
-      number: number4,
-      title,
-      body: typeof issue2.body === "string" ? issue2.body : "",
-      url: typeof issue2.html_url === "string" ? issue2.html_url : ""
-    }
-  };
-}
-function githubMarker(repo, num) {
-  return `<!-- synced-from-github: ${repo}#${num} -->`;
-}
-function buildInboundDescription(p) {
-  return `${githubMarker(p.repo, p.number)}
-
-${p.body}
-
----
-Synced from GitHub: ${p.url}`;
-}
-function buildMirrorOpsMessage(info) {
-  const via = info.routedByLabel ? ` via label \`${info.routedByLabel}\`` : info.routedByFallback ? " (fallback triage \u2014 no routing label)" : "";
-  const who = info.assigneeAgentId ? `assigned \u2192 \`${info.assigneeAgentId}\`${via}` : "\u26A0\uFE0F UNASSIGNED \u2014 set the bridge's `labelRouting`/`fallbackAssigneeAgentId` (or `defaultAssigneeAgentId`) so it gets picked up";
-  const link = info.url ? ` (<${info.url}>)` : "";
-  return `\u{1F501} GitHub \u2192 Paperclip mirror created: **${info.title}** [${info.repo}#${info.number}]${link} \u2014 ${who} in project \`${info.projectId}\` \xB7 issue \`${info.issueId}\``;
-}
-
-// src/sync.ts
-var GITHUB_MARKER_RE = /<!--\s*synced-from-github:\s*([^\s#]+)#(\d+)\s*-->/i;
-var PLUGIN_OPERATIONAL_MARKER_RE = /<!--\s*(pr-review|ci-fix):/i;
-function isPluginOperationalIssue(description) {
-  return !!description && PLUGIN_OPERATIONAL_MARKER_RE.test(description);
-}
-function statusToGithubState(status) {
-  return status === "done" || status === "cancelled" ? "closed" : "open";
-}
-function isTerminalStatus(status) {
-  return status === "done" || status === "cancelled";
-}
-function resolveMirrorClosureStatus(action, currentStatus) {
-  if (action === "closed") return isTerminalStatus(currentStatus) ? null : "done";
-  if (action === "reopened") return isTerminalStatus(currentStatus) ? "todo" : null;
-  return null;
-}
-function detectGithubMarker(description) {
-  if (!description) return null;
-  const m = GITHUB_MARKER_RE.exec(description);
-  if (!m) return null;
-  return { repo: m[1], number: Number(m[2]) };
-}
-function paperclipMarker(paperclipIssueId) {
-  return `<!-- synced-from-paperclip: ${paperclipIssueId} -->`;
-}
-function buildGithubBody(issue2) {
-  const description = issue2.description ?? "";
-  const ref = issue2.identifier ? `Paperclip issue ${issue2.identifier}` : `Paperclip issue ${issue2.id}`;
-  const footer = `
-
----
-_Synced from ${ref}._
-${paperclipMarker(issue2.id)}`;
-  return `${description}${footer}`;
-}
-async function handleIssueCreated(deps, input2) {
-  const { db, github, config: config2, logger, getIssue } = deps;
-  const existing = await getByPaperclipId(db, input2.issueId);
-  if (existing) {
-    logger.info("issue.created already mapped; skipping", { issueId: input2.issueId });
-    return;
-  }
-  const issue2 = await getIssue(input2.issueId, input2.companyId);
-  if (!issue2) {
-    logger.warn("issue.created: issue not readable; skipping", { issueId: input2.issueId });
-    return;
-  }
-  if (isPluginOperationalIssue(issue2.description)) {
-    logger.info("issue.created is a plugin-operational issue (pr-review/ci-fix); not mirrored", {
-      issueId: issue2.id
-    });
-    return;
-  }
-  const marker = detectGithubMarker(issue2.description);
-  if (marker) {
-    await upsert(db, {
-      paperclipIssueId: issue2.id,
-      githubRepo: marker.repo,
-      githubIssueNumber: marker.number,
-      lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      origin: "github"
-    });
-    logger.info("issue.created originated from GitHub; recorded mapping, no outbound", {
-      issueId: issue2.id,
-      githubRepo: marker.repo,
-      githubIssueNumber: marker.number
-    });
-    return;
-  }
-  const created = await github.createIssue(config2.githubRepo, {
-    title: issue2.title,
-    body: buildGithubBody(issue2),
-    labels: [config2.syncLabelPaperclip]
-  });
-  if (!created.ok) {
-    logger.error("issue.created: failed to create GitHub issue", {
-      issueId: issue2.id,
-      error: created.error
-    });
-    return;
-  }
-  await upsert(db, {
-    paperclipIssueId: issue2.id,
-    githubRepo: config2.githubRepo,
-    githubIssueNumber: created.data.number,
-    lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    origin: "paperclip"
-  });
-  logger.info("issue.created mirrored to GitHub", {
-    issueId: issue2.id,
-    githubRepo: config2.githubRepo,
-    githubIssueNumber: created.data.number
-  });
-}
-async function handleIssueUpdated(deps, input2) {
-  const { db, github, config: config2, logger, getIssue } = deps;
-  const mapping = await getByPaperclipId(db, input2.issueId);
-  if (!mapping) {
-    logger.info("issue.updated: not mapped; ignoring", { issueId: input2.issueId });
-    return;
-  }
-  const issue2 = await getIssue(input2.issueId, input2.companyId);
-  if (!issue2) {
-    logger.warn("issue.updated: issue not readable; skipping", { issueId: input2.issueId });
-    return;
-  }
-  const fullPatch = {
-    title: issue2.title,
-    body: buildGithubBody(issue2),
-    state: statusToGithubState(issue2.status)
-  };
-  let updated = await github.updateIssue(
-    mapping.githubRepo,
-    mapping.githubIssueNumber,
-    fullPatch
-  );
-  if (!updated.ok && updated.status === 422 && updated.errors?.some((e) => e.field)) {
-    const rejected = new Set(
-      updated.errors.map((e) => e.field).filter((f) => Boolean(f))
-    );
-    const sanitized = {};
-    if (!rejected.has("title")) sanitized.title = fullPatch.title;
-    if (!rejected.has("body")) sanitized.body = fullPatch.body;
-    if (!rejected.has("state")) sanitized.state = fullPatch.state;
-    if (Object.keys(sanitized).length > 0) {
-      logger.warn("issue.updated: GitHub rejected field(s); retrying sanitized payload", {
-        issueId: issue2.id,
-        githubRepo: mapping.githubRepo,
-        githubIssueNumber: mapping.githubIssueNumber,
-        rejectedFields: [...rejected],
-        githubErrors: updated.errors
-      });
-      updated = await github.updateIssue(
-        mapping.githubRepo,
-        mapping.githubIssueNumber,
-        sanitized
-      );
-    }
-  }
-  if (!updated.ok) {
-    logger.error("issue.updated: failed to update GitHub issue", {
-      issueId: issue2.id,
-      githubRepo: mapping.githubRepo,
-      githubIssueNumber: mapping.githubIssueNumber,
-      error: updated.error,
-      githubStatus: updated.status,
-      githubErrors: updated.errors
-    });
-    return;
-  }
-  const next = { ...mapping, lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString() };
-  await upsert(db, next);
-  logger.info("issue.updated pushed to GitHub", {
-    issueId: issue2.id,
-    githubRepo: mapping.githubRepo,
-    githubIssueNumber: mapping.githubIssueNumber,
-    state: statusToGithubState(issue2.status)
-  });
-}
-
-// src/routing.ts
-var PRECEDENCE_TIERS = [
-  ["infra", "bug", "alert"],
-  ["frontend"],
-  ["feature"]
-];
-function tierRank(label) {
-  const l = label.toLowerCase();
-  for (let i = 0; i < PRECEDENCE_TIERS.length; i++) {
-    const tier = PRECEDENCE_TIERS[i];
-    if (tier && tier.includes(l)) return i;
-  }
-  return PRECEDENCE_TIERS.length;
-}
-function resolveRouting(cfg, labels) {
-  const routing = cfg.labelRouting;
-  if (routing) {
-    const present = new Set(labels.map((l) => l.toLowerCase()));
-    const candidates = Object.keys(routing).filter((k) => present.has(k.toLowerCase()));
-    candidates.sort((a, b) => tierRank(a) - tierRank(b));
-    const key = candidates[0];
-    if (key !== void 0) {
-      return { assigneeAgentId: routing[key], matchedLabel: key, reason: "label" };
-    }
-  }
-  if (cfg.fallbackAssigneeAgentId) {
-    return { assigneeAgentId: cfg.fallbackAssigneeAgentId, reason: "fallback" };
-  }
-  if (cfg.defaultAssigneeAgentId) {
-    return { assigneeAgentId: cfg.defaultAssigneeAgentId, reason: "default" };
-  }
-  return { reason: "none" };
-}
-
-// src/pr-review.ts
-var CHECK_CONTEXT = {
-  ada: "agent-review/ada",
-  iris: "agent-review/iris"
-};
-var REVIEWER_NAME = { ada: "Ada", iris: "Iris" };
-var PR_ACTIONS = ["opened", "reopened", "ready_for_review", "synchronize"];
-var DEFAULT_FRONTEND_PATHS = ["apps/dashboard/**", "**/*.tsx", "**/*.css"];
-function isActionablePrAction(action) {
-  return PR_ACTIONS.includes(action);
-}
-function parseGithubPrEvent(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw;
-  const action = typeof o.action === "string" ? o.action : "";
-  const repository = o.repository ?? {};
-  const pr = o.pull_request ?? {};
-  const head = pr.head ?? {};
-  const repo = typeof repository.full_name === "string" ? repository.full_name : "";
-  const rawNumber = pr.number ?? o.number;
-  const number4 = typeof rawNumber === "number" ? rawNumber : Number(rawNumber);
-  const title = typeof pr.title === "string" ? pr.title : "";
-  const headSha = typeof head.sha === "string" ? head.sha : "";
-  if (!repo || !Number.isFinite(number4) || number4 <= 0 || !headSha) return null;
-  return {
-    action,
-    draft: pr.draft === true,
-    repo,
-    number: number4,
-    title,
-    headSha,
-    url: typeof pr.html_url === "string" ? pr.html_url : "",
-    before: typeof o.before === "string" ? o.before : "",
-    after: typeof o.after === "string" ? o.after : ""
-  };
-}
-function shortSha(sha) {
-  return sha.length > 7 ? sha.slice(0, 7) : sha;
-}
-function decideReviewAction(priorHeadSha, newHeadSha) {
-  if (priorHeadSha === null) return "create";
-  return priorHeadSha === newHeadSha ? "noop" : "reopen";
-}
-var GITHUB_MERGE_COMMITTER = "web-flow";
-function classifyHeadChange(input2) {
-  const { before, head } = input2;
-  if (!before || !head) return "author-work";
-  if (head.parents.length !== 2) return "author-work";
-  if (head.parents[0] !== before) return "author-work";
-  if (head.committerLogin !== GITHUB_MERGE_COMMITTER) return "author-work";
-  return "base-sync";
-}
-function globToRegExp(glob) {
-  let re = "";
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === "*") {
-      if (glob[i + 1] === "*") {
-        i++;
-        if (glob[i + 1] === "/") {
-          i++;
-          re += "(?:.*/)?";
-        } else {
-          re += ".*";
-        }
-      } else {
-        re += "[^/]*";
-      }
-    } else if (/[.+?^${}()|[\]\\]/.test(c)) {
-      re += "\\" + c;
-    } else {
-      re += c;
-    }
-  }
-  return new RegExp("^" + re + "$");
-}
-function anyFrontendMatch(files, globs) {
-  const res = globs.map(globToRegExp);
-  return files.some((f) => res.some((r) => r.test(f)));
-}
-function prReviewMarker(repo, num, sha) {
-  return `<!-- pr-review: ${repo}#${num}@${sha} -->`;
-}
-function buildReviewIssueTitle(reviewer, ev) {
-  const scope = reviewer === "iris" ? " (frontend)" : "";
-  return `Review PR ${ev.repo}#${ev.number}${scope} \u2014 ${ev.title}`;
-}
-function buildReviewIssueBody(reviewer, ev, files) {
-  const shown = files.slice(0, 50);
-  const fileLines = shown.length ? shown.map((f) => `- \`${f}\``).join("\n") + (files.length > shown.length ? `
-- \u2026and ${files.length - shown.length} more` : "") : "- _(no files reported)_";
-  const context = CHECK_CONTEXT[reviewer];
-  return [
-    prReviewMarker(ev.repo, ev.number, ev.headSha),
-    "",
-    `**PR:** ${ev.url || `${ev.repo}#${ev.number}`}`,
-    `**Head SHA:** \`${ev.headSha}\``,
-    `**Reviewer:** ${REVIEWER_NAME[reviewer]} (\`${context}\`)`,
-    "",
-    `### Changed files (${files.length})`,
-    fileLines,
-    "",
-    "### Review checklist",
-    "- [ ] Correctness \u2014 logic, edge cases, error handling",
-    reviewer === "iris" ? "- [ ] Frontend \u2014 accessibility, responsive layout, design-system reuse" : "- [ ] Reuse/simplification, tests, security-sensitive changes flagged",
-    "- [ ] Sign off: close this issue `done` \u2014 the plugin then posts `" + context + "` = success on the head SHA. To request changes, comment on the PR and leave this open (the check stays pending).",
-    "",
-    "_Non-required check during Phase 2 soak (GOL-158). Merge gate flips in Phase 3._"
-  ].join("\n");
-}
-function buildNewCommitsNote(reviewer, ev) {
-  return `\u{1F501} New commits pushed \u2014 head is now \`${ev.headSha}\` (${ev.url || `${ev.repo}#${ev.number}`}). Re-review against the new head SHA and re-post the \`${CHECK_CONTEXT[reviewer]}\` check-run (previous sign-off is stale).`;
-}
-function evaluateSignoffGate(input2) {
-  const out = [];
-  if (input2.irisPresent && input2.irisDone) out.push("iris");
-  if (input2.adaDone && (!input2.irisPresent || input2.irisDone)) out.push("ada");
+// src/sanitize.ts
+var ALLOWED_TAGS = /* @__PURE__ */ new Set(["p", "h2", "h3", "ul", "ol", "li", "strong", "em", "a"]);
+var SAFE_SCHEME = /^(https?:|mailto:)/i;
+function stripToFixedPoint(input2, pattern) {
+  let out = input2;
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(pattern, "");
+  } while (out !== prev);
   return out;
 }
-function reviewerList(reviewers) {
-  return reviewers.map((r) => REVIEWER_NAME[r]).join(" + ") || "\u2014";
+function safeHref(attrs) {
+  const m = attrs.match(/\bhref\s*=\s*("([^"]*)"|'([^']*)')/i);
+  if (!m) return null;
+  const raw = (m[2] ?? m[3] ?? "").trim();
+  if (!SAFE_SCHEME.test(raw)) return null;
+  return raw.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
-function buildReviewIssuesCreatedPing(ev, reviewers) {
-  return `\u{1F50D} PR ${ev.repo}#${ev.number} \u2192 review: ${reviewerList(reviewers)} \u2014 <${ev.url || ev.repo}>`;
-}
-function buildReReviewPing(ev, reviewers) {
-  return `\u{1F501} PR ${ev.repo}#${ev.number} new commits (\`${shortSha(ev.headSha)}\`) \u2192 re-review: ${reviewerList(reviewers)}`;
-}
-function buildSignoffPing(reviewers, repo, prNumber) {
-  const checks = reviewers.map((r) => CHECK_CONTEXT[r]).join(" + ");
-  return `\u2705 PR ${repo}#${prNumber} ${checks} \u2014 green`;
-}
-function buildPipelineErrorPing(detail) {
-  return `\u{1F525} PR review pipeline error: ${detail}`;
-}
-function isNullBodyStatusError(err) {
-  const msg = err instanceof Error ? err.message : String(err);
-  return /invalid response status code (204|205|304)/i.test(msg);
-}
-
-// src/pr-review-store.ts
-var PR_REVIEW_TABLE = "github_pr_review";
-function qualified(db) {
-  return `${db.namespace}.${PR_REVIEW_TABLE}`;
-}
-function toRow2(raw) {
-  return {
-    githubRepo: String(raw.github_repo),
-    prNumber: Number(raw.pr_number),
-    reviewer: String(raw.reviewer),
-    headSha: String(raw.head_sha),
-    paperclipIssueId: String(raw.paperclip_issue_id),
-    updatedAt: String(raw.updated_at)
-  };
-}
-async function getReviewRecord(db, githubRepo, prNumber, reviewer) {
-  const rows = await db.query(
-    `SELECT github_repo, pr_number, reviewer, head_sha, paperclip_issue_id, updated_at
-       FROM ${qualified(db)}
-      WHERE github_repo = $1 AND pr_number = $2 AND reviewer = $3`,
-    [githubRepo, prNumber, reviewer]
-  );
-  const first = rows[0];
-  return first ? toRow2(first) : null;
-}
-async function getReviewRecordByIssueId(db, paperclipIssueId) {
-  const rows = await db.query(
-    `SELECT github_repo, pr_number, reviewer, head_sha, paperclip_issue_id, updated_at
-       FROM ${qualified(db)}
-      WHERE paperclip_issue_id = $1
-      LIMIT 1`,
-    [paperclipIssueId]
-  );
-  const first = rows[0];
-  return first ? toRow2(first) : null;
-}
-async function listReviewRecordsUpdatedSince(db, sinceIso, limit) {
-  const rows = await db.query(
-    `SELECT github_repo, pr_number, reviewer, head_sha, paperclip_issue_id, updated_at
-       FROM ${qualified(db)}
-      WHERE updated_at > $1
-      ORDER BY updated_at DESC
-      LIMIT $2`,
-    [sinceIso, limit]
-  );
-  return rows.map(toRow2);
-}
-async function upsertReviewRecord(db, row) {
-  await db.execute(
-    `INSERT INTO ${qualified(db)}
-       (github_repo, pr_number, reviewer, head_sha, paperclip_issue_id, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (github_repo, pr_number, reviewer) DO UPDATE SET
-       head_sha = $4,
-       paperclip_issue_id = $5,
-       updated_at = $6`,
-    [row.githubRepo, row.prNumber, row.reviewer, row.headSha, row.paperclipIssueId, row.updatedAt]
-  );
-}
-
-// src/pr-signoff.ts
-async function handleReviewSignoff(deps, input2) {
-  const { db, logger, getIssue } = deps;
-  const record2 = await getReviewRecordByIssueId(db, input2.issueId);
-  if (!record2) return;
-  const triggerIssue = await getIssue(input2.issueId, input2.companyId);
-  if (!triggerIssue) {
-    logger.warn("signoff: review issue not readable; skipping", { issueId: input2.issueId });
-    return;
-  }
-  if (triggerIssue.status !== "done") return;
-  const adaRow = await getReviewRecord(db, record2.githubRepo, record2.prNumber, "ada");
-  const irisRow = await getReviewRecord(db, record2.githubRepo, record2.prNumber, "iris");
-  const adaDone = adaRow ? await isIssueDone(deps, adaRow, input2.companyId) : false;
-  const irisDone = irisRow ? await isIssueDone(deps, irisRow, input2.companyId) : false;
-  const greenlit = evaluateSignoffGate({ adaDone, irisPresent: irisRow !== null, irisDone });
-  if (greenlit.length === 0) {
-    logger.info("signoff: gate not yet green; no check-run posted", {
-      repo: record2.githubRepo,
-      prNumber: record2.prNumber,
-      adaDone,
-      irisPresent: irisRow !== null,
-      irisDone
-    });
-    return;
-  }
-  const posted = [];
-  for (const reviewer of greenlit) {
-    const row = reviewer === "ada" ? adaRow : irisRow;
-    if (!row) continue;
-    if (await postSignoffCheck(deps, row, reviewer) === "posted") posted.push(reviewer);
-  }
-  if (posted.length > 0) {
-    await deps.postOpsPing?.(buildSignoffPing(posted, record2.githubRepo, record2.prNumber));
-  }
-}
-async function isIssueDone(deps, row, companyId) {
-  const issue2 = await deps.getIssue(row.paperclipIssueId, companyId);
-  return issue2?.status === "done";
-}
-async function postSignoffCheck(deps, row, reviewer) {
-  const { logger } = deps;
-  const resolved = deps.resolveRepoClient?.(row.githubRepo) ?? null;
-  if (deps.resolveRepoClient && !resolved) {
-    logger.error("signoff: no bridge for the review row's repo \u2014 check-run not posted", {
-      repo: row.githubRepo,
-      prNumber: row.prNumber,
-      reviewer,
-      headSha: row.headSha
-    });
-    await deps.postOpsPing?.(
-      buildPipelineErrorPing(
-        `sign-off check-run skipped for ${row.githubRepo}#${row.prNumber} (${reviewer}): repo is not bridged`
-      ),
-      "error"
-    );
-    return "skipped";
-  }
-  const github = resolved ? resolved.github : deps.github;
-  const repo = resolved ? resolved.repo : bareRepoName2(row.githubRepo);
-  const res = await github.createCheckRun(repo, {
-    name: CHECK_CONTEXT[reviewer],
-    headSha: row.headSha,
-    conclusion: "success",
-    title: `Agent review complete (${reviewer})`,
-    summary: `${reviewer} signed off ${row.githubRepo}#${row.prNumber} @ \`${shortSha(row.headSha)}\` (GOL-186).`
-  });
-  if (res.ok) {
-    logger.info("signoff: posted green check-run", {
-      repo: row.githubRepo,
-      prNumber: row.prNumber,
-      reviewer,
-      headSha: row.headSha,
-      checkRunId: res.data.id
-    });
-    return "posted";
-  }
-  if (isMissingCommitError(res)) {
-    logSkipped(deps, row, reviewer, "reviewed head no longer exists (superseded/deleted)", res.error);
-    return "skipped";
-  }
-  const state = await github.getPull(repo, row.prNumber);
-  if (state.ok && isClosedPull(state.data)) {
-    logSkipped(deps, row, reviewer, state.data.merged ? "PR merged" : "PR closed", res.error);
-    return "skipped";
-  }
-  if (isTransientFailure(res)) {
-    logger.warn("signoff: check-run completion failed (transient; will retry)", {
-      repo: row.githubRepo,
-      prNumber: row.prNumber,
-      reviewer,
-      headSha: row.headSha,
-      status: res.status,
-      error: res.error
-    });
-    return "skipped";
-  }
-  logger.error("signoff: check-run completion failed", {
-    repo: row.githubRepo,
-    prNumber: row.prNumber,
-    reviewer,
-    headSha: row.headSha,
-    status: res.status,
-    error: res.error,
-    errors: res.errors
-  });
-  await deps.postOpsPing?.(
-    buildPipelineErrorPing(
-      `sign-off check-run failed for ${row.githubRepo}#${row.prNumber} (${reviewer}): HTTP ${res.status ?? "?"} ${res.error}`
-    ),
-    "error"
-  );
-  return "skipped";
-}
-function isTransientFailure(res) {
-  const s = res.status;
-  if (s === void 0) return true;
-  return s === 401 || s === 408 || s === 429 || s >= 500;
-}
-function bareRepoName2(slug) {
-  const idx = slug.lastIndexOf("/");
-  return idx === -1 ? slug : slug.slice(idx + 1);
-}
-function isClosedPull(pull) {
-  return pull.merged || pull.state === "closed";
-}
-function isMissingCommitError(err) {
-  return /no commit found for sha/i.test(err.error);
-}
-function logSkipped(deps, row, reviewer, reason, detail) {
-  deps.logger.info("signoff: skipping check-run completion (benign, nothing to gate)", {
-    repo: row.githubRepo,
-    prNumber: row.prNumber,
-    reviewer,
-    headSha: row.headSha,
-    reason,
-    detail
+function sanitizeDraftHtml(input2) {
+  if (!input2) return "";
+  let html = input2;
+  html = stripToFixedPoint(html, /<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi);
+  html = stripToFixedPoint(html, /<!--[\s\S]*?-->/g);
+  return html.replace(/<\/?([a-zA-Z0-9]+)((?:[^>"']|"[^"]*"|'[^']*')*)>/g, (_full, rawName, attrs) => {
+    const name = String(rawName).toLowerCase();
+    if (!ALLOWED_TAGS.has(name)) return "";
+    const isClose = _full.startsWith("</");
+    if (isClose) return `</${name}>`;
+    if (name === "a") {
+      const href = safeHref(attrs);
+      return href ? `<a href="${href}">` : "<a>";
+    }
+    return `<${name}>`;
   });
 }
 
-// src/reconcile.ts
-var PAGE_SIZE = 100;
-var DEFAULT_MAX_CREATES = 20;
-var ACTIVE_STATUSES = ["backlog", "todo", "in_progress", "in_review", "blocked"];
-async function runMirrorReconcile(input2) {
-  const maxCreates = input2.maxCreates ?? DEFAULT_MAX_CREATES;
-  const summary = {
-    scanned: 0,
-    created: 0,
-    skippedMapped: 0,
-    skippedTerminal: 0,
-    skippedPluginOp: 0,
-    failed: 0,
-    capped: false
-  };
-  for (const projectId of input2.projectIds) {
-    const deps = input2.depsForProject(projectId);
-    if (!deps) continue;
-    for (const status of ACTIVE_STATUSES) {
-      for (let offset = 0; ; offset += PAGE_SIZE) {
-        const page = await input2.listIssues(projectId, status, offset, PAGE_SIZE);
-        for (const issue2 of page) {
-          summary.scanned++;
-          if (isTerminalStatus(issue2.status)) {
-            summary.skippedTerminal++;
-            continue;
-          }
-          if (isPluginOperationalIssue(issue2.description)) {
-            summary.skippedPluginOp++;
-            continue;
-          }
-          if (await getByPaperclipId(deps.db, issue2.id)) {
-            summary.skippedMapped++;
-            continue;
-          }
-          if (summary.created + summary.failed >= maxCreates) {
-            summary.capped = true;
-            return summary;
-          }
-          try {
-            await handleIssueCreated(deps, {
-              issueId: issue2.id,
-              companyId: input2.companyId
-            });
-            if (await getByPaperclipId(deps.db, issue2.id)) {
-              summary.created++;
-            } else {
-              summary.failed++;
-            }
-          } catch (err) {
-            summary.failed++;
-            input2.logger.error("mirror-reconcile: mirror-create failed; continuing sweep", {
-              issueId: issue2.id,
-              projectId,
-              error: err instanceof Error ? err.message : String(err)
-            });
-          }
-        }
-        if (page.length < PAGE_SIZE) break;
-      }
-    }
-  }
-  return summary;
-}
-function buildReconcilePing(s) {
-  const capNote = s.capped ? " \u2014 capped, next run continues" : "";
-  return `\u{1F9F9} mirror-reconcile: created ${s.created} missing GitHub twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
-}
-
-// src/signoff-reconcile.ts
-function isSignoffCheckGreen(checks, reviewer) {
-  const name = `agent-review/${reviewer}`;
-  return checks.some((c) => c.name === name && c.status === "completed" && c.conclusion === "success");
-}
-async function runSignoffReconcile(input2) {
-  const summary = { scanned: 0, healed: 0, skipped: 0, failed: 0 };
-  const rows = await input2.listRows(input2.sinceIso, input2.limit);
-  const driven = /* @__PURE__ */ new Set();
-  const checkCache = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    summary.scanned++;
-    const prKey = `${row.githubRepo}#${row.prNumber}`;
-    if (driven.has(prKey)) {
-      summary.skipped++;
-      continue;
-    }
-    const status = await input2.getIssueStatus(row.paperclipIssueId, input2.companyId);
-    if (status !== "done") {
-      summary.skipped++;
-      continue;
-    }
-    const resolved = input2.resolveRepoClient(row.githubRepo);
-    if (!resolved) {
-      summary.skipped++;
-      continue;
-    }
-    const cacheKey = `${resolved.repo}
-${row.headSha}`;
-    let checks = checkCache.get(cacheKey);
-    if (checks === void 0) {
-      const res = await resolved.github.listCommitCheckRuns(resolved.repo, row.headSha);
-      checks = res.ok ? res.data : null;
-      checkCache.set(cacheKey, checks);
-    }
-    if (checks === null) {
-      summary.failed++;
-      continue;
-    }
-    if (isSignoffCheckGreen(checks, row.reviewer)) {
-      summary.skipped++;
-      continue;
-    }
-    try {
-      await input2.driveSignoff(row.paperclipIssueId);
-      driven.add(prKey);
-      summary.healed++;
-      input2.logger.info("signoff-reconcile: re-drove stranded sign-off", {
-        repo: row.githubRepo,
-        prNumber: row.prNumber,
-        reviewer: row.reviewer,
-        headSha: row.headSha
-      });
-    } catch (err) {
-      summary.failed++;
-      input2.logger.warn("signoff-reconcile: re-drive failed", {
-        repo: row.githubRepo,
-        prNumber: row.prNumber,
-        reviewer: row.reviewer,
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-  }
-  return summary;
-}
-
-// src/inbound-close-reconcile.ts
-async function runInboundCloseReconcile(input2) {
-  const summary = {
-    scanned: 0,
-    propagated: 0,
-    skippedUnmapped: 0,
-    skippedOpen: 0,
-    skippedInSync: 0,
-    pruned: 0,
-    failed: 0,
-    reposFailed: 0,
-    truncated: false
-  };
-  for (const repoSlug of input2.repoSlugs) {
-    const listed = await input2.listIssues(repoSlug);
-    if (!listed.ok) {
-      summary.reposFailed++;
-      input2.logger.warn("inbound-close-reconcile: issue list failed; skipping repo this run", {
-        repo: repoSlug,
-        error: listed.error
-      });
-      continue;
-    }
-    if (listed.truncated) summary.truncated = true;
-    for (const issue2 of listed.issues) {
-      summary.scanned++;
-      if (issue2.state !== "closed") {
-        summary.skippedOpen++;
-        continue;
-      }
-      const action = "closed";
-      try {
-        const outcome = await input2.driveClosure({ action, repoSlug, number: issue2.number });
-        switch (outcome) {
-          case "propagated":
-            summary.propagated++;
-            break;
-          case "in-sync":
-            summary.skippedInSync++;
-            break;
-          case "unmapped":
-          case "no-bridge":
-            summary.skippedUnmapped++;
-            break;
-          case "pruned":
-            summary.pruned++;
-            break;
-          case "unreadable":
-          case "no-company":
-            summary.failed++;
-            break;
-        }
-      } catch (err) {
-        summary.failed++;
-        input2.logger.warn("inbound-close-reconcile: closure re-drive failed; continuing sweep", {
-          repo: repoSlug,
-          number: issue2.number,
-          action,
-          error: err instanceof Error ? err.message : String(err)
-        });
-      }
-    }
-  }
-  return summary;
-}
-function buildInboundCloseReconcilePing(s) {
-  return `\u{1F501} inbound-close-reconcile: propagated ${s.propagated} GitHub close(s) \u2192 Paperclip, pruned ${s.pruned} orphaned mapping(s), ${s.failed} failed (scanned ${s.scanned})`;
-}
-
-// src/inbound-create-reconcile.ts
-var DEFAULT_MAX_CREATES2 = 20;
-async function runInboundCreateReconcile(input2) {
-  const maxCreates = input2.maxCreates ?? DEFAULT_MAX_CREATES2;
-  const summary = {
-    scanned: 0,
-    created: 0,
-    skippedMapped: 0,
-    skippedClosed: 0,
-    skippedPaperclipOrigin: 0,
-    failed: 0,
-    reposFailed: 0,
-    truncated: false,
-    capped: false
-  };
-  for (const repoSlug of input2.repoSlugs) {
-    const listed = await input2.listIssues(repoSlug);
-    if (!listed.ok) {
-      summary.reposFailed++;
-      input2.logger.warn("inbound-create-reconcile: issue list failed; skipping repo this run", {
-        repo: repoSlug,
-        error: listed.error
-      });
-      continue;
-    }
-    if (listed.truncated) summary.truncated = true;
-    for (const issue2 of listed.issues) {
-      summary.scanned++;
-      if (summary.created + summary.failed >= maxCreates) {
-        summary.capped = true;
-        return summary;
-      }
-      try {
-        const outcome = await input2.driveCreate({ repoSlug, issue: issue2 });
-        switch (outcome) {
-          case "created":
-            summary.created++;
-            break;
-          case "skipped-mapped":
-            summary.skippedMapped++;
-            break;
-          case "skipped-closed":
-            summary.skippedClosed++;
-            break;
-          case "skipped-paperclip-origin":
-            summary.skippedPaperclipOrigin++;
-            break;
-          case "no-bridge":
-            break;
-          case "failed":
-            summary.failed++;
-            break;
-        }
-      } catch (err) {
-        summary.failed++;
-        input2.logger.warn("inbound-create-reconcile: mirror-create re-drive failed; continuing sweep", {
-          repo: repoSlug,
-          number: issue2.number,
-          error: err instanceof Error ? err.message : String(err)
-        });
-      }
-    }
-  }
-  return summary;
-}
-function buildInboundCreateReconcilePing(s) {
-  const capNote = s.capped ? " \u2014 capped, next run continues" : "";
-  return `\u{1FA9E} inbound-create-reconcile: created ${s.created} missing Paperclip twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
-}
-
-// src/pr-review-create-reconcile.ts
-var DEFAULT_MAX_DRIVES = 20;
-async function runPrReviewReconcile(input2) {
-  const maxDrives = input2.maxDrives ?? DEFAULT_MAX_DRIVES;
-  const summary = {
-    scanned: 0,
-    twinned: 0,
-    skippedCurrent: 0,
-    skippedDraft: 0,
-    failed: 0,
-    reposFailed: 0,
-    truncated: false,
-    capped: false
-  };
-  for (const repoSlug of input2.repoSlugs) {
-    const listed = await input2.listPrs(repoSlug);
-    if (!listed.ok) {
-      summary.reposFailed++;
-      input2.logger.warn("pr-review-reconcile: PR list failed; skipping repo this run", {
-        repo: repoSlug,
-        error: listed.error
-      });
-      continue;
-    }
-    if (listed.truncated) summary.truncated = true;
-    for (const pr of listed.prs) {
-      summary.scanned++;
-      if (summary.twinned + summary.failed >= maxDrives) {
-        summary.capped = true;
-        return summary;
-      }
-      try {
-        const outcome = await input2.driveReview({ repoSlug, pr });
-        switch (outcome) {
-          case "twinned":
-            summary.twinned++;
-            break;
-          case "skipped-current":
-            summary.skippedCurrent++;
-            break;
-          case "skipped-draft":
-            summary.skippedDraft++;
-            break;
-          case "no-bridge":
-            break;
-          case "failed":
-            summary.failed++;
-            break;
-        }
-      } catch (err) {
-        summary.failed++;
-        input2.logger.warn("pr-review-reconcile: review re-drive failed; continuing sweep", {
-          repo: repoSlug,
-          number: pr.number,
-          error: err instanceof Error ? err.message : String(err)
-        });
-      }
-    }
-  }
-  return summary;
-}
-function buildPrReviewReconcilePing(s) {
-  const capNote = s.capped ? " \u2014 capped, next run continues" : "";
-  return `\u{1F50D} pr-review-reconcile: created/reopened ${s.twinned} missing review twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
-}
-
-// src/error-log.ts
-var ERROR_TABLE = "github_sync_error";
-function qualifiedTable2(db) {
-  return `${db.namespace}.${ERROR_TABLE}`;
-}
-function buildSwallowedFailurePing(scope, detail) {
-  const trimmed = detail.length > 500 ? `${detail.slice(0, 500)}\u2026` : detail;
-  return `\u{1F6A8} github-sync failure \u2014 ${scope}: ${trimmed}`;
-}
-function buildFallbackFailurePing(site, status) {
-  const code = status === void 0 ? "no HTTP status" : `HTTP ${status}`;
-  return `\u26D4 github-sync REST fallback FAILED for ${site} (${code}) \u2014 the Paperclip REST fallback key may be dead (#457); inbound mirrors for this site will stop until it is fixed.`;
-}
-async function recordError(db, row) {
-  await db.execute(
-    `INSERT INTO ${qualifiedTable2(db)} (occurred_at, scope, detail, context)
-       VALUES ($1, $2, $3, $4)`,
-    [
-      row.occurredAt,
-      row.scope,
-      row.detail,
-      row.context && Object.keys(row.context).length > 0 ? JSON.stringify(row.context) : null
-    ]
-  );
-}
-var OpsPingThrottle = class {
-  windowMs;
-  windows = /* @__PURE__ */ new Map();
-  constructor(windowMs = 5 * 6e4) {
-    this.windowMs = windowMs;
-  }
-  /**
-   * Decide whether the alert identified by `key` should be emitted at `now` (ms).
-   * Pass a stable key — the ping content itself is a good choice, so only byte-for-byte
-   * identical alerts collapse and a different error still pages immediately.
-   */
-  decide(key, now) {
-    const w = this.windows.get(key);
-    let decision;
-    if (!w || now - w.openedAt >= this.windowMs) {
-      const suppressed = w ? w.suppressed : 0;
-      this.windows.set(key, { openedAt: now, lastAt: now, suppressed: 0 });
-      decision = { emit: true, suppressed };
-    } else {
-      w.lastAt = now;
-      w.suppressed += 1;
-      decision = { emit: false, suppressed: w.suppressed };
-    }
-    this.prune(now);
-    return decision;
-  }
-  /** Drop windows with no hit for a full window, so the Map can't grow unbounded. */
-  prune(now) {
-    for (const [key, w] of this.windows) {
-      if (now - w.lastAt >= this.windowMs) this.windows.delete(key);
-    }
-  }
+// src/drafter.ts
+var FILLABLE_FACT_FIELDS = [
+  "grove_mature_size",
+  "grove_mature_spread",
+  "grove_spacing",
+  "grove_soil",
+  "grove_pollination",
+  "grove_years_to_fruit",
+  "grove_chill_hours"
+];
+var FIELD_LABELS = {
+  grove_botanical_name: "Botanical name",
+  grove_zone_min: "USDA zone min",
+  grove_zone_max: "USDA zone max",
+  grove_layer: "Food-forest layer",
+  grove_sun: "Sun",
+  grove_mature_size: "Mature height",
+  grove_mature_spread: "Mature spread",
+  grove_spacing: "Plant spacing",
+  grove_soil: "Soil",
+  grove_pollination: "Pollination",
+  grove_years_to_fruit: "Years to fruit",
+  grove_chill_hours: "Chill hours",
+  grove_growth_rate: "Growth rate",
+  grove_bloom_season: "Bloom season",
+  grove_harvest_season: "Harvest season",
+  grove_watering: "Watering",
+  grove_wildlife: "Wildlife"
 };
-function withSuppressionNote(content, suppressed) {
-  return suppressed > 0 ? `${content} (+${suppressed} identical alert${suppressed === 1 ? "" : "s"} suppressed)` : content;
-}
-
-// src/delivery-log.ts
-var DELIVERY_TABLE = "github_sync_delivery";
-function qualifiedTable3(db) {
-  return `${db.namespace}.${DELIVERY_TABLE}`;
-}
-function trimDetail(detail) {
-  if (!detail) return null;
-  return detail.length > 1e3 ? `${detail.slice(0, 1e3)}\u2026` : detail;
-}
-async function recordDelivery(db, row) {
-  await db.execute(
-    `INSERT INTO ${qualifiedTable3(db)}
-       (request_id, endpoint_key, event, delivery_guid, outcome, detail, occurred_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [
-      row.requestId,
-      row.endpointKey,
-      row.event,
-      row.deliveryGuid,
-      row.outcome,
-      trimDetail(row.detail),
-      row.occurredAt
-    ]
-  );
-}
-var WebhookRejection = class extends Error {
-  constructor(outcome, message, httpStatus = 401) {
-    super(message);
-    this.outcome = outcome;
-    this.httpStatus = httpStatus;
-    this.name = "WebhookRejection";
-  }
-  outcome;
-  httpStatus;
-};
-
-// src/ci-failure.ts
-var DEFAULT_AGENT_PR_AUTHOR = "agenticos-developer[bot]";
-var AGENT_REVIEW_CHECK_PREFIX = "agent-review/";
-var FAILING_CONCLUSIONS = /* @__PURE__ */ new Set([
-  "failure",
-  "timed_out",
-  "cancelled",
-  "action_required",
-  "startup_failure",
-  "stale"
-]);
-function asRecord(v) {
-  return v && typeof v === "object" ? v : {};
-}
-function prNumbersFrom(raw) {
-  if (!Array.isArray(raw)) return [];
-  const out = [];
-  for (const pr of raw) {
-    const n = Number(asRecord(pr).number);
-    if (Number.isFinite(n) && n > 0) out.push(n);
-  }
-  return [...new Set(out)];
-}
-function parseCheckSuiteEvent(raw) {
-  const o = asRecord(raw);
-  const cs = asRecord(o.check_suite);
-  const repository = asRecord(o.repository);
-  const repo = typeof repository.full_name === "string" ? repository.full_name : "";
-  const headSha = typeof cs.head_sha === "string" ? cs.head_sha : "";
-  if (!repo || !headSha) return null;
-  const app = asRecord(cs.app);
-  return {
-    kind: "check_suite",
-    action: typeof o.action === "string" ? o.action : "",
-    repo,
-    headSha,
-    conclusion: typeof cs.conclusion === "string" ? cs.conclusion : null,
-    prNumbers: prNumbersFrom(cs.pull_requests),
-    name: typeof app.name === "string" && app.name ? app.name : "CI",
-    detailsUrl: ""
-  };
-}
-function parseWorkflowRunEvent(raw) {
-  const o = asRecord(raw);
-  const wr = asRecord(o.workflow_run);
-  const repository = asRecord(o.repository);
-  const repo = typeof repository.full_name === "string" ? repository.full_name : "";
-  const headSha = typeof wr.head_sha === "string" ? wr.head_sha : "";
-  if (!repo || !headSha) return null;
-  return {
-    kind: "workflow_run",
-    action: typeof o.action === "string" ? o.action : "",
-    repo,
-    headSha,
-    conclusion: typeof wr.conclusion === "string" ? wr.conclusion : null,
-    prNumbers: prNumbersFrom(wr.pull_requests),
-    name: typeof wr.name === "string" && wr.name ? wr.name : "workflow",
-    detailsUrl: typeof wr.html_url === "string" ? wr.html_url : ""
-  };
-}
-function parseCiCompletionEvent(raw, eventType) {
-  if (eventType === "check_suite") return parseCheckSuiteEvent(raw);
-  if (eventType === "workflow_run") return parseWorkflowRunEvent(raw);
-  return null;
-}
-function isAgentReviewCheck(name) {
-  return name.startsWith(AGENT_REVIEW_CHECK_PREFIX);
-}
-function isFailingCheck(c) {
-  return c.conclusion !== null && FAILING_CONCLUSIONS.has(c.conclusion);
-}
-function ciChecks(checks) {
-  return checks.filter((c) => !isAgentReviewCheck(c.name));
-}
-function failingChecks(checks) {
-  return ciChecks(checks).filter(isFailingCheck);
-}
-function classifyCiState(checks) {
-  const ci = ciChecks(checks);
-  if (ci.length === 0) return "none";
-  if (ci.some(isFailingCheck)) return "failing";
-  if (ci.some((c) => c.status !== "completed")) return "pending";
-  return "green";
-}
-function decideCiFixAction(record2, state) {
-  if (state === "failing") return record2 && record2.status === "open" ? "update" : "create";
-  if (state === "green") return record2 && record2.status === "open" ? "close" : "noop";
-  return "noop";
-}
-function ciFixMarker(repo, prNumber) {
-  return `<!-- ci-fix: ${repo}#${prNumber} -->`;
-}
-function shortSha2(sha) {
-  return sha.length > 7 ? sha.slice(0, 7) : sha;
-}
-function truncate(s, max) {
-  const t = s.trim();
-  return t.length > max ? t.slice(0, max - 1).trimEnd() + "\u2026" : t;
-}
-function renderFailedChecks(failed) {
-  if (failed.length === 0) return "- _(no individual failing check reported)_";
-  const shown = failed.slice(0, 20);
-  const lines = shown.map((c) => {
-    const excerpt = c.summary ? ` \u2014 ${truncate(c.summary.replace(/\s+/g, " "), 160)}` : "";
-    const link = c.detailsUrl ? ` ([logs](${c.detailsUrl}))` : "";
-    return `- \`${c.name}\`${excerpt}${link}`;
-  });
-  if (failed.length > shown.length) lines.push(`- \u2026and ${failed.length - shown.length} more`);
-  return lines.join("\n");
-}
-function buildCiFixTitle(ctx) {
-  const suffix = ctx.prTitle ? ` \u2014 ${ctx.prTitle}` : "";
-  return `CI failing \u2014 ${ctx.repo}#${ctx.prNumber}${suffix}`;
-}
-function buildCiFixBody(ctx) {
-  const runLine = ctx.runUrl ? `${ctx.runName} (${ctx.runUrl})` : ctx.runName;
+var ALLOWED_TAGS_HINT = "p, h2, h3, ul, ol, li, strong, em, a[href]";
+function buildSystemPrompt(houseRules) {
   return [
-    ciFixMarker(ctx.repo, ctx.prNumber),
+    "You are the content writer for At The Grove Nursery, a syntropic agroforestry nursery.",
+    "You write accurate, warm, plain storefront copy and practical care guides for edible/useful plants,",
+    "grounded ONLY in the facts you are given plus reputable university extension-service references.",
     "",
-    `**PR:** ${ctx.prUrl || `${ctx.repo}#${ctx.prNumber}`}`,
-    `**Head SHA:** \`${ctx.headSha}\``,
-    `**Failing run:** ${runLine}`,
-    `**Owner:** ${ctx.ownerName}`,
-    "",
-    `### Failing checks (${ctx.failed.length})`,
-    renderFailedChecks(ctx.failed),
-    "",
-    "### What to do",
-    "- Reproduce + fix the failure, then push to the PR branch.",
-    "- When CI goes green on the new head SHA this issue **auto-closes** (GOL-305).",
-    "- If the PR is being abandoned, close this issue `done` \u2014 a green suite would do the same.",
-    "",
-    "_Opened automatically from a failing CI check on an agent-authored PR (GOL-305)._"
+    "Hard rules:",
+    `- Output HTML limited to these tags only: ${ALLOWED_TAGS_HINT}. No other tags, no inline styles, no classes.`,
+    "- Never invent facts. If a value is not provided and you cannot cite a reputable extension-service",
+    "  source (e.g. a state university Extension), leave it out rather than guess.",
+    "- Only fill the empty fields explicitly listed as fillable; cite a real http/https source URL for each.",
+    "- Anchor links must be http/https/mailto only.",
+    "- Respond with a single JSON object and nothing else (no markdown fences, no commentary).",
+    houseRules ? `
+House rules (authoritative \u2014 follow exactly):
+${houseRules}` : ""
   ].join("\n");
 }
-function buildCiReFailNote(ctx) {
+function buildUserPrompt(p) {
+  const factLines = Object.entries(p.facts).map(([k, v]) => `- ${FIELD_LABELS[k] ?? k} (${k}): ${v || "(empty)"}`).join("\n");
+  const fillable = p.emptyFillable.length ? p.emptyFillable.map((f) => `- ${FIELD_LABELS[f]} (${f})`).join("\n") : "(none \u2014 do not fill any facts)";
   return [
-    `\u{1F501} CI still failing at head \`${shortSha2(ctx.headSha)}\` (${ctx.runName}).`,
+    `Product: ${p.name}`,
+    `Botanical name: ${p.botanicalName}`,
+    `Category: ${p.category}`,
+    `Shipping: ${p.shippingTier}`,
     "",
-    `### Failing checks (${ctx.failed.length})`,
-    renderFailedChecks(ctx.failed)
+    "Known facts:",
+    factLines,
+    "",
+    "Empty required facts you MAY fill (only these, each with a cited extension-service source):",
+    fillable,
+    "",
+    "Return JSON with exactly these keys:",
+    "{",
+    '  "description_ecommerce_html": "2-3 short storefront paragraphs, <p> tags",',
+    '  "website_description_html": "care guide with <h2>/<h3> sections: Site & soil, Planting, First-year care, Pruning, Harvest",',
+    '  "filled_facts": [{"field": "<odoo field name>", "value": "<value>", "source_name": "<e.g. NC State Extension>", "source_url": "https://..."}],',
+    '  "sources": [{"name": "<source>", "url": "https://..."}]',
+    "}",
+    "If you fill no facts, use an empty filled_facts array. sources must list every reference you used."
   ].join("\n");
 }
-function buildCiResolvedNote(headSha) {
-  return `\u2705 CI is green at head \`${shortSha2(headSha)}\` \u2014 auto-closing this fix issue (GOL-305).`;
+function stripFences(text) {
+  const t = text.trim();
+  const fenced = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  if (fenced) return fenced[1].trim();
+  const brace = t.indexOf("{");
+  const lastBrace = t.lastIndexOf("}");
+  if (brace >= 0 && lastBrace > brace) return t.slice(brace, lastBrace + 1);
+  return t;
 }
-function buildCiFixOpenedPing(ctx) {
-  return `\u{1F6A8} CI failing on ${ctx.repo}#${ctx.prNumber} \u2192 fix issue for ${ctx.ownerName} \u2014 <${ctx.prUrl || ctx.repo}>`;
-}
-function buildCiFixUpdatedPing(ctx) {
-  return `\u{1F501} CI still failing on ${ctx.repo}#${ctx.prNumber} (\`${shortSha2(ctx.headSha)}\`) \u2192 fix issue updated`;
-}
-function buildCiFixResolvedPing(repo, prNumber) {
-  return `\u2705 CI green on ${repo}#${prNumber} \u2192 fix issue auto-closed`;
-}
-
-// src/ci-failure-store.ts
-var CI_FAILURE_TABLE = "github_ci_failure";
-function qualified2(db) {
-  return `${db.namespace}.${CI_FAILURE_TABLE}`;
-}
-function toRow3(raw) {
-  return {
-    githubRepo: String(raw.github_repo),
-    prNumber: Number(raw.pr_number),
-    headSha: String(raw.head_sha),
-    paperclipIssueId: String(raw.paperclip_issue_id),
-    status: raw.status === "closed" ? "closed" : "open",
-    updatedAt: String(raw.updated_at)
-  };
-}
-async function getCiFailureRecord(db, githubRepo, prNumber) {
-  const rows = await db.query(
-    `SELECT github_repo, pr_number, head_sha, paperclip_issue_id, status, updated_at
-       FROM ${qualified2(db)}
-      WHERE github_repo = $1 AND pr_number = $2`,
-    [githubRepo, prNumber]
-  );
-  const first = rows[0];
-  return first ? toRow3(first) : null;
-}
-async function upsertCiFailureRecord(db, row) {
-  await db.execute(
-    `INSERT INTO ${qualified2(db)}
-       (github_repo, pr_number, head_sha, paperclip_issue_id, status, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (github_repo, pr_number) DO UPDATE SET
-       head_sha = $3,
-       paperclip_issue_id = $4,
-       status = $5,
-       updated_at = $6`,
-    [row.githubRepo, row.prNumber, row.headSha, row.paperclipIssueId, row.status, row.updatedAt]
-  );
-}
-
-// src/paperclip-rest.ts
-function isScopeExpiryError(err) {
-  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  if (!msg.includes("invocation scope")) return false;
-  return msg.includes("expired") || msg.includes("missing") || msg.includes("unknown");
-}
-var PaperclipRestError = class extends Error {
-  status;
-  constructor(message, status) {
-    super(message);
-    this.name = "PaperclipRestError";
-    this.status = status;
-  }
-};
-var PaperclipRestClient = class {
-  baseUrl;
-  token;
-  http;
-  cfAccessClientId;
-  cfAccessClientSecret;
-  constructor(opts) {
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
-    this.token = opts.token;
-    this.http = opts.http;
-    this.cfAccessClientId = opts.cfAccessClientId;
-    this.cfAccessClientSecret = opts.cfAccessClientSecret;
-  }
-  headers() {
-    const h = {
-      "content-type": "application/json",
-      authorization: "Bearer " + this.token
-    };
-    if (this.cfAccessClientId && this.cfAccessClientSecret) {
-      h["CF-Access-Client-Id"] = this.cfAccessClientId;
-      h["CF-Access-Client-Secret"] = this.cfAccessClientSecret;
-    }
-    return h;
-  }
-  async assertOk(res, what) {
-    if (res.ok) return;
-    let snippet = "";
-    try {
-      snippet = (await res.text()).slice(0, 300);
-    } catch {
-    }
-    throw new PaperclipRestError(
-      `Paperclip REST ${what} failed: ${res.status} ${res.statusText} ${snippet}`.trim(),
-      res.status
-    );
-  }
-  /**
-   * POST /api/companies/{companyId}/issues — mirror of `ctx.issues.create`. `body`
-   * is the SAME object passed to ctx.issues.create MINUS `companyId` (which moves
-   * into the URL). Returns the created issue JSON (has `id`).
-   */
-  async createIssue(companyId, body) {
-    const url2 = `${this.baseUrl}/api/companies/${encodeURIComponent(companyId)}/issues`;
-    const res = await this.http.fetch(url2, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify(body)
-    });
-    await this.assertOk(res, "createIssue");
-    return await res.json();
-  }
-  /**
-   * GET /api/companies/{companyId}/issues — mirror of `ctx.issues.list`.
-   *
-   * Added for the mirror-reconcile SWEEP (GOL-1163), which is the first caller to
-   * need a READ fallback. Scheduled jobs are the sharpest case for scope expiry:
-   * unlike a webhook delivery or event dispatch, a cron tick has no ambient
-   * invocation scope to inherit, so `ctx.issues.list` can fail outright with
-   * "referenced a missing, expired, or unknown invocation scope" — observed
-   * 2026-08-03 21:23Z, which silently stopped the twin backfill.
-   *
-   * The host returns a bare JSON array; a non-array body yields [] rather than a
-   * throw, so a shape change degrades the sweep to a no-op instead of erroring
-   * the whole job.
-   */
-  async listIssues(companyId, params = {}) {
-    const qs = new URLSearchParams();
-    if (params.projectId) qs.set("projectId", params.projectId);
-    if (params.status) qs.set("status", params.status);
-    if (params.limit !== void 0) qs.set("limit", String(params.limit));
-    if (params.offset !== void 0) qs.set("offset", String(params.offset));
-    const query = qs.toString();
-    const url2 = `${this.baseUrl}/api/companies/${encodeURIComponent(companyId)}/issues` + (query ? `?${query}` : "");
-    const res = await this.http.fetch(url2, { method: "GET", headers: this.headers() });
-    await this.assertOk(res, "listIssues");
-    const body = await res.json();
-    return Array.isArray(body) ? body : [];
-  }
-  /**
-   * GET /api/issues/{issueId} — mirror of `ctx.issues.get`. Returns the issue JSON,
-   * or null on 404 (matching ctx.issues.get's `Issue | null`).
-   */
-  async getIssue(issueId) {
-    const url2 = `${this.baseUrl}/api/issues/${encodeURIComponent(issueId)}`;
-    const res = await this.http.fetch(url2, {
-      method: "GET",
-      headers: this.headers()
-    });
-    if (res.status === 404) return null;
-    await this.assertOk(res, "getIssue");
-    return await res.json();
-  }
-  /**
-   * PATCH /api/issues/{issueId} — mirror of `ctx.issues.update`. `patch` is the
-   * same partial passed to ctx.issues.update. Returns the updated issue JSON.
-   */
-  async updateIssue(issueId, patch) {
-    const url2 = `${this.baseUrl}/api/issues/${encodeURIComponent(issueId)}`;
-    const res = await this.http.fetch(url2, {
-      method: "PATCH",
-      headers: this.headers(),
-      body: JSON.stringify(patch)
-    });
-    await this.assertOk(res, "updateIssue");
-    return await res.json();
-  }
-  /**
-   * POST /api/issues/{issueId}/comments — mirror of `ctx.issues.createComment`.
-   * The API field is `body` (NOT `content`/`comment`); a wrong field name is
-   * accepted with a 200 and silently drops the text.
-   */
-  async createComment(issueId, body) {
-    const url2 = `${this.baseUrl}/api/issues/${encodeURIComponent(issueId)}/comments`;
-    const res = await this.http.fetch(url2, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({ body })
-    });
-    await this.assertOk(res, "createComment");
-  }
-};
-async function withRestFallback(deps, site, fn, restFn) {
+var SAFE_URL = /^https?:\/\//i;
+var FILLABLE_SET = new Set(FILLABLE_FACT_FIELDS);
+async function draftContent(llm, houseRules, product) {
+  const raw = await llm.complete(buildSystemPrompt(houseRules), buildUserPrompt(product));
+  if (!raw.ok) return raw;
+  let parsed;
   try {
-    return await fn();
-  } catch (err) {
-    const { logger, rest } = deps;
-    if (!isScopeExpiryError(err) || !rest) throw err;
-    logger.warn("inbound write hit scope-expiry; retrying via Paperclip REST fallback (GOL-323)", { site });
-    try {
-      const result = await restFn(rest);
-      logger.info("Paperclip REST fallback succeeded (GOL-323)", { site });
-      return result;
-    } catch (restErr) {
-      const status = restErr instanceof PaperclipRestError ? restErr.status : void 0;
-      const detail = restErr instanceof Error ? restErr.message : String(restErr);
-      logger.error("Paperclip REST fallback failed (GOL-323)", { site, status, error: detail });
-      if (deps.onFallbackFailure) {
-        try {
-          await deps.onFallbackFailure({ site, status, detail });
-        } catch (hookErr) {
-          logger.warn("onFallbackFailure hook threw (ignored)", {
-            site,
-            error: hookErr instanceof Error ? hookErr.message : String(hookErr)
-          });
-        }
-      }
-      throw restErr;
-    }
+    parsed = JSON.parse(stripFences(raw.data));
+  } catch {
+    return { ok: false, error: "model did not return valid JSON" };
   }
+  const descriptionEcommerce = sanitizeDraftHtml(String(parsed.description_ecommerce_html ?? ""));
+  const websiteDescription = sanitizeDraftHtml(String(parsed.website_description_html ?? ""));
+  if (!descriptionEcommerce.trim() || !websiteDescription.trim()) {
+    return { ok: false, error: "model returned empty description or care guide" };
+  }
+  const emptySet = new Set(product.emptyFillable);
+  const filledFacts = [];
+  const rawFacts = Array.isArray(parsed.filled_facts) ? parsed.filled_facts : [];
+  for (const item of rawFacts) {
+    if (!item || typeof item !== "object") continue;
+    const f = item;
+    const field2 = String(f.field ?? "");
+    const value = String(f.value ?? "").trim();
+    const sourceUrl = String(f.source_url ?? "").trim();
+    const sourceName = String(f.source_name ?? "").trim();
+    if (!FILLABLE_SET.has(field2) || !emptySet.has(field2)) continue;
+    if (!value || !SAFE_URL.test(sourceUrl)) continue;
+    filledFacts.push({ field: field2, value, sourceName: sourceName || sourceUrl, sourceUrl });
+  }
+  const sources = [];
+  const rawSources = Array.isArray(parsed.sources) ? parsed.sources : [];
+  for (const item of rawSources) {
+    if (!item || typeof item !== "object") continue;
+    const s = item;
+    const url2 = String(s.url ?? "").trim();
+    if (!SAFE_URL.test(url2)) continue;
+    sources.push({ name: String(s.name ?? url2).trim() || url2, url: url2 });
+  }
+  return { ok: true, data: { descriptionEcommerce, websiteDescription, filledFacts, sources } };
+}
+
+// src/job.ts
+var FACT_FIELDS = [
+  "grove_botanical_name",
+  "grove_zone_min",
+  "grove_zone_max",
+  "grove_layer",
+  "grove_sun",
+  "grove_mature_size",
+  "grove_mature_spread",
+  "grove_spacing",
+  "grove_soil",
+  "grove_pollination",
+  "grove_years_to_fruit",
+  "grove_chill_hours",
+  "grove_growth_rate",
+  "grove_bloom_season",
+  "grove_harvest_season",
+  "grove_watering",
+  "grove_wildlife"
+];
+var READ_FIELDS = [
+  "name",
+  "categ_id",
+  "grove_shipping_tier",
+  "grove_facts_provenance",
+  "description_ecommerce",
+  "website_description",
+  ...FACT_FIELDS
+];
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function factToString(v) {
+  if (v === false || v === null || v === void 0) return "";
+  if (typeof v === "number") return v === 0 ? "" : String(v);
+  return String(v);
+}
+function toProductView(id, rec) {
+  const facts = {};
+  for (const f of FACT_FIELDS) facts[f] = factToString(rec[f]);
+  const emptyFillable = FILLABLE_FACT_FIELDS.filter(
+    (f) => !facts[f]
+  );
+  const categ = rec.categ_id;
+  const category = Array.isArray(categ) && categ.length === 2 ? String(categ[1]) : "";
+  return {
+    id,
+    name: factToString(rec.name),
+    botanicalName: facts.grove_botanical_name ?? "",
+    category,
+    shippingTier: factToString(rec.grove_shipping_tier),
+    facts,
+    emptyFillable
+  };
+}
+async function runContentDraft(deps) {
+  const { odoo, llm, houseRules, dryRun, now, logger } = deps;
+  const empty = { picked: 0, productId: null, drafted: false, dryRun, filledFactCount: 0 };
+  const search = await odoo.searchRequested(1);
+  if (!search.ok) return { ...empty, error: `search failed: ${search.error}` };
+  const id = search.data[0];
+  if (id === void 0) return empty;
+  const read = await odoo.read(id, READ_FIELDS);
+  if (!read.ok) return { ...empty, picked: 1, productId: id, error: `read failed: ${read.error}` };
+  const product = toProductView(id, read.data);
+  const draft = await draftContent(llm, houseRules, product);
+  if (!draft.ok) {
+    await odoo.postNote(
+      id,
+      `<p><strong>Content draft failed.</strong> ${escapeHtml(draft.error)} \u2014 left as requested; will retry.</p>`
+    );
+    return { picked: 1, productId: id, drafted: false, dryRun, filledFactCount: 0, error: draft.error };
+  }
+  if (dryRun) {
+    logger?.info("content-drafter dry-run (no write)", {
+      productId: id,
+      name: product.name,
+      filledFacts: draft.data.filledFacts.map((f) => f.field),
+      sources: draft.data.sources.map((s) => s.url)
+    });
+    return { picked: 1, productId: id, drafted: false, dryRun: true, filledFactCount: draft.data.filledFacts.length };
+  }
+  const nowIso = now.toISOString();
+  const existingProv = read.data.grove_facts_provenance && typeof read.data.grove_facts_provenance === "object" && !Array.isArray(read.data.grove_facts_provenance) ? { ...read.data.grove_facts_provenance } : {};
+  const vals = {
+    description_ecommerce: draft.data.descriptionEcommerce,
+    website_description: draft.data.websiteDescription,
+    grove_draft_state: "drafted",
+    grove_facts_reviewed: false
+  };
+  for (const f of draft.data.filledFacts) {
+    vals[f.field] = f.value;
+    existingProv[f.field] = { source: "agent", ref: f.sourceUrl, at: nowIso };
+  }
+  if (draft.data.filledFacts.length > 0) {
+    vals.grove_facts_provenance = existingProv;
+  }
+  const wrote = await odoo.write(id, vals);
+  if (!wrote.ok) {
+    await odoo.postNote(
+      id,
+      `<p><strong>Content draft write failed.</strong> ${escapeHtml(wrote.error)} \u2014 left as requested; will retry.</p>`
+    );
+    return { picked: 1, productId: id, drafted: false, dryRun, filledFactCount: 0, error: wrote.error };
+  }
+  await odoo.postNote(id, renderSourcesNote(draft.data.filledFacts, draft.data.sources));
+  logger?.info("content-drafter drafted", { productId: id, filledFacts: draft.data.filledFacts.length });
+  return {
+    picked: 1,
+    productId: id,
+    drafted: true,
+    dryRun: false,
+    filledFactCount: draft.data.filledFacts.length
+  };
+}
+function renderSourcesNote(filled, sources) {
+  const parts = ["<p><strong>Content drafted by grove-content-drafter.</strong> Review and tick Facts reviewed + Guide approved to publish.</p>"];
+  if (filled.length) {
+    parts.push("<p>Filled facts (cited):</p><ul>");
+    for (const f of filled) {
+      parts.push(
+        `<li>${escapeHtml(f.field)}: ${escapeHtml(f.value)} \u2014 <a href="${escapeHtml(f.sourceUrl)}">${escapeHtml(f.sourceName)}</a></li>`
+      );
+    }
+    parts.push("</ul>");
+  }
+  if (sources.length) {
+    parts.push("<p>Sources used:</p><ul>");
+    for (const s of sources) parts.push(`<li><a href="${escapeHtml(s.url)}">${escapeHtml(s.name)}</a></li>`);
+    parts.push("</ul>");
+  }
+  return parts.join("");
 }
 
 // src/worker.ts
-var INBOUND_ENDPOINT_KEY = "github-issue";
-var APP_WEBHOOK_ENDPOINT_KEY = "github-app";
-var PR_WEBHOOK_ENDPOINT_KEY = "github-pr";
-var SIGNOFF_RECONCILE_WINDOW_MS = 3 * 24 * 60 * 60 * 1e3;
-var SIGNOFF_RECONCILE_ROW_CAP = 200;
-var INBOUND_CLOSE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
-var INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
-var INBOUND_CREATE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
-var INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
-var PR_REVIEW_RECONCILE_MAX_PAGES = 3;
-var currentContext = null;
-function safeJson(raw) {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-var PRIORITIES = ["critical", "high", "medium", "low"];
 function readConfig(raw) {
-  const rawBridges = Array.isArray(raw.bridges) ? raw.bridges : [];
-  const bridges = rawBridges.map((b) => {
-    const o = b ?? {};
-    const rawPriority = typeof o.defaultPriority === "string" ? o.defaultPriority.toLowerCase() : "";
-    const defaultAssigneeAgentId = o.defaultAssigneeAgentId ? String(o.defaultAssigneeAgentId) : void 0;
-    const fallbackAssigneeAgentId = o.fallbackAssigneeAgentId ? String(o.fallbackAssigneeAgentId) : void 0;
-    const labelRouting = o.labelRouting && typeof o.labelRouting === "object" && !Array.isArray(o.labelRouting) ? Object.fromEntries(
-      Object.entries(o.labelRouting).filter(([, v]) => typeof v === "string" && v).map(([k, v]) => [k, String(v)])
-    ) : void 0;
-    return {
-      githubOrg: String(o.githubOrg ?? "EngineeringMoonBear"),
-      githubRepo: String(o.githubRepo ?? ""),
-      paperclipProjectId: String(o.paperclipProjectId ?? ""),
-      syncLabelPaperclip: String(o.syncLabelPaperclip ?? "synced-from-paperclip"),
-      syncMarkerGithub: String(o.syncMarkerGithub ?? "synced-from-github"),
-      defaultAssigneeAgentId,
-      fallbackAssigneeAgentId,
-      ...labelRouting && Object.keys(labelRouting).length > 0 ? { labelRouting } : {},
-      // Invalid/absent priority silently falls back to "medium" at create time.
-      defaultPriority: PRIORITIES.includes(rawPriority) ? rawPriority : void 0
-    };
-  }).filter((b) => b.githubRepo && b.paperclipProjectId);
   return {
-    bridges,
-    tokenBrokerUrl: raw.tokenBrokerUrl ? String(raw.tokenBrokerUrl) : void 0,
-    tokenBrokerApiKey: raw.tokenBrokerApiKey ? String(raw.tokenBrokerApiKey) : void 0,
-    githubToken: raw.githubToken ? String(raw.githubToken) : void 0,
-    companyId: raw.companyId ? String(raw.companyId) : void 0,
-    inboundWebhookSecret: raw.inboundWebhookSecret ? String(raw.inboundWebhookSecret) : void 0,
-    appWebhookSecret: raw.appWebhookSecret ? String(raw.appWebhookSecret) : void 0,
-    opsWebhookUrl: raw.opsWebhookUrl ? String(raw.opsWebhookUrl) : void 0,
-    opsPingMode: raw.opsPingMode === "verbose" || raw.opsPingMode === "errors" || raw.opsPingMode === "outcomes" ? raw.opsPingMode : void 0,
-    prReviewAliceAgentId: raw.prReviewAliceAgentId ? String(raw.prReviewAliceAgentId) : void 0,
-    prReviewIrisAgentId: raw.prReviewIrisAgentId ? String(raw.prReviewIrisAgentId) : void 0,
-    prReviewFrontendPaths: Array.isArray(raw.prReviewFrontendPaths) ? raw.prReviewFrontendPaths.filter((p) => typeof p === "string" && p.length > 0) : void 0,
-    ciAgentPrAuthor: raw.ciAgentPrAuthor ? String(raw.ciAgentPrAuthor) : void 0,
-    paperclipApiBaseUrl: raw.paperclipApiBaseUrl ? String(raw.paperclipApiBaseUrl) : void 0,
-    paperclipApiToken: raw.paperclipApiToken ? String(raw.paperclipApiToken) : void 0,
-    paperclipCfAccessClientId: raw.paperclipCfAccessClientId ? String(raw.paperclipCfAccessClientId) : void 0,
-    paperclipCfAccessClientSecret: raw.paperclipCfAccessClientSecret ? String(raw.paperclipCfAccessClientSecret) : void 0
+    odooBaseUrl: String(raw.odooBaseUrl ?? "https://odoo.qa.gatheringatthegrove.com"),
+    odooDb: String(raw.odooDb ?? "odoo"),
+    odooUsername: String(raw.odooUsername ?? ""),
+    odooPassword: String(raw.odooPassword ?? ""),
+    anthropicApiKey: String(raw.anthropicApiKey ?? ""),
+    anthropicModel: String(raw.anthropicModel ?? "claude-sonnet-5"),
+    houseRules: String(raw.houseRules ?? ""),
+    // dryRun defaults TRUE — never write until Josh explicitly enables it.
+    dryRun: raw.dryRun === void 0 ? true : Boolean(raw.dryRun)
   };
 }
-function restFallbackClient(ctx, cfg) {
-  if (!cfg.paperclipApiBaseUrl || !cfg.paperclipApiToken) return null;
-  return new PaperclipRestClient({
-    baseUrl: cfg.paperclipApiBaseUrl,
-    token: cfg.paperclipApiToken,
-    http: ctx.http,
-    cfAccessClientId: cfg.paperclipCfAccessClientId,
-    cfAccessClientSecret: cfg.paperclipCfAccessClientSecret
-  });
-}
-function restFallbackDeps(ctx, cfg) {
+async function build(ctx) {
+  const cfg = readConfig(await ctx.config.get());
+  const missing = ["odooBaseUrl", "odooDb", "odooUsername", "odooPassword", "anthropicApiKey"].filter(
+    (k) => !cfg[k]
+  );
+  if (missing.length) {
+    throw new Error(`content-drafter not configured \u2014 missing: ${missing.join(", ")}`);
+  }
   return {
-    logger: ctx.logger,
-    rest: restFallbackClient(ctx, cfg),
-    // GOL-1485: every fallback path routes through here, so wiring the observability hook
-    // once covers mirror.create, sync.get, reconcile.list, ci.*, close, etc. uniformly.
-    onFallbackFailure: ({ site, status }) => recordFallbackFailure(ctx, cfg, site, status)
+    cfg,
+    odoo: new OdooClient({
+      baseUrl: cfg.odooBaseUrl,
+      db: cfg.odooDb,
+      username: cfg.odooUsername,
+      password: cfg.odooPassword
+    }),
+    llm: new AnthropicClient({ apiKey: cfg.anthropicApiKey, model: cfg.anthropicModel })
   };
-}
-async function recordFallbackFailure(ctx, cfg, site, status) {
-  const code = status === void 0 ? "no HTTP status" : `HTTP ${status}`;
-  try {
-    await recordError(ctx.db, {
-      occurredAt: (/* @__PURE__ */ new Date()).toISOString(),
-      scope: "rest-fallback-failed",
-      detail: `Paperclip REST fallback failed for ${site} (${code})`,
-      context: { site, status }
-    });
-  } catch (writeErr) {
-    ctx.logger.warn("failed to persist rest-fallback failure to github_sync_error", {
-      site,
-      error: writeErr instanceof Error ? writeErr.message : String(writeErr)
-    });
-  }
-  await postThrottledOpsAlert(ctx, cfg, buildFallbackFailurePing(site, status));
-}
-var opsAlertThrottle = new OpsPingThrottle();
-async function postThrottledOpsAlert(ctx, cfg, content) {
-  const decision = opsAlertThrottle.decide(content, Date.now());
-  if (!decision.emit) return;
-  await postOpsPing(ctx, cfg.opsWebhookUrl, withSuppressionNote(content, decision.suppressed));
-}
-function wantPing(cfg, klass) {
-  const mode = cfg.opsPingMode ?? "outcomes";
-  if (klass === "error") return true;
-  if (mode === "verbose") return true;
-  if (mode === "outcomes") return klass === "outcome";
-  return false;
-}
-async function postOpsPing(ctx, webhookUrl, content) {
-  if (!webhookUrl) return;
-  try {
-    const res = await ctx.http.fetch(webhookUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content })
-    });
-    if (!res.ok) {
-      ctx.logger.warn("ops webhook ping failed", { status: res.status });
-    }
-  } catch (err) {
-    if (isNullBodyStatusError(err)) return;
-    ctx.logger.warn("ops webhook ping error", {
-      error: err instanceof Error ? err.message : String(err)
-    });
-  }
-}
-async function recordSwallowedFailure(ctx, cfg, scope, err, context = {}) {
-  const detail = err instanceof Error ? err.message : String(err);
-  ctx.logger.error(scope, { ...context, error: detail });
-  try {
-    await recordError(ctx.db, {
-      occurredAt: (/* @__PURE__ */ new Date()).toISOString(),
-      scope,
-      detail,
-      context
-    });
-  } catch (writeErr) {
-    ctx.logger.warn("failed to persist swallowed failure to github_sync_error", {
-      error: writeErr instanceof Error ? writeErr.message : String(writeErr)
-    });
-  }
-  await postThrottledOpsAlert(ctx, cfg, buildSwallowedFailurePing(scope, detail));
-}
-async function recordPipelineError(ctx, cfg, scope, detail, context = {}) {
-  ctx.logger.warn(scope, { ...context, detail });
-  try {
-    await recordError(ctx.db, {
-      occurredAt: (/* @__PURE__ */ new Date()).toISOString(),
-      scope,
-      detail,
-      context
-    });
-  } catch (writeErr) {
-    ctx.logger.warn("failed to persist pipeline error to github_sync_error", {
-      error: writeErr instanceof Error ? writeErr.message : String(writeErr)
-    });
-  }
-  await postThrottledOpsAlert(ctx, cfg, buildPipelineErrorPing(detail));
-}
-async function safeRecordDelivery(ctx, input2, outcome, detail) {
-  try {
-    await recordDelivery(ctx.db, {
-      requestId: input2.requestId,
-      endpointKey: input2.endpointKey,
-      event: getHeader(input2.headers, "x-github-event") ?? null,
-      deliveryGuid: getHeader(input2.headers, "x-github-delivery") ?? null,
-      outcome,
-      detail: detail ?? null,
-      occurredAt: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  } catch (err) {
-    ctx.logger.warn("failed to persist webhook delivery outcome", {
-      endpointKey: input2.endpointKey,
-      outcome,
-      error: err instanceof Error ? err.message : String(err)
-    });
-  }
-}
-function makeDispatch(ctx, cfg, depsByProject, handle, eventName) {
-  return async (event) => {
-    try {
-      if (!event.entityId) {
-        ctx.logger.warn(`${eventName} event missing entityId; skipping`);
-        return;
-      }
-      const issue2 = await withRestFallback(
-        restFallbackDeps(ctx, cfg),
-        `${eventName}.get`,
-        () => ctx.issues.get(event.entityId, event.companyId),
-        async (rest) => await rest.getIssue(event.entityId)
-      );
-      if (!issue2) {
-        ctx.logger.warn(`${eventName}: issue not readable; skipping`, {
-          issueId: event.entityId
-        });
-        return;
-      }
-      const deps = issue2.projectId ? depsByProject.get(issue2.projectId) : void 0;
-      if (!deps) return;
-      await handle(deps, { issueId: event.entityId, companyId: event.companyId });
-    } catch (err) {
-      await recordSwallowedFailure(ctx, cfg, `${eventName} handler failed`, err, {
-        issueId: event.entityId
-      });
-    }
-  };
-}
-function matchBridge(cfg, repo) {
-  return cfg.bridges.find(
-    (b) => `${b.githubOrg}/${b.githubRepo}`.toLowerCase() === repo.toLowerCase() || b.githubRepo.toLowerCase() === repo.toLowerCase()
-  );
-}
-async function createMirrorIssue(ctx, cfg, bridge, payload, labels = [], runInScope = (fn) => fn()) {
-  if (!cfg.companyId) {
-    ctx.logger.error("inbound webhook: companyId not configured \u2014 cannot create issue");
-    return;
-  }
-  const existing = await getByRepoNumber(ctx.db, payload.repo, payload.number);
-  if (existing) {
-    ctx.logger.info("inbound webhook: already mirrored; skipping", {
-      repo: payload.repo,
-      number: payload.number
-    });
-    return;
-  }
-  const routing = resolveRouting(bridge, labels);
-  const assigneeAgentId = routing.assigneeAgentId;
-  const createInput = {
-    companyId: cfg.companyId,
-    projectId: bridge.paperclipProjectId,
-    title: payload.title,
-    description: buildInboundDescription(payload),
-    status: "todo",
-    priority: bridge.defaultPriority ?? "medium",
-    ...assigneeAgentId ? { assigneeAgentId } : {}
-  };
-  const issue2 = await withRestFallback(
-    restFallbackDeps(ctx, cfg),
-    "mirror.create",
-    () => runInScope(() => ctx.issues.create(createInput)),
-    // companyId moves into the URL for the REST create; pass the rest of the payload.
-    (rest) => {
-      const { companyId: _companyId, ...restBody } = createInput;
-      return rest.createIssue(cfg.companyId, restBody);
-    }
-  );
-  await upsert(ctx.db, {
-    paperclipIssueId: issue2.id,
-    githubRepo: payload.repo,
-    githubIssueNumber: payload.number,
-    lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    origin: "github"
-  });
-  ctx.logger.info("inbound: created Paperclip issue from GitHub", {
-    repo: payload.repo,
-    number: payload.number,
-    projectId: bridge.paperclipProjectId,
-    issueId: issue2.id,
-    assigneeAgentId: assigneeAgentId ?? null,
-    routing: routing.reason,
-    routedByLabel: routing.matchedLabel ?? null
-  });
-  if (!assigneeAgentId) {
-    ctx.logger.warn(
-      "inbound: mirror created UNASSIGNED \u2014 configure the bridge's labelRouting/fallbackAssigneeAgentId (or defaultAssigneeAgentId) so it enters an agent heartbeat",
-      { repo: payload.repo, number: payload.number, projectId: bridge.paperclipProjectId }
-    );
-  }
-  if (!wantPing(cfg, assigneeAgentId ? "lifecycle" : "error")) return;
-  await postOpsPing(
-    ctx,
-    cfg.opsWebhookUrl,
-    buildMirrorOpsMessage({
-      repo: payload.repo,
-      number: payload.number,
-      title: payload.title,
-      url: payload.url,
-      projectId: bridge.paperclipProjectId,
-      issueId: issue2.id,
-      assigneeAgentId,
-      routedByLabel: routing.matchedLabel,
-      routedByFallback: routing.reason === "fallback" || routing.reason === "default"
-    })
-  );
-}
-async function handleCustomInbound(ctx, cfg, input2, runInScope) {
-  if (!cfg.inboundWebhookSecret) {
-    throw new WebhookRejection("rejected_config", "inbound webhook: no inboundWebhookSecret configured");
-  }
-  if (!verifyGithubSignature(input2.rawBody, cfg.inboundWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
-    throw new WebhookRejection("rejected_signature", "inbound webhook: signature verification failed");
-  }
-  const payload = parseInboundPayload(input2.parsedBody ?? safeJson(input2.rawBody));
-  if (!payload) {
-    throw new WebhookRejection("invalid_payload", "inbound webhook: unparseable/invalid payload");
-  }
-  const bridge = matchBridge(cfg, payload.repo);
-  if (!bridge) {
-    ctx.logger.info("inbound webhook: repo not in a synced bridge; ignoring", { repo: payload.repo });
-    return;
-  }
-  await createMirrorIssue(ctx, cfg, bridge, payload, [], runInScope);
-}
-async function handleAppClosure(ctx, cfg, event, runInScope) {
-  const bridge = matchBridge(cfg, event.payload.repo);
-  if (!bridge) {
-    ctx.logger.info("app webhook: closure for repo not in a synced bridge; ignoring", {
-      repo: event.payload.repo
-    });
-    return "no-bridge";
-  }
-  if (!cfg.companyId) {
-    ctx.logger.error("app webhook: companyId not configured \u2014 cannot propagate closure");
-    return "no-company";
-  }
-  const mapping = await getByRepoNumber(ctx.db, event.payload.repo, event.payload.number);
-  if (!mapping) {
-    ctx.logger.info("app webhook: closure for unmapped issue; nothing to propagate", {
-      repo: event.payload.repo,
-      number: event.payload.number,
-      action: event.action
-    });
-    return "unmapped";
-  }
-  const issue2 = await withRestFallback(
-    restFallbackDeps(ctx, cfg),
-    "closure.get",
-    () => runInScope(() => ctx.issues.get(mapping.paperclipIssueId, cfg.companyId)),
-    async (rest) => await rest.getIssue(mapping.paperclipIssueId)
-  );
-  if (!issue2) {
-    const deleted = await deleteByPaperclipIssueId(ctx.db, mapping.paperclipIssueId);
-    ctx.logger.info("app webhook: mirror issue gone; pruned orphaned mapping (self-heal)", {
-      issueId: mapping.paperclipIssueId,
-      repo: event.payload.repo,
-      number: event.payload.number,
-      action: event.action,
-      rowsDeleted: deleted
-    });
-    return "pruned";
-  }
-  const target = resolveMirrorClosureStatus(event.action, issue2.status);
-  if (!target) {
-    ctx.logger.info("app webhook: mirror already in sync; skipping (loop guard)", {
-      issueId: issue2.id,
-      action: event.action,
-      status: issue2.status
-    });
-    return "in-sync";
-  }
-  await withRestFallback(
-    restFallbackDeps(ctx, cfg),
-    "closure.update",
-    async () => {
-      await runInScope(() => ctx.issues.update(issue2.id, { status: target }, cfg.companyId));
-    },
-    async (rest) => {
-      await rest.updateIssue(issue2.id, { status: target });
-    }
-  );
-  await upsert(ctx.db, { ...mapping, lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString() });
-  ctx.logger.info("app webhook: propagated GitHub closure to Paperclip mirror", {
-    issueId: issue2.id,
-    repo: event.payload.repo,
-    number: event.payload.number,
-    action: event.action,
-    status: target
-  });
-  return "propagated";
-}
-async function handleAppInbound(ctx, cfg, input2, runInScope) {
-  if (!cfg.appWebhookSecret) {
-    throw new WebhookRejection("rejected_config", "app webhook: no appWebhookSecret configured");
-  }
-  if (!verifyGithubSignature(input2.rawBody, cfg.appWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
-    throw new WebhookRejection("rejected_signature", "app webhook: signature verification failed");
-  }
-  const eventType = getHeader(input2.headers, "x-github-event");
-  if (eventType && eventType !== "issues") {
-    ctx.logger.info("app webhook: ignoring non-issues event", { eventType });
-    return;
-  }
-  const event = parseGithubAppIssueEvent(input2.parsedBody ?? safeJson(input2.rawBody));
-  if (!event) {
-    ctx.logger.warn("app webhook: unparseable/invalid issues payload");
-    return;
-  }
-  if (event.action === "closed" || event.action === "reopened") {
-    await handleAppClosure(ctx, cfg, event, runInScope);
-    return;
-  }
-  if (event.action !== "opened") {
-    ctx.logger.info("app webhook: ignoring issue action", { action: event.action });
-    return;
-  }
-  const bridge = matchBridge(cfg, event.payload.repo);
-  if (!bridge) {
-    ctx.logger.info("app webhook: repo not in a synced bridge; ignoring", { repo: event.payload.repo });
-    return;
-  }
-  if (event.labels.some((l) => l.toLowerCase() === bridge.syncLabelPaperclip.toLowerCase())) {
-    ctx.logger.info("app webhook: issue is Paperclip-origin (label); skipping", {
-      repo: event.payload.repo,
-      number: event.payload.number
-    });
-    return;
-  }
-  await createMirrorIssue(ctx, cfg, bridge, event.payload, event.labels, runInScope);
-}
-function makeBridgeGithubClient(cfg, bridge) {
-  const brokerUrl = cfg.tokenBrokerUrl || process.env.GH_TOKEN_BROKER_URL || "";
-  if (brokerUrl) {
-    return new GitHubClient({
-      org: bridge.githubOrg,
-      getToken: makeBrokerTokenProvider(brokerUrl, bridge.githubOrg, { apiKey: cfg.tokenBrokerApiKey })
-    });
-  }
-  if (cfg.githubToken) {
-    return new GitHubClient({ org: bridge.githubOrg, getToken: staticTokenProvider(cfg.githubToken) });
-  }
-  return null;
-}
-function captureInvocationScope() {
-  return AsyncResource.bind((fn) => fn());
-}
-async function handlePrInbound(ctx, cfg, input2) {
-  if (!cfg.appWebhookSecret) {
-    throw new WebhookRejection("rejected_config", "pr webhook: no appWebhookSecret configured");
-  }
-  if (!verifyGithubSignature(input2.rawBody, cfg.appWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
-    throw new WebhookRejection("rejected_signature", "pr webhook: signature verification failed");
-  }
-  const eventType = getHeader(input2.headers, "x-github-event");
-  if (eventType && eventType !== "pull_request") {
-    ctx.logger.info("pr webhook: ignoring non-pull_request event", { eventType });
-    return;
-  }
-  const ev = parseGithubPrEvent(input2.parsedBody ?? safeJson(input2.rawBody));
-  if (!ev) {
-    ctx.logger.warn("pr webhook: unparseable/invalid pull_request payload");
-    return;
-  }
-  if (ev.draft) {
-    ctx.logger.info("pr webhook: skipping draft PR", { repo: ev.repo, number: ev.number });
-    return;
-  }
-  if (!isActionablePrAction(ev.action)) {
-    ctx.logger.info("pr webhook: ignoring PR action", { action: ev.action, repo: ev.repo, number: ev.number });
-    return;
-  }
-  const bridge = matchBridge(cfg, ev.repo);
-  if (!bridge) {
-    ctx.logger.info("pr webhook: repo not in a synced bridge; ignoring", { repo: ev.repo });
-    return;
-  }
-  if (!cfg.companyId) {
-    ctx.logger.error("pr webhook: companyId not configured \u2014 cannot create review issues");
-    return;
-  }
-  if (!cfg.prReviewAliceAgentId) {
-    ctx.logger.info("pr webhook: PR review pipeline disabled (no prReviewAliceAgentId configured)");
-    return;
-  }
-  const github = makeBridgeGithubClient(cfg, bridge);
-  if (!github) {
-    ctx.logger.warn("pr webhook: no auth for bridge \u2014 cannot fetch PR files", { repo: ev.repo });
-    return;
-  }
-  if (ev.action === "synchronize") {
-    const headSha = ev.after || ev.headSha;
-    const commitRes = await github.getCommit(bridge.githubRepo, headSha);
-    if (!commitRes.ok) {
-      ctx.logger.warn("pr webhook: head commit fetch failed \u2014 treating as author work", {
-        repo: ev.repo,
-        number: ev.number,
-        headSha,
-        error: commitRes.error
-      });
-    }
-    const kind = classifyHeadChange({
-      before: ev.before,
-      head: commitRes.ok ? { parents: commitRes.data.parents, committerLogin: commitRes.data.committerLogin } : null
-    });
-    if (kind === "base-sync") {
-      ctx.logger.info("pr webhook: base-sync (Update branch) \u2014 skipping re-review", {
-        repo: ev.repo,
-        number: ev.number,
-        before: ev.before,
-        after: headSha
-      });
-      return;
-    }
-  }
-  const runInScope = captureInvocationScope();
-  const filesRes = await github.listPullFiles(bridge.githubRepo, ev.number);
-  if (!filesRes.ok) {
-    await recordSwallowedFailure(
-      ctx,
-      cfg,
-      "pr webhook: failed to fetch PR changed files",
-      filesRes.error,
-      { repo: ev.repo, number: ev.number }
-    );
-    return;
-  }
-  const { files, truncated } = filesRes.data;
-  if (truncated) {
-    ctx.logger.warn("pr webhook: changed-file list truncated at the page cap \u2014 frontend match may under-report", {
-      repo: ev.repo,
-      number: ev.number
-    });
-  }
-  const frontendPaths = cfg.prReviewFrontendPaths?.length ? cfg.prReviewFrontendPaths : DEFAULT_FRONTEND_PATHS;
-  const isFrontend = anyFrontendMatch(files, frontendPaths);
-  const reviewers = [
-    { reviewer: "ada", agentId: cfg.prReviewAliceAgentId }
-  ];
-  if (isFrontend && cfg.prReviewIrisAgentId) {
-    reviewers.push({ reviewer: "iris", agentId: cfg.prReviewIrisAgentId });
-  }
-  const created = [];
-  const reopened = [];
-  for (const { reviewer, agentId } of reviewers) {
-    try {
-      const outcome = await processReviewer(ctx, cfg, bridge, github, ev, files, reviewer, agentId, runInScope);
-      if (outcome === "created") created.push(reviewer);
-      else if (outcome === "reopened") reopened.push(reviewer);
-    } catch (err) {
-      await recordSwallowedFailure(ctx, cfg, "pr webhook: reviewer processing failed", err, {
-        repo: ev.repo,
-        number: ev.number,
-        reviewer
-      });
-    }
-  }
-  if (created.length && wantPing(cfg, "lifecycle")) {
-    await postOpsPing(ctx, cfg.opsWebhookUrl, buildReviewIssuesCreatedPing(ev, created));
-  }
-  if (reopened.length && wantPing(cfg, "lifecycle")) {
-    await postOpsPing(ctx, cfg.opsWebhookUrl, buildReReviewPing(ev, reopened));
-  }
-}
-async function processReviewer(ctx, cfg, bridge, github, ev, files, reviewer, agentId, runInScope) {
-  const existing = await getReviewRecord(ctx.db, ev.repo, ev.number, reviewer);
-  const action = decideReviewAction(existing ? existing.headSha : null, ev.headSha);
-  if (action === "noop") {
-    ctx.logger.info("pr webhook: already reviewed at this head SHA; skipping", {
-      repo: ev.repo,
-      number: ev.number,
-      reviewer,
-      headSha: ev.headSha
-    });
-    return "noop";
-  }
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  if (action === "create" || !existing) {
-    const createInput = {
-      companyId: cfg.companyId,
-      projectId: bridge.paperclipProjectId,
-      title: buildReviewIssueTitle(reviewer, ev),
-      description: buildReviewIssueBody(reviewer, ev, files),
-      status: "todo",
-      priority: bridge.defaultPriority ?? "medium",
-      assigneeAgentId: agentId
-    };
-    const issue2 = await withRestFallback(
-      restFallbackDeps(ctx, cfg),
-      "review.create",
-      () => runInScope(() => ctx.issues.create(createInput)),
-      (rest) => {
-        const { companyId: _companyId, ...restBody } = createInput;
-        return rest.createIssue(cfg.companyId, restBody);
-      }
-    );
-    await upsertReviewRecord(ctx.db, {
-      githubRepo: ev.repo,
-      prNumber: ev.number,
-      reviewer,
-      headSha: ev.headSha,
-      paperclipIssueId: issue2.id,
-      updatedAt: now
-    });
-    ctx.logger.info("pr webhook: created review issue", {
-      repo: ev.repo,
-      number: ev.number,
-      reviewer,
-      issueId: issue2.id,
-      assigneeAgentId: agentId
-    });
-    await seedPendingCheck(ctx, github, bridge, ev, reviewer);
-    return "created";
-  }
-  const deps = restFallbackDeps(ctx, cfg);
-  await withRestFallback(
-    deps,
-    "review.update",
-    async () => {
-      await runInScope(() => ctx.issues.update(existing.paperclipIssueId, { status: "todo" }, cfg.companyId));
-    },
-    async (rest) => {
-      await rest.updateIssue(existing.paperclipIssueId, { status: "todo" });
-    }
-  );
-  const newCommitsNote = buildNewCommitsNote(reviewer, ev);
-  await withRestFallback(
-    deps,
-    "review.comment",
-    async () => {
-      await runInScope(() => ctx.issues.createComment(existing.paperclipIssueId, newCommitsNote, cfg.companyId));
-    },
-    (rest) => rest.createComment(existing.paperclipIssueId, newCommitsNote)
-  );
-  await upsertReviewRecord(ctx.db, {
-    githubRepo: ev.repo,
-    prNumber: ev.number,
-    reviewer,
-    headSha: ev.headSha,
-    paperclipIssueId: existing.paperclipIssueId,
-    updatedAt: now
-  });
-  ctx.logger.info("pr webhook: reopened review issue for new commits", {
-    repo: ev.repo,
-    number: ev.number,
-    reviewer,
-    issueId: existing.paperclipIssueId,
-    headSha: ev.headSha
-  });
-  await seedPendingCheck(ctx, github, bridge, ev, reviewer);
-  return "reopened";
-}
-async function driveSweepReview(ctx, cfg, repoSlug, pr) {
-  const bridge = matchBridge(cfg, repoSlug);
-  if (!bridge) return "no-bridge";
-  if (pr.draft) return "skipped-draft";
-  const canonicalRepo = pr.fullName || repoSlug;
-  const adaRec = await getReviewRecord(ctx.db, canonicalRepo, pr.number, "ada");
-  if (adaRec && adaRec.headSha === pr.headSha) return "skipped-current";
-  const github = makeBridgeGithubClient(cfg, bridge);
-  if (!github) {
-    ctx.logger.warn("pr-review-reconcile: no auth for bridge \u2014 cannot fetch PR files", { repo: repoSlug });
-    return "failed";
-  }
-  const filesRes = await github.listPullFiles(bridge.githubRepo, pr.number);
-  if (!filesRes.ok) {
-    ctx.logger.warn("pr-review-reconcile: failed to fetch PR changed files", {
-      repo: repoSlug,
-      number: pr.number,
-      error: filesRes.error
-    });
-    return "failed";
-  }
-  const { files } = filesRes.data;
-  const ev = {
-    action: "reopened",
-    draft: false,
-    repo: canonicalRepo,
-    number: pr.number,
-    title: pr.title,
-    headSha: pr.headSha,
-    url: pr.url,
-    before: "",
-    after: ""
-  };
-  const frontendPaths = cfg.prReviewFrontendPaths?.length ? cfg.prReviewFrontendPaths : DEFAULT_FRONTEND_PATHS;
-  const reviewers = [
-    { reviewer: "ada", agentId: cfg.prReviewAliceAgentId }
-  ];
-  if (anyFrontendMatch(files, frontendPaths) && cfg.prReviewIrisAgentId) {
-    reviewers.push({ reviewer: "iris", agentId: cfg.prReviewIrisAgentId });
-  }
-  let landed = false;
-  for (const { reviewer, agentId } of reviewers) {
-    const outcome = await processReviewer(
-      ctx,
-      cfg,
-      bridge,
-      github,
-      ev,
-      files,
-      reviewer,
-      agentId,
-      (fn) => fn()
-    );
-    if (outcome === "created" || outcome === "reopened") landed = true;
-  }
-  return landed ? "twinned" : "failed";
-}
-async function seedPendingCheck(ctx, github, bridge, ev, reviewer) {
-  const res = await github.createCheckRun(bridge.githubRepo, {
-    name: CHECK_CONTEXT[reviewer],
-    headSha: ev.headSha,
-    title: `Agent review pending (${reviewer})`,
-    summary: `Awaiting ${reviewer}'s review of ${ev.repo}#${ev.number} @ \`${shortSha(ev.headSha)}\`. Non-required during Phase 2 soak (GOL-158).`,
-    detailsUrl: ev.url || void 0
-  });
-  if (!res.ok) {
-    ctx.logger.warn("pr webhook: pending check-run seed failed (needs App checks:write?)", {
-      repo: ev.repo,
-      number: ev.number,
-      reviewer,
-      status: res.status,
-      error: res.error
-    });
-  }
-}
-async function handleCiCompletion(ctx, cfg, input2, eventType) {
-  if (!cfg.appWebhookSecret) {
-    throw new WebhookRejection("rejected_config", "ci webhook: no appWebhookSecret configured");
-  }
-  if (!verifyGithubSignature(input2.rawBody, cfg.appWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
-    throw new WebhookRejection("rejected_signature", `ci webhook: signature verification failed (${eventType})`);
-  }
-  const ev = parseCiCompletionEvent(input2.parsedBody ?? safeJson(input2.rawBody), eventType);
-  if (!ev) {
-    ctx.logger.warn("ci webhook: unparseable/invalid payload", { eventType });
-    return;
-  }
-  if (ev.action !== "completed") {
-    ctx.logger.info("ci webhook: ignoring non-completed action", { action: ev.action, eventType });
-    return;
-  }
-  if (ev.prNumbers.length === 0) {
-    ctx.logger.info("ci webhook: run not associated with a PR; ignoring", {
-      repo: ev.repo,
-      headSha: ev.headSha,
-      eventType
-    });
-    return;
-  }
-  const bridge = matchBridge(cfg, ev.repo);
-  if (!bridge) {
-    ctx.logger.info("ci webhook: repo not in a synced bridge; ignoring", { repo: ev.repo });
-    return;
-  }
-  if (!cfg.companyId) {
-    ctx.logger.error("ci webhook: companyId not configured \u2014 cannot manage fix issues");
-    return;
-  }
-  if (!cfg.prReviewAliceAgentId) {
-    ctx.logger.info("ci webhook: CI-fix loop disabled (no prReviewAliceAgentId configured)");
-    return;
-  }
-  const github = makeBridgeGithubClient(cfg, bridge);
-  if (!github) {
-    ctx.logger.warn("ci webhook: no auth for bridge \u2014 cannot manage fix issues", { repo: ev.repo });
-    return;
-  }
-  const runInScope = captureInvocationScope();
-  for (const prNumber of ev.prNumbers) {
-    try {
-      await processCiPr(ctx, cfg, bridge, github, ev, prNumber, runInScope);
-    } catch (err) {
-      await recordPipelineError(
-        ctx,
-        cfg,
-        "ci webhook: PR processing failed",
-        `CI-fix handling failed for ${ev.repo}#${prNumber}`,
-        { repo: ev.repo, prNumber, error: err instanceof Error ? err.message : String(err) }
-      );
-    }
-  }
-}
-async function processCiPr(ctx, cfg, bridge, github, ev, prNumber, runInScope) {
-  const checksRes = await github.listCommitCheckRuns(bridge.githubRepo, ev.headSha);
-  if (!checksRes.ok) {
-    await recordPipelineError(
-      ctx,
-      cfg,
-      "ci webhook: failed to list check-runs",
-      `could not list check-runs for ${ev.repo}@${ev.headSha}: ${checksRes.error}`,
-      { repo: ev.repo, prNumber, headSha: ev.headSha, error: checksRes.error }
-    );
-    return;
-  }
-  const state = classifyCiState(checksRes.data);
-  const record2 = await getCiFailureRecord(ctx.db, ev.repo, prNumber);
-  const action = decideCiFixAction(record2, state);
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  if (action === "noop") {
-    ctx.logger.info("ci webhook: no action", {
-      repo: ev.repo,
-      prNumber,
-      state,
-      record: record2?.status ?? null
-    });
-    return;
-  }
-  if (action === "close") {
-    const rec2 = record2;
-    const closeDeps = restFallbackDeps(ctx, cfg);
-    await withRestFallback(
-      closeDeps,
-      "ci.close.update",
-      async () => {
-        await runInScope(() => ctx.issues.update(rec2.paperclipIssueId, { status: "done" }, cfg.companyId));
-      },
-      async (rest) => {
-        await rest.updateIssue(rec2.paperclipIssueId, { status: "done" });
-      }
-    );
-    const resolvedNote = buildCiResolvedNote(ev.headSha);
-    await withRestFallback(
-      closeDeps,
-      "ci.close.comment",
-      async () => {
-        await runInScope(() => ctx.issues.createComment(rec2.paperclipIssueId, resolvedNote, cfg.companyId));
-      },
-      (rest) => rest.createComment(rec2.paperclipIssueId, resolvedNote)
-    );
-    await upsertCiFailureRecord(ctx.db, { ...rec2, headSha: ev.headSha, status: "closed", updatedAt: now });
-    ctx.logger.info("ci webhook: auto-closed fix issue (CI green)", {
-      repo: ev.repo,
-      prNumber,
-      issueId: rec2.paperclipIssueId,
-      headSha: ev.headSha
-    });
-    if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildCiFixResolvedPing(ev.repo, prNumber));
-    return;
-  }
-  const prRes = await github.getPull(bridge.githubRepo, prNumber);
-  if (!prRes.ok) {
-    ctx.logger.error("ci webhook: failed to fetch PR", { repo: ev.repo, prNumber, error: prRes.error });
-    return;
-  }
-  const pr = prRes.data;
-  const agentAuthor = cfg.ciAgentPrAuthor || DEFAULT_AGENT_PR_AUTHOR;
-  if (pr.authorLogin.toLowerCase() !== agentAuthor.toLowerCase()) {
-    ctx.logger.info("ci webhook: PR not agent-authored; skipping", {
-      repo: ev.repo,
-      prNumber,
-      author: pr.authorLogin
-    });
-    return;
-  }
-  if (pr.state === "closed") {
-    ctx.logger.info("ci webhook: PR is closed; not opening a fix issue", {
-      repo: ev.repo,
-      prNumber,
-      merged: pr.merged
-    });
-    return;
-  }
-  const filesRes = await github.listPullFiles(bridge.githubRepo, prNumber);
-  const files = filesRes.ok ? filesRes.data.files : [];
-  if (!filesRes.ok) {
-    ctx.logger.warn("ci webhook: could not list PR files for owner routing; defaulting to Ada", {
-      repo: ev.repo,
-      prNumber,
-      error: filesRes.error
-    });
-  }
-  const frontendPaths = cfg.prReviewFrontendPaths?.length ? cfg.prReviewFrontendPaths : DEFAULT_FRONTEND_PATHS;
-  const owner = files.length > 0 && anyFrontendMatch(files, frontendPaths) && cfg.prReviewIrisAgentId ? { agentId: cfg.prReviewIrisAgentId, name: "Iris" } : { agentId: cfg.prReviewAliceAgentId, name: "Ada" };
-  const failed = failingChecks(checksRes.data);
-  const fixCtx = {
-    repo: ev.repo,
-    prNumber,
-    prUrl: pr.htmlUrl || ev.detailsUrl,
-    prTitle: pr.title,
-    headSha: ev.headSha,
-    ownerName: owner.name,
-    runName: ev.name,
-    runUrl: ev.detailsUrl,
-    failed
-  };
-  if (action === "create") {
-    const createInput = {
-      companyId: cfg.companyId,
-      projectId: bridge.paperclipProjectId,
-      title: buildCiFixTitle(fixCtx),
-      description: buildCiFixBody(fixCtx),
-      status: "todo",
-      // CI red blocks the merge — fix issues page higher than routine mirrors.
-      priority: bridge.defaultPriority ?? "high",
-      assigneeAgentId: owner.agentId
-    };
-    const issue2 = await withRestFallback(
-      restFallbackDeps(ctx, cfg),
-      "ci.create",
-      () => runInScope(() => ctx.issues.create(createInput)),
-      (rest) => {
-        const { companyId: _companyId, ...restBody } = createInput;
-        return rest.createIssue(cfg.companyId, restBody);
-      }
-    );
-    await upsertCiFailureRecord(ctx.db, {
-      githubRepo: ev.repo,
-      prNumber,
-      headSha: ev.headSha,
-      paperclipIssueId: issue2.id,
-      status: "open",
-      updatedAt: now
-    });
-    ctx.logger.info("ci webhook: opened CI fix issue", {
-      repo: ev.repo,
-      prNumber,
-      issueId: issue2.id,
-      assigneeAgentId: owner.agentId,
-      failedCount: failed.length
-    });
-    if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildCiFixOpenedPing(fixCtx));
-    return;
-  }
-  const rec = record2;
-  const updateDeps = restFallbackDeps(ctx, cfg);
-  await withRestFallback(
-    updateDeps,
-    "ci.update",
-    async () => {
-      await runInScope(() => ctx.issues.update(rec.paperclipIssueId, { status: "todo" }, cfg.companyId));
-    },
-    async (rest) => {
-      await rest.updateIssue(rec.paperclipIssueId, { status: "todo" });
-    }
-  );
-  const reFailNote = buildCiReFailNote(fixCtx);
-  await withRestFallback(
-    updateDeps,
-    "ci.comment",
-    async () => {
-      await runInScope(() => ctx.issues.createComment(rec.paperclipIssueId, reFailNote, cfg.companyId));
-    },
-    (rest) => rest.createComment(rec.paperclipIssueId, reFailNote)
-  );
-  await upsertCiFailureRecord(ctx.db, { ...rec, headSha: ev.headSha, status: "open", updatedAt: now });
-  ctx.logger.info("ci webhook: updated CI fix issue (still failing)", {
-    repo: ev.repo,
-    prNumber,
-    issueId: rec.paperclipIssueId,
-    headSha: ev.headSha,
-    failedCount: failed.length
-  });
-  if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildCiFixUpdatedPing(fixCtx));
 }
 var plugin = definePlugin({
   async setup(ctx) {
-    ctx.logger.info("GitHub Sync plugin starting");
-    currentContext = ctx;
-    const cfg = readConfig(await ctx.config.get());
-    if (cfg.bridges.length === 0) {
-      ctx.logger.warn(
-        "no bridges configured \u2014 GitHub Sync is INACTIVE. Set config.bridges = [{ githubOrg, githubRepo, paperclipProjectId }]. The plugin refuses to mirror company-wide."
-      );
-      return;
-    }
-    const brokerUrl = cfg.tokenBrokerUrl || process.env.GH_TOKEN_BROKER_URL || "";
-    const depsByProject = /* @__PURE__ */ new Map();
-    const clientsBySlug = /* @__PURE__ */ new Map();
-    const bridgeSlugsByProject = /* @__PURE__ */ new Map();
-    const resolveRepoClient = (repoSlug) => clientsBySlug.get(repoSlug.toLowerCase()) ?? null;
-    for (const bridge of cfg.bridges) {
-      let getToken;
-      if (brokerUrl) {
-        getToken = makeBrokerTokenProvider(brokerUrl, bridge.githubOrg, { apiKey: cfg.tokenBrokerApiKey });
-      } else if (cfg.githubToken) {
-        getToken = staticTokenProvider(cfg.githubToken);
-      } else {
-        ctx.logger.warn(
-          `bridge ${bridge.githubOrg}/${bridge.githubRepo} has no auth (no GH_TOKEN_BROKER_URL / tokenBrokerUrl and no githubToken) \u2014 skipping`
-        );
-        continue;
-      }
-      const github = new GitHubClient({ org: bridge.githubOrg, getToken });
-      const slug = `${bridge.githubOrg}/${bridge.githubRepo}`;
-      clientsBySlug.set(slug.toLowerCase(), { github, repo: bridge.githubRepo });
-      bridgeSlugsByProject.set(bridge.paperclipProjectId, [
-        ...bridgeSlugsByProject.get(bridge.paperclipProjectId) ?? [],
-        slug
-      ]);
-      depsByProject.set(bridge.paperclipProjectId, {
-        db: ctx.db,
-        github,
-        config: {
-          githubRepo: bridge.githubRepo,
-          syncLabelPaperclip: bridge.syncLabelPaperclip,
-          syncMarkerGithub: bridge.syncMarkerGithub
-        },
-        logger: ctx.logger,
-        getIssue: (issueId, companyId) => withRestFallback(
-          restFallbackDeps(ctx, cfg),
-          "sync.get",
-          () => ctx.issues.get(issueId, companyId),
-          async (rest) => await rest.getIssue(issueId)
-        ),
-        postOpsPing: async (content, kind = "outcome") => {
-          if (wantPing(cfg, kind)) await postOpsPing(ctx, cfg.opsWebhookUrl, content);
-        },
-        resolveRepoClient
+    ctx.logger.info("Grove content-drafter plugin starting");
+    ctx.jobs.register("content-draft", async () => {
+      const { cfg, odoo, llm } = await build(ctx);
+      const summary = await runContentDraft({
+        odoo,
+        llm,
+        houseRules: cfg.houseRules,
+        dryRun: cfg.dryRun,
+        now: /* @__PURE__ */ new Date(),
+        logger: ctx.logger
       });
-      ctx.logger.info("bridge active", {
-        repo: `${bridge.githubOrg}/${bridge.githubRepo}`,
-        projectId: bridge.paperclipProjectId,
-        auth: brokerUrl ? "gh-token-broker" : "static token"
-      });
-    }
-    if (depsByProject.size === 0) {
-      ctx.logger.warn("no usable bridges (all missing auth) \u2014 GitHub Sync is INACTIVE.");
-      return;
-    }
-    for (const [projectId, slugs] of bridgeSlugsByProject) {
-      if (slugs.length > 1) {
-        ctx.logger.warn(
-          "multiple bridges share one paperclipProjectId \u2014 issue-event dispatch uses only the LAST bridge's config",
-          { projectId, bridges: slugs }
-        );
-      }
-    }
-    ctx.events.on("issue.created", makeDispatch(ctx, cfg, depsByProject, handleIssueCreated, "issue.created"));
-    ctx.events.on("issue.updated", makeDispatch(ctx, cfg, depsByProject, handleIssueUpdated, "issue.updated"));
-    ctx.events.on("issue.updated", makeDispatch(ctx, cfg, depsByProject, handleReviewSignoff, "issue.updated:signoff"));
-    ctx.jobs.register("mirror-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("mirror-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        const summary = await runMirrorReconcile({
-          companyId: cfg.companyId,
-          projectIds: Array.from(depsByProject.keys()),
-          // REST fallback is NOT optional here (GOL-1163). A scheduled job has no
-          // ambient invocation scope — there is no webhook delivery or event
-          // dispatch to inherit one from — so this privileged read is the single
-          // most scope-fragile call in the plugin. Bare, it threw "referenced a
-          // missing, expired, or unknown invocation scope" on 2026-08-03 21:23Z
-          // and the sweep has not created a twin since (38 issues left unmapped).
-          // Same withRestFallback the inbound mirror path uses (GOL-323).
-          listIssues: (projectId, status, offset, limit) => withRestFallback(
-            restFallbackDeps(ctx, cfg),
-            "reconcile.list",
-            () => ctx.issues.list({
-              companyId: cfg.companyId,
-              projectId,
-              status,
-              offset,
-              limit
-            }),
-            async (rest) => await rest.listIssues(cfg.companyId, {
-              projectId,
-              status,
-              offset,
-              limit
-            })
-          ),
-          depsForProject: (projectId) => depsByProject.get(projectId),
-          logger: ctx.logger
-        });
-        ctx.logger.info("mirror-reconcile complete", summary);
-        if (summary.created > 0 || summary.failed > 0) {
-          if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildReconcilePing(summary));
-        }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "mirror-reconcile job failed", err, {});
-      }
+      ctx.logger.info("content-draft run complete", summary);
     });
-    const signoffDeps = depsByProject.values().next().value;
-    ctx.jobs.register("signoff-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("signoff-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        const companyId = cfg.companyId;
-        const sinceIso = new Date(Date.now() - SIGNOFF_RECONCILE_WINDOW_MS).toISOString();
-        const summary = await runSignoffReconcile({
-          companyId,
-          sinceIso,
-          limit: SIGNOFF_RECONCILE_ROW_CAP,
-          listRows: (since, limit) => listReviewRecordsUpdatedSince(ctx.db, since, limit),
-          getIssueStatus: async (issueId, cId) => (await signoffDeps.getIssue(issueId, cId))?.status ?? null,
-          resolveRepoClient,
-          driveSignoff: (issueId) => handleReviewSignoff(signoffDeps, { issueId, companyId }),
-          logger: ctx.logger
-        });
-        ctx.logger.info("signoff-reconcile complete", summary);
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "signoff-reconcile job failed", err, {});
-      }
-    });
-    ctx.jobs.register("inbound-close-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("inbound-close-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        const sinceIso = new Date(Date.now() - INBOUND_CLOSE_RECONCILE_WINDOW_MS).toISOString();
-        const summary = await runInboundCloseReconcile({
-          repoSlugs: Array.from(clientsBySlug.keys()),
-          listIssues: async (repoSlug) => {
-            const entry = clientsBySlug.get(repoSlug);
-            if (!entry) return { ok: false, error: "no client for repo" };
-            const res = await entry.github.listIssues(entry.repo, {
-              state: "all",
-              since: sinceIso,
-              maxPages: INBOUND_CLOSE_RECONCILE_MAX_PAGES
-            });
-            if (!res.ok) return { ok: false, error: res.error };
-            return {
-              ok: true,
-              issues: res.data.issues.map((i) => ({ number: i.number, state: i.state })),
-              truncated: res.data.truncated
-            };
-          },
-          // Re-drive the event handler with NO ambient scope ((fn) => fn()); its
-          // ctx.issues.get/update go through withRestFallback, so a cron-tick scope
-          // expiry falls back to the Paperclip REST API (GOL-323/GOL-1163).
-          driveClosure: ({ action, repoSlug, number: number4 }) => handleAppClosure(
-            ctx,
-            cfg,
-            { action, payload: { repo: repoSlug, number: number4, title: "", body: "", url: "" } },
-            (fn) => fn()
-          ),
-          logger: ctx.logger
-        });
-        ctx.logger.info("inbound-close-reconcile complete", summary);
-        if (summary.propagated > 0 || summary.failed > 0 || summary.pruned > 0) {
-          if (wantPing(cfg, "outcome"))
-            await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCloseReconcilePing(summary));
-        }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "inbound-close-reconcile job failed", err, {});
-      }
-    });
-    ctx.jobs.register("inbound-create-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("inbound-create-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        const sinceIso = new Date(Date.now() - INBOUND_CREATE_RECONCILE_WINDOW_MS).toISOString();
-        const summary = await runInboundCreateReconcile({
-          repoSlugs: Array.from(clientsBySlug.keys()),
-          // state:"open" — never create a pre-closed mirror (the close leg is
-          // inbound-close-reconcile's job); `since` bounds the scan to the window.
-          listIssues: async (repoSlug) => {
-            const entry = clientsBySlug.get(repoSlug);
-            if (!entry) return { ok: false, error: "no client for repo" };
-            const res = await entry.github.listIssues(entry.repo, {
-              state: "open",
-              since: sinceIso,
-              maxPages: INBOUND_CREATE_RECONCILE_MAX_PAGES
-            });
-            if (!res.ok) return { ok: false, error: res.error };
-            return {
-              ok: true,
-              issues: res.data.issues.map((i) => ({
-                number: i.number,
-                state: i.state,
-                title: i.title,
-                body: i.body,
-                url: i.htmlUrl,
-                labels: i.labels
-              })),
-              truncated: res.data.truncated
-            };
-          },
-          // Re-drive the SAME inbound mirror-create the webhook uses. Owns the guards
-          // (bridge / closed / Paperclip-origin label / already-mapped) so the sweep
-          // tallies without duplicating createMirrorIssue's internals. No ambient
-          // scope ((fn) => fn()); createMirrorIssue's writes go through withRestFallback,
-          // so a cron-tick scope expiry falls back to the Paperclip REST API (GOL-323).
-          driveCreate: async ({ repoSlug, issue: issue2 }) => {
-            const bridge = matchBridge(cfg, repoSlug);
-            if (!bridge) return "no-bridge";
-            if (issue2.state === "closed") return "skipped-closed";
-            if (issue2.labels.some((l) => l.toLowerCase() === bridge.syncLabelPaperclip.toLowerCase())) {
-              return "skipped-paperclip-origin";
-            }
-            if (await getByRepoNumber(ctx.db, repoSlug, issue2.number)) return "skipped-mapped";
-            await createMirrorIssue(
-              ctx,
-              cfg,
-              bridge,
-              { repo: repoSlug, number: issue2.number, title: issue2.title, body: issue2.body, url: issue2.url },
-              issue2.labels,
-              (fn) => fn()
-            );
-            return await getByRepoNumber(ctx.db, repoSlug, issue2.number) ? "created" : "failed";
-          },
-          logger: ctx.logger
-        });
-        ctx.logger.info("inbound-create-reconcile complete", summary);
-        if (summary.created > 0 || summary.failed > 0) {
-          if (wantPing(cfg, "outcome"))
-            await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCreateReconcilePing(summary));
-        }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "inbound-create-reconcile job failed", err, {});
-      }
-    });
-    ctx.jobs.register("pr-review-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("pr-review-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        if (!cfg.prReviewAliceAgentId) {
-          ctx.logger.info("pr-review-reconcile: PR review pipeline disabled (no prReviewAliceAgentId); skipping sweep");
-          return;
-        }
-        const summary = await runPrReviewReconcile({
-          repoSlugs: Array.from(clientsBySlug.keys()),
-          listPrs: async (repoSlug) => {
-            const entry = clientsBySlug.get(repoSlug);
-            if (!entry) return { ok: false, error: "no client for repo" };
-            const res = await entry.github.listPulls(entry.repo, {
-              maxPages: PR_REVIEW_RECONCILE_MAX_PAGES
-            });
-            if (!res.ok) return { ok: false, error: res.error };
-            return {
-              ok: true,
-              prs: res.data.prs.map((p) => ({
-                number: p.number,
-                headSha: p.headSha,
-                title: p.title,
-                url: p.htmlUrl,
-                draft: p.draft,
-                fullName: p.fullName
-              })),
-              truncated: res.data.truncated
-            };
-          },
-          // Re-drive the SAME review pipeline the inbound webhook uses. Owns the guards
-          // (bridge / draft / Ada-current idempotency) so the sweep tallies without
-          // duplicating processReviewer's internals. Extracted to `driveSweepReview` so
-          // the mixed-case-repo key wiring (GOL-2395) is unit-testable.
-          driveReview: ({ repoSlug, pr }) => driveSweepReview(ctx, cfg, repoSlug, pr),
-          logger: ctx.logger
-        });
-        ctx.logger.info("pr-review-reconcile complete", summary);
-        if (summary.twinned > 0 || summary.failed > 0) {
-          if (wantPing(cfg, "outcome"))
-            await postOpsPing(ctx, cfg.opsWebhookUrl, buildPrReviewReconcilePing(summary));
-        }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "pr-review-reconcile job failed", err, {});
-      }
-    });
-    ctx.logger.info("github sync listening", {
-      projects: Array.from(depsByProject.keys())
-    });
-  },
-  /**
-   * Inbound leg (GitHub → Paperclip). The host routes three public endpoints here:
-   *   - `POST …/webhooks/github-issue` → a custom Actions-workflow payload,
-   *   - `POST …/webhooks/github-app`   → the App's single webhook URL: `issues` and
-   *       `pull_request` both arrive here and are fanned out by X-GitHub-Event, or
-   *   - `POST …/webhooks/github-pr`    → GitHub's native `pull_request` event (review
-   *       pipeline) via a direct-ingress path (e.g. Terra's CF bypass).
-   * Each verifies its own HMAC (the plugin's responsibility) then creates the
-   * mirror/review issue directly — routines can't, since every routine run needs an agent.
-   */
-  async onWebhook(input2) {
-    const ctx = currentContext;
-    if (!ctx) return;
-    const runInScope = captureInvocationScope();
-    let cfg;
-    try {
-      cfg = readConfig(await ctx.config.get());
-      if (input2.endpointKey === INBOUND_ENDPOINT_KEY) {
-        await handleCustomInbound(ctx, cfg, input2, runInScope);
-      } else if (input2.endpointKey === APP_WEBHOOK_ENDPOINT_KEY) {
-        const ghEvent = getHeader(input2.headers, "x-github-event");
-        if (ghEvent === "pull_request") {
-          await handlePrInbound(ctx, cfg, input2);
-        } else if (ghEvent === "check_suite" || ghEvent === "workflow_run") {
-          await handleCiCompletion(ctx, cfg, input2, ghEvent);
-        } else {
-          await handleAppInbound(ctx, cfg, input2, runInScope);
-        }
-      } else if (input2.endpointKey === PR_WEBHOOK_ENDPOINT_KEY) {
-        await handlePrInbound(ctx, cfg, input2);
-      } else {
-        ctx.logger.warn("inbound webhook: unknown endpoint", { endpointKey: input2.endpointKey });
-      }
-      await safeRecordDelivery(ctx, input2, "processed");
-    } catch (err) {
-      if (err instanceof WebhookRejection) {
-        await safeRecordDelivery(ctx, input2, err.outcome, err.message);
-        throw err;
-      }
-      const scope = `inbound webhook: handler failed (${input2.endpointKey})`;
-      const detail = err instanceof Error ? err.message : String(err);
-      await safeRecordDelivery(ctx, input2, "failed_processing", detail);
-      if (cfg) {
-        await recordSwallowedFailure(ctx, cfg, scope, err, { endpointKey: input2.endpointKey });
-      } else {
-        ctx.logger.error(scope, { endpointKey: input2.endpointKey, error: detail });
-        try {
-          await recordError(ctx.db, {
-            occurredAt: (/* @__PURE__ */ new Date()).toISOString(),
-            scope,
-            detail,
-            context: { endpointKey: input2.endpointKey }
-          });
-        } catch {
-        }
-      }
-      throw err;
-    }
   },
   async onHealth() {
     return { status: "ok" };
@@ -33347,6 +30786,5 @@ var plugin = definePlugin({
 var worker_default = plugin;
 runWorker(plugin, import.meta.url);
 export {
-  worker_default as default,
-  driveSweepReview
+  worker_default as default
 };

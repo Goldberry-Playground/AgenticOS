@@ -1,6 +1,6 @@
 {
-  "name": "@agenticos/openviking-plugin",
-  "version": "0.2.0",
+  "name": "@agenticos/grove-content-drafter-plugin",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/worker.js",

@@ -21,6 +21,10 @@ services:
     # OOM guardrail (GOL-53): Postgres (max_connections=200) — cap so a connection storm can't balloon RAM.
     mem_limit: 768m
     mem_reservation: 256m
+    # Protected CPU weight (GOL-2045): 2x the paperclip-server default so the DB
+    # backing github-sync (issue<->PR mirror mappings) keeps scheduler priority
+    # when a co-tenant agent saturates CPU. Only bites under 100% contention.
+    cpu_shares: 2048
     restart: unless-stopped
     command: ["postgres", "-c", "max_connections=200"]
     environment:
@@ -233,6 +237,24 @@ services:
     # OOM guardrail (GOL-53): Runs every agent subprocess — the primary OOM source. Cap contains a runaway agent/LLM run to a container OOM-kill instead of crashing the whole Droplet.
     mem_limit: 3g
     mem_reservation: 512m
+    # CPU containment (GOL-2045, blast-radius half of GOL-2043). A runaway agent
+    # (`grep -r x /`) burned ~128 CPU-hours and starved github-sync inbound.
+    # These are the CROSS-CONTAINER bounds; the IN-container half (agent shells
+    # can starve the co-tenant github-sync plugin worker) is handled by
+    # BASH_ENV=/paperclip/agent-shell-rlimits.sh below.
+    #   cpus       — hard cap at 3.5 of the box's 4 vCPUs (cgroup v2 cpu.max), so
+    #                a runaway can never consume every core; ~0.5 vCPU stays free
+    #                for the sibling containers github-sync depends on
+    #                (agenticos-db, gh-token-broker).
+    #   cpu_shares — relative weight (cgroup cpu.weight); only bites under 100%
+    #                contention. Left at the 1024 default here; agenticos-db and
+    #                gh-token-broker are raised to 2048 so github-sync's data +
+    #                token path keep scheduler priority when an agent is busy.
+    #   pids_limit — fork/thread-storm cap (a non-search CPU hog); generous for
+    #                5 concurrent agents + server + plugin workers.
+    cpus: "3.5"
+    cpu_shares: 1024
+    pids_limit: 2048
     restart: unless-stopped
     ports:
       - "10.116.16.2:3100:3100"
@@ -318,6 +340,17 @@ services:
       # — exactly why a login "succeeded" but agents still saw "login required".
       # With it pinned, log in ONCE (as node) and it persists across restarts.
       CLAUDE_CONFIG_DIR: /paperclip/.claude
+      # In-container CPU containment for agent shells (GOL-2045). Non-interactive
+      # bash sources this file at startup, so every agent Bash command runs with
+      # a per-process CPU-time cap (RLIMIT_CPU) and reduced scheduler priority
+      # (nice +10). This is what protects the co-tenant github-sync plugin worker
+      # (a node worker INSIDE this container, which cross-container caps cannot
+      # reach) from a runaway agent, and bounds a backgrounded runaway that
+      # escapes the Bash tool's wall-clock timeout. Mounted read-only below.
+      # Applies ONLY to agent bash shells, never to the node server/plugins
+      # (they are not bash), so the server can't be CPU-killed by this. See
+      # scripts/agent-shell-rlimits.sh and docs/runbooks/agent-runtime-cpu-containment.md.
+      BASH_ENV: /paperclip/agent-shell-rlimits.sh
       # NOTE: plugin config (GitHub token, OpenViking key/endpoint, vault URL)
       # is NOT passed via env. Paperclip sandboxes plugin workers away from the
       # host process.env, so the previous OPENVIKING_*/VAULT_SERVER_URL/GITHUB_*
@@ -353,6 +386,8 @@ services:
       # $HOME/.gitconfig). Routes github.com auth through the App.
       - ./scripts/agent-git:/paperclip/agent-git:ro
       - ./scripts/agent-git/gitconfig:/paperclip/.gitconfig:ro
+      # Per-agent-shell CPU containment sourced via BASH_ENV (GOL-2045).
+      - ./scripts/agent-shell-rlimits.sh:/paperclip/agent-shell-rlimits.sh:ro
     env_file:
       - /opt/agenticos/.env
     depends_on:
@@ -418,6 +453,10 @@ services:
     # OOM guardrail (GOL-53): Tiny token minter.
     mem_limit: 128m
     mem_reservation: 32m
+    # Protected CPU weight (GOL-2045): 2x the paperclip-server default so
+    # github-sync can always mint short-lived GitHub App tokens even when a
+    # co-tenant agent saturates CPU. Only bites under 100% contention.
+    cpu_shares: 2048
     restart: unless-stopped
     command: ["node", "/app/github-app-token.mjs", "serve"]
     environment:

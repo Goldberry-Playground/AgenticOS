@@ -230,7 +230,34 @@ const manifest: PaperclipPluginManifestV1 = {
   //   error-class ⛔ Discord ops alert carrying site + HTTP status (one per site+status per
   //   window; error-class passes every opsPingMode). The scope-expiry SUCCESS path is
   //   unchanged — no new pings on the healthy path. No new capability, no migration.
-  // 0.16.6 = worker-respawn watchdog: boot resilience + liveness heartbeat (GOL-2371,
+  // 0.16.4 = PR review-twin reconcile sweep (GOL-2344). The agent PR-review pipeline
+  //   was event-driven only: a PR got its Ada/Iris review twin + seeded `agent-review/*`
+  //   check solely if its `pull_request` webhook landed AND handlePrInbound survived; a
+  //   dropped delivery (webhook disabled / mis-delivered / a worker-crash or scope-expiry
+  //   window) left the PR review-less forever — signoff-reconcile only re-drives PRs that
+  //   ALREADY have a `github_pr_review` row, it never CREATES a missing twin. So a
+  //   maintainer PR on a GOL-1406 protected path (auto-approve withholds, the sole
+  //   maintainer can't self-approve) sat unmergeable with no avenue to Ada's sign-off —
+  //   grove-sites#775 (opened + 3 synchronize deliveries all lost). New hourly
+  //   `pr-review-reconcile` job (jobs.schedule + jobs[] — manifest surface CHANGED, no new
+  //   capability, no migration) lists each bridged repo's open non-draft PRs via a new
+  //   GitHubClient.listPulls and re-drives the SAME processReviewer pipeline for any PR
+  //   whose current head lacks a current Ada twin — Ada always, Iris on a frontend-glob
+  //   match, pending check seed — through the GOL-323 REST fallback (cron ticks have no
+  //   ambient scope). Idempotent (a settled PR is a cheap `skipped-current`); capped per
+  //   run so a first sweep over a backlog trickles out.
+  // 0.16.7 = pr-review-reconcile mixed-case repo key fix (GOL-2395). The 0.16.4 sweep
+  //   keyed its DB idempotency pre-check + synthetic review event on the lowercased
+  //   `clientsBySlug` slug, while the webhook stores twins under the case-sensitive
+  //   `repository.full_name`. On a mixed-case repo (Goldberry-Playground/AgenticOS the
+  //   headline case) the lowercase lookup never matched the webhook row, so every sweep
+  //   re-drove and double-created a second Ada review twin + a divergent lowercase
+  //   `github_pr_review` row. `listPulls` now surfaces each PR's `base.repo.full_name`,
+  //   threaded through `InboundPrRef.fullName`; `driveSweepReview` keys the pre-check and
+  //   `ev.repo` on it (matchBridge/client lookup stay case-insensitive). Bugfix only —
+  //   manifest surface unchanged bar version. (Version jumps 0.16.4→0.16.7: 0.16.5/#687,
+  //   0.16.6/#688 are the in-flight dead-man / watchdog PRs on their own branches.)
+  // 0.16.8 = worker-respawn watchdog: boot resilience + liveness heartbeat (GOL-2371,
   //   D3 of GOL-2344; follow-up to GOL-2279). On 2026-09-09 a boot-time execSync crash
   //   in the worker supervisor left this plugin dead ~5 days — every inbound webhook
   //   502'd — with no auto-respawn and no alert, because nothing external could tell a
@@ -247,7 +274,7 @@ const manifest: PaperclipPluginManifestV1 = {
   //   heartbeat (last-alive, this process's boot time, stale flag). Detection/respawn at
   //   the host boundary is DevOps (Terra) — GOL-2287 Part A/B. Reuses jobs.schedule +
   //   database.namespace.*; adds migration 007 under the existing `database` block.
-  version: "0.16.6",
+  version: "0.16.8",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
@@ -328,6 +355,16 @@ const manifest: PaperclipPluginManifestV1 = {
       // Minute 9 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
       // inbound-close-reconcile (:51) and the top of the hour so no two sweeps stack.
       schedule: "9 * * * *",
+    },
+    {
+      jobKey: "pr-review-reconcile",
+      displayName: "PR review-twin reconcile",
+      description:
+        "Hourly sweep that creates missing agent-review twins for open PRs whose `pull_request` webhook never landed (webhook disabled / mis-delivered / a worker-crash or scope-expiry window). Lists each bridged repo's open non-draft PRs and, for any PR whose current head has no current Ada twin, re-drives the event-path review pipeline — Ada always, Iris on a frontend-glob match, plus the pending `agent-review/*` check seed — so a maintainer PR on a protected path always reaches Ada's sign-off avenue without an empty-commit nudge (GOL-2344; stranded grove-sites#775). Idempotent; capped per run.",
+      // Minute 30 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
+      // inbound-close-reconcile (:51), inbound-create-reconcile (:9) and the top of the
+      // hour so no two hourly sweeps ever stack.
+      schedule: "30 * * * *",
     },
     {
       jobKey: "worker-heartbeat",

@@ -73,6 +73,17 @@ describe("PaperclipRestClient headers", () => {
     expect(h["CF-Access-Client-Secret"]).toBe("cf-secret");
   });
 
+  it("strips trailing slashes from baseUrl so request URLs never double-slash", async () => {
+    const { calls, http } = makeFakeHttp(() => ({ status: 200, body: { id: "i1" } }));
+    const client = new PaperclipRestClient({
+      baseUrl: "https://paperclip.example.com///",
+      token: "t",
+      http,
+    });
+    await client.getIssue("i1");
+    expect(calls[0]!.url).toBe("https://paperclip.example.com/api/issues/i1");
+  });
+
   it("omits CF Access headers when the pair is incomplete", async () => {
     const { calls, http } = makeFakeHttp(() => ({ status: 200, body: { id: "i1" } }));
     const client = new PaperclipRestClient({

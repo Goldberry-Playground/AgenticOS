@@ -21,7 +21,7 @@
  * This hourly sweep is the event-independent retry: it walks recently-touched
  * review rows, and for any whose review issue is `done` but whose
  * `agent-review/<reviewer>` check is not yet green on the row's head, it re-drives
- * the SAME event handler (handleReviewSignoff), which re-evaluates the coupled
+ * the SAME event handler (handleReviewSignoff), which re-evaluates the per-reviewer
  * ada+iris gate and posts every greenlit check idempotently. An already-green
  * check is skipped after one cheap check-run read; the sweep is capped and safe to
  * run twice. Cause-agnostic: whatever stranded the check (transient auth, a dropped
@@ -71,7 +71,7 @@ export async function runSignoffReconcile(input: SignoffReconcileInput): Promise
   const summary: SignoffReconcileSummary = { scanned: 0, healed: 0, skipped: 0, failed: 0 };
   const rows = await input.listRows(input.sinceIso, input.limit);
 
-  // One re-drive per (repo, PR): handleReviewSignoff re-evaluates the whole coupled
+  // One re-drive per (repo, PR): handleReviewSignoff re-evaluates every reviewer
   // gate, so a single call covers both reviewers of the PR.
   const driven = new Set<string>();
   // Cache check-run reads by (repo, head) — a PR's ada + iris rows usually share a
