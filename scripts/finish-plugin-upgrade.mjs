@@ -18,6 +18,17 @@
 //      re-assert. Config survives a same-key reinstall; we verify that and fail
 //      RED (never silently) if it was dropped, so a human restores it.
 //
+// Timing (GOL-2496): the deploy rebuilds the plugin dists IN PLACE, in the very
+// tree the running server bind-mounts and watches. So for a few seconds around
+// `pnpm install` + `esbuild` the plugin dir is inconsistent (package.json or
+// dist/worker.js transiently absent), and the host's reload of a plugin is
+// ASYNCHRONOUS — the registry row flips to the new version only once the worker
+// has actually started. Both stages therefore RETRY/POLL rather than sampling
+// once: a single immediate read turned a healthy deploy RED (run 35905253240 —
+// /upgrade got `400 Missing package.json`, and the registry converged on its
+// own 110s after the job had already failed). Polling never lets a genuine
+// drift pass; it only refuses to call one before the host has had a chance.
+//
 // Runs ON the droplet (host node, global fetch — Node 18+). Reaches the board
 // API over the VPC-bound host port supplied in PAPERCLIP_BASE.
 //
@@ -31,6 +42,11 @@
 //                   /upgrade cannot converge — e.g. /paperclip/plugins/<plugin>
 //                   (the CD-rebuilt bind mount). Optional; without it a
 //                   non-convergence fails RED instead of recovering.
+//   UPGRADE_RETRY_MS   how long to keep retrying a TRANSIENT /upgrade failure
+//                      (mid-rebuild tree). Default 90000. 0 disables retry.
+//   CONVERGE_TIMEOUT_MS how long to poll for the registry to reach WANT_VERSION
+//                      and go healthy after each stage. Default 120000.
+//   POLL_INTERVAL_MS   poll/retry interval. Default 3000.
 //
 // Prints a one-line JSON summary. Exits nonzero on any failure (HTTP error,
 // plugin not installed, could-not-converge, unhealthy, dropped-config) so the
@@ -41,6 +57,15 @@ const key = process.env.PLUGIN_KEY;
 const want = process.env.WANT_VERSION || "";
 const board = process.env.BOARD_KEY || "";
 const reinstallPath = process.env.REINSTALL_PATH || "";
+
+const ms = (name, dflt) => {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v >= 0 ? v : dflt;
+};
+const UPGRADE_RETRY_MS = ms("UPGRADE_RETRY_MS", 90_000);
+const CONVERGE_TIMEOUT_MS = ms("CONVERGE_TIMEOUT_MS", 120_000);
+const POLL_INTERVAL_MS = ms("POLL_INTERVAL_MS", 3_000);
+const sleep = (t) => new Promise((r) => setTimeout(r, t));
 
 if (!base || !key || !board) {
   console.error(
@@ -72,6 +97,21 @@ async function api(method, path, body) {
 function findPlugin(list, k) {
   const arr = Array.isArray(list) ? list : (list && list.plugins) || [];
   return arr.find((p) => p.pluginKey === k || p.plugin_key === k) || null;
+}
+
+// A deploy rewrites the watched plugin dir in place, so the host can legitimately
+// answer "there is no package.json / dist there" for a few seconds mid-rebuild,
+// and can 5xx while a worker is respawning. Those are TIMING faults, not deploy
+// faults — retry them. Anything else (404 unknown plugin, 401 bad key, a real
+// 400 about the request) is permanent and must fail immediately.
+const TRANSIENT = /missing package\.json|ENOENT|no such file|not found at |manifest (is )?missing|worker\.js/i;
+function isTransient(err) {
+  const m = String((err && err.message) || err);
+  const code = /-> HTTP (\d{3})/.exec(m);
+  if (!code) return true; // fetch/network failure — the host is mid-restart
+  const status = Number(code[1]);
+  if (status >= 500) return true;
+  return status >= 400 && status < 500 && TRANSIENT.test(m);
 }
 
 const converged = (p) => !!p && (!want || p.version === want);
@@ -115,21 +155,56 @@ async function reinstallFrom(before, path) {
   return after;
 }
 
+// POST /upgrade, retrying while the failure looks like the rebuild window
+// rather than a broken deploy. Idempotent, so a retry is always safe.
+async function upgradeWithRetry(id) {
+  const deadline = Date.now() + UPGRADE_RETRY_MS;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await api("POST", "/api/plugins/" + id + "/upgrade");
+    } catch (e) {
+      if (!isTransient(e) || Date.now() >= deadline) throw e;
+      console.error(
+        "   /upgrade attempt " + attempt + " hit a transient error, retrying: " +
+          String((e && e.message) || e).slice(0, 160),
+      );
+      await sleep(POLL_INTERVAL_MS);
+    }
+  }
+}
+
+// The host reloads a plugin asynchronously; the registry row flips to the new
+// version only once the worker is up. Poll until it converges AND is healthy,
+// or the deadline passes — then return the last observation for the caller to
+// judge. Returns immediately when there is nothing to wait for.
+async function waitForConverged() {
+  const deadline = Date.now() + CONVERGE_TIMEOUT_MS;
+  let last = null;
+  for (;;) {
+    last = findPlugin(await api("GET", "/api/plugins"), key);
+    if (last && converged(last) && healthy(last)) return last;
+    if (Date.now() >= deadline) return last;
+    await sleep(POLL_INTERVAL_MS);
+  }
+}
+
 (async () => {
   const before = findPlugin(await api("GET", "/api/plugins"), key);
   if (!before) throw new Error("plugin not installed: " + key);
 
   // Stage 1 — idempotent, config-safe /upgrade (re-reads stored packagePath).
-  await api("POST", "/api/plugins/" + before.id + "/upgrade");
-  let after = findPlugin(await api("GET", "/api/plugins"), key);
+  await upgradeWithRetry(before.id);
+  let after = await waitForConverged();
   if (!after) throw new Error("plugin vanished after upgrade: " + key);
   let recovered = false;
 
   // Stage 2 — /upgrade could not reach the built version: packagePath is
   // drifted to a stale source. Repoint by reinstalling from fresh canonical
-  // source, if one was supplied.
+  // source, if one was supplied. Gated behind the Stage-1 poll above so a slow
+  // (but working) reload never triggers this DELETE+install path (GOL-2496).
   if (!converged(after) && reinstallPath) {
-    after = await reinstallFrom(before, reinstallPath);
+    await reinstallFrom(before, reinstallPath);
+    after = (await waitForConverged()) || after;
     recovered = true;
   }
 

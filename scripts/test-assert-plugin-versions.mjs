@@ -46,7 +46,17 @@ function makeServer(registry) {
 function run(base, expect, extraEnv = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [TARGET], {
-      env: { ...process.env, PAPERCLIP_BASE: base, BOARD_KEY: "k", EXPECT: expect, ...extraEnv },
+      env: {
+        // Default the poll off so the pre-existing drift cases stay instant;
+        // the GOL-2496 cases below opt back in explicitly via extraEnv.
+        ASSERT_TIMEOUT_MS: "0",
+        ASSERT_POLL_MS: "10",
+        ...process.env,
+        PAPERCLIP_BASE: base,
+        BOARD_KEY: "k",
+        EXPECT: expect,
+        ...extraEnv,
+      },
     });
     let out = "", err = "";
     child.stdout.on("data", (d) => (out += d));
@@ -148,6 +158,69 @@ await withServer(REG, async (base) => {
   const r = await run(base, "");
   check("empty EXPECT no-ops exit 0", r.code === 0, r.err || r.out);
 });
+
+// 6) GOL-2496: the host reloads asynchronously, so a registry that is still on
+//    the OLD version when the deploy step fires must be POLLED, not failed. A
+//    server that flips to the built version on the 3rd read models run
+//    35905253240, which converged 110s after the one-shot assert went RED.
+{
+  let reads = 0;
+  const srv = createServer((req, res) => {
+    reads += 1;
+    const version = reads >= 3 ? "0.16.8" : "0.16.7";
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        plugins: [
+          { id: "1", pluginKey: "agenticos.github-sync-plugin", version, status: "ready" },
+        ],
+      }),
+    );
+  });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const base = "http://127.0.0.1:" + srv.address().port;
+  try {
+    const r = await run(base, "agenticos.github-sync-plugin=0.16.8", {
+      ASSERT_TIMEOUT_MS: "5000",
+      ASSERT_POLL_MS: "10",
+    });
+    check("late async reload converges instead of failing RED", r.code === 0, r.err || r.out);
+    check("polled more than once", reads >= 3, "reads=" + reads);
+    check("only the settled sample is reported (no DRIFT noise)", !/DRIFT/.test(r.err), r.err.trim());
+  } finally {
+    srv.close();
+  }
+}
+
+// 7) GOL-2496: polling must NOT rescue a genuine drift — a registry that never
+//    converges still fails RED once the deadline passes.
+{
+  let reads = 0;
+  const srv = createServer((req, res) => {
+    reads += 1;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        plugins: [
+          { id: "1", pluginKey: "agenticos.github-sync-plugin", version: "0.16.7", status: "ready" },
+        ],
+      }),
+    );
+  });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const base = "http://127.0.0.1:" + srv.address().port;
+  try {
+    const r = await run(base, "agenticos.github-sync-plugin=0.16.8", {
+      ASSERT_TIMEOUT_MS: "150",
+      ASSERT_POLL_MS: "10",
+    });
+    check("permanent drift still fails RED after the deadline", r.code !== 0, "code=" + r.code);
+    check("permanent drift is reported as STALE", /registry 0\.16\.7 != built 0\.16\.8/.test(r.err), r.err.trim());
+    check("deadline bounded the polling", reads > 1 && reads < 100, "reads=" + reads);
+  } finally {
+    srv.close();
+  }
+}
 
 console.log(failures === 0 ? "\nALL PASS" : "\n" + failures + " FAILURE(S)");
 process.exit(failures === 0 ? 0 : 1);
