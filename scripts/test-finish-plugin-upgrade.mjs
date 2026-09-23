@@ -35,6 +35,7 @@ const KEY = "agenticos.github-sync-plugin";
 function makeServer(scenario) {
   let upgrades = 0;
   let reinstalls = 0;
+  let listReads = 0;
   let installed = scenario.installed;
   let version = scenario.startVersion;
   let packagePath = scenario.startPath || "/paperclip/staged-plugins/x";
@@ -49,13 +50,29 @@ function makeServer(scenario) {
     const plugin = () => ({ id: "id-1", pluginKey: KEY, version, status, packagePath });
 
     if (req.method === "GET" && req.url === "/api/plugins") {
-      return send(200, { plugins: installed ? [plugin()] : [] });
+      listReads += 1;
+      // GOL-2496: the host reloads asynchronously — hold the OLD version for
+      // the first `reloadLagReads` reads AFTER /upgrade succeeded.
+      const lagging =
+        upgrades > 0 &&
+        scenario.reloadLagReads &&
+        listReads <= scenario.reloadLagReads + 1;
+      const p = plugin();
+      if (lagging) p.version = scenario.startVersion;
+      return send(200, { plugins: installed ? [p] : [] });
     }
     if (req.method === "GET" && req.url === "/api/plugins/id-1/config") {
       return send(200, { configJson: config });
     }
     if (req.method === "POST" && req.url === "/api/plugins/id-1/upgrade") {
       upgrades += 1;
+      // GOL-2496: model the rebuild window — the first N /upgrade calls fail
+      // the way the real host failed (400, package.json transiently absent).
+      if (upgrades <= (scenario.upgradeFailures || 0)) {
+        return send(scenario.upgradeFailStatus || 400, {
+          error: scenario.upgradeFailBody || "Missing package.json at /paperclip/plugins/x",
+        });
+      }
       version = scenario.afterVersion; // re-read of the (possibly stale) path
       if (scenario.afterStatus) status = scenario.afterStatus;
       return send(200, { ok: true });
@@ -79,19 +96,25 @@ function makeServer(scenario) {
     }
     send(404, { error: "not found: " + req.method + " " + req.url });
   });
-  return { srv, upgrades: () => upgrades, reinstalls: () => reinstalls };
+  return { srv, upgrades: () => upgrades, reinstalls: () => reinstalls, listReads: () => listReads };
 }
 
-function run(base, want, reinstallPath) {
+function run(base, want, reinstallPath, extraEnv = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [TARGET], {
       env: {
+        // Poll/retry off by default so the pre-existing failure cases stay
+        // instant; the GOL-2496 cases opt back in via extraEnv.
+        UPGRADE_RETRY_MS: "0",
+        CONVERGE_TIMEOUT_MS: "0",
+        POLL_INTERVAL_MS: "10",
         ...process.env,
         PAPERCLIP_BASE: base,
         BOARD_KEY: "test-board-key",
         PLUGIN_KEY: KEY,
         WANT_VERSION: want,
         ...(reinstallPath ? { REINSTALL_PATH: reinstallPath } : {}),
+        ...extraEnv,
       },
     });
     let out = "";
@@ -222,6 +245,93 @@ await withServer(
     const r = await run(base, "0.11.6", "/paperclip/plugins/github-sync-plugin");
     check("reinstall-still-stale fails nonzero", r.code !== 0, "code=" + r.code);
     check("error notes reinstall was tried", /even after reinstall from/.test(r.err), r.err.trim());
+  },
+);
+
+// 9) GOL-2496 RETRY: /upgrade 400s with "Missing package.json" while the deploy
+//    is still rewriting the watched tree. That is the rebuild window, not a
+//    broken deploy — retry until it takes. (This is exactly what killed run
+//    35905253240.)
+await withServer(
+  {
+    installed: true,
+    startVersion: "0.16.7",
+    afterVersion: "0.16.8",
+    upgradeFailures: 2,
+  },
+  async (base, m) => {
+    const r = await run(base, "0.16.8", "/paperclip/plugins/github-sync-plugin", {
+      UPGRADE_RETRY_MS: "5000",
+      POLL_INTERVAL_MS: "10",
+    });
+    check("transient 400 mid-rebuild is retried, exit 0", r.code === 0, r.err || r.out);
+    check("retried /upgrade until it took", m.upgrades() === 3, "count=" + m.upgrades());
+    check("no destructive reinstall needed", m.reinstalls() === 0, "count=" + m.reinstalls());
+  },
+);
+
+// 10) GOL-2496: a PERMANENT /upgrade error (404 unknown plugin) must NOT be
+//     retried into the deadline — fail fast.
+await withServer(
+  {
+    installed: true,
+    startVersion: "0.16.7",
+    afterVersion: "0.16.8",
+    upgradeFailures: 99,
+    upgradeFailStatus: 404,
+    upgradeFailBody: "plugin not found",
+  },
+  async (base, m) => {
+    const r = await run(base, "0.16.8", undefined, {
+      UPGRADE_RETRY_MS: "5000",
+      POLL_INTERVAL_MS: "10",
+    });
+    check("permanent /upgrade error fails fast", r.code !== 0, "code=" + r.code);
+    check("permanent error is not retried", m.upgrades() === 1, "count=" + m.upgrades());
+  },
+);
+
+// 11) GOL-2496 POLL: /upgrade succeeds but the host's reload is async, so the
+//     registry still reads the OLD version for a few samples. Polling must let
+//     it settle — and must NOT fire the destructive DELETE+reinstall path just
+//     because the first read was stale.
+await withServer(
+  {
+    installed: true,
+    startVersion: "0.16.7",
+    afterVersion: "0.16.8",
+    installVersion: "0.16.8",
+    reloadLagReads: 3,
+  },
+  async (base, m) => {
+    const r = await run(base, "0.16.8", "/paperclip/plugins/github-sync-plugin", {
+      CONVERGE_TIMEOUT_MS: "5000",
+      POLL_INTERVAL_MS: "10",
+    });
+    check("async reload is polled, exit 0", r.code === 0, r.err || r.out);
+    check("slow reload did NOT trigger reinstall", m.reinstalls() === 0, "count=" + m.reinstalls());
+    check("summary reports recovered:false", /"recovered":false/.test(r.out), r.out.trim());
+  },
+);
+
+// 12) GOL-2496: polling must not mask a genuinely drifted packagePath — once the
+//     deadline passes without convergence, the GOL-804 repoint still runs.
+await withServer(
+  {
+    installed: true,
+    startVersion: "0.11.3",
+    startPath: "/paperclip/staged-plugins/github-sync-plugin-0.11.4",
+    afterVersion: "0.11.3", // never converges via /upgrade
+    installVersion: "0.11.6",
+  },
+  async (base, m) => {
+    const r = await run(base, "0.11.6", "/paperclip/plugins/github-sync-plugin", {
+      CONVERGE_TIMEOUT_MS: "150",
+      POLL_INTERVAL_MS: "10",
+    });
+    check("real drift still repoints after the deadline", r.code === 0, r.err || r.out);
+    check("repointed exactly once", m.reinstalls() === 1, "count=" + m.reinstalls());
+    check("summary marks recovered:true", /"recovered":true/.test(r.out), r.out.trim());
   },
 );
 
