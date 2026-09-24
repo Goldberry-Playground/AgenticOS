@@ -24,6 +24,7 @@
 //   node github-app-token.mjs erase                    # drop a cached token git rejected
 //   node github-app-token.mjs token <owner>[/<repo>]   # print a token (gh/curl)
 //   node github-app-token.mjs canary <owner>[/<repo>]  # mint+validate, exit 0/1 (GOL-1425)
+//   node github-app-token.mjs health                   # probe $GH_TOKEN_BROKER_URL/health (GOL-2404)
 //
 // CONFIG (env)
 //   serve:   GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY_B64, PORT (default 9099)
@@ -40,6 +41,8 @@
 //   helper:  GH_TOKEN_BROKER_URL (e.g. http://gh-token-broker:9099)
 //            GH_BROKER_API_KEY / GH_BROKER_API_KEY_FILE — bearer sent to broker
 //            — or, back-compat, GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_B64
+//            GH_BROKER_RETRY_DELAYS_MS — backoff between broker retries on
+//              transport errors / 5xx (default "1000,3000,10000"; "" = no retry)
 //
 // Why bearer auth (security review 2026-07-12, M3): the broker sits on the
 // shared compose network, so without caller auth ANY container (or anything
@@ -242,19 +245,69 @@ async function mintLocal(owner, repo) {
 
 // --- broker client (helper side) ------------------------------------------
 
+// Retry schedule for transient broker failures (GOL-2404). The broker restarts
+// on every AgenticOS deploy (`--force-recreate gh-token-broker`) and on its own
+// healthcheck; a single ECONNREFUSED/timeout/5xx during that window used to fail
+// the git push outright and strand the agent's work. Retry transport errors and
+// 5xx only — 4xx (bad key, disallowed owner, mint_failed) is deterministic and
+// fails fast. Worst case adds ~14s before giving up.
+const BROKER_RETRY_DELAYS_MS = (process.env.GH_BROKER_RETRY_DELAYS_MS ?? "1000,3000,10000")
+  .split(",")
+  .filter((s) => s.trim() !== "")
+  .map((s) => Number(s.trim()))
+  .filter((n) => Number.isFinite(n) && n >= 0);
+
+// undici wraps the socket error: TypeError("fetch failed") -> cause.code, or an
+// AggregateError (IPv4+IPv6 both refused) -> cause.errors[].code.
+const fetchErrCode = (e) => e.cause?.code || e.cause?.errors?.[0]?.code || e.name || e.message;
+
 async function mintViaBroker(owner, repo) {
   validateTarget(owner, repo);
   const u = new URL(`${BROKER_URL}/token`);
   u.searchParams.set("owner", owner);
   if (repo) u.searchParams.set("repo", repo);
-  const res = await fetch(u, {
-    signal: AbortSignal.timeout(15000),
-    headers: BROKER_API_KEY ? { Authorization: `Bearer ${BROKER_API_KEY}` } : {},
-  });
-  if (!res.ok) throw new Error(`token broker -> ${res.status}`);
-  const { token } = await res.json();
-  if (!token) throw new Error("token broker returned no token");
-  return token;
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(u, {
+        signal: AbortSignal.timeout(15000),
+        headers: BROKER_API_KEY ? { Authorization: `Bearer ${BROKER_API_KEY}` } : {},
+      });
+    } catch (e) {
+      // Transport failure (ECONNREFUSED while the container restarts, DNS, timeout).
+      const why = fetchErrCode(e);
+      if (attempt >= BROKER_RETRY_DELAYS_MS.length) throw new Error(`token broker unreachable at ${BROKER_URL} (${why})`);
+      log(`token broker unreachable (${why}) — retry ${attempt + 1}/${BROKER_RETRY_DELAYS_MS.length}`);
+      await new Promise((r) => setTimeout(r, BROKER_RETRY_DELAYS_MS[attempt]));
+      continue;
+    }
+    if (res.status >= 500 && attempt < BROKER_RETRY_DELAYS_MS.length) {
+      await res.body?.cancel?.();
+      log(`token broker -> ${res.status} — retry ${attempt + 1}/${BROKER_RETRY_DELAYS_MS.length}`);
+      await new Promise((r) => setTimeout(r, BROKER_RETRY_DELAYS_MS[attempt]));
+      continue;
+    }
+    if (!res.ok) throw new Error(`token broker -> ${res.status}`);
+    const { token } = await res.json();
+    if (!token) throw new Error("token broker returned no token");
+    return token;
+  }
+}
+
+// `health` mode (GOL-2404): the one correct way to ask "is the broker up?" from
+// inside paperclip-server. The broker is a SEPARATE container reached at
+// $GH_TOKEN_BROKER_URL (http://gh-token-broker:9099) — `curl localhost:9099`
+// from an agent shell is ALWAYS connection-refused and is not an outage signal.
+async function brokerHealth() {
+  if (!BROKER_URL) die("GH_TOKEN_BROKER_URL is not set — nothing to probe (helper mints locally)");
+  try {
+    const res = await fetch(`${BROKER_URL}/health`, { signal: AbortSignal.timeout(5000) });
+    const body = await res.text();
+    process.stdout.write(`${BROKER_URL}/health -> ${res.status} ${body}\n`);
+    if (!res.ok) process.exit(1);
+  } catch (e) {
+    die(`${BROKER_URL}/health unreachable (${fetchErrCode(e)})`);
+  }
 }
 
 // Helper dispatch: broker if configured, else local (back-compat).
@@ -410,6 +463,8 @@ try {
     const [owner, repo] = (process.argv[3] || "").split("/");
     if (!owner) die("usage: github-app-token.mjs token <owner>[/<repo>]");
     process.stdout.write(`${await mintToken(owner, repo || undefined)}\n`);
+  } else if (mode === "health") {
+    await brokerHealth();
   } else if (mode === "canary") {
     // One-shot canary for CI/cron probes: mint + validate a live token and exit
     // 0/1. Needs the key (local mint) — the broker's own liveness (GOL-1425).
@@ -420,7 +475,7 @@ try {
     process.stdout.write(`${JSON.stringify(result)}\n`);
     if (!result.ok) { await postOpsAlert(`:rotating_light: gh-token-broker canary FAIL for ${owner}${repo ? `/${repo}` : ""}: ${result.error}`); process.exit(1); }
   } else {
-    die(`unknown mode '${mode}'. Use: serve | get | erase | token <owner>[/<repo>] | canary <owner>[/<repo>]`);
+    die(`unknown mode '${mode}'. Use: serve | get | erase | token <owner>[/<repo>] | health | canary <owner>[/<repo>]`);
   }
 } catch (e) {
   if (mode === "token" || mode === "canary") die(e.message);

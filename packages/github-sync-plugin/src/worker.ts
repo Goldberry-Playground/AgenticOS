@@ -61,7 +61,8 @@ import {
   OpsPingThrottle,
   withSuppressionNote,
 } from "./error-log.js";
-import { recordDelivery, WebhookRejection, type DeliveryOutcome } from "./delivery-log.js";
+import { recordDelivery, deliveryCountSince, WebhookRejection, type DeliveryOutcome } from "./delivery-log.js";
+import { runInboundDeadMan, buildInboundDeadManPing } from "./inbound-dead-man.js";
 import {
   buildCiFixBody,
   buildCiFixOpenedPing,
@@ -122,6 +123,18 @@ const INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
 // inbound-create-reconcile. `/pulls` has no `since` filter, so the scan is bounded
 // by the page cap alone (open PRs are few); 3 pages = up to 300 open PRs/repo.
 const PR_REVIEW_RECONCILE_MAX_PAGES = 3;
+
+/**
+ * Inbound dead-man tripwire (GOL-2370): the lookback for BOTH sides of the check —
+ * "no delivery landed in this window" AND "GitHub shows PR/issue activity in this
+ * window". Symmetric on purpose: activity inside the window with zero deliveries
+ * inside the same window is the exact `github_sync_delivery`-cliff signature of the
+ * 09-21 / 09-14 outages. 3h is short enough to catch an outage fast yet comfortably
+ * larger than the hourly cadence, so a single delayed/queued delivery can't trip it;
+ * and because AgenticOS's own App webhook (CI events) keeps the healthy delivery rate
+ * high, 3h with zero deliveries is a strong fleet-wide dead signal, not a lull.
+ */
+const INBOUND_DEADMAN_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 /** Captured in setup() so onWebhook (which only receives `input`) can reach ctx. */
 let currentContext: PluginContext | null = null;
@@ -2155,6 +2168,48 @@ const plugin = definePlugin({
         }
       } catch (err) {
         await recordSwallowedFailure(ctx, cfg, "pr-review-reconcile job failed", err, {});
+      }
+    });
+
+    // Inbound dead-man tripwire (GOL-2370): the PAGING counterpart to the reconcile
+    // sweeps. The sweeps self-heal a dropped delivery silently — so if the WHOLE
+    // inbound ingress is dead (worker down / webhook mis-routed / host not dispatching),
+    // they quietly backfill and nobody is paged while the outage smoulders for days
+    // (the 09-21 grove-sites#775 and 09-14 GOL-2279 outages, both with the same
+    // `github_sync_delivery` cliff: no delivery row for days while GitHub kept showing
+    // PR/issue activity). This hourly check pages ⛔ only on that exact signature —
+    // zero deliveries in the window AND recent GitHub activity in a bridged repo —
+    // and stays silent for a genuinely quiet fleet. Read-only: it never writes to
+    // Paperclip, so it needs no companyId/scope (unlike the sweeps).
+    ctx.jobs.register("inbound-dead-man", async () => {
+      try {
+        const sinceIso = new Date(Date.now() - INBOUND_DEADMAN_WINDOW_MS).toISOString();
+        const windowHours = Math.round(INBOUND_DEADMAN_WINDOW_MS / 3_600_000);
+        const summary = await runInboundDeadMan({
+          repoSlugs: Array.from(clientsBySlug.keys()),
+          // Any delivery outcome — even a rejected probe — proves the ingress is alive.
+          countDeliveries: () => deliveryCountSince(ctx.db, sinceIso),
+          // Probe GitHub for a PR OR issue updated in the same window. Uses the same
+          // per-repo client/token the sweeps use; a read failure is transient (retried
+          // next run), never counted as activity, so a flaky probe can't manufacture a page.
+          checkActivity: async (repoSlug) => {
+            const entry = clientsBySlug.get(repoSlug);
+            if (!entry) return { ok: false as const, error: "no client for repo" };
+            const res = await entry.github.recentActivitySince(entry.repo, sinceIso);
+            if (!res.ok) return { ok: false as const, error: res.error };
+            return { ok: true as const, active: res.data.active, latestUpdatedAt: res.data.latestUpdatedAt };
+          },
+          logger: ctx.logger,
+        });
+        ctx.logger.info("inbound-dead-man complete", summary as unknown as Record<string, unknown>);
+        if (summary.page) {
+          // ⛔ error-class page through the shared throttle (dedups any burst). The job
+          // is hourly, so a sustained outage re-pages at most once an hour until fixed —
+          // the intended "keep reminding, never spam" cadence for a fleet-down event.
+          await postThrottledOpsAlert(ctx, cfg, buildInboundDeadManPing(summary, windowHours));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "inbound-dead-man job failed", err, {});
       }
     });
 

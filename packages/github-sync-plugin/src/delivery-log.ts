@@ -112,6 +112,23 @@ export async function failedDeliveryCount(db: MappingDb, sinceIso?: string): Pro
   return first ? Number(first.n) : 0;
 }
 
+/**
+ * How many deliveries of ANY outcome landed since an ISO cutoff — the inbound
+ * dead-man's liveness signal (GOL-2370). Unlike {@link failedDeliveryCount}, this
+ * does NOT filter on outcome: a single row of any kind — even a `rejected_signature`
+ * probe — proves the webhook ingress reached the plugin. Zero rows in the window is
+ * the necessary (not yet sufficient) condition for "webhook dead": the tripwire then
+ * asks GitHub whether the fleet was actually quiet or the ingress is down.
+ */
+export async function deliveryCountSince(db: MappingDb, sinceIso: string): Promise<number> {
+  const rows = await db.query<{ n: number | string }>(
+    `SELECT count(*) AS n FROM ${qualifiedTable(db)} WHERE occurred_at >= $1`,
+    [sinceIso],
+  );
+  const first = rows[0];
+  return first ? Number(first.n) : 0;
+}
+
 /** Most-recent deliveries first — the queryable per-delivery status view. */
 export async function recentDeliveries(db: MappingDb, limit = 50): Promise<DeliveryRow[]> {
   const rows = await db.query<Record<string, unknown>>(
