@@ -378,6 +378,7 @@ services:
       - ./packages/github-plugin:/paperclip/plugins/github-plugin:ro
       - ./packages/github-sync-plugin:/paperclip/plugins/github-sync-plugin:ro
       - ./packages/discord-plugin:/paperclip/plugins/discord-plugin:ro
+      - ./packages/grove-content-drafter-plugin:/paperclip/plugins/grove-content-drafter-plugin:ro
       # Shared agent house-rules (internal API endpoint + local Obsidian vault).
       # Reference it from each agent's adapterConfig.instructionsFilePath =
       # /paperclip/agent-house-rules.md so it's prepended to every run.
