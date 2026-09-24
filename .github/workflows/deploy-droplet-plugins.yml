@@ -38,6 +38,7 @@ on:
       - 'packages/github-plugin/**'
       - 'packages/github-sync-plugin/**'
       - 'packages/discord-plugin/**'
+      - 'packages/grove-content-drafter-plugin/**'
       - '.github/workflows/deploy-droplet-plugins.yml'
   workflow_dispatch:
 
@@ -93,15 +94,17 @@ jobs:
               --filter @agenticos/openviking-plugin \
               --filter @agenticos/github-plugin \
               --filter @agenticos/github-sync-plugin \
-              --filter @agenticos/discord-plugin
+              --filter @agenticos/discord-plugin \
+              --filter @agenticos/grove-content-drafter-plugin
             pnpm --filter @agenticos/vault-plugin \
                  --filter @agenticos/openviking-plugin \
                  --filter @agenticos/github-plugin \
                  --filter @agenticos/github-sync-plugin \
-                 --filter @agenticos/discord-plugin build
+                 --filter @agenticos/discord-plugin \
+                 --filter @agenticos/grove-content-drafter-plugin build
 
             # Fail the deploy if any dist is incomplete (worker + manifest).
-            for p in vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin; do
+            for p in vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin grove-content-drafter-plugin; do
               for f in dist/worker.js dist/manifest.js; do
                 test -s "packages/$p/$f" || { echo "MISSING packages/$p/$f"; exit 1; }
               done
