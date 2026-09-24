@@ -1,22 +1,24 @@
 /**
- * Turn a product's recorded facts into storefront content via an LLM.
+ * Turn a product's recorded facts into storefront content.
  *
- * Pure orchestration around an injected {@link LlmClient} so it is testable
- * without the network: build the prompt from the product view, ask the model for
- * strict JSON, then sanitise + validate the result. The model may fill *empty*
- * required char facts, but only from {@link FILLABLE_FACT_FIELDS} and only with a
- * cited (http/https) extension-service source — never typed/facet fields (zones,
- * sun, layer) which come from the USDA fetch step and human review.
+ * Two pure halves, no network:
+ *   - {@link buildSystemPrompt} / {@link buildUserPrompt} render the drafting
+ *     brief that gets handed to the drafting agent (GOL-2424 Option A: the LLM
+ *     call runs inside a Paperclip agent on the Claude subscription, not a
+ *     metered Anthropic key).
+ *   - {@link parseDraftResponse} validates + sanitises the agent's fenced JSON
+ *     reply back into a {@link DraftResult}.
+ *
+ * The agent may fill *empty* required char facts, but only from
+ * {@link FILLABLE_FACT_FIELDS} and only with a cited (http/https) extension-
+ * service source — never typed/facet fields (zones, sun, layer) which come from
+ * the USDA fetch step and human review.
  */
 import { sanitizeDraftHtml } from "./sanitize.js";
 
 type Ok<T> = { ok: true; data: T };
 type Err = { ok: false; error: string };
 export type Result<T> = Ok<T> | Err;
-
-export interface LlmClient {
-  complete(system: string, user: string): Promise<Result<string>>;
-}
 
 /** Empty required char facts the drafter may fill with a cited source. */
 export const FILLABLE_FACT_FIELDS = [
@@ -115,6 +117,11 @@ export function buildUserPrompt(p: ProductView): string {
     "Empty required facts you MAY fill (only these, each with a cited extension-service source):",
     fillable,
     "",
+    // GOL-2544: the care guide must speak to the grower's spacing/timeline
+    // decisions, so call out the size/pollination/timeline facts explicitly.
+    "When these are known, the care guide must state them plainly: mature height and spread (for spacing),",
+    "pollination requirements (self-fertile vs. needs a pollinator partner), and years to fruit/harvest.",
+    "",
     "Return JSON with exactly these keys:",
     "{",
     '  "description_ecommerce_html": "2-3 short storefront paragraphs, <p> tags",',
@@ -140,25 +147,34 @@ function stripFences(text: string): string {
 const SAFE_URL = /^https?:\/\//i;
 const FILLABLE_SET: ReadonlySet<string> = new Set(FILLABLE_FACT_FIELDS);
 
-export async function draftContent(llm: LlmClient, houseRules: string, product: ProductView): Promise<Result<DraftResult>> {
-  const raw = await llm.complete(buildSystemPrompt(houseRules), buildUserPrompt(product));
-  if (!raw.ok) return raw;
-
+/**
+ * Validate + sanitise a drafting agent's raw JSON reply into a {@link DraftResult}.
+ *
+ * `emptyFillable` is the set of fields the request said were fillable; a fill for
+ * any other field (or a fill without a real http(s) source) is silently dropped.
+ * Returns an error result (never throws) when the JSON is missing/invalid or the
+ * required description/care-guide came back empty — the caller surfaces the exact
+ * error back to the agent and never writes partial content.
+ */
+export function parseDraftResponse(raw: string, emptyFillable: FillableField[]): Result<DraftResult> {
   let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(stripFences(raw.data)) as Record<string, unknown>;
+    parsed = JSON.parse(stripFences(raw)) as Record<string, unknown>;
   } catch {
-    return { ok: false, error: "model did not return valid JSON" };
+    return { ok: false, error: "reply did not contain valid JSON" };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, error: "reply JSON was not an object" };
   }
 
   const descriptionEcommerce = sanitizeDraftHtml(String(parsed.description_ecommerce_html ?? ""));
   const websiteDescription = sanitizeDraftHtml(String(parsed.website_description_html ?? ""));
   if (!descriptionEcommerce.trim() || !websiteDescription.trim()) {
-    return { ok: false, error: "model returned empty description or care guide" };
+    return { ok: false, error: "reply was missing description_ecommerce_html or website_description_html" };
   }
 
   // Only accept fills for empty, whitelisted fields with a real http(s) source.
-  const emptySet = new Set<string>(product.emptyFillable);
+  const emptySet = new Set<string>(emptyFillable);
   const filledFacts: FilledFact[] = [];
   const rawFacts = Array.isArray(parsed.filled_facts) ? parsed.filled_facts : [];
   for (const item of rawFacts) {
