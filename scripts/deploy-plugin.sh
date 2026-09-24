@@ -27,7 +27,7 @@
 #   scripts/deploy-plugin.sh --selftest
 #
 # Usage: scripts/deploy-plugin.sh <plugin> [<plugin> ...]
-#   plugin ∈ vault-plugin | openviking-plugin | github-plugin | github-sync-plugin | discord-plugin
+#   plugin ∈ any name in PLUGIN_DIRS (scripts/plugin-registry.sh)
 #
 # Env: as paperclip-lib.sh, plus:
 #   DROPLET_SSH   default "deploy@agenticos-droplet"  (recreate-guard SSH target)
@@ -41,7 +41,9 @@ source "${HERE}/paperclip-lib.sh"
 
 DROPLET_SSH="${DROPLET_SSH:-deploy@agenticos-droplet}"
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/agenticos}"
-VALID_PLUGINS="vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin"
+# shellcheck source=scripts/plugin-registry.sh
+source "${HERE}/plugin-registry.sh"
+VALID_PLUGINS="${PLUGIN_DIRS}"
 
 # --- github-sync inbound webhook id-drift gate (GOL-1394) ---------------------
 # A github-sync reinstall ROTATES the plugin UUID (delete+install is Paperclip's
@@ -278,7 +280,7 @@ guard_manifest_version() {
 # live_plugin_version PLUGIN — installed manifest version from the board API
 # (tolerant of both the flat `.version` and a nested `.manifest.version`).
 live_plugin_version() {
-  api GET /api/plugins | jq -r --arg k "agenticos.$1" \
+  api GET /api/plugins | jq -r --arg k "$(plugin_key "$1")" \
     '(if type=="object" then .plugins else . end)[]
        | select(.pluginKey==$k) | (.version // .manifest.version // "")'
 }
@@ -297,7 +299,7 @@ guard_version_live() {
 # install, or a host whose /api/plugins payload omits the manifest object) — callers
 # treat empty as "no baseline, skip", never as "changed".
 live_manifest_body() {
-  api GET /api/plugins 2>/dev/null | jq -S -c --arg k "agenticos.$1" \
+  api GET /api/plugins 2>/dev/null | jq -S -c --arg k "$(plugin_key "$1")" \
     '[ (if type=="object" then .plugins else . end)[] | select(.pluginKey==$k) ][0]
        | (.manifest // empty) | del(.version)' 2>/dev/null || true
 }
@@ -317,7 +319,7 @@ guard_version_bumped_live() {
 config_roundtrip_live() {
   local p="$1"; shift
   local id json
-  id="$(resolve_plugin_id "agenticos.${p}")"
+  id="$(resolve_plugin_id "$(plugin_key "${p}")")"
   [ -n "$id" ] || { echo "FATAL: ${p}: not installed for config round-trip" >&2; return 1; }
   json="$(api GET "/api/plugins/${id}/config" 2>/dev/null || echo '{}')"
   guard_config_roundtrip "$p" "$json" "$@"
@@ -375,7 +377,7 @@ recreate_guard() {
 # We distinguish them by probing for the plugin row after a failed install.
 reinstall() {
   local p="$1" id status
-  id="$(resolve_plugin_id "agenticos.${p}")"
+  id="$(resolve_plugin_id "$(plugin_key "${p}")")"
   if [ -n "$id" ]; then
     api DELETE "/api/plugins/${id}" >/dev/null && echo "    ${p}: deleted ${id}"
   fi
@@ -385,7 +387,7 @@ reinstall() {
     echo "    ${p}: installed -> ${status}"
     return 0
   fi
-  id="$(resolve_plugin_id "agenticos.${p}")"
+  id="$(resolve_plugin_id "$(plugin_key "${p}")")"
   if [ -n "$id" ]; then
     echo "    ${p}: WARN install failed but plugin row ${id} exists (worker" >&2
     echo "    ${p}:   activation failed, likely missing config) — continuing;" >&2
@@ -403,7 +405,7 @@ reinstall() {
 # make the rotation visible for every plugin so it can never happen silently.
 guard_id_rotation() {
   local p="$1" before="$2" after
-  after="$(resolve_plugin_id "agenticos.${p}")"
+  after="$(resolve_plugin_id "$(plugin_key "${p}")")"
   [ -n "$after" ] || { echo "FATAL: ${p}: no plugin id after reinstall" >&2; return 1; }
   if [ -n "$before" ] && [ "$before" != "$after" ]; then
     echo "    ${p}: NOTE plugin id rotated on reinstall ${before} -> ${after}" >&2
@@ -429,7 +431,7 @@ apply_config() {
 # cycle PLUGIN — disable then enable to force setup() to re-run.
 cycle() {
   local p="$1" id
-  id="$(resolve_plugin_id "agenticos.${p}")"
+  id="$(resolve_plugin_id "$(plugin_key "${p}")")"
   [ -n "$id" ] || { echo "FATAL: ${p} missing after install" >&2; return 1; }
   api POST "/api/plugins/${id}/disable" >/dev/null 2>&1 || true
   api POST "/api/plugins/${id}/enable"  >/dev/null
@@ -441,7 +443,7 @@ cycle() {
 # inactive by design until separately configured, so we do NOT assert "active".
 assert_healthy() {
   local p="$1" status
-  status="$(api GET /api/plugins | jq -r --arg k "agenticos.${p}" \
+  status="$(api GET /api/plugins | jq -r --arg k "$(plugin_key "${p}")" \
     '(if type=="object" then .plugins else . end)[] | select(.pluginKey==$k) | .status')"
   echo "    ${p}: status=${status}"
   case "$status" in
@@ -537,7 +539,7 @@ for p in "$@"; do
   echo "==> ${p}"
   # G1a: version agreement across src/dist/pkg — fail-fast BEFORE destructive delete.
   guard_manifest_version "$p"
-  id_before="$(resolve_plugin_id "agenticos.${p}")"
+  id_before="$(resolve_plugin_id "$(plugin_key "${p}")")"
   # G1c: snapshot the DEPLOYED manifest body + version BEFORE the destructive delete
   # so guard_version_bumped_live can prove a content change carried a version bump.
   body_before="$(live_manifest_body "$p")"

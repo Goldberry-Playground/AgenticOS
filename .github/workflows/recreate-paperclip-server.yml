@@ -88,7 +88,10 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" '
             set -euo pipefail
             cd /opt/agenticos
-            plugins="vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin"
+            # Must match PLUGIN_DIRS in scripts/plugin-registry.sh and the bind
+            # mounts in docker-compose.yml. scripts/ci/plugin-registry-drift.test.sh
+            # fails CI if these lists disagree (GOL-2423).
+            plugins="vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin grove-content-drafter-plugin"
             for i in 1 2 3 4 5 6 7 8 9 10; do
               missing=""
               for p in $plugins; do

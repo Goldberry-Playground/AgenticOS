@@ -11,7 +11,8 @@
 # upstream. See the plugin manifests for the migration note.
 #
 # WHAT it does (idempotent):
-#   1. delete + reinstall the 3 AgenticOS plugins (refreshes their manifests)
+#   1. delete + reinstall the AgenticOS plugins in PLUGIN_DIRS
+#      (scripts/plugin-registry.sh) — refreshes their manifests
 #   2. set github-plugin + openviking-plugin config (token/key + non-secret opts)
 #   3. (optional) trigger the pr-triage job to verify end to end
 #
@@ -40,6 +41,8 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/paperclip-lib.sh
 source "${HERE}/paperclip-lib.sh"
+# shellcheck source=scripts/plugin-registry.sh
+source "${HERE}/plugin-registry.sh"
 
 GITHUB_ORG="${GITHUB_ORG:-EngineeringMoonBear}"
 TRIGGER_TRIAGE="${TRIGGER_TRIAGE:-0}"
@@ -57,7 +60,16 @@ echo "$existing" | jq -r '(if type=="object" then .plugins else . end)[] | selec
 # token + synced project id); see docs/runbooks/github-issue-sync.md. Until
 # configured it stays INACTIVE (the worker refuses to subscribe unscoped).
 # discord-plugin is installed here; config is set below via configure_discord_plugin.
-for name in vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin; do
+# grove-content-drafter-plugin is in PLUGIN_PENDING_INSTALL until its first
+# install is cleared (GOL-2423 / GOL-2424, Josh-gated): its dist deploys and its
+# bind mount exists, but this script will NOT install it unless you opt in with
+# INSTALL_PENDING=1. That keeps an unrelated secret-sync from silently
+# performing a gated first install.
+for name in ${PLUGIN_DIRS}; do
+  if plugin_is_pending_install "$name" && [ "${INSTALL_PENDING:-0}" != "1" ]; then
+    echo "    skipped ${name} (pending first install; re-run with INSTALL_PENDING=1 to install)"
+    continue
+  fi
   status="$(api POST /api/plugins/install \
     "{\"packageName\":\"/paperclip/plugins/${name}\",\"isLocalPath\":true}" \
     | jq -r '.status')"

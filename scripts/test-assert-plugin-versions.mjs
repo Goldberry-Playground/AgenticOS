@@ -9,7 +9,10 @@
 //   4b. PASSES (soft WARN, GOL-1276) when the only unhealthy plugin is
 //       installed-but-unconfigured (lastError = "…config missing…"),
 //   4c. FAILS that same case under STRICT_HEALTH=1,
-//   5. no-ops (exit 0) when EXPECT is empty.
+//   5. no-ops (exit 0) when EXPECT is empty,
+//   6. SKIPS a PENDING plugin that is not installed yet (GOL-2423), and
+//   6b. FAILS when a PENDING plugin turns out to BE installed — the inversion
+//       that stops the holding state outliving the install it waits on.
 //
 // Run: node scripts/test-assert-plugin-versions.mjs
 import { createServer } from "node:http";
@@ -140,6 +143,46 @@ await withServer(
     const r = await run(base, "agenticos.discord-plugin=0.3.0");
     check("unconfigured + drift still fails nonzero", r.code !== 0, "code=" + r.code);
     check("unconfigured + drift named as STALE", /registry 0\.2\.0 != built 0\.3\.0/.test(r.err), r.err.trim());
+  },
+);
+
+// 6) PENDING: a plugin that is built + bind-mounted but deliberately NOT
+//    installed yet (PLUGIN_PENDING_INSTALL, GOL-2423) is SKIPPED, not "NOT
+//    INSTALLED". Without this the first deploy after wiring a new plugin goes
+//    RED for a state we chose on purpose.
+await withServer(
+  [{ key: "agenticos.github-sync-plugin", version: "0.11.6" }],
+  async (base) => {
+    const r = await run(
+      base,
+      "agenticos.github-sync-plugin=0.11.6 agenticos.grove-content-drafter=0.1.0",
+      { PENDING: "agenticos.grove-content-drafter" },
+    );
+    check("pending + uninstalled exits 0", r.code === 0, "code=" + r.code + " " + r.err);
+    check(
+      "pending + uninstalled is skipped, not NOT INSTALLED",
+      /skip agenticos\.grove-content-drafter/.test(r.out) && !/NOT INSTALLED/.test(r.err),
+      r.out.trim() + r.err.trim(),
+    );
+    check("pending skip is counted separately", /1 pending first install, skipped/.test(r.out), r.out.trim());
+  },
+);
+
+// 6b) The inversion that makes PENDING a holding state and not an escape hatch:
+//     once the plugin IS installed, leaving it in PLUGIN_PENDING_INSTALL fails
+//     RED, so its version can never stay unasserted after go-live.
+await withServer(
+  [{ key: "agenticos.grove-content-drafter", version: "0.1.0" }],
+  async (base) => {
+    const r = await run(base, "agenticos.grove-content-drafter=0.1.0", {
+      PENDING: "agenticos.grove-content-drafter",
+    });
+    check("pending but installed fails nonzero", r.code !== 0, "code=" + r.code);
+    check(
+      "pending but installed says to remove it from PLUGIN_PENDING_INSTALL",
+      /IS INSTALLED[\s\S]*PLUGIN_PENDING_INSTALL/.test(r.err),
+      r.err.trim(),
+    );
   },
 );
 

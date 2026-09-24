@@ -19,7 +19,7 @@
 # Actions secret (no CI secrets:write on this repo; App token = read-only).
 #
 # Usage: scripts/finish-plugin-upgrade.sh <plugin> [<plugin> ...]
-#   plugin ∈ vault-plugin | openviking-plugin | github-plugin | github-sync-plugin
+#   plugin ∈ any name in PLUGIN_DIRS (scripts/plugin-registry.sh)
 #
 # Env overrides:
 #   COMPOSE_DIR    default /opt/agenticos      (docker compose project dir)
@@ -36,7 +36,12 @@ REPO_DIR="${REPO_DIR:-/opt/agenticos/repo}"
 BROKER_ENV="${BROKER_ENV:-${COMPOSE_DIR}/secrets/credential-broker.env}"
 BOARD_KEY_REF="${BOARD_KEY_REF:-op://Goldberry Grove - Admin/AgenticOS Infra/paperclip_board_key}"
 OP_IMG="${OP_IMG:-1password/op:2}"
-VALID="vault-plugin openviking-plugin github-plugin github-sync-plugin"
+# shellcheck source=scripts/plugin-registry.sh
+source "${HERE}/plugin-registry.sh"
+# Previously a hand-maintained list that had already drifted: discord-plugin was
+# in the deploy workflow's build loop but NOT here, so a discord manifest bump
+# would have hard-failed CD with "unknown plugin". One list now (GOL-2423).
+VALID="${PLUGIN_DIRS}"
 
 # --- validate args BEFORE touching op/docker so bad input fails fast ----------
 [ "$#" -ge 1 ] || { echo "usage: $0 <plugin> [<plugin> ...]" >&2; exit 2; }
@@ -56,7 +61,13 @@ echo "paperclip API: ${PAPERCLIP_BASE}"
 
 rc=0
 for p in "$@"; do
-  key="agenticos.${p}"
+  # Manifest-declared id, not "agenticos.<dir>" — they differ for
+  # grove-content-drafter-plugin (agenticos.grove-content-drafter).
+  key="$(plugin_key "$p")"
+  if plugin_is_pending_install "$p"; then
+    echo "== ${p}: pending first install (PLUGIN_PENDING_INSTALL) — nothing to /upgrade, skipping =="
+    continue
+  fi
   mf="${REPO_DIR}/packages/${p}/dist/manifest.js"
   want=""
   if [ -s "$mf" ]; then

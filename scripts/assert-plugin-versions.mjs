@@ -21,6 +21,13 @@
 //   BOARD_KEY       board bearer key (from 1Password; never logged)
 //   EXPECT          space/comma-separated <pluginKey>=<version> pairs, e.g.
 //                   "agenticos.github-sync-plugin=0.11.6 agenticos.vault-plugin=0.4.2"
+//   PENDING         space/comma-separated pluginKeys that are BUILT + bind-mounted
+//                   but deliberately NOT installed in the registry yet (GOL-2423).
+//                   A pending key that is absent from the registry is skipped with
+//                   a notice instead of failing "NOT INSTALLED"; a pending key that
+//                   IS installed fails RED, forcing it out of PLUGIN_PENDING_INSTALL
+//                   and into full assertion coverage. That inversion is the point:
+//                   the holding state cannot silently outlive the install.
 //
 // Exits 0 when every expected plugin is installed at the expected version and
 // either healthy OR installed-but-unconfigured (activation blocked purely on
@@ -31,6 +38,9 @@
 const base = process.env.PAPERCLIP_BASE;
 const board = process.env.BOARD_KEY || "";
 const expectRaw = process.env.EXPECT || "";
+const pending = new Set(
+  (process.env.PENDING || "").split(/[\s,]+/).filter(Boolean),
+);
 
 if (!base || !board) {
   console.error("assert-plugin-versions: PAPERCLIP_BASE and BOARD_KEY are required");
@@ -82,8 +92,24 @@ const unconfigured = (p) => {
 
   const drift = [];
   const warn = [];
+  let skipped = 0;
   for (const e of expect) {
     const p = findPlugin(list, e.key);
+    if (pending.has(e.key)) {
+      // Deliberate holding state — assert the CLAIM, not the version.
+      if (p) {
+        drift.push(
+          `${e.key}: listed in PLUGIN_PENDING_INSTALL but IS INSTALLED` +
+            ` (registry ${p.version}, status=${p.status}) — remove it from` +
+            ` PLUGIN_PENDING_INSTALL in scripts/plugin-registry.sh so its version` +
+            ` is actually asserted`,
+        );
+      } else {
+        skipped += 1;
+        console.log(`  skip ${e.key} — pending first install (not in registry yet)`);
+      }
+      continue;
+    }
     if (!p) {
       drift.push(`${e.key}: NOT INSTALLED (expected ${e.version})`);
       continue;
@@ -121,8 +147,9 @@ const unconfigured = (p) => {
     );
   }
   console.log(
-    "assert-plugin-versions: all " + expect.length + " converged" +
-      (warn.length ? ` (${warn.length} installed-but-unconfigured, soft-warned)` : ""),
+    "assert-plugin-versions: all " + (expect.length - skipped) + " converged" +
+      (warn.length ? ` (${warn.length} installed-but-unconfigured, soft-warned)` : "") +
+      (skipped ? ` (${skipped} pending first install, skipped)` : ""),
   );
 })().catch((e) => {
   console.error(String((e && e.message) || e));
