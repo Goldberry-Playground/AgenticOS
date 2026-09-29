@@ -37,6 +37,7 @@ on:
       - E2E
       - Deploy Droplet
       - Deploy Droplet Plugins
+      - Deploy Host Scripts
       - Droplet Disk Reclaim
       - Recreate paperclip-server
       - Sync new GitHub issues → Paperclip
@@ -248,6 +249,124 @@ jobs:
                 `Escalation from PR #${pr.number} — ${escalateReason}`,
               );
             }
+
+  # ── Out-of-band ops page for DEPLOY-class failures (GOL-2591) ──────────────
+  # The `route` job above already watched Deploy Droplet Plugins on 2026-09-24 and
+  # DID fire: run 35939085377 went red on its own hard gate ("Assert plugins
+  # converged (GOL-804)" printed `400 Missing package.json at
+  # /paperclip/plugins/github-sync-plugin`) and this router minted issue #710 one
+  # minute later. The outage still ran FIVE DAYS (github-sync dead 2026-09-24
+  # 00:35Z → 2026-09-29 20:44Z; four grove-odoo-modules PRs, including Stripe Tax,
+  # never reviewed) because a minted GitHub issue only reaches the board by being
+  # mirrored **by the github-sync worker** — the component the failed deploy had
+  # just killed. The alarm ran through the thing it was alarming about.
+  #
+  # So this job is not a second detector; it is a second DELIVERY PATH for the
+  # detection that already worked: a direct HTTPS POST from the runner to the Grove
+  # ops Discord webhook, touching neither the droplet, nor the Paperclip host, nor
+  # github-sync. Deliberately NOT `needs: route` — a bug or a rate-limit in the
+  # routing job must never be able to swallow the page.
+  #
+  # Scoped to the deploy-class workflows only — the four that can take the board's
+  # own plumbing down. `Deploy Host Scripts` was not even watched by the router
+  # before: it was written as "just bash scripts" (GOL-1965), but it git-resets the
+  # clone whose packages/ dir is bind-mounted into paperclip-server, and on
+  # 2026-09-29 that silently reverted github-sync to a stale committed bundle and
+  # paused its liveness heartbeat. It is deploy-class; it is watched and paged now.
+  # Ordinary CI/test failures keep the PR-sticky + issue path, which is fine: those
+  # are visible on the PR and never sever the mirror.
+  page-ops:
+    name: Page Grove ops Discord (deploy-class failure)
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      contains(fromJSON('["Deploy Droplet","Deploy Droplet Plugins","Deploy Host Scripts","Recreate paperclip-server"]'), github.event.workflow_run.name)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read # list the failed run's jobs + download its logs
+      contents: read # sparse-checkout the formatter
+    steps:
+      # Only `scripts/ci` from the DEFAULT branch — never the failed run's ref, so
+      # this job cannot execute code from the commit it is reporting on.
+      - name: Check out the alert formatter
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/ci
+
+      - name: Gather failure facts
+        uses: actions/github-script@v9
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        with:
+          script: |
+            // Event payload fields are DATA only — they go into a JSON file and are
+            // never interpolated into a shell command. `workflow_run` names and
+            // branches are attacker-influenceable on a fork PR, and a backtick or
+            // `${...}` in one of them expands at render time in a `run:` block
+            // (GOL-2531). In JS they stay strings and are never eval'd.
+            const fs = require("fs");
+            // `await import`, NOT require: the formatter is ESM (.mjs) and
+            // github-script's body is CommonJS, so require() throws
+            // ERR_REQUIRE_ESM. pathToFileURL because a bare absolute path is not
+            // a valid ESM specifier on every platform.
+            const { pathToFileURL } = require("url");
+            const { extractFirstError, failingStepName } = await import(
+              pathToFileURL(`${process.env.GITHUB_WORKSPACE}/scripts/ci/deploy-failure-alert.mjs`).href
+            );
+            const { RUN_ID, WF_NAME, HEAD_BRANCH, HEAD_SHA, RUN_URL, RUN_EVENT, RUN_ATTEMPT } = process.env;
+            const { owner, repo } = context.repo;
+            const runId = Number(RUN_ID);
+
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner, repo, run_id: runId, filter: "latest", per_page: 100,
+            });
+            const failed = jobs.filter((j) => j.conclusion === "failure");
+            const failedJobs = failed.map((j) => ({
+              name: j.name,
+              failingStep: failingStepName(j.steps),
+            }));
+
+            // First `::error::` line: needs the raw log of the failed job. Strictly
+            // best-effort — log retention, a 410 on an expired run, or an API blip
+            // must degrade the alert's detail, never suppress the alert.
+            let firstError = null;
+            for (const j of failed) {
+              try {
+                const res = await github.rest.actions.downloadJobLogsForWorkflowRun({
+                  owner, repo, job_id: j.id,
+                });
+                const text = typeof res.data === "string" ? res.data : Buffer.from(res.data).toString("utf8");
+                firstError = extractFirstError(text);
+              } catch (e) {
+                core.warning(`could not read log for job ${j.id}: ${e.status ?? ""} ${e.message}`);
+              }
+              if (firstError) break;
+            }
+
+            const facts = {
+              workflow: WF_NAME,
+              branch: HEAD_BRANCH,
+              sha: HEAD_SHA,
+              event: RUN_EVENT,
+              runAttempt: Number(RUN_ATTEMPT) || 1,
+              runUrl: RUN_URL,
+              failedJobs,
+              firstError,
+            };
+            fs.writeFileSync("deploy-alert-facts.json", JSON.stringify(facts, null, 2));
+            core.info(JSON.stringify(facts, null, 2));
+
+      - name: Post ops alert to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node scripts/ci/deploy-failure-alert.mjs deploy-alert-facts.json
 
   # ── Auto-close: green run of the same workflow+branch resolves it ──────────
   close-on-success:
