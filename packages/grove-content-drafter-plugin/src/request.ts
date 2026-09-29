@@ -103,6 +103,12 @@ export async function runRequestBatch(deps: RequestDeps): Promise<RequestSummary
       description: body,
       originId: productKey,
     });
+    // `ctx.issues.create` sets the assignee but does NOT fire the assignment-wake
+    // a board/REST create gets, so the drafting agent would sit idle until the
+    // sweep's re-ping (up to replyTimeoutHours later). Wake it explicitly here so
+    // every new request is picked up promptly — the same waking path the sweep
+    // re-ping uses (sweep.ts). (GOL-2424.)
+    await issues.wakeAssignee(created.id, "content-drafter: new listing-content draft requested");
     await state.setRequest(created.id, {
       productId: id,
       marker,

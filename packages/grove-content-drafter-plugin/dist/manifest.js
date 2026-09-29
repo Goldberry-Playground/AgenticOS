@@ -7,7 +7,10 @@ var manifest = {
   // The plugin now opens a request issue per product, receives the agent's fenced
   // JSON reply via the issue.comment.created event (+ a sweep backstop), and does
   // all Odoo writes itself. Bump on every manifest change (CI convergence).
-  version: "0.2.0",
+  // 0.2.1 — GOL-2424: wake the drafting agent explicitly after opening each
+  // request issue (plugin `issues.create` doesn't fire the assignment-wake), so
+  // requests aren't stranded until the sweep re-ping.
+  version: "0.2.1",
   displayName: "Grove Content Drafter",
   description: "Drafts nursery listing content (storefront description + cited care guide) from recorded plant facts. An agent (Sora) does the writing on the Claude subscription; the plugin owns all Odoo reads/writes (GOL-2384/GOL-2424).",
   author: "AgenticOS",

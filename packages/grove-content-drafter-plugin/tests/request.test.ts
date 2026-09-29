@@ -85,6 +85,25 @@ describe("runRequestBatch", () => {
     expect(savedState.productId).toBe(1);
   });
 
+  it("wakes the drafting agent for every request it opens (create alone does not wake)", async () => {
+    // Regression for GOL-2424: `ctx.issues.create` assigns but never fires the
+    // assignment-wake, so the request must explicitly wake the assignee — the
+    // same waking path the sweep re-ping uses. One wake per created issue.
+    const issues = fakeIssues({
+      createRequestIssue: vi.fn(async () => ({ id: "iss-wake-1" })),
+    });
+    const s = await runRequestBatch({ odoo: fakeOdoo([1]), issues, state: fakeState(), cfg: cfg(), now: NOW });
+    expect(s.requested).toBe(1);
+    expect(issues.wakeAssignee).toHaveBeenCalledTimes(1);
+    expect(issues.wakeAssignee).toHaveBeenCalledWith("iss-wake-1", expect.any(String));
+  });
+
+  it("does not wake anyone when no product is requested", async () => {
+    const issues = fakeIssues({ openRequestExistsForProduct: vi.fn().mockResolvedValue(true) });
+    await runRequestBatch({ odoo: fakeOdoo([7]), issues, state: fakeState(), cfg: cfg(), now: NOW });
+    expect(issues.wakeAssignee).not.toHaveBeenCalled();
+  });
+
   it("respects maxDraftsPerRun as the Odoo search limit (batch cap)", async () => {
     const odoo = fakeOdoo([1]);
     await runRequestBatch({ odoo, issues: fakeIssues(), state: fakeState(), cfg: cfg({ maxDraftsPerRun: 3 }), now: NOW });
