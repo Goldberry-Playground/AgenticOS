@@ -74,7 +74,19 @@ fi
   if plugin_is_pending_install vault-plugin; then exit 9; fi
   if plugin_is_pending_install ""; then exit 10; fi
   if plugin_is_valid ""; then exit 11; fi
-) && ok "plugin_is_valid / plugin_is_pending_install are set -e safe and correct" \
+
+  # plugin_config_is_external guards sync-paperclip-secrets.sh's DELETE, so the
+  # same three shapes matter: a hit, a miss, and the empty name/list that must
+  # NOT match (a false TRUE here would keep a plugin that should be refreshed;
+  # a false FALSE would delete a plugin whose config nothing can restore).
+  PLUGIN_CONFIG_EXTERNAL="ext-a ext-b"
+  plugin_config_is_external ext-a || exit 12
+  plugin_config_is_external ext-b || exit 13
+  if plugin_config_is_external vault-plugin; then exit 14; fi
+  PLUGIN_CONFIG_EXTERNAL=""
+  if plugin_config_is_external vault-plugin; then exit 15; fi
+  if plugin_config_is_external ""; then exit 16; fi
+) && ok "plugin_is_valid / plugin_is_pending_install / plugin_config_is_external are set -e safe and correct" \
   || bad "predicate self-check exited $?"
 
 if [ $fail -eq 0 ]; then echo "plugin-registry.test.sh: PASS"; else echo "plugin-registry.test.sh: FAIL" >&2; fi

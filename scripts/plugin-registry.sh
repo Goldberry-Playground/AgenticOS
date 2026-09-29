@@ -43,6 +43,22 @@ PLUGIN_DIRS="vault-plugin openviking-plugin github-plugin github-sync-plugin dis
 # the next deploy RED with "listed in PLUGIN_PENDING_INSTALL but IS INSTALLED".
 PLUGIN_PENDING_INSTALL=""
 
+# Plugins whose config is supplied OUT OF BAND (1Password -> API by hand, or a
+# separate runbook) rather than by sync-paperclip-secrets.sh. That script's
+# refresh step DELETEs every agenticos.* plugin and reinstalls the ones it can
+# reconfigure, and a DELETE drops the config row with it — so for these a routine
+# secret-sync would silently de-configure a working plugin and leave it INACTIVE:
+#   github-sync-plugin           — write-scoped token + synced project id,
+#                                  docs/runbooks/github-issue-sync.md.
+#   grove-content-drafter-plugin — prod Odoo service user + drafter agent, set
+#                                  from 1Password (GOL-2423/GOL-2424).
+# While the drafter sat in PLUGIN_PENDING_INSTALL this hazard was latent, because
+# that list already made the script skip it. Clearing the list above unmasks it,
+# so the protection has to become explicit in the same change.
+# The non-destructive way to refresh THEIR manifests is the idempotent
+# POST /api/plugins/<id>/upgrade that finish-plugin-upgrade.sh already uses.
+PLUGIN_CONFIG_EXTERNAL="github-sync-plugin grove-content-drafter-plugin"
+
 # Resolved AT SOURCE TIME, where BASH_SOURCE[0] is reliably this file. Doing it
 # inside a function instead would read the CALLER's frame and resolve wrong.
 PLUGIN_REGISTRY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -88,4 +104,10 @@ plugin_is_valid() {
 plugin_is_pending_install() {
   [ -n "${1:-}" ] || return 1
   case " ${PLUGIN_PENDING_INSTALL} " in *" ${1} "*) return 0 ;; *) return 1 ;; esac
+}
+
+# plugin_config_is_external <plugin-dir>
+plugin_config_is_external() {
+  [ -n "${1:-}" ] || return 1
+  case " ${PLUGIN_CONFIG_EXTERNAL} " in *" ${1} "*) return 0 ;; *) return 1 ;; esac
 }
