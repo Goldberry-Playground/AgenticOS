@@ -12,7 +12,9 @@
 #
 # WHAT it does (idempotent):
 #   1. delete + reinstall the AgenticOS plugins in PLUGIN_DIRS
-#      (scripts/plugin-registry.sh) — refreshes their manifests
+#      (scripts/plugin-registry.sh) — refreshes their manifests. Plugins listed
+#      in PLUGIN_CONFIG_EXTERNAL are KEPT, not deleted: their config comes from
+#      elsewhere and a DELETE would drop it with nothing here to restore it.
 #   2. set github-plugin + openviking-plugin config (token/key + non-secret opts)
 #   3. (optional) trigger the pr-triage job to verify end to end
 #
@@ -51,21 +53,39 @@ pc_require_tools
 pc_load_board_key
 
 echo "==> 1/3 refreshing plugins (delete + reinstall to pick up new manifests)"
-existing="$(api GET /api/plugins)"
-echo "$existing" | jq -r '(if type=="object" then .plugins else . end)[] | select(.pluginKey|startswith("agenticos.")) | .id' \
-  | while read -r id; do
-      [ -n "$id" ] && api DELETE "/api/plugins/${id}" >/dev/null && echo "    deleted ${id}"
-    done
-# github-sync-plugin is installed here but configured separately (write-scoped
-# token + synced project id); see docs/runbooks/github-issue-sync.md. Until
-# configured it stays INACTIVE (the worker refuses to subscribe unscoped).
-# discord-plugin is installed here; config is set below via configure_discord_plugin.
-# grove-content-drafter-plugin is in PLUGIN_PENDING_INSTALL until its first
-# install is cleared (GOL-2423 / GOL-2424, Josh-gated): its dist deploys and its
-# bind mount exists, but this script will NOT install it unless you opt in with
-# INSTALL_PENDING=1. That keeps an unrelated secret-sync from silently
-# performing a gated first install.
+# The refresh is destructive by design — DELETE drops the plugin row AND its
+# config, and the reinstall below re-supplies config for the plugins this script
+# knows about. Plugins whose config comes from somewhere else
+# (PLUGIN_CONFIG_EXTERNAL) must therefore be left alone: deleting one would
+# de-configure a working plugin that nothing here can put back.
+protected_keys=""
 for name in ${PLUGIN_DIRS}; do
+  # `if`, not `a && b`: under `set -e` a false trailing `&&` list exits.
+  if plugin_config_is_external "$name"; then protected_keys="${protected_keys} $(plugin_key "$name")"; fi
+done
+existing="$(api GET /api/plugins)"
+echo "$existing" | jq -r '(if type=="object" then .plugins else . end)[] | select(.pluginKey|startswith("agenticos.")) | "\(.id) \(.pluginKey)"' \
+  | while read -r id key; do
+      [ -n "$id" ] || continue
+      case " ${protected_keys} " in
+        *" ${key} "*)
+          echo "    kept ${key} — config set out of band; DELETE would drop it."
+          echo "        refresh its manifest with POST /api/plugins/${id}/upgrade instead"
+          continue
+          ;;
+      esac
+      api DELETE "/api/plugins/${id}" >/dev/null
+      echo "    deleted ${id} (${key})"
+    done
+# discord-plugin is installed here; config is set below via configure_discord_plugin.
+# PLUGIN_PENDING_INSTALL plugins are built + bind-mounted but not installed yet;
+# this script will NOT perform that gated first install unless you opt in with
+# INSTALL_PENDING=1, so an unrelated secret-sync can't do it by accident.
+for name in ${PLUGIN_DIRS}; do
+  if plugin_config_is_external "$name"; then
+    echo "    skipped ${name} (kept above; config is external to this script)"
+    continue
+  fi
   if plugin_is_pending_install "$name" && [ "${INSTALL_PENDING:-0}" != "1" ]; then
     echo "    skipped ${name} (pending first install; re-run with INSTALL_PENDING=1 to install)"
     continue

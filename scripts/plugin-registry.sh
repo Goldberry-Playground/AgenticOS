@@ -34,8 +34,28 @@ PLUGIN_DIRS="vault-plugin openviking-plugin github-plugin github-sync-plugin dis
 # state, not an escape hatch: assert-plugin-versions.mjs fails RED the moment a
 # pending plugin turns up installed, forcing it out of this list and into full
 # assertion coverage. Remove a name here in the same change that installs it.
-#   grove-content-drafter-plugin — first install is gated on Josh (GOL-2423/GOL-2424).
-PLUGIN_PENDING_INSTALL="grove-content-drafter-plugin"
+#
+# EMPTY is the steady state. grove-content-drafter-plugin was the only entry;
+# its first install landed 2026-09-29 21:03Z (plugin
+# f071f43f-b860-4629-88ad-70823426de2f, agenticos.grove-content-drafter 0.2.0,
+# status=ready), so leaving it here would have failed the next plugin deploy RED
+# with "listed in PLUGIN_PENDING_INSTALL but IS INSTALLED" — the inversion
+# working as designed. It is now under full version assertion like every other
+# plugin (GOL-2423).
+PLUGIN_PENDING_INSTALL=""
+
+# Plugins whose config is supplied OUT OF BAND (1Password -> API by hand, or a
+# separate runbook) rather than by sync-paperclip-secrets.sh. That script's
+# refresh step DELETES and reinstalls every agenticos.* plugin, and a delete
+# drops the config row with it — so for these a routine secret-sync would
+# silently de-configure a working plugin and leave it INACTIVE:
+#   github-sync-plugin       — write-scoped token + synced project id,
+#                              docs/runbooks/github-issue-sync.md.
+#   grove-content-drafter-plugin — prod Odoo service user + drafter agent,
+#                              set from 1Password (GOL-2423/GOL-2424).
+# The non-destructive way to refresh THEIR manifests is the idempotent
+# POST /api/plugins/<id>/upgrade that finish-plugin-upgrade.sh already uses.
+PLUGIN_CONFIG_EXTERNAL="github-sync-plugin grove-content-drafter-plugin"
 
 # Resolved AT SOURCE TIME, where BASH_SOURCE[0] is reliably this file. Doing it
 # inside a function instead would read the CALLER's frame and resolve wrong.
@@ -73,4 +93,9 @@ plugin_is_valid() {
 # plugin_is_pending_install <plugin-dir>
 plugin_is_pending_install() {
   case " ${PLUGIN_PENDING_INSTALL} " in *" ${1} "*) return 0 ;; *) return 1 ;; esac
+}
+
+# plugin_config_is_external <plugin-dir>
+plugin_config_is_external() {
+  case " ${PLUGIN_CONFIG_EXTERNAL} " in *" ${1} "*) return 0 ;; *) return 1 ;; esac
 }

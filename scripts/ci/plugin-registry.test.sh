@@ -52,13 +52,29 @@ fi
 # --- predicates are `set -e` safe -------------------------------------------
 # A trailing `a && b` whose left side is false exits a `set -e` script; the
 # consumers use `if`, and these helpers must return cleanly either way.
+# The membership predicates are exercised against INJECTED lists, not today's
+# values: PLUGIN_PENDING_INSTALL is legitimately EMPTY in the steady state
+# (GOL-2423 cleared the last entry when the drafter was installed), and a test
+# that asserted a specific name was pending would fail the moment the holding
+# state it describes ended — the test tracking the data instead of the logic.
+# An empty list must answer "no" for every name, not match everything.
 ( set -euo pipefail
   REPO_DIR="${ROOT}"; source "${ROOT}/scripts/plugin-registry.sh"
-  if plugin_is_pending_install vault-plugin; then exit 3; fi
-  if plugin_is_valid not-a-plugin; then exit 4; fi
-  plugin_is_valid vault-plugin || exit 5
-  plugin_is_pending_install grove-content-drafter-plugin || exit 6
-) && ok "plugin_is_valid / plugin_is_pending_install are set -e safe and correct" \
+  if plugin_is_valid not-a-plugin; then exit 3; fi
+  plugin_is_valid vault-plugin || exit 4
+
+  PLUGIN_PENDING_INSTALL=""
+  if plugin_is_pending_install vault-plugin; then exit 5; fi
+  PLUGIN_PENDING_INSTALL="a-plugin b-plugin"
+  plugin_is_pending_install b-plugin || exit 6
+  if plugin_is_pending_install c-plugin; then exit 7; fi
+
+  PLUGIN_CONFIG_EXTERNAL=""
+  if plugin_config_is_external github-sync-plugin; then exit 8; fi
+  PLUGIN_CONFIG_EXTERNAL="a-plugin b-plugin"
+  plugin_config_is_external a-plugin || exit 9
+  if plugin_config_is_external c-plugin; then exit 10; fi
+) && ok "plugin_is_valid / plugin_is_pending_install / plugin_config_is_external are set -e safe and correct" \
   || bad "predicate self-check exited $?"
 
 if [ $fail -eq 0 ]; then echo "plugin-registry.test.sh: PASS"; else echo "plugin-registry.test.sh: FAIL" >&2; fi
