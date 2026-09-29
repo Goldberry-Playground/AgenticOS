@@ -269,7 +269,24 @@ const manifest: PaperclipPluginManifestV1 = {
   //   fleet (no GitHub activity) pages nothing. Read-only (no companyId/scope). Reuses the
   //   existing broker token (issues:read); MUST deploy after 0.16.7 (monotonic hot-reload).
   //   (Was 0.16.5 on its branch; bumped past main's 0.16.7 on the conflict merge — GOL-2447.)
-  version: "0.16.8",
+  // 0.16.9 = worker-respawn watchdog: boot resilience + liveness heartbeat (GOL-2371,
+  //   D3 of GOL-2344; follow-up to GOL-2279). On 2026-09-09 a boot-time execSync crash
+  //   in the worker supervisor left this plugin dead ~5 days — every inbound webhook
+  //   502'd — with no auto-respawn and no alert, because nothing external could tell a
+  //   dead worker from a quiet one (github_sync_delivery only advances on a real
+  //   webhook). Two changes, neither adds a capability. (1) BOOT RESILIENCE: setup()
+  //   now runs init inside bootWithRetry — try/catch + bounded exponential backoff —
+  //   so a transient boot failure self-heals and a fatal one leaves the worker UP and
+  //   degraded (onWebhook still answers) + pages ops ⛔, instead of a bare throw out of
+  //   setup (the GOL-2279 silent-death path). (2) LIVENESS SIGNAL: a new frequent
+  //   `worker-heartbeat` job stamps a single-row github_sync_heartbeat table (migration
+  //   007) every 5 min (and once at boot); a dead worker stops refreshing it, so an
+  //   external watchdog polling over DATABASE_URL (or the host supervisor) detects
+  //   staleness and respawns/pages within MINUTES, not days. onHealth now exposes the
+  //   heartbeat (last-alive, this process's boot time, stale flag). Detection/respawn at
+  //   the host boundary is DevOps (Terra) — GOL-2287 Part A/B. Reuses jobs.schedule +
+  //   database.namespace.*; adds migration 007 under the existing `database` block.
+  version: "0.16.9",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
@@ -370,6 +387,15 @@ const manifest: PaperclipPluginManifestV1 = {
       // inbound-close-reconcile (:51), inbound-create-reconcile (:9) and the top of the
       // hour so no two hourly jobs ever stack.
       schedule: "45 * * * *",
+    },
+    {
+      jobKey: "worker-heartbeat",
+      displayName: "Worker liveness heartbeat",
+      description:
+        "Every 5 minutes (and once at boot) stamps the single-row github_sync_heartbeat table with the current time, this worker process's boot time, and the plugin version. A dead worker stops refreshing the row, so an external watchdog polling over DATABASE_URL — or the host supervisor — detects staleness and respawns or pages within minutes, instead of the ~5-day silent inbound outage of GOL-2279. Unlike github_sync_delivery (which only advances on a real webhook), this heartbeat is unconditional, so a quiet inbound window is never mistaken for a crash (GOL-2371).",
+      // Frequent, not hourly — detection must be MINUTES, not the coarse hourly grid
+      // the reconcile sweeps use; the read side flags stale after ~3 missed ticks.
+      schedule: "*/5 * * * *",
     },
   ],
   // Inbound endpoint. The workflow POSTs the GitHub issue-opened payload here;

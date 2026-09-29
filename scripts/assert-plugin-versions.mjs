@@ -16,18 +16,28 @@
 //
 // Runs ON the droplet (host node, global fetch — Node 18+).
 //
+// The host reloads a plugin ASYNCHRONOUSLY after its dist changes, so the
+// registry row lags the freshly-built dist by seconds-to-minutes. Sampling once,
+// immediately after the deploy step, therefore reports drift that isn't real —
+// run 35905253240 went RED at 18:51:38 on a registry that converged by itself at
+// 18:53:28 (GOL-2496). This polls to a deadline instead. A genuine drift still
+// fails RED; it just costs ASSERT_TIMEOUT_MS first.
+//
 // Env:
-//   PAPERCLIP_BASE  board API origin, e.g. http://10.116.16.2:3100
-//   BOARD_KEY       board bearer key (from 1Password; never logged)
-//   EXPECT          space/comma-separated <pluginKey>=<version> pairs, e.g.
-//                   "agenticos.github-sync-plugin=0.11.6 agenticos.vault-plugin=0.4.2"
-//   PENDING         space/comma-separated pluginKeys that are BUILT + bind-mounted
-//                   but deliberately NOT installed in the registry yet (GOL-2423).
-//                   A pending key that is absent from the registry is skipped with
-//                   a notice instead of failing "NOT INSTALLED"; a pending key that
-//                   IS installed fails RED, forcing it out of PLUGIN_PENDING_INSTALL
-//                   and into full assertion coverage. That inversion is the point:
-//                   the holding state cannot silently outlive the install.
+//   PAPERCLIP_BASE   board API origin, e.g. http://10.116.16.2:3100
+//   BOARD_KEY        board bearer key (from 1Password; never logged)
+//   EXPECT           space/comma-separated <pluginKey>=<version> pairs, e.g.
+//                    "agenticos.github-sync-plugin=0.11.6 agenticos.vault-plugin=0.4.2"
+//   PENDING          space/comma-separated pluginKeys that are BUILT + bind-mounted
+//                    but deliberately NOT installed in the registry yet (GOL-2423).
+//                    A pending key that is absent from the registry is skipped with
+//                    a notice instead of failing "NOT INSTALLED"; a pending key that
+//                    IS installed fails RED, forcing it out of PLUGIN_PENDING_INSTALL
+//                    and into full assertion coverage. That inversion is the point:
+//                    the holding state cannot silently outlive the install.
+//   ASSERT_TIMEOUT_MS how long to keep polling for convergence. Default 120000
+//                    (0 = sample once, the historical behaviour).
+//   ASSERT_POLL_MS   poll interval. Default 3000.
 //
 // Exits 0 when every expected plugin is installed at the expected version and
 // either healthy OR installed-but-unconfigured (activation blocked purely on
@@ -41,6 +51,14 @@ const expectRaw = process.env.EXPECT || "";
 const pending = new Set(
   (process.env.PENDING || "").split(/[\s,]+/).filter(Boolean),
 );
+
+const ms = (name, dflt) => {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v >= 0 ? v : dflt;
+};
+const ASSERT_TIMEOUT_MS = ms("ASSERT_TIMEOUT_MS", 120_000);
+const ASSERT_POLL_MS = ms("ASSERT_POLL_MS", 3_000);
+const sleep = (t) => new Promise((r) => setTimeout(r, t));
 
 if (!base || !board) {
   console.error("assert-plugin-versions: PAPERCLIP_BASE and BOARD_KEY are required");
@@ -84,7 +102,7 @@ const unconfigured = (p) => {
   return UNCONFIGURED.test(String((p && p.lastError) || ""));
 };
 
-(async () => {
+async function sample() {
   const r = await fetch(base + "/api/plugins", { headers: H });
   const text = await r.text();
   if (!r.ok) throw new Error("GET /api/plugins -> HTTP " + r.status + " " + text.slice(0, 200));
@@ -92,6 +110,7 @@ const unconfigured = (p) => {
 
   const drift = [];
   const warn = [];
+  const ok = [];
   let skipped = 0;
   for (const e of expect) {
     const p = findPlugin(list, e.key);
@@ -106,7 +125,7 @@ const unconfigured = (p) => {
         );
       } else {
         skipped += 1;
-        console.log(`  skip ${e.key} — pending first install (not in registry yet)`);
+        ok.push(`  skip ${e.key} — pending first install (not in registry yet)`);
       }
       continue;
     }
@@ -122,7 +141,7 @@ const unconfigured = (p) => {
           ` (packagePath=${p.packagePath || "?"}) — deploy shipped STALE code`,
       );
     } else if (healthy(p)) {
-      console.log(`  ok  ${e.key} @ ${p.version} (${p.status})`);
+      ok.push(`  ok  ${e.key} @ ${p.version} (${p.status})`);
     } else if (unconfigured(p)) {
       // Version converged; only unhealthy because config isn't wired yet.
       warn.push(
@@ -137,7 +156,29 @@ const unconfigured = (p) => {
       );
     }
   }
+  return { drift, warn, ok, skipped };
+}
 
+(async () => {
+  // Poll: the host's reload is async, so "drifted" a second after the deploy is
+  // usually "not reloaded yet". Only the LAST sample is reported, so a run that
+  // settles stays quiet (GOL-2496).
+  const deadline = Date.now() + ASSERT_TIMEOUT_MS;
+  let res;
+  for (let attempt = 1; ; attempt += 1) {
+    res = await sample();
+    if (!res.drift.length || Date.now() >= deadline) break;
+    if (attempt === 1) {
+      console.log(
+        `  ... ${res.drift.length} plugin(s) not converged yet; polling up to ` +
+          `${Math.round(ASSERT_TIMEOUT_MS / 1000)}s for the async reload`,
+      );
+    }
+    await sleep(ASSERT_POLL_MS);
+  }
+
+  const { drift, warn, ok, skipped } = res;
+  for (const line of ok) console.log(line);
   for (const w of warn) console.error("  WARN  " + w);
 
   if (drift.length) {
