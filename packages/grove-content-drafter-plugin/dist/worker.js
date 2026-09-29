@@ -30387,54 +30387,6 @@ var OdooClient = class {
   }
 };
 
-// src/anthropic.ts
-var AnthropicClient = class {
-  apiKey;
-  model;
-  maxTokens;
-  timeoutMs;
-  baseUrl;
-  constructor(config2) {
-    this.apiKey = config2.apiKey;
-    this.model = config2.model;
-    this.maxTokens = config2.maxTokens ?? 4096;
-    this.timeoutMs = config2.timeoutMs ?? 6e4;
-    this.baseUrl = (config2.baseUrl ?? "https://api.anthropic.com").replace(/\/$/, "");
-  }
-  async complete(system, user) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-    try {
-      const res = await fetch(`${this.baseUrl}/v1/messages`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": this.apiKey,
-          "anthropic-version": "2023-06-01"
-        },
-        body: JSON.stringify({
-          model: this.model,
-          max_tokens: this.maxTokens,
-          system,
-          messages: [{ role: "user", content: user }]
-        })
-      });
-      const json2 = await res.json();
-      if (!res.ok) {
-        return { ok: false, error: json2.error?.message ?? `Anthropic HTTP ${res.status}` };
-      }
-      const text = (json2.content ?? []).filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text).join("").trim();
-      if (!text) return { ok: false, error: "Anthropic returned no text content" };
-      return { ok: true, data: text };
-    } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : "Anthropic unreachable" };
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-};
-
 // src/sanitize.ts
 var ALLOWED_TAGS = /* @__PURE__ */ new Set(["p", "h2", "h3", "ul", "ol", "li", "strong", "em", "a"]);
 var SAFE_SCHEME = /^(https?:|mailto:)/i;
@@ -30535,6 +30487,11 @@ function buildUserPrompt(p) {
     "Empty required facts you MAY fill (only these, each with a cited extension-service source):",
     fillable,
     "",
+    // GOL-2544: the care guide must speak to the grower's spacing/timeline
+    // decisions, so call out the size/pollination/timeline facts explicitly.
+    "When these are known, the care guide must state them plainly: mature height and spread (for spacing),",
+    "pollination requirements (self-fertile vs. needs a pollinator partner), and years to fruit/harvest.",
+    "",
     "Return JSON with exactly these keys:",
     "{",
     '  "description_ecommerce_html": "2-3 short storefront paragraphs, <p> tags",',
@@ -30556,21 +30513,22 @@ function stripFences(text) {
 }
 var SAFE_URL = /^https?:\/\//i;
 var FILLABLE_SET = new Set(FILLABLE_FACT_FIELDS);
-async function draftContent(llm, houseRules, product) {
-  const raw = await llm.complete(buildSystemPrompt(houseRules), buildUserPrompt(product));
-  if (!raw.ok) return raw;
+function parseDraftResponse(raw, emptyFillable) {
   let parsed;
   try {
-    parsed = JSON.parse(stripFences(raw.data));
+    parsed = JSON.parse(stripFences(raw));
   } catch {
-    return { ok: false, error: "model did not return valid JSON" };
+    return { ok: false, error: "reply did not contain valid JSON" };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, error: "reply JSON was not an object" };
   }
   const descriptionEcommerce = sanitizeDraftHtml(String(parsed.description_ecommerce_html ?? ""));
   const websiteDescription = sanitizeDraftHtml(String(parsed.website_description_html ?? ""));
   if (!descriptionEcommerce.trim() || !websiteDescription.trim()) {
-    return { ok: false, error: "model returned empty description or care guide" };
+    return { ok: false, error: "reply was missing description_ecommerce_html or website_description_html" };
   }
-  const emptySet = new Set(product.emptyFillable);
+  const emptySet = new Set(emptyFillable);
   const filledFacts = [];
   const rawFacts = Array.isArray(parsed.filled_facts) ? parsed.filled_facts : [];
   for (const item of rawFacts) {
@@ -30596,7 +30554,7 @@ async function draftContent(llm, houseRules, product) {
   return { ok: true, data: { descriptionEcommerce, websiteDescription, filledFacts, sources } };
 }
 
-// src/job.ts
+// src/apply.ts
 var FACT_FIELDS = [
   "grove_botanical_name",
   "grove_zone_min",
@@ -30619,6 +30577,7 @@ var FACT_FIELDS = [
 var READ_FIELDS = [
   "name",
   "categ_id",
+  "write_date",
   "grove_shipping_tier",
   "grove_facts_provenance",
   "description_ecommerce",
@@ -30651,68 +30610,31 @@ function toProductView(id, rec) {
     emptyFillable
   };
 }
-async function runContentDraft(deps) {
-  const { odoo, llm, houseRules, dryRun, now, logger } = deps;
-  const empty = { picked: 0, productId: null, drafted: false, dryRun, filledFactCount: 0 };
-  const search = await odoo.searchRequested(1);
-  if (!search.ok) return { ...empty, error: `search failed: ${search.error}` };
-  const id = search.data[0];
-  if (id === void 0) return empty;
-  const read = await odoo.read(id, READ_FIELDS);
-  if (!read.ok) return { ...empty, picked: 1, productId: id, error: `read failed: ${read.error}` };
-  const product = toProductView(id, read.data);
-  const draft = await draftContent(llm, houseRules, product);
-  if (!draft.ok) {
-    await odoo.postNote(
-      id,
-      `<p><strong>Content draft failed.</strong> ${escapeHtml(draft.error)} \u2014 left as requested; will retry.</p>`
-    );
-    return { picked: 1, productId: id, drafted: false, dryRun, filledFactCount: 0, error: draft.error };
-  }
-  if (dryRun) {
-    logger?.info("content-drafter dry-run (no write)", {
-      productId: id,
-      name: product.name,
-      filledFacts: draft.data.filledFacts.map((f) => f.field),
-      sources: draft.data.sources.map((s) => s.url)
-    });
-    return { picked: 1, productId: id, drafted: false, dryRun: true, filledFactCount: draft.data.filledFacts.length };
-  }
+async function applyDraftToOdoo(odoo, productId, existingProvenanceRaw, draft, now) {
   const nowIso = now.toISOString();
-  const existingProv = read.data.grove_facts_provenance && typeof read.data.grove_facts_provenance === "object" && !Array.isArray(read.data.grove_facts_provenance) ? { ...read.data.grove_facts_provenance } : {};
+  const existingProv = existingProvenanceRaw && typeof existingProvenanceRaw === "object" && !Array.isArray(existingProvenanceRaw) ? { ...existingProvenanceRaw } : {};
   const vals = {
-    description_ecommerce: draft.data.descriptionEcommerce,
-    website_description: draft.data.websiteDescription,
+    description_ecommerce: draft.descriptionEcommerce,
+    website_description: draft.websiteDescription,
     grove_draft_state: "drafted",
     grove_facts_reviewed: false
   };
-  for (const f of draft.data.filledFacts) {
+  for (const f of draft.filledFacts) {
     vals[f.field] = f.value;
     existingProv[f.field] = { source: "agent", ref: f.sourceUrl, at: nowIso };
   }
-  if (draft.data.filledFacts.length > 0) {
+  if (draft.filledFacts.length > 0) {
     vals.grove_facts_provenance = existingProv;
   }
-  const wrote = await odoo.write(id, vals);
-  if (!wrote.ok) {
-    await odoo.postNote(
-      id,
-      `<p><strong>Content draft write failed.</strong> ${escapeHtml(wrote.error)} \u2014 left as requested; will retry.</p>`
-    );
-    return { picked: 1, productId: id, drafted: false, dryRun, filledFactCount: 0, error: wrote.error };
-  }
-  await odoo.postNote(id, renderSourcesNote(draft.data.filledFacts, draft.data.sources));
-  logger?.info("content-drafter drafted", { productId: id, filledFacts: draft.data.filledFacts.length });
-  return {
-    picked: 1,
-    productId: id,
-    drafted: true,
-    dryRun: false,
-    filledFactCount: draft.data.filledFacts.length
-  };
+  const wrote = await odoo.write(productId, vals);
+  if (!wrote.ok) return { ok: false, error: wrote.error };
+  await odoo.postNote(productId, renderSourcesNote(draft.filledFacts, draft.sources));
+  return { ok: true, data: { filledFactCount: draft.filledFacts.length } };
 }
 function renderSourcesNote(filled, sources) {
-  const parts = ["<p><strong>Content drafted by grove-content-drafter.</strong> Review and tick Facts reviewed + Guide approved to publish.</p>"];
+  const parts = [
+    "<p><strong>Content drafted by grove-content-drafter.</strong> Review and tick Facts reviewed + Guide approved to publish.</p>"
+  ];
   if (filled.length) {
     parts.push("<p>Filled facts (cited):</p><ul>");
     for (const f of filled) {
@@ -30730,53 +30652,383 @@ function renderSourcesNote(filled, sources) {
   return parts.join("");
 }
 
+// src/ports.ts
+function productOriginId(productId) {
+  return `pt#${productId}`;
+}
+function versionMarker(productId, writeDate) {
+  return `product.template#${productId}@${writeDate || "unknown"}`;
+}
+function markerComment(marker) {
+  return `<!-- content-draft: ${marker} -->`;
+}
+
+// src/request.ts
+function buildRequestBody(system, user, marker) {
+  return [
+    markerComment(marker),
+    "## Draft listing content",
+    "",
+    "You are drafting storefront content for one nursery product. Follow the brief below exactly.",
+    "**Reply with a single comment containing ONE fenced ```json block** and nothing else that could be",
+    "mistaken for the payload. The plugin parses that block, validates it, and writes it to Odoo \u2014 you do",
+    "not touch Odoo yourself. If you cannot produce a valid draft, say so in plain text and the plugin will",
+    "leave the product untouched.",
+    "",
+    "### System brief",
+    "```",
+    system,
+    "```",
+    "",
+    "### Product brief",
+    "```",
+    user,
+    "```"
+  ].join("\n");
+}
+async function runRequestBatch(deps) {
+  const { odoo, issues, state, cfg, now, logger } = deps;
+  const summary = { scanned: 0, requested: 0, skippedOpen: 0, skippedDrafted: 0 };
+  const search = await odoo.searchRequested(Math.max(1, cfg.maxDraftsPerRun));
+  if (!search.ok) return { ...summary, error: `search failed: ${search.error}` };
+  const ids = search.data;
+  summary.scanned = ids.length;
+  for (const id of ids) {
+    const read = await odoo.read(id, READ_FIELDS);
+    if (!read.ok) {
+      logger?.info("content-drafter: read failed; skipping", { productId: id, error: read.error });
+      continue;
+    }
+    const marker = versionMarker(id, factToString(read.data.write_date));
+    const productKey = productOriginId(id);
+    if (await issues.openRequestExistsForProduct(productKey)) {
+      summary.skippedOpen++;
+      continue;
+    }
+    if (await state.getDraftedVersion(productKey) === marker) {
+      summary.skippedDrafted++;
+      continue;
+    }
+    const product = toProductView(id, read.data);
+    const body = buildRequestBody(buildSystemPrompt(cfg.houseRules), buildUserPrompt(product), marker);
+    const created = await issues.createRequestIssue({
+      title: `Draft listing content: ${product.name || `product ${id}`}`,
+      description: body,
+      originId: productKey
+    });
+    await state.setRequest(created.id, {
+      productId: id,
+      marker,
+      status: "open",
+      attempts: 0,
+      rePinged: false,
+      createdAt: now.toISOString()
+    });
+    summary.requested++;
+    logger?.info("content-drafter: opened draft request", { productId: id, issueId: created.id, marker });
+  }
+  return summary;
+}
+
+// src/receive.ts
+var MAX_INVALID_REPLIES = 2;
+function extractDraftJson(body) {
+  const fences = [...body.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)];
+  if (fences.length > 0) return fences[fences.length - 1][1].trim();
+  return body;
+}
+async function processReply(deps, issueId) {
+  const { odoo, issues, state, cfg, now, logger } = deps;
+  const req = await state.getRequest(issueId);
+  if (!req) return { status: "ignored", reason: "not a drafter request" };
+  if (req.status !== "open") return { status: "ignored", reason: `already ${req.status}` };
+  const comments = await issues.listComments(issueId);
+  const since = req.lastReplyAt ?? "";
+  const replies = comments.filter((c) => c.authorAgentId === cfg.drafterAgentId && c.createdAt > since).sort((a, b) => a.createdAt < b.createdAt ? 1 : -1);
+  const reply = replies[0];
+  if (!reply) return { status: "waiting" };
+  req.lastReplyAt = reply.createdAt;
+  const read = await odoo.read(req.productId, READ_FIELDS);
+  if (!read.ok) {
+    await state.setRequest(issueId, req);
+    return { status: "error", error: `read failed: ${read.error}` };
+  }
+  const product = toProductView(req.productId, read.data);
+  const parsed = parseDraftResponse(extractDraftJson(reply.body), product.emptyFillable);
+  if (!parsed.ok) {
+    req.attempts++;
+    const gaveUp = req.attempts >= MAX_INVALID_REPLIES;
+    await issues.postComment(
+      issueId,
+      gaveUp ? `The draft reply was still not usable (${parsed.error}). That was ${req.attempts} attempts; marking this request blocked. Re-open it if you want to try again.` : `The draft reply could not be applied: ${parsed.error}. Please re-reply with a single fenced \`\`\`json block matching the contract in the description.`
+    );
+    if (gaveUp) {
+      req.status = "failed";
+      await issues.setStatus(issueId, "blocked");
+    } else {
+      await issues.wakeAssignee(issueId, "content-drafter: reply needs correction");
+    }
+    await state.setRequest(issueId, req);
+    return { status: "invalid", attempts: req.attempts, gaveUp };
+  }
+  if (cfg.dryRun) {
+    logger?.info("content-drafter dry-run (no write)", {
+      productId: req.productId,
+      name: product.name,
+      filledFacts: parsed.data.filledFacts.map((f) => f.field),
+      sources: parsed.data.sources.map((s) => s.url)
+    });
+    req.status = "drafted";
+    await state.setRequest(issueId, req);
+    await issues.postComment(
+      issueId,
+      "Dry run: the draft validated and would have been written. No Odoo write performed (dryRun=true)."
+    );
+    await issues.setStatus(issueId, "done");
+    return { status: "drafted", dryRun: true, productId: req.productId, filledFactCount: parsed.data.filledFacts.length };
+  }
+  const applied = await applyDraftToOdoo(odoo, req.productId, read.data.grove_facts_provenance, parsed.data, now);
+  if (!applied.ok) {
+    await issues.postComment(issueId, `Draft validated but the Odoo write failed: ${applied.error}. Will retry.`);
+    await state.setRequest(issueId, req);
+    return { status: "error", error: applied.error };
+  }
+  req.status = "drafted";
+  await state.setDraftedVersion(productOriginId(req.productId), req.marker);
+  await state.setRequest(issueId, req);
+  await issues.postComment(
+    issueId,
+    `Draft written to Odoo (product ${req.productId}, ${applied.data.filledFactCount} cited fact(s)). draft_state='drafted', facts left for human review. Closing this request.`
+  );
+  await issues.setStatus(issueId, "done");
+  logger?.info("content-drafter drafted", { productId: req.productId, filledFacts: applied.data.filledFactCount });
+  return { status: "drafted", dryRun: false, productId: req.productId, filledFactCount: applied.data.filledFactCount };
+}
+
+// src/sweep.ts
+var HOUR_MS = 60 * 60 * 1e3;
+async function runSweep(deps, listLimit = 100) {
+  const { issues, state, cfg, now, logger } = deps;
+  const summary = { scanned: 0, drafted: 0, invalid: 0, rePinged: 0, gaveUp: 0, waiting: 0 };
+  const owned = await issues.listOwnRequests(listLimit);
+  for (const issue2 of owned) {
+    const req = await state.getRequest(issue2.id);
+    if (!req || req.status !== "open") continue;
+    summary.scanned++;
+    const outcome = await processReply(deps, issue2.id);
+    if (outcome.status === "drafted") {
+      summary.drafted++;
+      continue;
+    }
+    if (outcome.status === "invalid") {
+      summary.invalid++;
+      if (outcome.gaveUp) summary.gaveUp++;
+      continue;
+    }
+    if (outcome.status !== "waiting") continue;
+    const ageMs = now.getTime() - new Date(req.createdAt).getTime();
+    const timeoutMs = Math.max(1, cfg.replyTimeoutHours) * HOUR_MS;
+    if (!req.rePinged && ageMs >= timeoutMs) {
+      await issues.postComment(
+        issue2.id,
+        "Still waiting on a content draft for this product. Please reply with the fenced ```json block described above, or say why you can't."
+      );
+      await issues.wakeAssignee(issue2.id, "content-drafter: draft reply overdue");
+      req.rePinged = true;
+      await state.setRequest(issue2.id, req);
+      summary.rePinged++;
+      logger?.info("content-drafter: re-pinged overdue request", { issueId: issue2.id, productId: req.productId });
+    } else if (req.rePinged && ageMs >= 2 * timeoutMs) {
+      await issues.postComment(
+        issue2.id,
+        "No usable content draft after a re-ping. Marking this request blocked; re-open it to retry."
+      );
+      req.status = "failed";
+      await issues.setStatus(issue2.id, "blocked");
+      await state.setRequest(issue2.id, req);
+      summary.gaveUp++;
+      logger?.info("content-drafter: gave up on overdue request", { issueId: issue2.id, productId: req.productId });
+    } else {
+      summary.waiting++;
+    }
+  }
+  return summary;
+}
+
 // src/worker.ts
+var ORIGIN_KIND = "plugin:agenticos.grove-content-drafter";
+var OPEN_STATUSES = /* @__PURE__ */ new Set(["backlog", "todo", "in_progress", "in_review"]);
+function num(v, dflt) {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : dflt;
+}
 function readConfig(raw) {
   return {
     odooBaseUrl: String(raw.odooBaseUrl ?? "https://odoo.qa.gatheringatthegrove.com"),
     odooDb: String(raw.odooDb ?? "odoo"),
     odooUsername: String(raw.odooUsername ?? ""),
     odooPassword: String(raw.odooPassword ?? ""),
-    anthropicApiKey: String(raw.anthropicApiKey ?? ""),
-    anthropicModel: String(raw.anthropicModel ?? "claude-sonnet-5"),
     houseRules: String(raw.houseRules ?? ""),
+    companyId: String(raw.companyId ?? ""),
+    groveProjectId: String(raw.groveProjectId ?? ""),
+    drafterAgentId: String(raw.drafterAgentId ?? "c629faf1-cb50-4b7b-b766-3d68f71d54ed"),
+    maxDraftsPerRun: num(raw.maxDraftsPerRun, 5),
+    replyTimeoutHours: num(raw.replyTimeoutHours, 12),
     // dryRun defaults TRUE — never write until Josh explicitly enables it.
     dryRun: raw.dryRun === void 0 ? true : Boolean(raw.dryRun)
   };
 }
-async function build(ctx) {
-  const cfg = readConfig(await ctx.config.get());
-  const missing = ["odooBaseUrl", "odooDb", "odooUsername", "odooPassword", "anthropicApiKey"].filter(
-    (k) => !cfg[k]
-  );
-  if (missing.length) {
-    throw new Error(`content-drafter not configured \u2014 missing: ${missing.join(", ")}`);
-  }
+var REQUIRED = ["odooUsername", "odooPassword", "companyId", "groveProjectId", "drafterAgentId"];
+function toIssueLike(i) {
   return {
-    cfg,
-    odoo: new OdooClient({
-      baseUrl: cfg.odooBaseUrl,
-      db: cfg.odooDb,
-      username: cfg.odooUsername,
-      password: cfg.odooPassword
-    }),
-    llm: new AnthropicClient({ apiKey: cfg.anthropicApiKey, model: cfg.anthropicModel })
+    id: i.id,
+    title: i.title,
+    description: i.description ?? null,
+    status: i.status,
+    originKind: i.originKind ?? null,
+    createdAt: typeof i.createdAt === "string" ? i.createdAt : new Date(i.createdAt).toISOString()
   };
+}
+function makeIssuePort(ctx, cfg) {
+  const companyId = cfg.companyId;
+  return {
+    async openRequestExistsForProduct(originId) {
+      const hits = await ctx.issues.list({ companyId, originKind: ORIGIN_KIND, originId, limit: 10 });
+      return hits.some((i) => OPEN_STATUSES.has(i.status));
+    },
+    async createRequestIssue({ title, description, originId }) {
+      const issue2 = await ctx.issues.create({
+        companyId,
+        projectId: cfg.groveProjectId,
+        title,
+        description,
+        status: "todo",
+        priority: "medium",
+        assigneeAgentId: cfg.drafterAgentId,
+        originKind: ORIGIN_KIND,
+        originId
+      });
+      return { id: issue2.id };
+    },
+    async get(issueId) {
+      const i = await ctx.issues.get(issueId, companyId);
+      return i ? toIssueLike(i) : null;
+    },
+    async listOwnRequests(limit) {
+      const list = await ctx.issues.list({ companyId, originKindPrefix: ORIGIN_KIND, limit });
+      return list.map(toIssueLike).filter((i) => OPEN_STATUSES.has(i.status));
+    },
+    async listComments(issueId) {
+      const comments = await ctx.issues.listComments(issueId, companyId);
+      return comments.map((c) => ({
+        authorAgentId: c.authorAgentId ?? null,
+        body: c.body ?? "",
+        createdAt: typeof c.createdAt === "string" ? c.createdAt : new Date(c.createdAt).toISOString()
+      }));
+    },
+    async postComment(issueId, body) {
+      await ctx.issues.createComment(issueId, body, companyId);
+    },
+    async wakeAssignee(issueId, reason) {
+      await ctx.issues.requestWakeup(issueId, companyId, { reason });
+    },
+    async setStatus(issueId, status) {
+      await ctx.issues.update(issueId, { status }, companyId);
+    }
+  };
+}
+function makeStatePort(ctx, cfg) {
+  return {
+    async getRequest(issueId) {
+      const v = await ctx.state.get({ scopeKind: "issue", scopeId: issueId, stateKey: "request" });
+      return v ?? null;
+    },
+    async setRequest(issueId, state) {
+      await ctx.state.set({ scopeKind: "issue", scopeId: issueId, stateKey: "request" }, state);
+    },
+    async getDraftedVersion(productKey) {
+      const v = await ctx.state.get({
+        scopeKind: "company",
+        scopeId: cfg.companyId,
+        namespace: "drafted-version",
+        stateKey: productKey
+      });
+      return v ?? null;
+    },
+    async setDraftedVersion(productKey, marker) {
+      await ctx.state.set(
+        { scopeKind: "company", scopeId: cfg.companyId, namespace: "drafted-version", stateKey: productKey },
+        marker
+      );
+    }
+  };
+}
+function wire(ctx, cfg) {
+  const missing = REQUIRED.filter((k) => !cfg[k]);
+  if (missing.length) {
+    ctx.logger.info("content-drafter not configured \u2014 skipping", { missing });
+    return null;
+  }
+  const odoo = new OdooClient({
+    baseUrl: cfg.odooBaseUrl,
+    db: cfg.odooDb,
+    username: cfg.odooUsername,
+    password: cfg.odooPassword
+  });
+  const receive = {
+    odoo,
+    issues: makeIssuePort(ctx, cfg),
+    state: makeStatePort(ctx, cfg),
+    cfg,
+    now: /* @__PURE__ */ new Date(),
+    logger: ctx.logger
+  };
+  return { cfg, receive };
+}
+function resolveIssueId(event) {
+  const p = event.payload ?? {};
+  const fromPayload = p.issueId ?? p.issue_id ?? p.comment?.issueId ?? p.issue?.id;
+  if (fromPayload) return fromPayload;
+  if (event.entityType === "issue") return event.entityId;
+  return void 0;
 }
 var plugin = definePlugin({
   async setup(ctx) {
-    ctx.logger.info("Grove content-drafter plugin starting");
-    ctx.jobs.register("content-draft", async () => {
-      const { cfg, odoo, llm } = await build(ctx);
-      const summary = await runContentDraft({
-        odoo,
-        llm,
-        houseRules: cfg.houseRules,
-        dryRun: cfg.dryRun,
+    ctx.logger.info("Grove content-drafter plugin starting (agent-backed)");
+    ctx.jobs.register("content-draft-request", async () => {
+      const wired = wire(ctx, readConfig(await ctx.config.get()));
+      if (!wired) return;
+      const summary = await runRequestBatch({
+        odoo: wired.receive.odoo,
+        issues: wired.receive.issues,
+        state: wired.receive.state,
+        cfg: wired.cfg,
         now: /* @__PURE__ */ new Date(),
         logger: ctx.logger
       });
-      ctx.logger.info("content-draft run complete", summary);
+      ctx.logger.info("content-draft-request complete", summary);
+    });
+    ctx.jobs.register("content-draft-sweep", async () => {
+      const wired = wire(ctx, readConfig(await ctx.config.get()));
+      if (!wired) return;
+      const summary = await runSweep({ ...wired.receive, now: /* @__PURE__ */ new Date() });
+      ctx.logger.info("content-draft-sweep complete", summary);
+    });
+    ctx.events.on("issue.comment.created", async (event) => {
+      try {
+        const issueId = resolveIssueId(event);
+        if (!issueId) return;
+        const wired = wire(ctx, readConfig(await ctx.config.get()));
+        if (!wired) return;
+        const outcome = await processReply({ ...wired.receive, now: /* @__PURE__ */ new Date() }, issueId);
+        if (outcome.status !== "ignored" && outcome.status !== "waiting") {
+          ctx.logger.info("content-drafter reply handled", { issueId, ...outcome });
+        }
+      } catch (err) {
+        ctx.logger.error("content-drafter reply handler failed", {
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
     });
   },
   async onHealth() {
