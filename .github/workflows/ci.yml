@@ -114,7 +114,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Parse-check deploy scripts
-        run: bash -n scripts/deploy-plugin.sh scripts/paperclip-lib.sh scripts/detect-manifest-bumps.sh
+        run: bash -n scripts/deploy-plugin.sh scripts/paperclip-lib.sh scripts/detect-manifest-bumps.sh scripts/ensure-plugin-mounts.sh
       - name: deploy-plugin.sh guardrail self-test
         run: bash scripts/deploy-plugin.sh --selftest
 
