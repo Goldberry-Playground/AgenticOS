@@ -34,8 +34,14 @@ PLUGIN_DIRS="vault-plugin openviking-plugin github-plugin github-sync-plugin dis
 # state, not an escape hatch: assert-plugin-versions.mjs fails RED the moment a
 # pending plugin turns up installed, forcing it out of this list and into full
 # assertion coverage. Remove a name here in the same change that installs it.
-#   grove-content-drafter-plugin — first install is gated on Josh (GOL-2423/GOL-2424).
-PLUGIN_PENDING_INSTALL="grove-content-drafter-plugin"
+#
+# Currently EMPTY — every plugin in PLUGIN_DIRS is installed and fully asserted.
+# grove-content-drafter-plugin was the last entry; it went in at
+# f071f43f-b860-4629-88ad-70823426de2f / 0.2.0 / ready on 2026-09-29 (GOL-2423,
+# Josh's out-of-train prod hotfix) and is removed here per the rule above. The
+# guard worked exactly as designed: leaving the name in place would have failed
+# the next deploy RED with "listed in PLUGIN_PENDING_INSTALL but IS INSTALLED".
+PLUGIN_PENDING_INSTALL=""
 
 # Resolved AT SOURCE TIME, where BASH_SOURCE[0] is reliably this file. Doing it
 # inside a function instead would read the CALLER's frame and resolve wrong.
@@ -65,12 +71,21 @@ plugin_key() {
   echo "${k:-agenticos.${dir}}"
 }
 
+# Both predicates reject an EMPTY name before matching. Without that guard the
+# space-padded `case` degenerates: with $1 unset the needle is `*"  "*`, which a
+# space-padded EMPTY list (`"  "`) matches — so `plugin_is_pending_install ""`
+# answered TRUE and a plugin with an unset/misread name would silently skip its
+# version assertion. That is precisely the silence PLUGIN_PENDING_INSTALL's
+# guard exists to prevent, so fail closed instead.
+
 # plugin_is_valid <plugin-dir>
 plugin_is_valid() {
+  [ -n "${1:-}" ] || return 1
   case " ${PLUGIN_DIRS} " in *" ${1} "*) return 0 ;; *) return 1 ;; esac
 }
 
 # plugin_is_pending_install <plugin-dir>
 plugin_is_pending_install() {
+  [ -n "${1:-}" ] || return 1
   case " ${PLUGIN_PENDING_INSTALL} " in *" ${1} "*) return 0 ;; *) return 1 ;; esac
 }

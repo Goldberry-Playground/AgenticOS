@@ -57,7 +57,23 @@ fi
   if plugin_is_pending_install vault-plugin; then exit 3; fi
   if plugin_is_valid not-a-plugin; then exit 4; fi
   plugin_is_valid vault-plugin || exit 5
-  plugin_is_pending_install grove-content-drafter-plugin || exit 6
+
+  # Drive the TRUE branch off an INJECTED list, never off whatever
+  # PLUGIN_PENDING_INSTALL happens to hold right now. This used to assert
+  # `plugin_is_pending_install grove-content-drafter-plugin`, which broke the
+  # moment that plugin was installed and its name was correctly removed
+  # (GOL-2423) — the test was pinned to a transient rollout state. The steady
+  # state of PLUGIN_PENDING_INSTALL is EMPTY, so exercise both list shapes here.
+  PLUGIN_PENDING_INSTALL="pending-a pending-b"
+  plugin_is_pending_install pending-a || exit 6
+  plugin_is_pending_install pending-b || exit 7
+  if plugin_is_pending_install vault-plugin; then exit 8; fi
+
+  # Empty list — the normal case — must be a clean false, not a match.
+  PLUGIN_PENDING_INSTALL=""
+  if plugin_is_pending_install vault-plugin; then exit 9; fi
+  if plugin_is_pending_install ""; then exit 10; fi
+  if plugin_is_valid ""; then exit 11; fi
 ) && ok "plugin_is_valid / plugin_is_pending_install are set -e safe and correct" \
   || bad "predicate self-check exited $?"
 
