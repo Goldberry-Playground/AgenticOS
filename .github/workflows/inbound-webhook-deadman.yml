@@ -112,41 +112,40 @@ jobs:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
 
-      # `shell: bash` (-eo pipefail): the repo default `bash -e` would let tee's 0
-      # mask a dead ssh and the probe would score an empty reading as "unparseable"
-      # instead of surfacing the real connection failure.
-      - name: Read the heartbeat on the droplet
+      # One step, not two: the reading goes straight from ssh into the probe through
+      # the environment, so nothing is written to the runner's disk (CodeQL
+      # js/file-access-to-http flags a file→outbound-request flow, and a temp file
+      # bought nothing here). `shell: bash` gives -eo pipefail so a dead ssh fails
+      # loudly instead of handing the probe an empty string.
+      #
+      # rc is captured rather than piped: the probe exits non-zero on ANY bad verdict
+      # so the job is red even when Discord itself is unreachable — a page that
+      # silently failed to send would recreate the exact hole this issue closes — and
+      # the step summary must still record the reading on that path (a bare pipeline
+      # under -e aborts first, and `| tee` would hide the exit behind tee's 0, which
+      # is the GOL-804 / run 31039144506 trap).
+      - name: Read the heartbeat and page Grove ops if it is stale
         shell: bash
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
           USER: ${{ secrets.DROPLET_USER }}
-        run: |
-          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
-            "bash -lc 'set -euo pipefail; cd /opt/agenticos/repo && bash scripts/github-sync-heartbeat-read.sh'" \
-            | tee heartbeat.txt
-
-      # The probe exits non-zero on ANY bad verdict, so the job is red in the Actions
-      # UI even when Discord itself is unreachable — a page that silently failed to
-      # send would recreate the exact hole this issue closes. rc is captured rather
-      # than piped so the step summary still records the reading on a failure (a
-      # bare pipeline under -e would abort before writing it, and piping into `tee`
-      # would hide the nonzero exit behind tee's 0 — the GOL-804 trap).
-      - name: Evaluate staleness and page Grove ops
-        shell: bash
-        env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          # Empty on a scheduled run → the script's 90-minute default applies.
+          # Empty on a scheduled run → the probe's 90-minute default applies.
           HEARTBEAT_STALE_MINUTES: ${{ inputs.stale_threshold_minutes }}
           HEARTBEAT_DRY_RUN: ${{ inputs.heartbeat_dry_run && '1' || '' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          reading="$(ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "bash -lc 'set -euo pipefail; cd /opt/agenticos/repo && bash scripts/github-sync-heartbeat-read.sh'")"
+          echo "reading: ${reading}"
           rc=0
-          node scripts/ci/github-sync-heartbeat-probe.mjs heartbeat.txt > verdict.txt 2>&1 || rc=$?
+          HEARTBEAT_READING="$reading" node scripts/ci/github-sync-heartbeat-probe.mjs > verdict.txt 2>&1 || rc=$?
           cat verdict.txt
           {
             echo "### github-sync worker heartbeat"
             echo '```'
-            cat heartbeat.txt verdict.txt
+            echo "${reading}"
+            cat verdict.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"

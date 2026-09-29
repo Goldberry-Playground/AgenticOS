@@ -81,13 +81,14 @@ assert.equal(failingStepName([]), null);
 
 // ── buildDeployAlert: the message a human reads at 00:35 ───────────────────
 {
+  const RUN = "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/35939085377";
   const content = buildDeployAlert({
     workflow: "Deploy Droplet Plugins",
     branch: "main",
     sha: "c9262e4aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     event: "push",
     runAttempt: 1,
-    runUrl: "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/35939085377",
+    runUrl: RUN,
     failedJobs: [
       { name: "Deploy plugins", failingStep: "Assert plugins converged to the built version (GOL-804)" },
     ],
@@ -97,19 +98,23 @@ assert.equal(failingStepName([]), null);
   assert.ok(content.includes("Deploy Droplet Plugins"), "names the workflow");
   assert.ok(content.includes("Assert plugins converged"), "names the failing step");
   assert.ok(content.includes("Missing package.json"), "carries the first error line");
-  assert.ok(content.includes("/actions/runs/35939085377"), "links the run");
+  // Last-line equality, not `.includes` — pins that the run link is the final,
+  // unbroken line (and reads as a URL check to CodeQL rather than a substring
+  // "sanitization", which js/incomplete-url-substring-sanitization flags).
+  assert.equal(content.split("\n").at(-1), RUN, "links the run as the final line");
   assert.ok(content.includes("c9262e4") && !content.includes("c9262e4aaaa"), "sha is short-form");
 }
 
 // A run with no job detail must still be a usable alert, not a blank ping.
 {
+  const RUN = "https://example.test/run/1";
   const content = buildDeployAlert({
     workflow: "Recreate paperclip-server",
-    runUrl: "https://example.test/run/1",
+    runUrl: RUN,
   });
   assert.ok(content.includes("Recreate paperclip-server"));
   assert.ok(content.includes("no job-level detail"), "says so instead of rendering nothing");
-  assert.ok(content.includes("https://example.test/run/1"));
+  assert.equal(content.split("\n").at(-1), RUN);
 }
 
 // Called with nothing at all: still a message, still no crash.
@@ -137,7 +142,10 @@ assert.ok(buildDeployAlert(null).length > 0);
     content.length <= DISCORD_CONTENT_LIMIT,
     `Discord 400s over ${DISCORD_CONTENT_LIMIT}; got ${content.length}`,
   );
-  assert.ok(content.endsWith(runUrl), "the run link is the one thing never truncated away");
+  assert.equal(
+    content.split("\n").at(-1), runUrl,
+    "the run link is the one thing never truncated away",
+  );
   assert.ok(content.includes("(truncated)"), "truncation is disclosed");
 }
 

@@ -27,7 +27,12 @@
 // the only outward sign. So `stale` deliberately does NOT claim "the worker is
 // dead"; it says "we have lost the liveness signal" and names both causes.
 //
-// Usage: node scripts/ci/github-sync-heartbeat-probe.mjs <reading.txt>
+// Usage: HEARTBEAT_READING='<line>' node scripts/ci/github-sync-heartbeat-probe.mjs
+//    or: node scripts/ci/github-sync-heartbeat-probe.mjs '<line>'
+//   env HEARTBEAT_READING         the droplet's one-line reading, passed in the
+//                                 environment rather than through a temp file so
+//                                 the outbound POST does not depend on file data
+//                                 (js/file-access-to-http).
 //   env DISCORD_WEBHOOK_URL       Grove ops webhook. Unset → report only, exit per verdict.
 //   env HEARTBEAT_STALE_MINUTES   staleness threshold, default 90 (see below).
 //   env HEARTBEAT_DRY_RUN         "1" → never POST, just print (dispatch self-test).
@@ -36,7 +41,6 @@
 // Exit: 0 when the heartbeat is fresh; 1 on any bad verdict, so the job is red in
 // the Actions UI even if Discord is unreachable.
 
-import { readFileSync } from "node:fs";
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
@@ -183,13 +187,11 @@ const invokedDirectly = (() => {
 })();
 
 if (invokedDirectly) {
-  const path = process.argv[2];
-  if (!path) {
-    console.error("usage: github-sync-heartbeat-probe.mjs <reading.txt>");
-    process.exit(2);
-  }
+  const raw = process.argv[2] || process.env.HEARTBEAT_READING || "";
   const staleMinutes = Number(process.env.HEARTBEAT_STALE_MINUTES || DEFAULT_STALE_MINUTES);
-  const reading = parseReading(readFileSync(path, "utf8"));
+  // An EMPTY reading is not a usage error — it is what a dead ssh looks like, and
+  // it must page (`unparseable`) rather than exit quietly with a usage message.
+  const reading = parseReading(raw);
   const result = evaluateHeartbeat(reading, { staleMinutes });
   console.log(`github-sync-heartbeat: ${result.verdict} — ${result.message}`);
 

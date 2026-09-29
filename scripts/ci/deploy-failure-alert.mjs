@@ -24,7 +24,12 @@
 // is therefore pure and unit-testable offline with no network and no octokit —
 // see deploy-failure-alert.test.mjs.
 //
-// Usage (CI):  node scripts/ci/deploy-failure-alert.mjs <facts.json>
+// Usage (CI):  DEPLOY_ALERT_FACTS='<json>' node scripts/ci/deploy-failure-alert.mjs
+//        or:    node scripts/ci/deploy-failure-alert.mjs '<json>'
+//   env DEPLOY_ALERT_FACTS   the gather step's JSON, passed in the environment
+//                            rather than through a temp file: nothing is written
+//                            to the runner's disk, and the outbound POST does not
+//                            depend on file data (js/file-access-to-http).
 //   env DISCORD_WEBHOOK_URL  Grove ops webhook. UNSET → warn + exit 0, so a
 //                            missing secret can never turn the router red (the
 //                            router's issue-minting leg still ran).
@@ -32,10 +37,10 @@
 //                            workflow's self-test and by hand.)
 //
 // Exit: 0 always on the happy path AND on a missing webhook; non-zero only when
-// the facts file is unreadable or Discord hard-fails, so a broken alert path is
+// the facts are unparseable or Discord hard-fails, so a broken alert path is
 // itself visible as a red job.
 
-import { readFileSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 /** Discord rejects a message body over 2000 characters outright (HTTP 400). */
@@ -169,12 +174,12 @@ const invokedDirectly = (() => {
 })();
 
 if (invokedDirectly) {
-  const factsPath = process.argv[2];
-  if (!factsPath) {
-    console.error("usage: deploy-failure-alert.mjs <facts.json>");
+  const raw = process.argv[2] || process.env.DEPLOY_ALERT_FACTS || "";
+  if (!raw.trim()) {
+    console.error("usage: DEPLOY_ALERT_FACTS='<json>' deploy-failure-alert.mjs  (or pass the JSON as argv[1])");
     process.exit(2);
   }
-  const facts = JSON.parse(readFileSync(factsPath, "utf8"));
+  const facts = JSON.parse(raw);
   const content = buildDeployAlert(facts);
   const webhook = process.env.DISCORD_WEBHOOK_URL || "";
 

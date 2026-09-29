@@ -115,9 +115,12 @@ for (const [line, verdict, needle] of [
 // ── The page itself ────────────────────────────────────────────────────────
 {
   const r = evaluateHeartbeat(parseReading(at("2026-09-24T00:35:19.000Z")), { now: NOW });
-  const content = buildHeartbeatAlert(r, { runUrl: "https://example.test/run/7" });
+  const RUN = "https://example.test/run/7";
+  const content = buildHeartbeatAlert(r, { runUrl: RUN });
   assert.match(content, /STALE/);
-  assert.ok(content.includes("https://example.test/run/7"), "links the run");
+  // Last-line equality rather than `.includes` — see the note in
+  // deploy-failure-alert.test.mjs (js/incomplete-url-substring-sanitization).
+  assert.equal(content.split("\n").at(-1), RUN, "links the run as the final line");
   assert.match(content, /agent-review/, "says what breaks downstream");
   assert.match(content, /runbook/i, "points at the runbook");
   assert.ok(content.length <= 2000, "Discord rejects a body over 2000 chars");
