@@ -611,13 +611,23 @@ runcmd:
         echo "FATAL: ov.conf still contains the root_api_key placeholder after substitution; aborting before container start" >&2
         exit 1
       fi
-      # Build the Paperclip plugin dists (vault / openviking / github) BEFORE
-      # compose up. paperclip-server bind-mounts packages/<p>/dist into
-      # /paperclip/plugins/<p>/dist, so the dist must exist or the plugins can't
-      # load. Node + pnpm were installed earlier in this runcmd block; build as
-      # deploy via a login shell so they're on PATH. (Updates post-provision are
-      # handled by the deploy-droplet-plugins.yml GH Actions workflow.)
-      sudo -iu deploy bash -lc 'cd /opt/agenticos/repo && pnpm install --frozen-lockfile --filter @agenticos/vault-plugin --filter @agenticos/openviking-plugin --filter @agenticos/github-plugin && pnpm --filter @agenticos/vault-plugin --filter @agenticos/openviking-plugin --filter @agenticos/github-plugin build'
+      # Build EVERY Paperclip plugin dist BEFORE compose up. paperclip-server
+      # bind-mounts packages/<p>/dist into /paperclip/plugins/<p>/dist, so the
+      # dist must exist or the plugin can't load ("no longer exposes a Paperclip
+      # manifest"). Node + pnpm were installed earlier in this runcmd block;
+      # build as deploy via a login shell so they're on PATH. (Updates
+      # post-provision are handled by deploy-droplet-plugins.yml.)
+      #
+      # GOL-2635: this list must equal PLUGIN_DIRS in scripts/plugin-registry.sh
+      # and it HAD drifted — it was still the original three while PLUGIN_DIRS
+      # grew to six, so a freshly-provisioned droplet came up missing the
+      # github-sync / discord / grove-content-drafter dists. A committed dist/
+      # masked that for the five plugins that carry one in git; discord-plugin
+      # deliberately carries none, so on a fresh box it had no dist at all.
+      # scripts/ci/plugin-registry-drift.test.mjs now asserts this list, so the
+      # next plugin added to PLUGIN_DIRS turns a missed edit here into a red PR
+      # instead of an unreproducible droplet.
+      sudo -iu deploy bash -lc 'cd /opt/agenticos/repo && pnpm install --frozen-lockfile --filter @agenticos/vault-plugin --filter @agenticos/openviking-plugin --filter @agenticos/github-plugin --filter @agenticos/github-sync-plugin --filter @agenticos/discord-plugin --filter @agenticos/grove-content-drafter-plugin && pnpm --filter @agenticos/vault-plugin --filter @agenticos/openviking-plugin --filter @agenticos/github-plugin --filter @agenticos/github-sync-plugin --filter @agenticos/discord-plugin --filter @agenticos/grove-content-drafter-plugin build'
 
       # Ensure the dedicated `paperclip` database exists before paperclip-server
       # starts (its DATABASE_URL targets .../paperclip, but agenticos-db only

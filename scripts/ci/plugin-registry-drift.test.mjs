@@ -89,6 +89,22 @@ check(
   PLUGINS,
 );
 
+// --- infra/cloud-init/droplet-bootstrap.yaml.tpl -----------------------------
+// The FRESH-BOX build list. Unlike every other consumer this one runs exactly
+// once, before the first `docker compose up`, so a plugin missing here comes up
+// with no dist/ at all on a newly-provisioned droplet. It HAD drifted: the list
+// was still the original three (vault/openviking/github) while PLUGIN_DIRS grew
+// to six, so a fresh box booted without github-sync, discord or
+// grove-content-drafter dists. Committed dist/ masked that for the five plugins
+// carrying one in git; discord-plugin (no committed dist, by design) did not
+// come up at all. Reproducibility means a fresh environment builds from code
+// alone, so assert the fresh-box list too.
+const bootstrap = read("infra/cloud-init/droplet-bootstrap.yaml.tpl");
+const bootstrapFilters = [...bootstrap.matchAll(/--filter @agenticos\/([a-z0-9-]+)/g)].map(
+  (m) => m[1],
+);
+check("droplet-bootstrap.yaml.tpl pnpm --filter lists", bootstrapFilters, [...PLUGINS, ...PLUGINS]);
+
 // --- detect-manifest-bumps.sh -----------------------------------------------
 const detect = read("scripts/detect-manifest-bumps.sh");
 const detectLoop = /^for p in ([a-z0-9 -]+); do$/m.exec(detect);
