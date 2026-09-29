@@ -323,3 +323,65 @@ fix above eliminates this class**; these two guards remain as defense-in-depth:
     at the id-stable **key** URL (`…/api/plugins/agenticos.github-sync-plugin/webhooks/github-app`)
     so the probe tracks the durable path — after the one-time cutover above, none
     of the three places ever need editing on a reinstall again.
+
+## Outage alerting — what actually pages, and why the old path did not (GOL-2591)
+
+The 2026-09-24 outage (GOL-2585) was **detected within a minute and still ran five
+days**. That is worth understanding before adding any more detection:
+
+- `deploy-droplet-plugins.yml` run `35939085377` went RED on its own hard gate —
+  *"Assert plugins converged (GOL-804)"* printed `400 Missing package.json at
+  /paperclip/plugins/github-sync-plugin`.
+- `ci-failure-router.yml` already watched that workflow, and it fired: it minted
+  GitHub issue **#710** at `2026-09-24T00:36:37Z`.
+- And nobody heard. The router's only delivery is a GitHub issue, and a GitHub
+  issue reaches the board **only because the github-sync worker mirrors it** —
+  the component the failed deploy had just killed. The alarm ran through the
+  thing it was alarming about.
+
+So detection was never the gap; **delivery** was. Two out-of-band legs now exist,
+neither of which touches the worker, the Paperclip host, or a GitHub issue:
+
+| Leg | Where | Fires when |
+| --- | --- | --- |
+| `page-ops` job in `ci-failure-router.yml` | Actions runner → Discord | any **deploy-class** workflow fails (`Deploy Droplet`, `Deploy Droplet Plugins`, `Deploy Host Scripts`, `Recreate paperclip-server`) |
+| `heartbeat` job in `inbound-webhook-deadman.yml` | Actions runner → Discord, hourly at `:47` | `github_sync_heartbeat.updated_at` is older than 90 minutes, absent, or unreadable |
+
+The heartbeat leg is the stronger of the two: it fires for a crash with **no
+deploy at all** (GOL-2279 killed the worker for five days with nothing deploying),
+and `github_sync_delivery` cannot substitute for it — the delivery log only
+advances when a webhook actually arrives, so a quiet night and a dead worker look
+identical. The heartbeat is unconditional.
+
+### Proving both alert paths without causing an outage
+
+```bash
+# Heartbeat page, end-to-end against the REAL row (0 = "everything is stale"):
+gh workflow run inbound-webhook-deadman.yml -f stale_threshold_minutes=0
+# Same, but print the page instead of posting it:
+gh workflow run inbound-webhook-deadman.yml -f heartbeat_dry_run=true
+```
+
+For the deploy leg, re-run any historical failed deploy run: the `page-ops` job
+keys off `workflow_run` and will page with that run's failing step and first
+`::error::` line.
+
+### Reading a stale heartbeat correctly
+
+`stale` means **the liveness signal is gone**, which has two causes, and the page
+names both:
+
+1. The worker is dead — start at `/proc/self/mountinfo` for `//deleted` plugin
+   mounts (the recurring cause; see *Gotchas* above), not at the worker logs.
+2. The worker is fine but `worker-heartbeat` is **paused**. That job only exists
+   in plugin manifest **≥ 0.16.9**; if the registry falls back to an older
+   manifest the scheduler pauses the now-unknown job and the row simply stops
+   advancing. Check `GET /api/plugins` for the github-sync version first —
+   if it reads `0.16.8`, this is the cause, and the fix is to get a rebuilt dist
+   onto the box, not to restart anything.
+
+Threshold note: the probe uses **90 minutes**, not the plugin's own 15-minute
+`HEARTBEAT_STALE_MS`. The writer is a five-minute scheduled job subject to
+scheduler jitter on a 2-vCPU box; a 15-minute external threshold was measured
+going "stale" on 2026-09-29 while the worker was demonstrably alive and still
+logging deliveries. A false page trains people to ignore the real one.
