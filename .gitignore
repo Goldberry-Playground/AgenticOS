@@ -13,6 +13,22 @@ dist/
 # manifest + worker bundles must be in git or Paperclip can't activate them
 # ("no longer exposes a Paperclip manifest"). Rebuild after editing plugin src:
 #   pnpm --filter @agenticos/<name>-plugin run build
+#
+# DECISION, GOL-2694 (2026-09-30) — "stop committing dist and build on the
+# droplet instead" was considered and REJECTED. Please don't re-litigate it
+# without changing one of these facts:
+#   * the deploy ships `git archive` output, which is committed files ONLY, so
+#     an uncommitted dist simply would not reach the box;
+#   * the plugins are deliberately not built on the droplet. Moving the build
+#     there converts a red CI check into a live plugin-layer outage whenever an
+#     install or an esbuild run fails on a 2-vCPU box — strictly worse blast
+#     radius for the thing that runs the company's automation;
+#   * the recurring cost that motivated the question (every dependency bump
+#     rewriting the committed bundles) was removed at the source instead, by
+#     normalizing the pnpm store paths out of the esbuild output — see
+#     scripts/normalize-plugin-bundle.mjs.
+# Revisit only if the deploy path stops using `git archive` AND the droplet
+# gains a build toolchain whose failure modes are alerted on.
 !packages/vault-plugin/dist/
 !packages/openviking-plugin/dist/
 !packages/github-plugin/dist/

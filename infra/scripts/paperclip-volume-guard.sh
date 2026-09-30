@@ -13,13 +13,20 @@
 # 2026-08-18 disk-full P0 reached 100% (77G/77G) with no early warning, and how
 # five consecutive hourly backups then failed silently.
 #
-# This guard closes both gaps with two independent, throttled checks that page
-# the Discord ops webhook BEFORE either becomes an outage:
+# This guard closes both gaps with independent, throttled checks that page the
+# Discord ops webhook BEFORE either becomes an outage:
 #
 #   1. HEADROOM — df of the paperclip-data mountpoint. At/above WARN_PCT
-#      (default 80) → alert. It does NOT auto-reclaim: the volume holds the live
-#      DB dumps + agent state, so pruning is the Paperclip server's job
-#      (retention) or a board-gated manual action, never an automatic rm here.
+#      (default 80) → alert.
+#
+#   1b. BOUNDED RECLAIM — alerting alone was not enough. On 2026-09-30 the
+#      volume hit 90% again carrying 8.4G of dumps, and 2.9G of that was two
+#      ORPHANED PARTIAL dumps (2026-09-10, 2026-09-18) left behind by the
+#      earlier ENOSPC deaths: the Paperclip server's own retention only ever
+#      globs `*.sql.gz`, so a `.sql` that died mid-write is never pruned by
+#      anything. The rest was the `backupRetention.dailyDays` window keeping
+#      EVERY dump inside it (3 days x 6/day = 18 dumps ~ 5.4G). Check 1b
+#      reclaims both, conservatively and loudly — see its header below.
 #
 #   2. BACKUP FRESHNESS — the newest completed *.sql.gz under the backups dir.
 #      Older than STALE_MIN (default = the server's configured backup interval
@@ -66,6 +73,26 @@ case "${BACKUP_INTERVAL_MIN}" in
 esac
 STALE_MIN="${STALE_MIN:-$((BACKUP_INTERVAL_MIN + 35))}"
 REPAGE_MIN="${REPAGE_MIN:-360}"
+
+# --- bounded-reclaim knobs (check 1b) ---
+# RECLAIM=0 turns the whole reclaim off (alert-only, the pre-2026-09-30
+# behaviour). DRY_RUN=1 logs what it would remove and posts nothing.
+RECLAIM="${RECLAIM:-1}"
+# Intra-day thinning only runs once we are ALREADY past the 80% page, so the
+# steady state stays governed by the server's retention, not by this script.
+RECLAIM_PCT="${RECLAIM_PCT:-85}"
+# Always keep the newest N dumps whatever their timestamps say, and never let a
+# backups dir drop below MIN_KEEP files. Cheap insurance: these dumps are
+# SINGLE-COPY — nothing ships them off-box yet (docs/runbooks/backup-and-recovery.md
+# section D).
+KEEP_NEWEST="${KEEP_NEWEST:-2}"
+MIN_KEEP="${MIN_KEEP:-3}"
+# A `.sql` younger than this may be a dump in flight (a real one takes ~3m at
+# 300M) — never touch it. Two full backup intervals, floor 180m.
+_partial_default=$(( BACKUP_INTERVAL_MIN * 2 ))
+[ "${_partial_default}" -lt 180 ] && _partial_default=180
+PARTIAL_AGE_MIN="${PARTIAL_AGE_MIN:-${_partial_default}}"
+DRY_RUN="${DRY_RUN:-0}"
 ENV_FILE="${ENV_FILE:-/opt/agenticos/.env}"
 VOLUME="${PAPERCLIP_VOLUME:-paperclip-data}"
 STAMP_DIR="${STAMP_DIR:-/run/agenticos/volume-guard}"
@@ -129,7 +156,140 @@ USE_PCT="$(df --output=pcent "${MOUNT}" | tail -1 | tr -dc '0-9')"
 AVAIL_H="$(df -h --output=avail "${MOUNT}" | tail -1 | tr -d ' ')"
 log "paperclip-data FS at ${USE_PCT}% (avail ${AVAIL_H}; warn ${WARN_PCT}%)"
 if [ "${USE_PCT:-0}" -ge "${WARN_PCT}" ]; then
-  alert headroom ":warning: **${HOSTNAME_SHORT}** paperclip-data volume at **${USE_PCT}%** (avail ${AVAIL_H}, warn >=${WARN_PCT}%). Hourly DB dumps + server.log live here and this volume is NOT auto-reclaimed. Check backup retention / server.log rotation (GOL-1632)."
+  alert headroom ":warning: **${HOSTNAME_SHORT}** paperclip-data volume at **${USE_PCT}%** (avail ${AVAIL_H}, warn >=${WARN_PCT}%). DB dumps + server.log live here. The bounded reclaim (check 1b) engages at >=${RECLAIM_PCT}%; if this keeps firing, tighten `backupRetention` in the Paperclip instance settings (GOL-1632)."
+fi
+
+# --- Check 1b: bounded reclaim (engages AFTER the headroom warning) ---
+# Two tiers, both bounded, both LOUD (any reclaim posts to Discord unthrottled):
+#
+#   Tier A — orphaned partial dumps. Runs at ANY usage, because a partial is
+#     pure dead weight at every fill level. A `.sql` is removed only when it is
+#     BOTH older than PARTIAL_AGE_MIN (a dump in flight is never touched) AND
+#     provably dead: either its completed `.sql.gz` already exists, or the file
+#     does not end in the dump's closing `COMMIT;`. A plain `.sql` that DOES end
+#     in COMMIT; is left alone and logged — that would be a complete dump the
+#     gzip step never got to, and a human should decide.
+#
+#   Tier B — intra-day thinning. Runs only at/above RECLAIM_PCT, i.e. strictly
+#     after the WARN_PCT page, so the normal steady state is still governed by
+#     the server's own retention. Keeps the newest KEEP_NEWEST dumps plus the
+#     newest dump of each calendar day; drops the remaining same-day duplicates
+#     oldest-last. Never drops below MIN_KEEP and never touches the newest.
+#     This is the FALLBACK, not the fix — the fix is a tighter
+#     `backupRetention` in the Paperclip instance settings.
+reclaimed_bytes=0
+reclaimed_list=""
+reclaimed_n=0
+
+rm_reclaim() { # $1 = path; $2 = why
+  local sz mb
+  sz="$(stat -c %s "$1" 2>/dev/null || echo 0)"
+  mb=$(( (sz + 1048575) / 1048576 ))
+  if [ "${DRY_RUN}" = "1" ]; then
+    log "DRY_RUN would reclaim $(basename "$1") (${mb}M; $2)"
+  else
+    if ! rm -f -- "$1"; then
+      log "WARN failed to remove $1" >&2
+      return 0
+    fi
+    log "reclaimed $(basename "$1") (${mb}M; $2)"
+  fi
+  reclaimed_bytes=$(( reclaimed_bytes + sz ))
+  reclaimed_n=$(( reclaimed_n + 1 ))
+  if [ "${reclaimed_n}" -le 12 ]; then
+    reclaimed_list="${reclaimed_list}
+• $(basename "$1") (${mb}M — $2)"
+  fi
+}
+
+if [ "${RECLAIM}" = "1" ]; then
+  now_e="$(date +%s)"
+  shopt -s nullglob
+  # Tier A — orphaned partials, at any fill level.
+  for d in "${MOUNT}"/instances/*/data/backups; do
+    [ -d "$d" ] || continue
+    for p in "$d"/*.sql; do
+      p_e="$(stat -c %Y "$p" 2>/dev/null || echo "${now_e}")"
+      age=$(( (now_e - p_e) / 60 ))
+      if [ "${age}" -lt "${PARTIAL_AGE_MIN}" ]; then
+        log "partial $(basename "$p") is ${age}m old (<${PARTIAL_AGE_MIN}m) — may be a dump in flight, leaving it"
+        continue
+      fi
+      if [ -f "${p}.gz" ]; then
+        rm_reclaim "$p" "orphan partial, completed .sql.gz exists"
+      elif tail -c 400 "$p" 2>/dev/null | tr -d '\0' | grep -q 'COMMIT;'; then
+        log "NOT reclaiming $(basename "$p"): plain .sql ending in COMMIT; (looks complete, gzip never ran) — leaving for a human"
+      else
+        rm_reclaim "$p" "truncated dump, no closing COMMIT;"
+      fi
+    done
+  done
+
+  # Tier B — intra-day thinning, only past RECLAIM_PCT.
+  if [ "${USE_PCT:-0}" -ge "${RECLAIM_PCT}" ]; then
+    log "usage ${USE_PCT}% >= RECLAIM_PCT ${RECLAIM_PCT}% — thinning intra-day dumps (keep newest ${KEEP_NEWEST} + newest per day, min ${MIN_KEEP})"
+    for d in "${MOUNT}"/instances/*/data/backups; do
+      [ -d "$d" ] || continue
+      rows=()
+      while IFS= read -r row; do rows+=("$row"); done < <(
+        for f in "$d"/*.sql.gz; do echo "$(stat -c %Y "$f" 2>/dev/null || echo 0) $f"; done | sort -rn
+      )
+      remaining="${#rows[@]}"
+      if [ "${remaining}" -le "${MIN_KEEP}" ]; then
+        log "only ${remaining} dump(s) in ${d} (min_keep=${MIN_KEEP}) — nothing to thin"
+        continue
+      fi
+      seen_days=" "
+      idx=0
+      for row in "${rows[@]}"; do
+        idx=$(( idx + 1 ))
+        e="${row%% *}"; f="${row#* }"
+        # Bucket by the stamp the SERVER put in the filename, not by mtime:
+        # the stamp is local time, mtime reads back as UTC, and on a UTC+4..5
+        # box the two disagree about which calendar day an evening dump belongs
+        # to — enough to make "newest per day" silently drop the wrong file.
+        # mtime is only the fallback for a name we cannot parse.
+        day="$(printf '%s' "${f##*/}" | sed -n 's/^paperclip-\([0-9]\{4\}\)\([0-9]\{2\}\)\([0-9]\{2\}\)-[0-9]\{6\}\.sql\.gz$/\1-\2-\3/p')"
+        [ -n "${day}" ] || day="$(date -u -d "@${e}" +%Y-%m-%d 2>/dev/null || echo unknown)"
+        if [ "${idx}" -le "${KEEP_NEWEST}" ]; then
+          case "${seen_days}" in *" ${day} "*) : ;; *) seen_days="${seen_days}${day} " ;; esac
+          continue
+        fi
+        case "${seen_days}" in
+          *" ${day} "*)
+            if [ "${remaining}" -le "${MIN_KEEP}" ]; then
+              log "min_keep=${MIN_KEEP} reached in ${d} — stopping"
+              break
+            fi
+            rm_reclaim "$f" "intra-day duplicate for ${day}"
+            remaining=$(( remaining - 1 ))
+            ;;
+          *) seen_days="${seen_days}${day} " ;;
+        esac
+      done
+    done
+  else
+    log "usage ${USE_PCT}% < RECLAIM_PCT ${RECLAIM_PCT}% — intra-day thinning not needed"
+  fi
+  shopt -u nullglob
+
+  if [ "${reclaimed_bytes}" -gt 0 ] && [ "${DRY_RUN}" != "1" ]; then
+    RECLAIMED_MB=$(( reclaimed_bytes / 1048576 ))
+    more=""
+    [ "${reclaimed_n}" -gt 12 ] && more="
+…and $(( reclaimed_n - 12 )) more"
+    post_discord ":broom: **${HOSTNAME_SHORT}** paperclip-volume-guard reclaimed **${RECLAIMED_MB}M** from the Paperclip backup dir (volume was at ${USE_PCT}%, ${reclaimed_n} file(s)).${reclaimed_list}${more}
+This is the GOL-1632 *fallback*, not the fix — if it keeps firing, tighten \`backupRetention\` in the Paperclip instance settings."
+    USE_PCT="$(df --output=pcent "${MOUNT}" | tail -1 | tr -dc '0-9')"
+    AVAIL_H="$(df -h --output=avail "${MOUNT}" | tail -1 | tr -d ' ')"
+    log "post-reclaim: ${USE_PCT}% (avail ${AVAIL_H}); reclaimed ${RECLAIMED_MB}M across ${reclaimed_n} file(s)"
+  elif [ "${reclaimed_bytes}" -gt 0 ]; then
+    log "DRY_RUN: would have reclaimed $(( reclaimed_bytes / 1048576 ))M across ${reclaimed_n} file(s)"
+  else
+    log "nothing to reclaim"
+  fi
+else
+  log "RECLAIM=0 — reclaim disabled, alert-only"
 fi
 
 # --- Check 2: backup freshness (partial dump folded in as context) ---

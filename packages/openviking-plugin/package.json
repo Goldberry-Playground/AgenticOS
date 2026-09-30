@@ -9,7 +9,7 @@
     "worker": "dist/worker.js"
   },
   "scripts": {
-    "build": "esbuild src/worker.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/worker.js --external:react && esbuild src/manifest.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/manifest.js --external:react",
+    "build": "esbuild src/worker.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/worker.js --external:react && esbuild src/manifest.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/manifest.js --external:react && node ../../scripts/normalize-plugin-bundle.mjs dist/worker.js dist/manifest.js",
     "dev": "esbuild src/worker.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/worker.js --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

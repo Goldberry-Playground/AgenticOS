@@ -73,10 +73,30 @@ done
 
 filters=""
 for p in ${targets}; do filters="${filters} --filter @agenticos/${p}"; done
+
+# GOL-2694 — three things this install MUST pin, or the rebuild silently can't run.
+# deploy-host-scripts.yml reaches this script through `ssh <host> "bash -lc '...'"`:
+# a LOGIN shell (so it inherits whatever the droplet profile exports) with NO tty
+# (no `ssh -t`, so stdin is not interactive). Both matter:
+#
+#   1. NODE_ENV=development — every plugin's `build` script shells out to `esbuild`,
+#      and `esbuild` is a *devDependency* of all five packages. Under
+#      NODE_ENV=production pnpm omits devDependencies, so the install "succeeds",
+#      the very next line dies with `esbuild: command not found`, and the box keeps
+#      serving the stale bind-mounted dist this script exists to replace. We do not
+#      control the droplet profile from here, so pin it rather than hope.
+#   2. --prod=false — belt to that suspenders: explicit, and immune to a
+#      `prod=true` landing in a global/`.npmrc` config on the box.
+#   3. --config.confirmModulesPurge=false — when the resolved install differs from
+#      what's on disk (exactly the case after a `git reset --hard` moved the
+#      lockfile) pnpm asks `The modules directories will be removed and reinstalled.
+#      Proceed? (Y/n)`. With no tty that prompt has nobody to answer it and the
+#      deploy step HANGS until the job times out. Answer it up front.
 # shellcheck disable=SC2086  # word-splitting of the filter list is intended
-pnpm install --frozen-lockfile ${filters}
+NODE_ENV=development pnpm install --frozen-lockfile --prod=false \
+  --config.confirmModulesPurge=false ${filters}
 # shellcheck disable=SC2086
-pnpm ${filters} build
+NODE_ENV=development pnpm ${filters} build
 
 rc=0
 count=0

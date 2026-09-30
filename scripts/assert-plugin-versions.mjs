@@ -23,6 +23,15 @@
 // 18:53:28 (GOL-2496). This polls to a deadline instead. A genuine drift still
 // fails RED; it just costs ASSERT_TIMEOUT_MS first.
 //
+// The same deadline also absorbs TRANSPORT failures (GOL-2686). The deploy step
+// ahead of this one may have just force-recreated paperclip-server to repair an
+// orphaned plugin bind mount (GOL-2585); its probe is filesystem-only, so this
+// can arrive while the server is still booting and :3100 is refusing. undici
+// renders that as the bare string `fetch failed` — which is what run 36662917269
+// reported as its entire diagnosis. A refused/5xx sample is "not converged yet",
+// retried like any other; only a base URL that never answers before the deadline
+// is RED, and then it says so with the URL and the underlying cause.
+//
 // Env:
 //   PAPERCLIP_BASE   board API origin, e.g. http://10.116.16.2:3100
 //   BOARD_KEY        board bearer key (from 1Password; never logged)
@@ -80,6 +89,18 @@ if (expect.length === 0) {
 }
 
 const H = { Authorization: "Bearer " + board, "Content-Type": "application/json" };
+
+// undici's fetch rejects with a terse `TypeError: fetch failed` and hides the
+// real reason (ECONNREFUSED / EAI_AGAIN / socket hang up) in `.cause`. Unwrap the
+// whole chain — a one-word failure message costs a whole debugging session.
+const describe = (e) => {
+  const parts = [];
+  for (let cur = e, depth = 0; cur && depth < 5; cur = cur.cause, depth += 1) {
+    const m = [cur.code, cur.message].filter(Boolean).join(" ");
+    if (m && !parts.includes(m)) parts.push(m);
+  }
+  return parts.join(" <- ") || String(e);
+};
 
 function findPlugin(list, k) {
   const arr = Array.isArray(list) ? list : (list && list.plugins) || [];
@@ -164,17 +185,41 @@ async function sample() {
   // usually "not reloaded yet". Only the LAST sample is reported, so a run that
   // settles stays quiet (GOL-2496).
   const deadline = Date.now() + ASSERT_TIMEOUT_MS;
-  let res;
+  const budget = `${Math.round(ASSERT_TIMEOUT_MS / 1000)}s`;
+  let res = null;
+  let transportErr = null;
   for (let attempt = 1; ; attempt += 1) {
-    res = await sample();
-    if (!res.drift.length || Date.now() >= deadline) break;
+    try {
+      res = await sample();
+      transportErr = null;
+    } catch (e) {
+      // Reachability failure, not a verdict: the registry has told us nothing.
+      // Discard the stale sample so a transport error can never be reported as
+      // if the last successful reading still stood.
+      res = null;
+      transportErr = e;
+    }
+    if (res && !res.drift.length) break;
+    if (Date.now() >= deadline) break;
     if (attempt === 1) {
       console.log(
-        `  ... ${res.drift.length} plugin(s) not converged yet; polling up to ` +
-          `${Math.round(ASSERT_TIMEOUT_MS / 1000)}s for the async reload`,
+        transportErr
+          ? `  ... ${base} not answering yet (${describe(transportErr)}); polling up to ${budget}`
+          : `  ... ${res.drift.length} plugin(s) not converged yet; polling up to ` +
+              `${budget} for the async reload`,
       );
     }
     await sleep(ASSERT_POLL_MS);
+  }
+
+  if (!res) {
+    // Never got a single reading. This is an availability failure, and naming it
+    // as one keeps it from being misread as plugin version drift.
+    throw new Error(
+      `GET ${base}/api/plugins never answered within ${budget} — paperclip-server` +
+        ` is not serving, so plugin convergence could NOT be verified.` +
+        ` Last error: ${describe(transportErr)}`,
+    );
   }
 
   const { drift, warn, ok, skipped } = res;
