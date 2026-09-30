@@ -89,3 +89,25 @@ Goldberry-Playground, …).
   already retries transient broker failures (restarts during deploys) with
   backoff, so only a push that still fails after that is a real blocker — quote
   its actual error when you escalate.
+
+## After you open a PR on AgenticOS
+
+`main` is governed by an **active** `main-branch-protection` ruleset. Two of its
+settings routinely surprise agents — full detail in
+[docs/pr-policy.md](./pr-policy.md):
+
+- **`dismiss_stale_reviews_on_push: true`.** Any push after an approval —
+  *including* a routine merge of `main` into your branch — silently dismisses
+  that approval and re-blocks the PR, with nothing on the page saying so. Get
+  the branch final, *then* ask for review.
+- **`require_code_owner_review: true`.** `auto-approve.yml`'s
+  `github-actions[bot]` approval satisfies the review *count*, but the bot is
+  not a code owner, so a PR touching `.github/**`, `infra/**`, `scripts/ci/**`
+  (etc.) needs a human CODEOWNER no matter what the bot does.
+
+Read rulesets with `gh api repos/<owner>/<repo>/rulesets` — the classic
+branch-protection endpoint answers "Branch not protected" and is misleading.
+
+A green PR can still be `BLOCKED` because `auto-approve.yml` declined it on
+policy (size caps, sensitive path). Since GOL-2815 it says so in a PR comment;
+if there is no such comment, the block is not a policy decline.
