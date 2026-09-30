@@ -513,6 +513,38 @@ export class GitHubClient {
   }
 
   /**
+   * List a PR's commit authors (GOL-2720 self-review guard). Returns each commit's
+   * author name/email plus GitHub login so the caller can tell whether a would-be
+   * reviewer also WROTE the PR — all agent PRs share one App opener login, so the
+   * git commit author (name/email) is the only signal that discriminates them.
+   *
+   * Single page at 100 commits (GitHub caps `pulls/{n}/commits` at 250 across
+   * pages; a PR with >100 commits is vanishingly rare here). `truncated` reports
+   * the cap so the caller can fail SAFE — a missed author only means a self-review
+   * is not detected and the (harmless, extra) review twin is still minted, never a
+   * false skip. Requires the same `pull_requests:read` the file list already uses.
+   */
+  async listPullCommitAuthors(
+    repo: string,
+    num: number,
+  ): Promise<Result<{ authors: Array<{ email: string; name: string; login: string }>; truncated: boolean }>> {
+    const PER_PAGE = 100;
+    const res = await this.request<Array<Record<string, any>>>(
+      "GET",
+      repo,
+      `/repos/${this.org}/${repo}/pulls/${num}/commits?per_page=${PER_PAGE}`,
+    );
+    if (!res.ok) return res;
+    const batch = Array.isArray(res.data) ? res.data : [];
+    const authors = batch.map((c) => ({
+      email: String(c?.commit?.author?.email ?? ""),
+      name: String(c?.commit?.author?.name ?? ""),
+      login: String(c?.author?.login ?? ""),
+    }));
+    return { ok: true, data: { authors, truncated: batch.length >= PER_PAGE } };
+  }
+
+  /**
    * List the check-runs for a commit ref (GOL-305). Used to derive the aggregate CI
    * state on a PR head SHA regardless of whether a `check_suite` or `workflow_run`
    * event triggered us. Single page at 100 (a suite rarely exceeds that); `output`
