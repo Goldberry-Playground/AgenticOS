@@ -12,12 +12,38 @@
 #   signal is a check-run, never a GitHub APPROVE event. The old standalone
 #   "Claude Code Review" workflow was removed in the same change.
 #
-# NOTE on the merge gate: this repo currently has NO active branch-protection
-#   ruleset requiring a review (the `ClaudeLimits` ruleset is disabled), so the
-#   github-actions[bot] approval is a no-op for the merge gate today; the value
-#   here is agent-review-gated auto-merge-on-green. If a review-requiring
-#   ruleset is enabled later, the approval satisfies it automatically with no
-#   change. Auto-merge still waits for any required checks before it merges.
+# NOTE on the merge gate (verified against the live API 2026-09-30, GOL-2815 —
+#   this used to claim the opposite and was stale, which changes what an agent
+#   should expect after pushing an infra PR). `Goldberry-Playground/AgenticOS`
+#   carries THREE rulesets; read them with
+#   `gh api repos/$REPO/rulesets` (the CLASSIC branch-protection endpoint
+#   answers "Branch not protected" and is misleading here):
+#     - 16479528 `ClaudeLimits`          — DISABLED (as previously documented)
+#     - 22343539 `main-branch-protection`— ACTIVE on the default branch:
+#         required_approving_review_count: 1
+#         require_code_owner_review:       true
+#         dismiss_stale_reviews_on_push:   true
+#         required_linear_history, no deletion, no non-fast-forward
+#         required status checks: Lint, Typecheck, Unit tests, Build
+#     - 20318403 `merge-queue`           — ACTIVE (squash, ALLGREEN grouping)
+#   So the github-actions[bot] approval is NOT a no-op: it really does satisfy
+#   the one required review. But for any PR touching a CODEOWNERS path
+#   (`.github/**`, `infra/**`, `scripts/ci/**`, …) it is NOT SUFFICIENT either,
+#   because `github-actions[bot]` is not a code owner and
+#   `require_code_owner_review` is on — those PRs need a human CODEOWNER no
+#   matter what this workflow does (which is exactly why Gate 1b withholds the
+#   bot approval on them rather than stamping a useless one).
+#   `dismiss_stale_reviews_on_push: true` also means ANY push after an approval
+#   — including a routine merge of `main` into the branch — silently drops that
+#   approval and re-blocks the PR. See docs/pr-policy.md.
+#
+# NOTE on declining out loud (GOL-2815): when this workflow declines for a
+#   reason with no PR-side artifact (Gate 1's author/size/sensitive-path policy,
+#   or the Gate 1b protected-paths carve-out) it posts ONE idempotent comment on
+#   the PR via scripts/ci/automerge-explain.sh, so the PR explains itself
+#   instead of looking like a broken gate. The agent-review gate and the
+#   all-checks-green gate deliberately do NOT comment: both are already visible
+#   on the PR as check-runs and both are transient.
 #
 # Guardrails:
 #   - Never auto-approves human or external PRs (author must be the agent App bot).
@@ -146,6 +172,7 @@ jobs:
               PR_FILES=$(gh pr view "$PR" --repo "$REPO" --json files -q '.files[].path')
               if ! REASON=$(PR_FILES="$PR_FILES" node scripts/ci/protected-paths-carveout.mjs); then
                 echo "PR #$PR not auto-approved: $REASON"
+                bash scripts/ci/automerge-explain.sh "$PR" maintainer-carveout "$REASON"
                 exit 0
               fi
               echo "carve-out passed: no protected path touched"
@@ -181,6 +208,8 @@ jobs:
 
           if ! REASON=$(node scripts/automerge-gate.mjs); then
             echo "PR #$PR not eligible for auto-merge: $REASON"
+            # GOL-2815: say it on the PR, not just in this log. Idempotent.
+            bash scripts/ci/automerge-explain.sh "$PR" gate "$REASON"
             exit 0
           fi
           echo "gate passed: $REASON"
@@ -209,6 +238,8 @@ jobs:
           # withholds. PR_FILES is already exported above.
           if ! REASON=$(node scripts/ci/protected-paths-carveout.mjs); then
             echo "PR #$PR not auto-approved: $REASON"
+            # GOL-2815: say it on the PR, not just in this log. Idempotent.
+            bash scripts/ci/automerge-explain.sh "$PR" carveout "$REASON"
             exit 0
           fi
           echo "carve-out passed: no protected path touched"
@@ -241,6 +272,10 @@ jobs:
             sleep 30
           done
           if [ "$REVIEW_STATE" != "success" ]; then
+            # Deliberately NOT routed through automerge-explain.sh (GOL-2815):
+            # the agent-review/* check-run is already rendered on the PR, and it
+            # is transient — it can flip to success on a later re-fire, which
+            # would leave a wrong comment behind.
             echo "PR #$PR agent-review/* gate not satisfied on $HEAD_SHA (state: $REVIEW_STATE); not approving. The reviewer must sign off (COMMENT-only gate — GOL-1734)."
             exit 0
           fi
@@ -264,6 +299,8 @@ jobs:
           FAILED=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" \
             -q '[.check_runs[] | select(.status != "completed" or (.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | .[].name')
           if [ -n "$FAILED" ]; then
+            # Also deliberately silent (GOL-2815): a red check is the single most
+            # visible thing on a PR, and it is transient. Nothing to explain.
             echo "PR #$PR has non-green checks on $HEAD_SHA — not approving:"
             echo "$FAILED"
             exit 0
