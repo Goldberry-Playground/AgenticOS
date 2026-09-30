@@ -177,6 +177,54 @@ If you must recover manually: `bash scripts/deploy-plugin.sh <plugin>` reinstall
 from `/paperclip/plugins/<plugin>` and re-applies config, then verify with
 `assert-plugin-versions.sh`.
 
+## Adding a BRAND-NEW plugin (GOL-2423)
+
+A new plugin is not auto-discovered. Everything it needs now hangs off ONE list:
+`PLUGIN_DIRS` in [`scripts/plugin-registry.sh`]. The shell consumers
+(`assert-plugin-versions.sh`, `finish-plugin-upgrade.sh`, `deploy-plugin.sh`,
+`sync-paperclip-secrets.sh`) source it. The YAML and compose files cannot source
+shell, so they still carry literal lists — and
+`scripts/ci/plugin-registry-drift.test.mjs` fails the PR if any of them disagree
+with `PLUGIN_DIRS`. That gate exists because these lists had already drifted:
+`discord-plugin` was in the deploy workflow's build loop but missing from
+`detect-manifest-bumps.sh` and `finish-plugin-upgrade.sh`.
+
+**Wiring (one PR):**
+
+1. `scripts/plugin-registry.sh` — add the dir to `PLUGIN_DIRS`, and to
+   `PLUGIN_PENDING_INSTALL` until the first install actually happens.
+2. `docker-compose.yml` — add
+   `./packages/<p>:/paperclip/plugins/<p>:ro`. **Without this the install fails
+   with `Missing package.json` no matter how many times you recreate the
+   container** — there is no mount to re-resolve.
+3. `.github/workflows/deploy-droplet-plugins.yml` — `paths:` trigger, both
+   `pnpm --filter` lists, and the dist-completeness loop.
+4. `.github/workflows/recreate-paperclip-server.yml` — the `plugins="…"` verify
+   list.
+5. Run `node scripts/ci/plugin-registry-drift.test.mjs` and
+   `bash scripts/ci/plugin-registry.test.sh` locally; both run in CI's
+   **CI scripts** job.
+
+`.github/workflows/**` edits need Josh's review per the standing rules.
+
+**First install (after the wiring PR is on `main`):**
+
+1. Run **Actions → "Recreate paperclip-server"** so the NEW bind mount resolves.
+   Verify the run's mount check lists your plugin.
+2. `POST /api/plugins/install` with
+   `{"packageName":"/paperclip/plugins/<p>","isLocalPath":true}`, then confirm
+   `status=ready` (or `error` with a *config missing* `lastError`, which is the
+   expected installed-but-unconfigured state).
+3. Set config **separately**, from 1Password — never inline, never in a diff.
+4. Remove the dir from `PLUGIN_PENDING_INSTALL`. You cannot forget this:
+   `assert-plugin-versions.mjs` fails the next deploy RED with
+   *"listed in PLUGIN_PENDING_INSTALL but IS INSTALLED"*.
+
+**Note on plugin keys.** The pluginKey is the manifest's declared `id:`, which is
+**not** always `agenticos.<dir>` — `grove-content-drafter-plugin` declares
+`agenticos.grove-content-drafter`. `plugin_key()` reads the manifest, so never
+hand-concatenate the key.
+
 ## Why each step is necessary
 
 See `memory/paperclip-plugin-db-and-activation-contract.md` (the install/
@@ -195,9 +243,16 @@ touch it; install is create-only; config save doesn't restart the worker.
 - `scripts/deploy-plugin.sh` / `scripts/paperclip-lib.sh` — the fallback
   implementation.
 - `scripts/sync-paperclip-secrets.sh` — the "sync ALL plugins from 1Password"
-  entrypoint (same lib); use it after a full rebuild rather than per-plugin.
+  entrypoint (same lib); use it after a full rebuild rather than per-plugin. It
+  SKIPS `PLUGIN_PENDING_INSTALL` plugins unless you pass `INSTALL_PENDING=1`, so
+  a routine secret-sync can't perform a gated first install by accident.
+- [`scripts/plugin-registry.sh`] — `PLUGIN_DIRS` / `PLUGIN_PENDING_INSTALL` /
+  `plugin_key()`; the single source of truth for the deploy-managed plugin set.
+- `scripts/ci/plugin-registry-drift.test.mjs`, `scripts/ci/plugin-registry.test.sh`
+  — the CI gates that keep the literal YAML/compose lists in lockstep.
 
 [GOL-166]: https://github.com/EngineeringMoonBear/AgenticOS/pull/281
 [GOL-296]: https://github.com/EngineeringMoonBear/AgenticOS/pull/255
 [`.github/workflows/recreate-paperclip-server.yml`]: ../../.github/workflows/recreate-paperclip-server.yml
 [github-issue-sync.md]: github-issue-sync.md
+[`scripts/plugin-registry.sh`]: ../../scripts/plugin-registry.sh

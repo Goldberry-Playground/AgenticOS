@@ -7,7 +7,7 @@ var __export = (target, all) => {
 // src/worker.ts
 import { AsyncResource } from "node:async_hooks";
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.831.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
 function definePlugin(definition) {
   return Object.freeze({ definition });
 }
@@ -767,8 +767,8 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function rawShape(def) {
-  const desc = Object.getOwnPropertyDescriptor(def, "shape");
+function rawShape(def2) {
+  const desc = Object.getOwnPropertyDescriptor(def2, "shape");
   return desc?.get ? desc.get.raw : desc?.value;
 }
 function sourceShape(schema) {
@@ -819,8 +819,8 @@ function mirrorProps(target, source) {
 }
 function mergeDefs(...defs) {
   const mergedDescriptors = {};
-  for (const def of defs) {
-    const descriptors = Object.getOwnPropertyDescriptors(def);
+  for (const def2 of defs) {
+    const descriptors = Object.getOwnPropertyDescriptors(def2);
     Object.assign(mergedDescriptors, descriptors);
   }
   return Object.defineProperties({}, mergedDescriptors);
@@ -970,9 +970,9 @@ var primitiveTypes = /* @__PURE__ */ new Set([
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function clone(inst, def, params) {
-  const cl = new inst._zod.constr(def ?? inst._zod.def);
-  if (!def || params?.parent)
+function clone(inst, def2, params) {
+  const cl = new inst._zod.constr(def2 ?? inst._zod.def);
+  if (!def2 || params?.parent)
     cl._zod.parent = inst;
   return cl;
 }
@@ -1121,14 +1121,14 @@ function merge(a, b) {
   const newShape = {};
   mirrorShape(newShape, a, Reflect.ownKeys(sourceShape(a)));
   mirrorShape(newShape, b, Reflect.ownKeys(sourceShape(b)));
-  const def = mergeDefs(a._zod.def, {
+  const def2 = mergeDefs(a._zod.def, {
     shape: newShape,
     get catchall() {
       return b._zod.def.catchall;
     },
     checks: b._zod.def.checks ?? []
   });
-  return clone(a, def);
+  return clone(a, def2);
 }
 function partial(Class2, schema, mask, name = "partial") {
   const currDef = schema._zod.def;
@@ -1465,17 +1465,17 @@ function newError(Definition) {
 // @__NO_SIDE_EFFECTS__
 function $constructor(name, initializer3, proto, params) {
   const zodProto = {};
-  function Internals(def) {
-    this.def = def;
+  function Internals(def2) {
+    this.def = def2;
     this.constr = _;
     this.traits = /* @__PURE__ */ new Set();
   }
   Internals.prototype = zodProto;
   const protoMembers = proto;
   const initialized = protoMembers && /* @__PURE__ */ new WeakSet();
-  function init(inst, def) {
+  function init(inst, def2) {
     if (!inst._zod) {
-      _zodDesc.value = new Internals(def);
+      _zodDesc.value = new Internals(def2);
       try {
         Object.defineProperty(inst, "_zod", _zodDesc);
       } finally {
@@ -1485,7 +1485,7 @@ function $constructor(name, initializer3, proto, params) {
       return;
     }
     inst._zod.traits.add(name);
-    initializer3(inst, def);
+    initializer3(inst, def2);
     if (initialized) {
       const own2 = Object.getPrototypeOf(inst);
       const ctorProto = inst._zod.constr.prototype;
@@ -1511,9 +1511,9 @@ function $constructor(name, initializer3, proto, params) {
   class Definition extends Parent {
   }
   Object.defineProperty(Definition, "name", { value: name });
-  function _(def) {
+  function _(def2) {
     const inst = params?.Parent ? newError(Definition) : this;
-    init(inst, def);
+    init(inst, def2);
     const deferred = inst._zod.deferred;
     if (deferred) {
       for (const fn of deferred) {
@@ -1574,9 +1574,9 @@ var _messageDesc = {
 };
 var _issuesDesc = { value: void 0, enumerable: false };
 var _installedToString = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
-var initializer = (inst, def) => {
+var initializer = (inst, def2) => {
   inst.name = "$ZodError";
-  _issuesDesc.value = def;
+  _issuesDesc.value = def2;
   Object.defineProperty(inst, "issues", _issuesDesc);
   _issuesDesc.value = void 0;
   Object.defineProperty(inst, "message", _messageDesc);
@@ -2082,10 +2082,10 @@ var sha512_base64 = /* @__PURE__ */ fixedBase64(86, "==");
 var sha512_base64url = /* @__PURE__ */ fixedBase64url(86);
 
 // ../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/checks.js
-var $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
+var $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def2) => {
   var _a3;
   inst._zod ?? (inst._zod = {});
-  inst._zod.def = def;
+  inst._zod.def = def2;
   (_a3 = inst._zod).onattach ?? (_a3.onattach = []);
 });
 var _whenHasSize = (payload) => {
@@ -2101,76 +2101,76 @@ var numericOriginMap = {
   bigint: "bigint",
   object: "date"
 };
-var $ZodCheckLessThan = /* @__PURE__ */ $constructor("$ZodCheckLessThan", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  const origin = numericOriginMap[typeof def.value];
+var $ZodCheckLessThan = /* @__PURE__ */ $constructor("$ZodCheckLessThan", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  const origin = numericOriginMap[typeof def2.value];
   inst._zod.check = (payload) => {
-    if (def.inclusive ? payload.value <= def.value : payload.value < def.value) {
+    if (def2.inclusive ? payload.value <= def2.value : payload.value < def2.value) {
       return;
     }
     payload.issues.push({
       origin: numericOriginMap[typeof payload.value] ?? origin,
       code: "too_big",
-      maximum: typeof def.value === "object" ? def.value.getTime() : def.value,
+      maximum: typeof def2.value === "object" ? def2.value.getTime() : def2.value,
       input: payload.value,
-      inclusive: def.inclusive,
+      inclusive: def2.inclusive,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckGreaterThan = /* @__PURE__ */ $constructor("$ZodCheckGreaterThan", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  const origin = numericOriginMap[typeof def.value];
+var $ZodCheckGreaterThan = /* @__PURE__ */ $constructor("$ZodCheckGreaterThan", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  const origin = numericOriginMap[typeof def2.value];
   inst._zod.check = (payload) => {
-    if (def.inclusive ? payload.value >= def.value : payload.value > def.value) {
+    if (def2.inclusive ? payload.value >= def2.value : payload.value > def2.value) {
       return;
     }
     payload.issues.push({
       origin: numericOriginMap[typeof payload.value] ?? origin,
       code: "too_small",
-      minimum: typeof def.value === "object" ? def.value.getTime() : def.value,
+      minimum: typeof def2.value === "object" ? def2.value.getTime() : def2.value,
       input: payload.value,
-      inclusive: def.inclusive,
+      inclusive: def2.inclusive,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckMultipleOf = /* @__PURE__ */ $constructor("$ZodCheckMultipleOf", (inst, def) => {
-  $ZodCheck.init(inst, def);
+var $ZodCheckMultipleOf = /* @__PURE__ */ $constructor("$ZodCheckMultipleOf", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
   inst._zod.check = (payload) => {
-    if (typeof payload.value !== typeof def.value)
+    if (typeof payload.value !== typeof def2.value)
       throw new Error("Cannot mix number and bigint in multiple_of check.");
     const isMultiple = typeof payload.value === "bigint" ? (
       // `value % 0n` throws, and nothing is a multiple of zero — the number branch already fails this way via NaN
-      def.value !== BigInt(0) && payload.value % def.value === BigInt(0)
-    ) : floatSafeRemainder(payload.value, def.value) === 0;
+      def2.value !== BigInt(0) && payload.value % def2.value === BigInt(0)
+    ) : floatSafeRemainder(payload.value, def2.value) === 0;
     if (isMultiple)
       return;
     payload.issues.push({
       origin: typeof payload.value,
       code: "not_multiple_of",
-      divisor: def.value,
+      divisor: def2.value,
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  def.format = def.format || "float64";
-  const isInt = def.format?.includes("int");
+var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  def2.format = def2.format || "float64";
+  const isInt = def2.format?.includes("int");
   const origin = isInt ? "int" : "number";
-  const [minimum, maximum] = NUMBER_FORMAT_RANGES[def.format];
+  const [minimum, maximum] = NUMBER_FORMAT_RANGES[def2.format];
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     if (isInt) {
       if (!Number.isInteger(input2)) {
         payload.issues.push({
           expected: origin,
-          format: def.format,
+          format: def2.format,
           code: "invalid_type",
           continue: false,
           input: input2,
@@ -2188,7 +2188,7 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
             inst,
             origin,
             inclusive: true,
-            continue: !def.abort
+            continue: !def2.abort
           });
         } else {
           payload.issues.push({
@@ -2199,7 +2199,7 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
             inst,
             origin,
             inclusive: true,
-            continue: !def.abort
+            continue: !def2.abort
           });
         }
         return;
@@ -2213,7 +2213,7 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
         minimum,
         inclusive: true,
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     }
     if (input2 > maximum) {
@@ -2224,14 +2224,14 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
         maximum,
         inclusive: true,
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     }
   };
 });
-var $ZodCheckBigIntFormat = /* @__PURE__ */ $constructor("$ZodCheckBigIntFormat", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  const [minimum, maximum] = BIGINT_FORMAT_RANGES[def.format];
+var $ZodCheckBigIntFormat = /* @__PURE__ */ $constructor("$ZodCheckBigIntFormat", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  const [minimum, maximum] = BIGINT_FORMAT_RANGES[def2.format];
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     if (input2 < minimum) {
@@ -2242,7 +2242,7 @@ var $ZodCheckBigIntFormat = /* @__PURE__ */ $constructor("$ZodCheckBigIntFormat"
         minimum,
         inclusive: true,
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     }
     if (input2 > maximum) {
@@ -2253,238 +2253,238 @@ var $ZodCheckBigIntFormat = /* @__PURE__ */ $constructor("$ZodCheckBigIntFormat"
         maximum,
         inclusive: true,
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     }
   };
 });
-var $ZodCheckMaxSize = /* @__PURE__ */ $constructor("$ZodCheckMaxSize", (inst, def) => {
+var $ZodCheckMaxSize = /* @__PURE__ */ $constructor("$ZodCheckMaxSize", (inst, def2) => {
   var _a3;
-  $ZodCheck.init(inst, def);
+  $ZodCheck.init(inst, def2);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasSize);
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     const size = input2.size;
-    if (size <= def.maximum)
+    if (size <= def2.maximum)
       return;
     payload.issues.push({
       origin: getSizableOrigin(input2),
       code: "too_big",
-      maximum: def.maximum,
+      maximum: def2.maximum,
       inclusive: true,
       input: input2,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckMinSize = /* @__PURE__ */ $constructor("$ZodCheckMinSize", (inst, def) => {
+var $ZodCheckMinSize = /* @__PURE__ */ $constructor("$ZodCheckMinSize", (inst, def2) => {
   var _a3;
-  $ZodCheck.init(inst, def);
+  $ZodCheck.init(inst, def2);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasSize);
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     const size = input2.size;
-    if (size >= def.minimum)
+    if (size >= def2.minimum)
       return;
     payload.issues.push({
       origin: getSizableOrigin(input2),
       code: "too_small",
-      minimum: def.minimum,
+      minimum: def2.minimum,
       inclusive: true,
       input: input2,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckSizeEquals = /* @__PURE__ */ $constructor("$ZodCheckSizeEquals", (inst, def) => {
+var $ZodCheckSizeEquals = /* @__PURE__ */ $constructor("$ZodCheckSizeEquals", (inst, def2) => {
   var _a3;
-  $ZodCheck.init(inst, def);
+  $ZodCheck.init(inst, def2);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasSize);
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     const size = input2.size;
-    if (size === def.size)
+    if (size === def2.size)
       return;
-    const tooBig = size > def.size;
+    const tooBig = size > def2.size;
     payload.issues.push({
       origin: getSizableOrigin(input2),
-      ...tooBig ? { code: "too_big", maximum: def.size } : { code: "too_small", minimum: def.size },
+      ...tooBig ? { code: "too_big", maximum: def2.size } : { code: "too_small", minimum: def2.size },
       inclusive: true,
       exact: true,
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (inst, def) => {
+var $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (inst, def2) => {
   var _a3;
-  $ZodCheck.init(inst, def);
+  $ZodCheck.init(inst, def2);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasLength);
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     const units = input2.length;
-    const length = typeof input2 === "string" && units > def.maximum ? codePointLength(input2) : units;
-    if (length <= def.maximum)
+    const length = typeof input2 === "string" && units > def2.maximum ? codePointLength(input2) : units;
+    if (length <= def2.maximum)
       return;
     const origin = getLengthableOrigin(input2);
     payload.issues.push({
       origin,
       code: "too_big",
-      maximum: def.maximum,
+      maximum: def2.maximum,
       inclusive: true,
       input: input2,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (inst, def) => {
+var $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (inst, def2) => {
   var _a3;
-  $ZodCheck.init(inst, def);
+  $ZodCheck.init(inst, def2);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasLength);
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     const units = input2.length;
-    const length = typeof input2 === "string" && units >= def.minimum && units < def.minimum * 2 ? codePointLength(input2) : units;
-    if (length >= def.minimum)
+    const length = typeof input2 === "string" && units >= def2.minimum && units < def2.minimum * 2 ? codePointLength(input2) : units;
+    if (length >= def2.minimum)
       return;
     const origin = getLengthableOrigin(input2);
     payload.issues.push({
       origin,
       code: "too_small",
-      minimum: def.minimum,
+      minimum: def2.minimum,
       inclusive: true,
       input: input2,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckLengthEquals = /* @__PURE__ */ $constructor("$ZodCheckLengthEquals", (inst, def) => {
+var $ZodCheckLengthEquals = /* @__PURE__ */ $constructor("$ZodCheckLengthEquals", (inst, def2) => {
   var _a3;
-  $ZodCheck.init(inst, def);
+  $ZodCheck.init(inst, def2);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasLength);
   inst._zod.check = (payload) => {
     const input2 = payload.value;
     const units = input2.length;
-    const length = typeof input2 === "string" && units >= def.length && units <= def.length * 2 ? codePointLength(input2) : units;
-    if (length === def.length)
+    const length = typeof input2 === "string" && units >= def2.length && units <= def2.length * 2 ? codePointLength(input2) : units;
+    if (length === def2.length)
       return;
     const origin = getLengthableOrigin(input2);
-    const tooBig = length > def.length;
+    const tooBig = length > def2.length;
     payload.issues.push({
       origin,
-      ...tooBig ? { code: "too_big", maximum: def.length } : { code: "too_small", minimum: def.length },
+      ...tooBig ? { code: "too_big", maximum: def2.length } : { code: "too_small", minimum: def2.length },
       inclusive: true,
       exact: true,
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckStringFormat = /* @__PURE__ */ $constructor("$ZodCheckStringFormat", (inst, def) => {
+var $ZodCheckStringFormat = /* @__PURE__ */ $constructor("$ZodCheckStringFormat", (inst, def2) => {
   var _a3, _b;
-  $ZodCheck.init(inst, def);
-  if (def.pattern)
+  $ZodCheck.init(inst, def2);
+  if (def2.pattern)
     (_a3 = inst._zod).check ?? (_a3.check = (payload) => {
-      def.pattern.lastIndex = 0;
-      if (def.pattern.test(payload.value))
+      def2.pattern.lastIndex = 0;
+      if (def2.pattern.test(payload.value))
         return;
       payload.issues.push({
         origin: "string",
         code: "invalid_format",
-        format: def.format,
+        format: def2.format,
         input: payload.value,
-        ...def.pattern ? { pattern: def.pattern.toString() } : {},
+        ...def2.pattern ? { pattern: def2.pattern.toString() } : {},
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     });
   else
     (_b = inst._zod).check ?? (_b.check = () => {
     });
 });
-var $ZodCheckRegex = /* @__PURE__ */ $constructor("$ZodCheckRegex", (inst, def) => {
-  $ZodCheckStringFormat.init(inst, def);
+var $ZodCheckRegex = /* @__PURE__ */ $constructor("$ZodCheckRegex", (inst, def2) => {
+  $ZodCheckStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
-    def.pattern.lastIndex = 0;
-    if (def.pattern.test(payload.value))
+    def2.pattern.lastIndex = 0;
+    if (def2.pattern.test(payload.value))
       return;
     payload.issues.push({
       origin: "string",
       code: "invalid_format",
       format: "regex",
       input: payload.value,
-      pattern: def.pattern.toString(),
+      pattern: def2.pattern.toString(),
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckLowerCase = /* @__PURE__ */ $constructor("$ZodCheckLowerCase", (inst, def) => {
-  def.pattern ?? (def.pattern = lowercase);
-  $ZodCheckStringFormat.init(inst, def);
+var $ZodCheckLowerCase = /* @__PURE__ */ $constructor("$ZodCheckLowerCase", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = lowercase);
+  $ZodCheckStringFormat.init(inst, def2);
 });
-var $ZodCheckUpperCase = /* @__PURE__ */ $constructor("$ZodCheckUpperCase", (inst, def) => {
-  def.pattern ?? (def.pattern = uppercase);
-  $ZodCheckStringFormat.init(inst, def);
+var $ZodCheckUpperCase = /* @__PURE__ */ $constructor("$ZodCheckUpperCase", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = uppercase);
+  $ZodCheckStringFormat.init(inst, def2);
 });
-var $ZodCheckIncludes = /* @__PURE__ */ $constructor("$ZodCheckIncludes", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  const escapedRegex = escapeRegex(def.includes);
-  const pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position},}${escapedRegex}` : escapedRegex);
-  def.pattern = pattern;
+var $ZodCheckIncludes = /* @__PURE__ */ $constructor("$ZodCheckIncludes", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  const escapedRegex = escapeRegex(def2.includes);
+  const pattern = new RegExp(typeof def2.position === "number" ? `^.{${def2.position},}${escapedRegex}` : escapedRegex);
+  def2.pattern = pattern;
   inst._zod.check = (payload) => {
-    if (payload.value.includes(def.includes, def.position))
+    if (payload.value.includes(def2.includes, def2.position))
       return;
     payload.issues.push({
       origin: "string",
       code: "invalid_format",
       format: "includes",
-      includes: def.includes,
+      includes: def2.includes,
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckStartsWith = /* @__PURE__ */ $constructor("$ZodCheckStartsWith", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  const pattern = new RegExp(`^${escapeRegex(def.prefix)}.*`);
-  def.pattern ?? (def.pattern = pattern);
+var $ZodCheckStartsWith = /* @__PURE__ */ $constructor("$ZodCheckStartsWith", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  const pattern = new RegExp(`^${escapeRegex(def2.prefix)}.*`);
+  def2.pattern ?? (def2.pattern = pattern);
   inst._zod.check = (payload) => {
-    if (payload.value.startsWith(def.prefix))
+    if (payload.value.startsWith(def2.prefix))
       return;
     payload.issues.push({
       origin: "string",
       code: "invalid_format",
       format: "starts_with",
-      prefix: def.prefix,
+      prefix: def2.prefix,
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckEndsWith = /* @__PURE__ */ $constructor("$ZodCheckEndsWith", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  const pattern = new RegExp(`.*${escapeRegex(def.suffix)}$`);
-  def.pattern ?? (def.pattern = pattern);
+var $ZodCheckEndsWith = /* @__PURE__ */ $constructor("$ZodCheckEndsWith", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  const pattern = new RegExp(`.*${escapeRegex(def2.suffix)}$`);
+  def2.pattern ?? (def2.pattern = pattern);
   inst._zod.check = (payload) => {
-    if (payload.value.endsWith(def.suffix))
+    if (payload.value.endsWith(def2.suffix))
       return;
     payload.issues.push({
       origin: "string",
       code: "invalid_format",
       format: "ends_with",
-      suffix: def.suffix,
+      suffix: def2.suffix,
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
@@ -2493,22 +2493,22 @@ function handleCheckPropertyResult(result, payload, property) {
     payload.issues.push(...prefixIssues(property, result.issues));
   }
 }
-var $ZodCheckProperty = /* @__PURE__ */ $constructor("$ZodCheckProperty", (inst, def) => {
-  $ZodCheck.init(inst, def);
+var $ZodCheckProperty = /* @__PURE__ */ $constructor("$ZodCheckProperty", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
   inst._zod.check = (payload) => {
-    const result = def.schema._zod.run({
-      value: payload.value[def.property],
+    const result = def2.schema._zod.run({
+      value: payload.value[def2.property],
       issues: []
     }, {});
     if (result instanceof Promise) {
-      return result.then((result2) => handleCheckPropertyResult(result2, payload, def.property));
+      return result.then((result2) => handleCheckPropertyResult(result2, payload, def2.property));
     }
-    handleCheckPropertyResult(result, payload, def.property);
+    handleCheckPropertyResult(result, payload, def2.property);
     return;
   };
 });
-var $ZodCheckProperties = /* @__PURE__ */ $constructor("$ZodCheckProperties", (inst, def) => {
-  $ZodCheck.init(inst, def);
+var $ZodCheckProperties = /* @__PURE__ */ $constructor("$ZodCheckProperties", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
   hide(inst, Symbol.iterator, function* () {
     yield inst;
   });
@@ -2518,7 +2518,7 @@ var $ZodCheckProperties = /* @__PURE__ */ $constructor("$ZodCheckProperties", (i
       payload.issues.push({ expected: "object", code: "invalid_type", input: payload.value, inst });
       return void 0;
     }
-    entries ?? (entries = Reflect.ownKeys(def.shape).map((key) => [key, def.shape[key]]));
+    entries ?? (entries = Reflect.ownKeys(def2.shape).map((key) => [key, def2.shape[key]]));
     const input2 = payload.value;
     let proms;
     for (const [key, schema] of entries) {
@@ -2535,25 +2535,25 @@ var $ZodCheckProperties = /* @__PURE__ */ $constructor("$ZodCheckProperties", (i
     return void 0;
   };
 });
-var $ZodCheckMimeType = /* @__PURE__ */ $constructor("$ZodCheckMimeType", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  const mimeSet = new Set(def.mime);
+var $ZodCheckMimeType = /* @__PURE__ */ $constructor("$ZodCheckMimeType", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  const mimeSet = new Set(def2.mime);
   inst._zod.check = (payload) => {
     if (mimeSet.has(payload.value.type))
       return;
     payload.issues.push({
       code: "invalid_value",
-      values: def.mime,
+      values: def2.mime,
       input: payload.value.type,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (inst, def) => {
-  $ZodCheck.init(inst, def);
+var $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
   inst._zod.check = (payload) => {
-    payload.value = def.tx(payload.value);
+    payload.value = def2.tx(payload.value);
   };
 });
 
@@ -2606,10 +2606,10 @@ var version = {
 };
 
 // ../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/schemas.js
-var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
+var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def2) => {
   var _a3;
   inst ?? (inst = {});
-  inst._zod.def = def;
+  inst._zod.def = def2;
   inst._zod.bag = inst._zod.bag || {};
   inst._zod.version = version;
   const defChecks = inst._zod.def.checks;
@@ -2736,11 +2736,11 @@ function standardProps(inst) {
     version: 1
   };
 }
-var $ZodString = /* @__PURE__ */ $constructor("$ZodString", (inst, def) => {
-  $ZodType.init(inst, def);
-  inst._zod.pattern = def.pattern ?? anyString;
+var $ZodString = /* @__PURE__ */ $constructor("$ZodString", (inst, def2) => {
+  $ZodType.init(inst, def2);
+  inst._zod.pattern = def2.pattern ?? anyString;
   inst._zod.parse = (payload, _) => {
-    if (def.coerce)
+    if (def2.coerce)
       try {
         payload.value = String(payload.value);
       } catch (_2) {
@@ -2756,16 +2756,16 @@ var $ZodString = /* @__PURE__ */ $constructor("$ZodString", (inst, def) => {
     return payload;
   };
 });
-var $ZodStringFormat = /* @__PURE__ */ $constructor("$ZodStringFormat", (inst, def) => {
-  $ZodCheckStringFormat.init(inst, def);
-  $ZodString.init(inst, def);
+var $ZodStringFormat = /* @__PURE__ */ $constructor("$ZodStringFormat", (inst, def2) => {
+  $ZodCheckStringFormat.init(inst, def2);
+  $ZodString.init(inst, def2);
 });
-var $ZodGUID = /* @__PURE__ */ $constructor("$ZodGUID", (inst, def) => {
-  def.pattern ?? (def.pattern = guid);
-  $ZodStringFormat.init(inst, def);
+var $ZodGUID = /* @__PURE__ */ $constructor("$ZodGUID", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = guid);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodUUID = /* @__PURE__ */ $constructor("$ZodUUID", (inst, def) => {
-  if (def.version) {
+var $ZodUUID = /* @__PURE__ */ $constructor("$ZodUUID", (inst, def2) => {
+  if (def2.version) {
     const versionMap = {
       v1: 1,
       v2: 2,
@@ -2776,17 +2776,17 @@ var $ZodUUID = /* @__PURE__ */ $constructor("$ZodUUID", (inst, def) => {
       v7: 7,
       v8: 8
     };
-    const v = versionMap[def.version];
+    const v = versionMap[def2.version];
     if (v === void 0)
-      throw new Error(`Invalid UUID version: "${def.version}"`);
-    def.pattern ?? (def.pattern = uuid(v));
+      throw new Error(`Invalid UUID version: "${def2.version}"`);
+    def2.pattern ?? (def2.pattern = uuid(v));
   } else
-    def.pattern ?? (def.pattern = uuid());
-  $ZodStringFormat.init(inst, def);
+    def2.pattern ?? (def2.pattern = uuid());
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodEmail = /* @__PURE__ */ $constructor("$ZodEmail", (inst, def) => {
-  def.pattern ?? (def.pattern = email);
-  $ZodStringFormat.init(inst, def);
+var $ZodEmail = /* @__PURE__ */ $constructor("$ZodEmail", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = email);
+  $ZodStringFormat.init(inst, def2);
 });
 var URL_BAD_FORMAT = 1;
 var URL_UNPARSEABLE = 2;
@@ -2800,14 +2800,14 @@ function canParseURL(input2) {
     return false;
   }
 }
-function validateURL(trimmed, def) {
-  if (!("normalize" in def) && !("hostname" in def) && !("protocol" in def)) {
+function validateURL(trimmed, def2) {
+  if (!("normalize" in def2) && !("hostname" in def2) && !("protocol" in def2)) {
     return canParseURL(trimmed) || URL_UNPARSEABLE;
   }
-  return parseURLObject(trimmed, def);
+  return parseURLObject(trimmed, def2);
 }
-function parseURLObject(trimmed, def) {
-  if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed)) {
+function parseURLObject(trimmed, def2) {
+  if (!def2.normalize && def2.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed)) {
     return URL_BAD_FORMAT;
   }
   try {
@@ -2833,12 +2833,12 @@ function urlProtocolOk(url2, protocol) {
   protocol.lastIndex = 0;
   return protocol.test(url2.protocol.endsWith(":") ? url2.protocol.slice(0, -1) : url2.protocol);
 }
-var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
-  $ZodStringFormat.init(inst, def);
+var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def2) => {
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
     try {
       const trimmed = payload.value.trim();
-      const url2 = validateURL(trimmed, def);
+      const url2 = validateURL(trimmed, def2);
       if (url2 === URL_BAD_FORMAT) {
         payload.issues.push({
           code: "invalid_format",
@@ -2846,7 +2846,7 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
           note: "Invalid URL format",
           input: payload.value,
           inst,
-          continue: !def.abort
+          continue: !def2.abort
         });
         return;
       }
@@ -2856,7 +2856,7 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
           format: "url",
           input: payload.value,
           inst,
-          continue: !def.abort
+          continue: !def2.abort
         });
         return;
       }
@@ -2864,29 +2864,29 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
         payload.value = stripTabAndNewline(trimmed);
         return;
       }
-      if (def.hostname && !urlHostnameOk(url2, def.hostname)) {
+      if (def2.hostname && !urlHostnameOk(url2, def2.hostname)) {
         payload.issues.push({
           code: "invalid_format",
           format: "url",
           note: "Invalid hostname",
-          pattern: def.hostname.source,
+          pattern: def2.hostname.source,
           input: payload.value,
           inst,
-          continue: !def.abort
+          continue: !def2.abort
         });
       }
-      if (def.protocol && !urlProtocolOk(url2, def.protocol)) {
+      if (def2.protocol && !urlProtocolOk(url2, def2.protocol)) {
         payload.issues.push({
           code: "invalid_format",
           format: "url",
           note: "Invalid protocol",
-          pattern: def.protocol.source,
+          pattern: def2.protocol.source,
           input: payload.value,
           inst,
-          continue: !def.abort
+          continue: !def2.abort
         });
       }
-      payload.value = def.normalize ? url2.href : stripTabAndNewline(trimmed);
+      payload.value = def2.normalize ? url2.href : stripTabAndNewline(trimmed);
       return;
     } catch (_) {
       payload.issues.push({
@@ -2894,60 +2894,60 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
         format: "url",
         input: payload.value,
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     }
   };
 });
-var $ZodEmoji = /* @__PURE__ */ $constructor("$ZodEmoji", (inst, def) => {
-  def.pattern ?? (def.pattern = emoji());
-  $ZodStringFormat.init(inst, def);
+var $ZodEmoji = /* @__PURE__ */ $constructor("$ZodEmoji", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = emoji());
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodNanoID = /* @__PURE__ */ $constructor("$ZodNanoID", (inst, def) => {
-  if (def.length !== void 0 && (!Number.isInteger(def.length) || def.length < 1))
-    throw new Error(`Invalid nanoid length: ${def.length}`);
-  def.pattern ?? (def.pattern = def.length === void 0 ? nanoid : nanoidOfLength(def.length));
-  $ZodStringFormat.init(inst, def);
+var $ZodNanoID = /* @__PURE__ */ $constructor("$ZodNanoID", (inst, def2) => {
+  if (def2.length !== void 0 && (!Number.isInteger(def2.length) || def2.length < 1))
+    throw new Error(`Invalid nanoid length: ${def2.length}`);
+  def2.pattern ?? (def2.pattern = def2.length === void 0 ? nanoid : nanoidOfLength(def2.length));
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodCUID = /* @__PURE__ */ $constructor("$ZodCUID", (inst, def) => {
-  def.pattern ?? (def.pattern = cuid);
-  $ZodStringFormat.init(inst, def);
+var $ZodCUID = /* @__PURE__ */ $constructor("$ZodCUID", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = cuid);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodCUID2 = /* @__PURE__ */ $constructor("$ZodCUID2", (inst, def) => {
-  def.pattern ?? (def.pattern = cuid2);
-  $ZodStringFormat.init(inst, def);
+var $ZodCUID2 = /* @__PURE__ */ $constructor("$ZodCUID2", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = cuid2);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodULID = /* @__PURE__ */ $constructor("$ZodULID", (inst, def) => {
-  def.pattern ?? (def.pattern = ulid);
-  $ZodStringFormat.init(inst, def);
+var $ZodULID = /* @__PURE__ */ $constructor("$ZodULID", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = ulid);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodXID = /* @__PURE__ */ $constructor("$ZodXID", (inst, def) => {
-  def.pattern ?? (def.pattern = xid);
-  $ZodStringFormat.init(inst, def);
+var $ZodXID = /* @__PURE__ */ $constructor("$ZodXID", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = xid);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodKSUID = /* @__PURE__ */ $constructor("$ZodKSUID", (inst, def) => {
-  def.pattern ?? (def.pattern = ksuid);
-  $ZodStringFormat.init(inst, def);
+var $ZodKSUID = /* @__PURE__ */ $constructor("$ZodKSUID", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = ksuid);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodISODateTime = /* @__PURE__ */ $constructor("$ZodISODateTime", (inst, def) => {
-  def.pattern ?? (def.pattern = datetime(def));
-  $ZodStringFormat.init(inst, def);
+var $ZodISODateTime = /* @__PURE__ */ $constructor("$ZodISODateTime", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = datetime(def2));
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodISODate = /* @__PURE__ */ $constructor("$ZodISODate", (inst, def) => {
-  def.pattern ?? (def.pattern = date);
-  $ZodStringFormat.init(inst, def);
+var $ZodISODate = /* @__PURE__ */ $constructor("$ZodISODate", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = date);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodISOTime = /* @__PURE__ */ $constructor("$ZodISOTime", (inst, def) => {
-  def.pattern ?? (def.pattern = time(def));
-  $ZodStringFormat.init(inst, def);
+var $ZodISOTime = /* @__PURE__ */ $constructor("$ZodISOTime", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = time(def2));
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodISODuration = /* @__PURE__ */ $constructor("$ZodISODuration", (inst, def) => {
-  def.pattern ?? (def.pattern = duration);
-  $ZodStringFormat.init(inst, def);
+var $ZodISODuration = /* @__PURE__ */ $constructor("$ZodISODuration", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = duration);
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodIPv4 = /* @__PURE__ */ $constructor("$ZodIPv4", (inst, def) => {
-  def.pattern ?? (def.pattern = ipv4);
-  $ZodStringFormat.init(inst, def);
+var $ZodIPv4 = /* @__PURE__ */ $constructor("$ZodIPv4", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = ipv4);
+  $ZodStringFormat.init(inst, def2);
 });
 var ipv6Alphabet = /^[0-9a-fA-F:.]+$/;
 function isValidIPv6(value) {
@@ -2955,9 +2955,9 @@ function isValidIPv6(value) {
     return false;
   return canParseURL(`http://[${value}]`);
 }
-var $ZodIPv6 = /* @__PURE__ */ $constructor("$ZodIPv6", (inst, def) => {
-  def.pattern ?? (def.pattern = ipv6);
-  $ZodStringFormat.init(inst, def);
+var $ZodIPv6 = /* @__PURE__ */ $constructor("$ZodIPv6", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = ipv6);
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
     if (!isValidIPv6(payload.value)) {
       payload.issues.push({
@@ -2965,24 +2965,24 @@ var $ZodIPv6 = /* @__PURE__ */ $constructor("$ZodIPv6", (inst, def) => {
         format: "ipv6",
         input: payload.value,
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     }
   };
 });
-var $ZodMAC = /* @__PURE__ */ $constructor("$ZodMAC", (inst, def) => {
-  def.pattern ?? (def.pattern = mac(def.delimiter));
-  $ZodStringFormat.init(inst, def);
+var $ZodMAC = /* @__PURE__ */ $constructor("$ZodMAC", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = mac(def2.delimiter));
+  $ZodStringFormat.init(inst, def2);
 });
-var $ZodCIDRv4 = /* @__PURE__ */ $constructor("$ZodCIDRv4", (inst, def) => {
-  def.pattern ?? (def.pattern = cidrv4);
-  $ZodStringFormat.init(inst, def);
+var $ZodCIDRv4 = /* @__PURE__ */ $constructor("$ZodCIDRv4", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = cidrv4);
+  $ZodStringFormat.init(inst, def2);
 });
 function isValidCIDRv6(value) {
   const parts = value.split("/");
   if (parts.length !== 2)
     return false;
-  const [address, prefix] = parts;
+  const [address2, prefix] = parts;
   if (!prefix)
     return false;
   const prefixNum = Number(prefix);
@@ -2990,11 +2990,11 @@ function isValidCIDRv6(value) {
     return false;
   if (prefixNum < 0 || prefixNum > 128)
     return false;
-  return isValidIPv6(address);
+  return isValidIPv6(address2);
 }
-var $ZodCIDRv6 = /* @__PURE__ */ $constructor("$ZodCIDRv6", (inst, def) => {
-  def.pattern ?? (def.pattern = cidrv6);
-  $ZodStringFormat.init(inst, def);
+var $ZodCIDRv6 = /* @__PURE__ */ $constructor("$ZodCIDRv6", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = cidrv6);
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
     if (!isValidCIDRv6(payload.value)) {
       payload.issues.push({
@@ -3002,7 +3002,7 @@ var $ZodCIDRv6 = /* @__PURE__ */ $constructor("$ZodCIDRv6", (inst, def) => {
         format: "cidrv6",
         input: payload.value,
         inst,
-        continue: !def.abort
+        continue: !def2.abort
       });
     }
   };
@@ -3022,9 +3022,9 @@ function isValidBase64(data) {
   }
 }
 var base64Charset = /^[0-9a-zA-Z+/]*={0,2}$/;
-var $ZodBase64 = /* @__PURE__ */ $constructor("$ZodBase64", (inst, def) => {
-  def.pattern ?? (def.pattern = base64Charset);
-  $ZodStringFormat.init(inst, def);
+var $ZodBase64 = /* @__PURE__ */ $constructor("$ZodBase64", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = base64Charset);
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
     if (isValidBase64(payload.value))
       return;
@@ -3033,7 +3033,7 @@ var $ZodBase64 = /* @__PURE__ */ $constructor("$ZodBase64", (inst, def) => {
       format: "base64",
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
@@ -3045,9 +3045,9 @@ function isValidBase64URL(data) {
   const padded = base643.padEnd(Math.ceil(base643.length / 4) * 4, "=");
   return isValidBase64(padded);
 }
-var $ZodBase64URL = /* @__PURE__ */ $constructor("$ZodBase64URL", (inst, def) => {
-  def.pattern ?? (def.pattern = base64urlCharset);
-  $ZodStringFormat.init(inst, def);
+var $ZodBase64URL = /* @__PURE__ */ $constructor("$ZodBase64URL", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = base64urlCharset);
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
     if (isValidBase64URL(payload.value))
       return;
@@ -3056,13 +3056,13 @@ var $ZodBase64URL = /* @__PURE__ */ $constructor("$ZodBase64URL", (inst, def) =>
       format: "base64url",
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodE164 = /* @__PURE__ */ $constructor("$ZodE164", (inst, def) => {
-  def.pattern ?? (def.pattern = e164);
-  $ZodStringFormat.init(inst, def);
+var $ZodE164 = /* @__PURE__ */ $constructor("$ZodE164", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = e164);
+  $ZodStringFormat.init(inst, def2);
 });
 var CC_SANITIZE = /[- ]/g;
 function isLuhnAlgo(digits) {
@@ -3081,9 +3081,9 @@ function isValidCreditCard(input2) {
     return false;
   return isLuhnAlgo(input2.replace(CC_SANITIZE, ""));
 }
-var $ZodCreditCard = /* @__PURE__ */ $constructor("$ZodCreditCard", (inst, def) => {
-  def.pattern ?? (def.pattern = creditCard);
-  $ZodStringFormat.init(inst, def);
+var $ZodCreditCard = /* @__PURE__ */ $constructor("$ZodCreditCard", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = creditCard);
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
     if (isValidCreditCard(payload.value))
       return;
@@ -3092,7 +3092,7 @@ var $ZodCreditCard = /* @__PURE__ */ $constructor("$ZodCreditCard", (inst, def) 
       format: "credit_card",
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
@@ -3114,9 +3114,9 @@ function isValidIBAN(input2) {
     return false;
   return isIso7064Mod97(input2);
 }
-var $ZodIBAN = /* @__PURE__ */ $constructor("$ZodIBAN", (inst, def) => {
-  def.pattern ?? (def.pattern = iban);
-  $ZodStringFormat.init(inst, def);
+var $ZodIBAN = /* @__PURE__ */ $constructor("$ZodIBAN", (inst, def2) => {
+  def2.pattern ?? (def2.pattern = iban);
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
     if (isValidIBAN(payload.value))
       return;
@@ -3125,7 +3125,7 @@ var $ZodIBAN = /* @__PURE__ */ $constructor("$ZodIBAN", (inst, def) => {
       format: "iban",
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
@@ -3149,39 +3149,39 @@ function isValidJWT(token, algorithm = null) {
     return false;
   }
 }
-var $ZodJWT = /* @__PURE__ */ $constructor("$ZodJWT", (inst, def) => {
-  $ZodStringFormat.init(inst, def);
+var $ZodJWT = /* @__PURE__ */ $constructor("$ZodJWT", (inst, def2) => {
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
-    if (isValidJWT(payload.value, def.alg))
+    if (isValidJWT(payload.value, def2.alg))
       return;
     payload.issues.push({
       code: "invalid_format",
       format: "jwt",
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodCustomStringFormat = /* @__PURE__ */ $constructor("$ZodCustomStringFormat", (inst, def) => {
-  $ZodStringFormat.init(inst, def);
+var $ZodCustomStringFormat = /* @__PURE__ */ $constructor("$ZodCustomStringFormat", (inst, def2) => {
+  $ZodStringFormat.init(inst, def2);
   inst._zod.check = (payload) => {
-    if (def.fn(payload.value))
+    if (def2.fn(payload.value))
       return;
     payload.issues.push({
       code: "invalid_format",
-      format: def.format,
+      format: def2.format,
       input: payload.value,
       inst,
-      continue: !def.abort
+      continue: !def2.abort
     });
   };
 });
-var $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.pattern = number;
   inst._zod.parse = (payload, _ctx) => {
-    if (def.coerce)
+    if (def2.coerce)
       try {
         payload.value = Number(payload.value);
       } catch (_) {
@@ -3201,15 +3201,15 @@ var $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
     return payload;
   };
 });
-var $ZodNumberFormat = /* @__PURE__ */ $constructor("$ZodNumberFormat", (inst, def) => {
-  $ZodCheckNumberFormat.init(inst, def);
-  $ZodNumber.init(inst, def);
+var $ZodNumberFormat = /* @__PURE__ */ $constructor("$ZodNumberFormat", (inst, def2) => {
+  $ZodCheckNumberFormat.init(inst, def2);
+  $ZodNumber.init(inst, def2);
 });
-var $ZodBoolean = /* @__PURE__ */ $constructor("$ZodBoolean", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodBoolean = /* @__PURE__ */ $constructor("$ZodBoolean", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.pattern = boolean;
   inst._zod.parse = (payload, _ctx) => {
-    if (def.coerce)
+    if (def2.coerce)
       try {
         payload.value = Boolean(payload.value);
       } catch (_) {
@@ -3226,11 +3226,11 @@ var $ZodBoolean = /* @__PURE__ */ $constructor("$ZodBoolean", (inst, def) => {
     return payload;
   };
 });
-var $ZodBigInt = /* @__PURE__ */ $constructor("$ZodBigInt", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodBigInt = /* @__PURE__ */ $constructor("$ZodBigInt", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.pattern = bigint;
   inst._zod.parse = (payload, _ctx) => {
-    if (def.coerce)
+    if (def2.coerce)
       try {
         payload.value = BigInt(payload.value);
       } catch (_) {
@@ -3246,12 +3246,12 @@ var $ZodBigInt = /* @__PURE__ */ $constructor("$ZodBigInt", (inst, def) => {
     return payload;
   };
 });
-var $ZodBigIntFormat = /* @__PURE__ */ $constructor("$ZodBigIntFormat", (inst, def) => {
-  $ZodCheckBigIntFormat.init(inst, def);
-  $ZodBigInt.init(inst, def);
+var $ZodBigIntFormat = /* @__PURE__ */ $constructor("$ZodBigIntFormat", (inst, def2) => {
+  $ZodCheckBigIntFormat.init(inst, def2);
+  $ZodBigInt.init(inst, def2);
 });
-var $ZodSymbol = /* @__PURE__ */ $constructor("$ZodSymbol", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodSymbol = /* @__PURE__ */ $constructor("$ZodSymbol", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, _ctx) => {
     const input2 = payload.value;
     if (typeof input2 === "symbol")
@@ -3265,8 +3265,8 @@ var $ZodSymbol = /* @__PURE__ */ $constructor("$ZodSymbol", (inst, def) => {
     return payload;
   };
 });
-var $ZodUndefined = /* @__PURE__ */ $constructor("$ZodUndefined", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodUndefined = /* @__PURE__ */ $constructor("$ZodUndefined", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.pattern = _undefined;
   inst._zod.values = /* @__PURE__ */ new Set([void 0]);
   inst._zod.parse = (payload, _ctx) => {
@@ -3282,8 +3282,8 @@ var $ZodUndefined = /* @__PURE__ */ $constructor("$ZodUndefined", (inst, def) =>
     return payload;
   };
 });
-var $ZodNull = /* @__PURE__ */ $constructor("$ZodNull", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodNull = /* @__PURE__ */ $constructor("$ZodNull", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.pattern = _null;
   inst._zod.values = /* @__PURE__ */ new Set([null]);
   inst._zod.parse = (payload, _ctx) => {
@@ -3299,16 +3299,16 @@ var $ZodNull = /* @__PURE__ */ $constructor("$ZodNull", (inst, def) => {
     return payload;
   };
 });
-var $ZodAny = /* @__PURE__ */ $constructor("$ZodAny", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodAny = /* @__PURE__ */ $constructor("$ZodAny", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload) => payload;
 });
-var $ZodUnknown = /* @__PURE__ */ $constructor("$ZodUnknown", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodUnknown = /* @__PURE__ */ $constructor("$ZodUnknown", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload) => payload;
 });
-var $ZodNever = /* @__PURE__ */ $constructor("$ZodNever", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodNever = /* @__PURE__ */ $constructor("$ZodNever", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, _ctx) => {
     payload.issues.push({
       expected: "never",
@@ -3319,8 +3319,8 @@ var $ZodNever = /* @__PURE__ */ $constructor("$ZodNever", (inst, def) => {
     return payload;
   };
 });
-var $ZodVoid = /* @__PURE__ */ $constructor("$ZodVoid", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodVoid = /* @__PURE__ */ $constructor("$ZodVoid", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, _ctx) => {
     const input2 = payload.value;
     if (typeof input2 === "undefined")
@@ -3334,10 +3334,10 @@ var $ZodVoid = /* @__PURE__ */ $constructor("$ZodVoid", (inst, def) => {
     return payload;
   };
 });
-var $ZodDate = /* @__PURE__ */ $constructor("$ZodDate", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodDate = /* @__PURE__ */ $constructor("$ZodDate", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, _ctx) => {
-    if (def.coerce) {
+    if (def2.coerce) {
       try {
         payload.value = new Date(payload.value);
       } catch (_err) {
@@ -3364,8 +3364,8 @@ function handleArrayResult(result, final, index) {
   }
   final.value[index] = result.value;
 }
-var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def2) => {
+  $ZodType.init(inst, def2);
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
@@ -3384,7 +3384,7 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
     const abortEarly = ctx?.abortEarly;
     for (let i = 0; i < input2.length; i++) {
       const item = input2[i];
-      const result = def.element._zod.run({
+      const result = def2.element._zod.run({
         value: item,
         issues: []
       }, ctx);
@@ -3434,19 +3434,19 @@ function handlePropertyResult(result, final, key, input2, optin, optout) {
   }
 }
 var NO_SYMBOL_KEYS = [];
-function normalizeDef(def) {
-  const keys = Object.keys(def.shape);
-  const ownSymbols = Object.getOwnPropertySymbols(def.shape);
+function normalizeDef(def2) {
+  const keys = Object.keys(def2.shape);
+  const ownSymbols = Object.getOwnPropertySymbols(def2.shape);
   const symbolKeys = ownSymbols.length ? ownSymbols : NO_SYMBOL_KEYS;
   const allKeys = symbolKeys.length ? [...keys, ...symbolKeys] : keys;
   for (const k of allKeys) {
-    if (!def.shape?.[k]?._zod?.traits?.has("$ZodType")) {
+    if (!def2.shape?.[k]?._zod?.traits?.has("$ZodType")) {
       throw new Error(`Invalid element at key "${String(k)}": expected a Zod schema`);
     }
   }
-  const okeys = optionalKeys(def.shape);
+  const okeys = optionalKeys(def2.shape);
   return {
-    ...def,
+    ...def2,
     allKeys,
     symbolKeys,
     // string-only: handleCatchall matches it against `for...in`, which never yields a symbol
@@ -3455,10 +3455,10 @@ function normalizeDef(def) {
     optionalKeys: new Set(okeys)
   };
 }
-function handleCatchall(proms, input2, payload, ctx, def, inst, abortEarly) {
+function handleCatchall(proms, input2, payload, ctx, def2, inst, abortEarly) {
   const unrecognized = [];
-  const keySet = def.keySet;
-  const _catchall = def.catchall._zod;
+  const keySet = def2.keySet;
+  const _catchall = def2.catchall._zod;
   const t = _catchall.def.type;
   const optin = _catchall.optin;
   const optout = _catchall.optout;
@@ -3503,21 +3503,21 @@ function handleCatchall(proms, input2, payload, ctx, def, inst, abortEarly) {
     return payload;
   });
 }
-var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
-  $ZodType.init(inst, def);
-  const desc = Object.getOwnPropertyDescriptor(def, "shape");
-  const sh = desc?.get ? desc.get.raw : def.shape ?? {};
+var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def2) => {
+  $ZodType.init(inst, def2);
+  const desc = Object.getOwnPropertyDescriptor(def2, "shape");
+  const sh = desc?.get ? desc.get.raw : def2.shape ?? {};
   if (sh) {
     const get = () => {
       const newSh = { ...sh };
-      Object.defineProperty(def, "shape", { value: newSh });
+      Object.defineProperty(def2, "shape", { value: newSh });
       get.raw = newSh;
       return newSh;
     };
     get.raw = sh;
-    Object.defineProperty(def, "shape", { get });
+    Object.defineProperty(def2, "shape", { get });
   }
-  const _normalized = cached(() => normalizeDef(def));
+  const _normalized = cached(() => normalizeDef(def2));
   defineLazyInternal(inst, "propValues", (zod) => {
     const shape = zod.def.shape;
     const propValues = {};
@@ -3536,7 +3536,7 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     return propValues;
   });
   const isObject2 = isObject;
-  const catchall = def.catchall;
+  const catchall = def2.catchall;
   let value;
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
@@ -3581,10 +3581,10 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     return handleCatchall(proms, input2, payload, ctx, _normalized.value, inst, abortEarly === true);
   };
 });
-var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) => {
-  $ZodObject.init(inst, def);
+var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def2) => {
+  $ZodObject.init(inst, def2);
   const superParse = inst._zod.parse;
-  const _normalized = cached(() => normalizeDef(def));
+  const _normalized = cached(() => normalizeDef(def2));
   const memo2 = globalConfig.memoizer;
   const generateFastpass = (shape) => {
     const normalized = _normalized.value;
@@ -3683,7 +3683,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
   const jit = !globalConfig.jitless;
   const allowsEval2 = allowsEval;
   const fastEnabled = jit && allowsEval2.value;
-  const catchall = def.catchall;
+  const catchall = def2.catchall;
   let value;
   inst._zod.parse = (payload, ctx) => {
     value ?? (value = _normalized.value);
@@ -3699,7 +3699,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
     }
     if (jit && fastEnabled && ctx?.async === false && ctx.jitless !== true) {
       if (!fastpass)
-        fastpass = generateFastpass(def.shape);
+        fastpass = generateFastpass(def2.shape);
       payload = fastpass(payload, ctx);
       if (!catchall)
         return payload;
@@ -3728,8 +3728,8 @@ function handleUnionResults(results, final, inst, ctx) {
   });
   return final;
 }
-var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "optin", (zod) => zod.def.options.some((o) => o._zod.optin === "defaulted") ? "defaulted" : zod.def.options.some((o) => o._zod.optin !== void 0) ? "optional" : void 0);
   defineLazyInternal(inst, "optout", (zod) => zod.def.options.some((o) => o._zod.optout === "optional") ? "optional" : void 0);
   defineLazyInternal(inst, "values", (zod) => {
@@ -3745,14 +3745,14 @@ var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
     }
     return void 0;
   });
-  const first = def.options.length === 1 ? def.options[0]._zod.run : null;
+  const first = def2.options.length === 1 ? def2.options[0]._zod.run : null;
   inst._zod.parse = (payload, ctx) => {
     if (first) {
       return first(payload, ctx);
     }
     let async = false;
     const results = [];
-    for (const option of def.options) {
+    for (const option of def2.options) {
       const result = option._zod.run({
         value: payload.value,
         issues: []
@@ -3802,17 +3802,17 @@ function handleExclusiveUnionResults(results, final, inst, ctx) {
   }
   return final;
 }
-var $ZodXor = /* @__PURE__ */ $constructor("$ZodXor", (inst, def) => {
-  $ZodUnion.init(inst, def);
-  def.inclusive = false;
-  const first = def.options.length === 1 ? def.options[0]._zod.run : null;
+var $ZodXor = /* @__PURE__ */ $constructor("$ZodXor", (inst, def2) => {
+  $ZodUnion.init(inst, def2);
+  def2.inclusive = false;
+  const first = def2.options.length === 1 ? def2.options[0]._zod.run : null;
   inst._zod.parse = (payload, ctx) => {
     if (first) {
       return first(payload, ctx);
     }
     let async = false;
     const results = [];
-    for (const option of def.options) {
+    for (const option of def2.options) {
       const result = option._zod.run({
         value: payload.value,
         issues: []
@@ -3843,12 +3843,12 @@ function getDiscriminatedOption(union2, value) {
     throw new Error(`Ambiguous discriminator value "${String(value)}"`);
   return option;
 }
-function discriminatorMap(def) {
+function discriminatorMap(def2) {
   const map2 = /* @__PURE__ */ new Map();
-  for (const option of def.options) {
-    const values = option._zod.propValues?.[def.discriminator];
+  for (const option of def2.options) {
+    const values = option._zod.propValues?.[def2.discriminator];
     if (!values || values.size === 0)
-      throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(option)}"`);
+      throw new Error(`Invalid discriminated union option at index "${def2.options.indexOf(option)}"`);
     for (const value of values) {
       if (map2.has(value)) {
         if (value !== void 0)
@@ -3861,9 +3861,9 @@ function discriminatorMap(def) {
   }
   return map2;
 }
-var $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnion", (inst, def) => {
-  def.inclusive = false;
-  $ZodUnion.init(inst, def);
+var $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnion", (inst, def2) => {
+  def2.inclusive = false;
+  $ZodUnion.init(inst, def2);
   const _super = inst._zod.parse;
   defineLazyInternal(inst, "propValues", (zod) => {
     const propValues = {};
@@ -3887,13 +3887,13 @@ var $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnio
       propValues[zod.def.discriminator]?.delete(void 0);
     return propValues;
   });
-  def.options.forEach((option, i) => {
+  def2.options.forEach((option, i) => {
     const propShape = rawShape(option._zod.def);
-    if (propShape && !Object.prototype.hasOwnProperty.call(propShape, def.discriminator)) {
+    if (propShape && !Object.prototype.hasOwnProperty.call(propShape, def2.discriminator)) {
       throw new Error(`Invalid discriminated union option at index "${i}"`);
     }
   });
-  const disc = cached(() => discriminatorMap(def));
+  const disc = cached(() => discriminatorMap(def2));
   inst._zod.parse = (payload, ctx) => {
     const input2 = payload.value;
     if (!isObject(input2)) {
@@ -3905,33 +3905,33 @@ var $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnio
       });
       return payload;
     }
-    const value = input2?.[def.discriminator];
+    const value = input2?.[def2.discriminator];
     const opt = disc.value.get(value);
     if (opt && (value !== void 0 || ctx.direction !== "backward")) {
       return opt._zod.run(payload, ctx);
     }
-    if (def.unionFallback || ctx.direction === "backward") {
+    if (def2.unionFallback || ctx.direction === "backward") {
       return _super(payload, ctx);
     }
     payload.issues.push({
       code: "invalid_union",
       errors: [],
       note: "No matching discriminator",
-      discriminator: def.discriminator,
+      discriminator: def2.discriminator,
       options: Array.from(disc.value.keys()).filter((value2) => disc.value.get(value2) !== null),
       input: input2,
-      path: [def.discriminator],
+      path: [def2.discriminator],
       inst
     });
     return payload;
   };
 });
-var $ZodIntersection = /* @__PURE__ */ $constructor("$ZodIntersection", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodIntersection = /* @__PURE__ */ $constructor("$ZodIntersection", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, ctx) => {
     const input2 = payload.value;
-    const left = def.left._zod.run({ value: input2, issues: [] }, ctx);
-    const right = def.right._zod.run({ value: input2, issues: [] }, ctx);
+    const left = def2.left._zod.run({ value: input2, issues: [] }, ctx);
+    const right = def2.right._zod.run({ value: input2, issues: [] }, ctx);
     const async = left instanceof Promise || right instanceof Promise;
     if (async) {
       return Promise.all([left, right]).then(([left2, right2]) => {
@@ -4040,9 +4040,9 @@ function handleIntersectionResults(result, left, right) {
   result.value = merged.data;
   return result;
 }
-var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
-  $ZodType.init(inst, def);
-  const items = def.items;
+var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def2) => {
+  $ZodType.init(inst, def2);
+  const items = def2.items;
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
@@ -4060,7 +4060,7 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
     const proms = [];
     const optinStart = getTupleOptStart(items, "optin");
     const optoutStart = getTupleOptStart(items, "optout");
-    if (!def.rest) {
+    if (!def2.rest) {
       if (input2.length < optinStart) {
         payload.issues.push({
           code: "too_small",
@@ -4084,7 +4084,7 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
       }
     }
     const itemResults = new Array(items.length);
-    const abortEarly = def.rest ? ctx?.abortEarly : void 0;
+    const abortEarly = def2.rest ? ctx?.abortEarly : void 0;
     let itemAborted = false;
     for (let i = 0; i < items.length; i++) {
       const r = items[i]._zod.run({ value: input2[i], issues: [] }, ctx);
@@ -4098,7 +4098,7 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
           itemAborted = aborted(r);
       }
     }
-    if (def.rest && !itemAborted) {
+    if (def2.rest && !itemAborted) {
       let i = items.length - 1;
       const rest = input2.slice(items.length);
       let seen = payload.issues.length;
@@ -4109,7 +4109,7 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
           seen = payload.issues.length;
         }
         i++;
-        const result = def.rest._zod.run({ value: el, issues: [] }, ctx);
+        const result = def2.rest._zod.run({ value: el, issues: [] }, ctx);
         if (result instanceof Promise) {
           proms.push(result.then((r) => handleTupleResult(r, payload, i)));
         } else {
@@ -4163,8 +4163,8 @@ function handleTupleResults(itemResults, final, items, input2, optoutStart) {
   }
   return final;
 }
-var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def2) => {
+  $ZodType.init(inst, def2);
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
@@ -4179,8 +4179,8 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
       return payload;
     }
     const proms = [];
-    const values = def.keyType._zod.values;
-    if (values && !def.partial) {
+    const values = def2.keyType._zod.values;
+    if (values && !def2.partial) {
       payload.value = memo2 ? memo2.alloc(inst, payload, {}, ctx) : {};
       const recordKeys = /* @__PURE__ */ new Set();
       for (const key of values) {
@@ -4188,7 +4188,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
           recordKeys.add(typeof key === "number" ? key.toString() : key);
           if (key === "__proto__")
             continue;
-          const keyResult = def.keyType._zod.run({ value: key, issues: [] }, ctx);
+          const keyResult = def2.keyType._zod.run({ value: key, issues: [] }, ctx);
           if (keyResult instanceof Promise) {
             throw new Error("Async schemas not supported in object keys currently");
           }
@@ -4206,7 +4206,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
           const outKey = keyResult.value;
           if (outKey === "__proto__")
             continue;
-          const result = def.valueType._zod.run({ value: input2[key], issues: [] }, ctx);
+          const result = def2.valueType._zod.run({ value: input2[key], issues: [] }, ctx);
           if (result instanceof Promise) {
             proms.push(result.then((result2) => {
               if (result2.issues.length) {
@@ -4225,7 +4225,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
       let unrecognized;
       for (const key in input2) {
         if (!recordKeys.has(key)) {
-          if (def.mode === "loose") {
+          if (def2.mode === "loose") {
             if (key === "__proto__")
               continue;
             payload.value[key] = input2[key];
@@ -4252,13 +4252,13 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
           continue;
         if (!Object.prototype.propertyIsEnumerable.call(input2, key))
           continue;
-        let keyResult = def.keyType._zod.run({ value: key, issues: [] }, ctx);
+        let keyResult = def2.keyType._zod.run({ value: key, issues: [] }, ctx);
         if (keyResult instanceof Promise) {
           throw new Error("Async schemas not supported in object keys currently");
         }
         const checkNumericKey = typeof key === "string" && number.test(key) && keyResult.issues.length;
         if (checkNumericKey) {
-          const retryResult = def.keyType._zod.run({ value: Number(key), issues: [] }, ctx);
+          const retryResult = def2.keyType._zod.run({ value: Number(key), issues: [] }, ctx);
           if (retryResult instanceof Promise) {
             throw new Error("Async schemas not supported in object keys currently");
           }
@@ -4267,7 +4267,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
           }
         }
         if (keyResult.issues.length) {
-          if (def.mode === "loose") {
+          if (def2.mode === "loose") {
             payload.value[key] = input2[key];
           } else if (values) {
             unrecognized = unrecognized ?? [];
@@ -4287,7 +4287,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         const outKey = keyResult.value;
         if (outKey === "__proto__")
           continue;
-        const result = def.valueType._zod.run({ value: input2[key], issues: [] }, ctx);
+        const result = def2.valueType._zod.run({ value: input2[key], issues: [] }, ctx);
         if (result instanceof Promise) {
           proms.push(result.then((result2) => {
             if (result2.issues.length) {
@@ -4318,8 +4318,8 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
     return payload;
   };
 });
-var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def2) => {
+  $ZodType.init(inst, def2);
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
@@ -4343,8 +4343,8 @@ var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def) => {
           break;
         seen = payload.issues.length;
       }
-      const keyResult = def.keyType._zod.run({ value: key, issues: [] }, ctx);
-      const valueResult = def.valueType._zod.run({ value, issues: [] }, ctx);
+      const keyResult = def2.keyType._zod.run({ value: key, issues: [] }, ctx);
+      const valueResult = def2.valueType._zod.run({ value, issues: [] }, ctx);
       if (keyResult instanceof Promise || valueResult instanceof Promise) {
         proms.push(Promise.all([keyResult, valueResult]).then(([keyResult2, valueResult2]) => {
           handleMapResult(keyResult2, valueResult2, payload, key, input2, inst, ctx);
@@ -4388,8 +4388,8 @@ function handleMapResult(keyResult, valueResult, final, key, input2, inst, ctx) 
   }
   final.value.set(keyResult.value, valueResult.value);
 }
-var $ZodSet = /* @__PURE__ */ $constructor("$ZodSet", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodSet = /* @__PURE__ */ $constructor("$ZodSet", (inst, def2) => {
+  $ZodType.init(inst, def2);
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
@@ -4413,7 +4413,7 @@ var $ZodSet = /* @__PURE__ */ $constructor("$ZodSet", (inst, def) => {
           break;
         seen = payload.issues.length;
       }
-      const result = def.valueType._zod.run({ value: item, issues: [] }, ctx);
+      const result = def2.valueType._zod.run({ value: item, issues: [] }, ctx);
       if (result instanceof Promise) {
         proms.push(result.then((result2) => handleSetResult(result2, payload)));
       } else
@@ -4430,9 +4430,9 @@ function handleSetResult(result, final) {
   }
   final.value.add(result.value);
 }
-var $ZodEnum = /* @__PURE__ */ $constructor("$ZodEnum", (inst, def) => {
-  $ZodType.init(inst, def);
-  const values = getEnumValues(def.entries);
+var $ZodEnum = /* @__PURE__ */ $constructor("$ZodEnum", (inst, def2) => {
+  $ZodType.init(inst, def2);
+  const values = getEnumValues(def2.entries);
   const valuesSet = new Set(values);
   inst._zod.values = valuesSet;
   defineLazyInternal(inst, "pattern", (zod) => {
@@ -4453,9 +4453,9 @@ var $ZodEnum = /* @__PURE__ */ $constructor("$ZodEnum", (inst, def) => {
     return payload;
   };
 });
-var $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
-  $ZodType.init(inst, def);
-  const values = new Set(def.values);
+var $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def2) => {
+  $ZodType.init(inst, def2);
+  const values = new Set(def2.values);
   inst._zod.values = values;
   defineLazyInternal(inst, "pattern", (zod) => {
     const vals = zod.def.values;
@@ -4468,15 +4468,15 @@ var $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
     }
     payload.issues.push({
       code: "invalid_value",
-      values: def.values,
+      values: def2.values,
       input: input2,
       inst
     });
     return payload;
   };
 });
-var $ZodFile = /* @__PURE__ */ $constructor("$ZodFile", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodFile = /* @__PURE__ */ $constructor("$ZodFile", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, _ctx) => {
     const input2 = payload.value;
     if (input2 instanceof File)
@@ -4490,15 +4490,15 @@ var $ZodFile = /* @__PURE__ */ $constructor("$ZodFile", (inst, def) => {
     return payload;
   };
 });
-var $ZodTransform = /* @__PURE__ */ $constructor("$ZodTransform", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodTransform = /* @__PURE__ */ $constructor("$ZodTransform", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.optin = "optional";
   globalConfig.memoizer?.guard(inst);
   inst._zod.parse = (payload, ctx) => {
     if (ctx.direction === "backward") {
       throw new $ZodEncodeError(inst.constructor.name);
     }
-    const _out = def.transform(payload.value, payload);
+    const _out = def2.transform(payload.value, payload);
     if (ctx.async) {
       const output2 = _out instanceof Promise ? _out : Promise.resolve(_out);
       return output2.then((output3) => {
@@ -4517,8 +4517,8 @@ function handleOptionalResult(payload, result) {
   payload.value = result.issues.length ? void 0 : result.value;
   return payload;
 }
-var $ZodOptional = /* @__PURE__ */ $constructor("$ZodOptional", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodOptional = /* @__PURE__ */ $constructor("$ZodOptional", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "optin", (zod) => zod.def.innerType._zod.optin === "defaulted" ? "defaulted" : "optional");
   inst._zod.optout = "optional";
   defineLazyInternal(inst, "values", (zod) => {
@@ -4531,26 +4531,26 @@ var $ZodOptional = /* @__PURE__ */ $constructor("$ZodOptional", (inst, def) => {
   });
   inst._zod.parse = (payload, ctx) => {
     if (payload.value === void 0) {
-      if (def.innerType._zod.optin !== "defaulted")
+      if (def2.innerType._zod.optin !== "defaulted")
         return payload;
-      const result = def.innerType._zod.run({ value: payload.value, issues: [] }, ctx);
+      const result = def2.innerType._zod.run({ value: payload.value, issues: [] }, ctx);
       if (result instanceof Promise)
         return result.then((result2) => handleOptionalResult(payload, result2));
       return handleOptionalResult(payload, result);
     }
-    return def.innerType._zod.run(payload, ctx);
+    return def2.innerType._zod.run(payload, ctx);
   };
 });
-var $ZodExactOptional = /* @__PURE__ */ $constructor("$ZodExactOptional", (inst, def) => {
-  $ZodOptional.init(inst, def);
+var $ZodExactOptional = /* @__PURE__ */ $constructor("$ZodExactOptional", (inst, def2) => {
+  $ZodOptional.init(inst, def2);
   defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
   defineLazyInternal(inst, "pattern", (zod) => zod.def.innerType._zod.pattern);
   inst._zod.parse = (payload, ctx) => {
-    return def.innerType._zod.run(payload, ctx);
+    return def2.innerType._zod.run(payload, ctx);
   };
 });
-var $ZodNullable = /* @__PURE__ */ $constructor("$ZodNullable", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodNullable = /* @__PURE__ */ $constructor("$ZodNullable", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "optin", (zod) => zod.def.innerType._zod.optin);
   defineLazyInternal(inst, "optout", (zod) => zod.def.innerType._zod.optout);
   defineLazyInternal(inst, "pattern", (zod) => {
@@ -4563,56 +4563,56 @@ var $ZodNullable = /* @__PURE__ */ $constructor("$ZodNullable", (inst, def) => {
   inst._zod.parse = (payload, ctx) => {
     if (payload.value === null)
       return payload;
-    return def.innerType._zod.run(payload, ctx);
+    return def2.innerType._zod.run(payload, ctx);
   };
 });
-var $ZodDefault = /* @__PURE__ */ $constructor("$ZodDefault", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodDefault = /* @__PURE__ */ $constructor("$ZodDefault", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.optin = "defaulted";
   defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
   inst._zod.parse = (payload, ctx) => {
     if (ctx.direction === "backward") {
-      return def.innerType._zod.run(payload, ctx);
+      return def2.innerType._zod.run(payload, ctx);
     }
     if (payload.value === void 0) {
-      payload.value = def.defaultValue;
+      payload.value = def2.defaultValue;
       return payload;
     }
-    const result = def.innerType._zod.run(payload, ctx);
+    const result = def2.innerType._zod.run(payload, ctx);
     if (result instanceof Promise) {
-      return result.then((result2) => handleDefaultResult(result2, def));
+      return result.then((result2) => handleDefaultResult(result2, def2));
     }
-    return handleDefaultResult(result, def);
+    return handleDefaultResult(result, def2);
   };
 });
-function handleDefaultResult(payload, def) {
+function handleDefaultResult(payload, def2) {
   if (payload.value === void 0) {
-    payload.value = def.defaultValue;
+    payload.value = def2.defaultValue;
   }
   return payload;
 }
-var $ZodPrefault = /* @__PURE__ */ $constructor("$ZodPrefault", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodPrefault = /* @__PURE__ */ $constructor("$ZodPrefault", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.optin = "defaulted";
   defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
   inst._zod.parse = (payload, ctx) => {
     if (ctx.direction === "backward") {
-      return def.innerType._zod.run(payload, ctx);
+      return def2.innerType._zod.run(payload, ctx);
     }
     if (payload.value === void 0) {
-      payload.value = def.defaultValue;
+      payload.value = def2.defaultValue;
     }
-    return def.innerType._zod.run(payload, ctx);
+    return def2.innerType._zod.run(payload, ctx);
   };
 });
-var $ZodNonOptional = /* @__PURE__ */ $constructor("$ZodNonOptional", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodNonOptional = /* @__PURE__ */ $constructor("$ZodNonOptional", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "values", (zod) => {
     const v = zod.def.innerType._zod.values;
     return v ? new Set([...v].filter((x) => x !== void 0)) : void 0;
   });
   inst._zod.parse = (payload, ctx) => {
-    const result = def.innerType._zod.run(payload, ctx);
+    const result = def2.innerType._zod.run(payload, ctx);
     if (result instanceof Promise) {
       return result.then((result2) => handleNonOptionalResult(result2, inst));
     }
@@ -4630,13 +4630,13 @@ function handleNonOptionalResult(payload, inst) {
   }
   return payload;
 }
-var $ZodSuccess = /* @__PURE__ */ $constructor("$ZodSuccess", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodSuccess = /* @__PURE__ */ $constructor("$ZodSuccess", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, ctx) => {
     if (ctx.direction === "backward") {
       throw new $ZodEncodeError("ZodSuccess");
     }
-    const result = def.innerType._zod.run(payload, ctx);
+    const result = def2.innerType._zod.run(payload, ctx);
     if (result instanceof Promise) {
       return result.then((result2) => {
         payload.value = result2.issues.length === 0;
@@ -4647,14 +4647,14 @@ var $ZodSuccess = /* @__PURE__ */ $constructor("$ZodSuccess", (inst, def) => {
     return payload;
   };
 });
-function handleCatchResult(payload, result, def, ctx) {
+function handleCatchResult(payload, result, def2, ctx) {
   if (!result.issues.length) {
     payload.value = result.value;
     if (result.memo)
       payload.memo = true;
     return payload;
   }
-  payload.value = def.catchValue({
+  payload.value = def2.catchValue({
     ...result,
     value: payload.value,
     error: {
@@ -4664,24 +4664,24 @@ function handleCatchResult(payload, result, def, ctx) {
   });
   return payload;
 }
-var $ZodCatch = /* @__PURE__ */ $constructor("$ZodCatch", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodCatch = /* @__PURE__ */ $constructor("$ZodCatch", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "optin", (zod) => zod.def.innerType._zod.optin === "defaulted" ? "defaulted" : "optional");
   defineLazyInternal(inst, "optout", (zod) => zod.def.innerType._zod.optout);
   defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
   inst._zod.parse = (payload, ctx) => {
     if (ctx.direction === "backward") {
-      return def.innerType._zod.run(payload, ctx);
+      return def2.innerType._zod.run(payload, ctx);
     }
-    const result = def.innerType._zod.run({ value: payload.value, issues: [] }, ctx);
+    const result = def2.innerType._zod.run({ value: payload.value, issues: [] }, ctx);
     if (result instanceof Promise) {
-      return result.then((result2) => handleCatchResult(payload, result2, def, ctx));
+      return result.then((result2) => handleCatchResult(payload, result2, def2, ctx));
     }
-    return handleCatchResult(payload, result, def, ctx);
+    return handleCatchResult(payload, result, def2, ctx);
   };
 });
-var $ZodNaN = /* @__PURE__ */ $constructor("$ZodNaN", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodNaN = /* @__PURE__ */ $constructor("$ZodNaN", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, _ctx) => {
     if (typeof payload.value !== "number" || !Number.isNaN(payload.value)) {
       payload.issues.push({
@@ -4695,25 +4695,25 @@ var $ZodNaN = /* @__PURE__ */ $constructor("$ZodNaN", (inst, def) => {
     return payload;
   };
 });
-var $ZodPipe = /* @__PURE__ */ $constructor("$ZodPipe", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodPipe = /* @__PURE__ */ $constructor("$ZodPipe", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "values", (zod) => zod.def.in._zod.values);
   defineLazyInternal(inst, "optin", (zod) => zod.def.in._zod.optin);
   defineLazyInternal(inst, "optout", (zod) => zod.def.out._zod.optout);
   defineLazyInternal(inst, "propValues", (zod) => zod.def.in._zod.propValues);
   inst._zod.parse = (payload, ctx) => {
     if (ctx.direction === "backward") {
-      const right = def.out._zod.run(payload, ctx);
+      const right = def2.out._zod.run(payload, ctx);
       if (right instanceof Promise) {
-        return right.then((right2) => handlePipeResult(right2, def.in, ctx));
+        return right.then((right2) => handlePipeResult(right2, def2.in, ctx));
       }
-      return handlePipeResult(right, def.in, ctx);
+      return handlePipeResult(right, def2.in, ctx);
     }
-    const left = def.in._zod.run(payload, ctx);
+    const left = def2.in._zod.run(payload, ctx);
     if (left instanceof Promise) {
-      return left.then((left2) => handlePipeResult(left2, def.out, ctx));
+      return left.then((left2) => handlePipeResult(left2, def2.out, ctx));
     }
-    return handlePipeResult(left, def.out, ctx);
+    return handlePipeResult(left, def2.out, ctx);
   };
 });
 function handlePipeResult(left, next, ctx) {
@@ -4723,8 +4723,8 @@ function handlePipeResult(left, next, ctx) {
   }
   return next._zod.run({ value: left.value, issues: left.issues }, ctx);
 }
-var $ZodCodec = /* @__PURE__ */ $constructor("$ZodCodec", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodCodec = /* @__PURE__ */ $constructor("$ZodCodec", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "values", (zod) => zod.def.in._zod.values);
   defineLazyInternal(inst, "optin", (zod) => zod.def.in._zod.optin);
   defineLazyInternal(inst, "optout", (zod) => zod.def.out._zod.optout);
@@ -4732,38 +4732,38 @@ var $ZodCodec = /* @__PURE__ */ $constructor("$ZodCodec", (inst, def) => {
   inst._zod.parse = (payload, ctx) => {
     const direction = ctx.direction || "forward";
     if (direction === "forward") {
-      const left = def.in._zod.run(payload, ctx);
+      const left = def2.in._zod.run(payload, ctx);
       if (left instanceof Promise) {
-        return left.then((left2) => handleCodecAResult(left2, def, ctx));
+        return left.then((left2) => handleCodecAResult(left2, def2, ctx));
       }
-      return handleCodecAResult(left, def, ctx);
+      return handleCodecAResult(left, def2, ctx);
     } else {
-      const right = def.out._zod.run(payload, ctx);
+      const right = def2.out._zod.run(payload, ctx);
       if (right instanceof Promise) {
-        return right.then((right2) => handleCodecAResult(right2, def, ctx));
+        return right.then((right2) => handleCodecAResult(right2, def2, ctx));
       }
-      return handleCodecAResult(right, def, ctx);
+      return handleCodecAResult(right, def2, ctx);
     }
   };
 });
-function handleCodecAResult(result, def, ctx) {
+function handleCodecAResult(result, def2, ctx) {
   if (result.issues.length) {
     result.aborted = true;
     return result;
   }
   const direction = ctx.direction || "forward";
   if (direction === "forward") {
-    const transformed = def.transform(result.value, result);
+    const transformed = def2.transform(result.value, result);
     if (transformed instanceof Promise) {
-      return transformed.then((value) => handleCodecTxResult(result, value, def.out, ctx));
+      return transformed.then((value) => handleCodecTxResult(result, value, def2.out, ctx));
     }
-    return handleCodecTxResult(result, transformed, def.out, ctx);
+    return handleCodecTxResult(result, transformed, def2.out, ctx);
   } else {
-    const transformed = def.reverseTransform(result.value, result);
+    const transformed = def2.reverseTransform(result.value, result);
     if (transformed instanceof Promise) {
-      return transformed.then((value) => handleCodecTxResult(result, value, def.in, ctx));
+      return transformed.then((value) => handleCodecTxResult(result, value, def2.in, ctx));
     }
-    return handleCodecTxResult(result, transformed, def.in, ctx);
+    return handleCodecTxResult(result, transformed, def2.in, ctx);
   }
 }
 function handleCodecTxResult(left, value, nextSchema, ctx) {
@@ -4773,20 +4773,20 @@ function handleCodecTxResult(left, value, nextSchema, ctx) {
   }
   return nextSchema._zod.run({ value, issues: left.issues }, ctx);
 }
-var $ZodPreprocess = /* @__PURE__ */ $constructor("$ZodPreprocess", (inst, def) => {
-  $ZodPipe.init(inst, def);
+var $ZodPreprocess = /* @__PURE__ */ $constructor("$ZodPreprocess", (inst, def2) => {
+  $ZodPipe.init(inst, def2);
 });
-var $ZodReadonly = /* @__PURE__ */ $constructor("$ZodReadonly", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodReadonly = /* @__PURE__ */ $constructor("$ZodReadonly", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazyInternal(inst, "propValues", (zod) => zod.def.innerType._zod.propValues);
   defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
   defineLazyInternal(inst, "optin", (zod) => zod.def.innerType?._zod?.optin);
   defineLazyInternal(inst, "optout", (zod) => zod.def.innerType?._zod?.optout);
   inst._zod.parse = (payload, ctx) => {
     if (ctx.direction === "backward") {
-      return def.innerType._zod.run(payload, ctx);
+      return def2.innerType._zod.run(payload, ctx);
     }
-    const result = def.innerType._zod.run(payload, ctx);
+    const result = def2.innerType._zod.run(payload, ctx);
     if (result instanceof Promise) {
       return result.then(handleReadonlyResult);
     }
@@ -4799,12 +4799,12 @@ function handleReadonlyResult(payload) {
   return payload;
 }
 function leafPattern(schema) {
-  const def = schema._zod.def;
-  let pattern = def.pattern;
-  let isInt = !!def.format?.includes("int");
+  const def2 = schema._zod.def;
+  let pattern = def2.pattern;
+  let isInt = !!def2.format?.includes("int");
   let minimum;
   let maximum;
-  for (const ch of def.checks ?? []) {
+  for (const ch of def2.checks ?? []) {
     const d = ch._zod.def;
     if (d.pattern)
       pattern = d.pattern;
@@ -4826,9 +4826,9 @@ function leafPattern(schema) {
   return (isInt && own2 === number ? integer : own2)?.source;
 }
 function partPattern(schema) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   const own2 = schema._zod.pattern?.source;
-  const inner = def.innerType ?? schema._zod.innerType;
+  const inner = def2.innerType ?? schema._zod.innerType;
   if (inner) {
     const before = inner._zod.pattern?.source;
     const after = partPattern(inner);
@@ -4837,17 +4837,17 @@ function partPattern(schema) {
     }
     return own2;
   }
-  if (def.options) {
-    const sources = def.options.map(partPattern);
+  if (def2.options) {
+    const sources = def2.options.map(partPattern);
     if (sources.every(Boolean))
       return `^(${sources.map((s) => cleanRegex(s)).join("|")})$`;
   }
   return leafPattern(schema);
 }
-var $ZodTemplateLiteral = /* @__PURE__ */ $constructor("$ZodTemplateLiteral", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodTemplateLiteral = /* @__PURE__ */ $constructor("$ZodTemplateLiteral", (inst, def2) => {
+  $ZodType.init(inst, def2);
   const regexParts = [];
-  for (const part of def.parts) {
+  for (const part of def2.parts) {
     if (typeof part === "object" && part !== null) {
       const source = partPattern(part);
       if (!source) {
@@ -4877,7 +4877,7 @@ var $ZodTemplateLiteral = /* @__PURE__ */ $constructor("$ZodTemplateLiteral", (i
         input: payload.value,
         inst,
         code: "invalid_format",
-        format: def.format ?? "template_literal",
+        format: def2.format ?? "template_literal",
         pattern: inst._zod.pattern.source
       });
       return payload;
@@ -4885,10 +4885,10 @@ var $ZodTemplateLiteral = /* @__PURE__ */ $constructor("$ZodTemplateLiteral", (i
     return payload;
   };
 });
-var $ZodFunction = /* @__PURE__ */ $constructor("$ZodFunction", (inst, def) => {
-  $ZodType.init(inst, def);
-  Object.defineProperty(inst, "_def", { value: def });
-  inst._zod.def = def;
+var $ZodFunction = /* @__PURE__ */ $constructor("$ZodFunction", (inst, def2) => {
+  $ZodType.init(inst, def2);
+  Object.defineProperty(inst, "_def", { value: def2 });
+  inst._zod.def = def2;
   inst.implement = (func) => {
     if (typeof func !== "function") {
       throw new Error("implement() must be called with a function");
@@ -4962,18 +4962,18 @@ var $ZodFunction = /* @__PURE__ */ $constructor("$ZodFunction", (inst, def) => {
   };
   return inst;
 });
-var $ZodPromise = /* @__PURE__ */ $constructor("$ZodPromise", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodPromise = /* @__PURE__ */ $constructor("$ZodPromise", (inst, def2) => {
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, ctx) => {
-    return Promise.resolve(payload.value).then((inner) => def.innerType._zod.run({ value: inner, issues: [] }, ctx));
+    return Promise.resolve(payload.value).then((inner) => def2.innerType._zod.run({ value: inner, issues: [] }, ctx));
   };
 });
-var $ZodLazy = /* @__PURE__ */ $constructor("$ZodLazy", (inst, def) => {
-  $ZodType.init(inst, def);
+var $ZodLazy = /* @__PURE__ */ $constructor("$ZodLazy", (inst, def2) => {
+  $ZodType.init(inst, def2);
   defineLazy(inst._zod, "innerType", () => {
-    const d = def;
+    const d = def2;
     if (!d._cachedInner)
-      d._cachedInner = def.getter();
+      d._cachedInner = def2.getter();
     return d._cachedInner;
   });
   defineLazyInternal(inst, "pattern", (zod) => zod.innerType?._zod?.pattern);
@@ -4985,15 +4985,15 @@ var $ZodLazy = /* @__PURE__ */ $constructor("$ZodLazy", (inst, def) => {
     return inner._zod.run(payload, ctx);
   };
 });
-var $ZodCustom = /* @__PURE__ */ $constructor("$ZodCustom", (inst, def) => {
-  $ZodCheck.init(inst, def);
-  $ZodType.init(inst, def);
+var $ZodCustom = /* @__PURE__ */ $constructor("$ZodCustom", (inst, def2) => {
+  $ZodCheck.init(inst, def2);
+  $ZodType.init(inst, def2);
   inst._zod.parse = (payload, _) => {
     return payload;
   };
   inst._zod.check = (payload) => {
     const input2 = payload.value;
-    const r = def.fn(input2);
+    const r = def2.fn(input2);
     if (r instanceof Promise) {
       return r.then((r2) => handleRefineResult(r2, payload, input2, inst));
     }
@@ -5069,38 +5069,38 @@ function isRecursive(inst, stack, resolve) {
     if (answer > result)
       result = answer;
   };
-  const def = inst._zod.def;
-  const kind = def.type;
+  const def2 = inst._zod.def;
+  const kind = def2.type;
   switch (kind) {
     case "object": {
-      const raw = rawShape(def);
+      const raw = rawShape(def2);
       merge2(raw ? shape(raw, true) : ASSUMED);
-      check2(def.catchall);
+      check2(def2.catchall);
       break;
     }
     case "array":
-      check2(def.element);
+      check2(def2.element);
       break;
     case "tuple":
-      for (const el of def.items)
+      for (const el of def2.items)
         check2(el);
-      check2(def.rest);
+      check2(def2.rest);
       break;
     case "record":
     case "map":
-      check2(def.keyType);
-      check2(def.valueType);
+      check2(def2.keyType);
+      check2(def2.valueType);
       break;
     case "set":
-      check2(def.valueType);
+      check2(def2.valueType);
       break;
     case "union":
-      for (const el of def.options)
+      for (const el of def2.options)
         check2(el);
       break;
     case "intersection":
-      check2(def.left);
-      check2(def.right);
+      check2(def2.left);
+      check2(def2.right);
       break;
     case "optional":
     case "nullable":
@@ -5111,19 +5111,19 @@ function isRecursive(inst, stack, resolve) {
     case "nonoptional":
     case "promise":
     case "success":
-      check2(def.innerType);
+      check2(def2.innerType);
       break;
     case "pipe":
-      check2(def.in);
-      check2(def.out);
+      check2(def2.in);
+      check2(def2.out);
       break;
     case "function":
-      check2(def.input);
-      check2(def.output);
+      check2(def2.input);
+      check2(def2.output);
       break;
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
-      const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
+      const inner = def2._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
       merge2(inner ? isRecursive(inner, stack, false) : ASSUMED);
       break;
     }
@@ -5152,8 +5152,8 @@ function isRecursive(inst, stack, resolve) {
       break;
     default: {
       kind;
-      for (const key in def) {
-        const desc = Object.getOwnPropertyDescriptor(def, key);
+      for (const key in def2) {
+        const desc = Object.getOwnPropertyDescriptor(def2, key);
         if (!desc || desc.get)
           continue;
         const value = desc.value;
@@ -13110,67 +13110,67 @@ function generateChecks(doc, ctx, schema, accessor) {
     return accessor;
   let currentAccessor = accessor;
   for (const check2 of schemaChecks) {
-    const def = check2._zod.def;
-    if (def.when && !WHEN_DEFAULTED_CHECKS.has(def.check)) {
+    const def2 = check2._zod.def;
+    if (def2.when && !WHEN_DEFAULTED_CHECKS.has(def2.check)) {
       throw new ZodCompileUnsupportedError(`check with a custom "when" condition`);
     }
-    switch (def.check) {
+    switch (def2.check) {
       case "greater_than":
-        generateGreaterThanCheck(doc, ctx, def, currentAccessor);
+        generateGreaterThanCheck(doc, ctx, def2, currentAccessor);
         break;
       case "less_than":
-        generateLessThanCheck(doc, ctx, def, currentAccessor);
+        generateLessThanCheck(doc, ctx, def2, currentAccessor);
         break;
       case "multiple_of":
-        generateMultipleOfCheck(doc, ctx, def, currentAccessor);
+        generateMultipleOfCheck(doc, ctx, def2, currentAccessor);
         break;
       case "number_format":
-        generateNumberFormatCheck(doc, def, currentAccessor);
+        generateNumberFormatCheck(doc, def2, currentAccessor);
         break;
       case "min_length": {
-        const min = numericOperand(def.minimum, "min_length");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${min} && ${currentAccessor}.length < ${def.minimum * 2}`);
+        const min = numericOperand(def2.minimum, "min_length");
+        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${min} && ${currentAccessor}.length < ${def2.minimum * 2}`);
         doc.write(`if (${len} < ${min}) return INVALID;`);
         break;
       }
       case "max_length": {
-        const max = numericOperand(def.maximum, "max_length");
+        const max = numericOperand(def2.maximum, "max_length");
         const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length > ${max}`);
         doc.write(`if (${len} > ${max}) return INVALID;`);
         break;
       }
       case "length_equals": {
-        const exact = numericOperand(def.length, "length_equals");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${exact} && ${currentAccessor}.length <= ${def.length * 2}`);
+        const exact = numericOperand(def2.length, "length_equals");
+        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${exact} && ${currentAccessor}.length <= ${def2.length * 2}`);
         doc.write(`if (${len} !== ${exact}) return INVALID;`);
         break;
       }
       case "min_size":
-        doc.write(`if (${currentAccessor}.size < ${numericOperand(def.minimum, "min_size")}) return INVALID;`);
+        doc.write(`if (${currentAccessor}.size < ${numericOperand(def2.minimum, "min_size")}) return INVALID;`);
         break;
       case "max_size":
-        doc.write(`if (${currentAccessor}.size > ${numericOperand(def.maximum, "max_size")}) return INVALID;`);
+        doc.write(`if (${currentAccessor}.size > ${numericOperand(def2.maximum, "max_size")}) return INVALID;`);
         break;
       case "size_equals":
-        doc.write(`if (${currentAccessor}.size !== ${numericOperand(def.size, "size_equals")}) return INVALID;`);
+        doc.write(`if (${currentAccessor}.size !== ${numericOperand(def2.size, "size_equals")}) return INVALID;`);
         break;
       case "string_format":
-        currentAccessor = generateStringFormatCheck(doc, ctx, def, currentAccessor);
+        currentAccessor = generateStringFormatCheck(doc, ctx, def2, currentAccessor);
         break;
       case "custom":
         currentAccessor = generateCustomRefineCheck(doc, ctx, check2, currentAccessor);
         break;
       case "bigint_format":
-        generateBigIntFormatCheck(doc, def, currentAccessor);
+        generateBigIntFormatCheck(doc, def2, currentAccessor);
         break;
       case "mime_type":
-        generateMimeTypeCheck(doc, ctx, def, currentAccessor);
+        generateMimeTypeCheck(doc, ctx, def2, currentAccessor);
         break;
       case "property":
-        generatePropertyCheck(doc, ctx, def, currentAccessor);
+        generatePropertyCheck(doc, ctx, def2, currentAccessor);
         break;
       case "properties":
-        generatePropertiesChecks(doc, ctx, def, currentAccessor);
+        generatePropertiesChecks(doc, ctx, def2, currentAccessor);
         break;
       case "overwrite": {
         const newAccessor = newVar(ctx);
@@ -13179,8 +13179,8 @@ function generateChecks(doc, ctx, schema, accessor) {
         break;
       }
       default: {
-        void def;
-        throw new ZodCompileUnsupportedError(`check type ${def.check}`);
+        void def2;
+        throw new ZodCompileUnsupportedError(`check type ${def2.check}`);
       }
     }
   }
@@ -13192,9 +13192,9 @@ function codePointLengthVar(doc, ctx, accessor, inDoubt) {
   doc.write(`const ${v} = typeof ${accessor} === "string" && ${inDoubt} ? ${cpLen}(${accessor}) : ${accessor}.length;`);
   return v;
 }
-function numericOperand(value, label) {
+function numericOperand(value, label2) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new ZodCompileUnsupportedError(`${label} bound of type ${typeof value}`);
+    throw new ZodCompileUnsupportedError(`${label2} bound of type ${typeof value}`);
   }
   return `${value}`;
 }
@@ -13214,26 +13214,26 @@ function comparisonOperand(ctx, value) {
   }
   throw new ZodCompileUnsupportedError(`comparison check bound of type ${typeof value}`);
 }
-function generateGreaterThanCheck(doc, ctx, def, accessor) {
-  const op = def.inclusive ? "<" : "<=";
-  doc.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def.value)}) return INVALID;`);
+function generateGreaterThanCheck(doc, ctx, def2, accessor) {
+  const op = def2.inclusive ? "<" : "<=";
+  doc.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def2.value)}) return INVALID;`);
 }
-function generateLessThanCheck(doc, ctx, def, accessor) {
-  const op = def.inclusive ? ">" : ">=";
-  doc.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def.value)}) return INVALID;`);
+function generateLessThanCheck(doc, ctx, def2, accessor) {
+  const op = def2.inclusive ? ">" : ">=";
+  doc.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def2.value)}) return INVALID;`);
 }
-function generateMultipleOfCheck(doc, ctx, def, accessor) {
-  if (typeof def.value === "bigint") {
-    if (def.value === BigInt(0))
+function generateMultipleOfCheck(doc, ctx, def2, accessor) {
+  if (typeof def2.value === "bigint") {
+    if (def2.value === BigInt(0))
       throw new ZodCompileUnsupportedError("multiple_of check with a zero divisor");
-    doc.write(`if (${accessor} % ${def.value}n !== 0n) return INVALID;`);
+    doc.write(`if (${accessor} % ${def2.value}n !== 0n) return INVALID;`);
   } else {
     const remainder = addConstant(ctx, floatSafeRemainder);
-    doc.write(`if (${remainder}(${accessor}, ${numericOperand(def.value, "multiple_of")}) !== 0) return INVALID;`);
+    doc.write(`if (${remainder}(${accessor}, ${numericOperand(def2.value, "multiple_of")}) !== 0) return INVALID;`);
   }
 }
-function generateNumberFormatCheck(doc, def, accessor) {
-  const format = def.format;
+function generateNumberFormatCheck(doc, def2, accessor) {
+  const format = def2.format;
   switch (format) {
     case "safeint":
       doc.write(`if (!Number.isSafeInteger(${accessor})) return INVALID;`);
@@ -13256,8 +13256,8 @@ function generateNumberFormatCheck(doc, def, accessor) {
     }
   }
 }
-function generateBigIntFormatCheck(doc, def, accessor) {
-  const format = def.format;
+function generateBigIntFormatCheck(doc, def2, accessor) {
+  const format = def2.format;
   if (!format)
     return;
   switch (format) {
@@ -13273,19 +13273,19 @@ function generateBigIntFormatCheck(doc, def, accessor) {
     }
   }
 }
-function generateMimeTypeCheck(doc, ctx, def, accessor) {
-  const mimeTypes = def.mime;
+function generateMimeTypeCheck(doc, ctx, def2, accessor) {
+  const mimeTypes = def2.mime;
   if (mimeTypes && mimeTypes.length > 0) {
     const mimeSet = addConstant(ctx, new Set(mimeTypes));
     doc.write(`if (!${mimeSet}.has(${accessor}.type)) return INVALID;`);
   }
 }
-function generatePropertiesChecks(doc, ctx, def, accessor) {
-  if (def.when) {
+function generatePropertiesChecks(doc, ctx, def2, accessor) {
+  if (def2.when) {
     throw new ZodCompileUnsupportedError(`check with a custom "when" condition`);
   }
   doc.write(`if (${accessor} == null) return INVALID;`);
-  const shape = def.shape;
+  const shape = def2.shape;
   for (const key of Reflect.ownKeys(shape)) {
     const keyExpr = typeof key === "symbol" ? addConstant(ctx, key) : esc(key);
     const inputVar = newVar(ctx);
@@ -13293,9 +13293,9 @@ function generatePropertiesChecks(doc, ctx, def, accessor) {
     compileChild(doc, ctx, shape[key], inputVar, false);
   }
 }
-function generatePropertyCheck(doc, ctx, def, accessor) {
-  const propAccessor = `${accessor}[${JSON.stringify(def.property)}]`;
-  generateCheck(doc, ctx, def.schema, propAccessor);
+function generatePropertyCheck(doc, ctx, def2, accessor) {
+  const propAccessor = `${accessor}[${JSON.stringify(def2.property)}]`;
+  generateCheck(doc, ctx, def2.schema, propAccessor);
 }
 function generateOverwriteCheck(doc, ctx, check2, currentAccessor, newAccessor) {
   const tx = check2._zod.def.tx;
@@ -13315,12 +13315,12 @@ function pushIssue(issue2) {
   this.issues.push(issue2);
 }
 function generateCustomRefineCheck(doc, ctx, check2, accessor) {
-  const def = check2._zod.def;
-  if (def.fn) {
-    if (isAsyncFunction(def.fn)) {
+  const def2 = check2._zod.def;
+  if (def2.fn) {
+    if (isAsyncFunction(def2.fn)) {
       throw new ZodCompileAsyncError("z.compile: async .refine() predicates are not supported");
     }
-    const fnConst = addUserConstant(ctx, def.fn);
+    const fnConst = addUserConstant(ctx, def2.fn);
     const throwAsyncConst = addConstant(ctx, throwAsync);
     const resVar = newVar(ctx);
     doc.write(`const ${resVar} = ${fnConst}(${accessor});`);
@@ -13374,8 +13374,8 @@ var PATTERN_IS_COMPLETE = /* @__PURE__ */ new Set([
   "uuid",
   "xid"
 ]);
-function generateStringFormatCheck(doc, ctx, def, accessor, needsValue = true) {
-  const fmt = def.format;
+function generateStringFormatCheck(doc, ctx, def2, accessor, needsValue = true) {
+  const fmt = def2.format;
   if (fmt === "base64") {
     const validator = addConstant(ctx, isValidBase64);
     doc.write(`if (!${validator}(${accessor})) return INVALID;`);
@@ -13388,7 +13388,7 @@ function generateStringFormatCheck(doc, ctx, def, accessor, needsValue = true) {
   }
   if (fmt === "jwt") {
     const validator = addConstant(ctx, isValidJWT);
-    const alg = addConstant(ctx, def.alg ?? null);
+    const alg = addConstant(ctx, def2.alg ?? null);
     doc.write(`if (!${validator}(${accessor}, ${alg})) return INVALID;`);
     return accessor;
   }
@@ -13412,10 +13412,10 @@ function generateStringFormatCheck(doc, ctx, def, accessor, needsValue = true) {
     doc.write(`if (!${validator}(${accessor})) return INVALID;`);
     return accessor;
   }
-  const formatDef = def;
+  const formatDef = def2;
   if (fmt === "url" || fmt === "httpurl" || formatDef.normalize || formatDef.hostname !== void 0 || formatDef.protocol !== void 0) {
     const parseConst = addConstant(ctx, validateURL);
-    const defConst = addConstant(ctx, def);
+    const defConst = addConstant(ctx, def2);
     const trimVar = newVar(ctx);
     const urlVar = newVar(ctx);
     doc.write(`const ${trimVar} = ${accessor}.trim();`);
@@ -13436,7 +13436,7 @@ function generateStringFormatCheck(doc, ctx, def, accessor, needsValue = true) {
     doc.write(`const ${outputVar} = ${outputExpr};`);
     return outputVar;
   }
-  const customFn = def.fn;
+  const customFn = def2.fn;
   if (customFn) {
     if (isAsyncFunction(customFn))
       throw new ZodCompileUnsupportedError(`async string format ${fmt}`);
@@ -13444,13 +13444,13 @@ function generateStringFormatCheck(doc, ctx, def, accessor, needsValue = true) {
     doc.write(`if (!${fnConst}(${accessor})) return INVALID;`);
     return accessor;
   }
-  if (PATTERN_IS_COMPLETE.has(fmt) && def.pattern) {
-    const patternConst = addConstant(ctx, def.pattern);
+  if (PATTERN_IS_COMPLETE.has(fmt) && def2.pattern) {
+    const patternConst = addConstant(ctx, def2.pattern);
     doc.write(`${patternConst}.lastIndex = 0;`);
     doc.write(`if (!${patternConst}.test(${accessor})) return INVALID;`);
     return accessor;
   }
-  const format = def.format;
+  const format = def2.format;
   switch (format) {
     case "regex":
       throw new ZodCompileUnsupportedError("regex format without a pattern");
@@ -13461,15 +13461,15 @@ function generateStringFormatCheck(doc, ctx, def, accessor, needsValue = true) {
       doc.write(`if (${accessor} !== ${accessor}.toUpperCase()) return INVALID;`);
       break;
     case "includes":
-      doc.write(`if (!${accessor}.includes(${esc(def.includes)})) return INVALID;`);
+      doc.write(`if (!${accessor}.includes(${esc(def2.includes)})) return INVALID;`);
       break;
     case "starts_with": {
-      const prefix = def.prefix;
+      const prefix = def2.prefix;
       doc.write(`if (${accessor}.slice(0, ${prefix.length}) !== ${esc(prefix)}) return INVALID;`);
       break;
     }
     case "ends_with": {
-      const suffix = def.suffix;
+      const suffix = def2.suffix;
       doc.write(`if (${accessor}.slice(-${suffix.length}) !== ${esc(suffix)}) return INVALID;`);
       break;
     }
@@ -13481,12 +13481,12 @@ function generateStringFormatCheck(doc, ctx, def, accessor, needsValue = true) {
   return accessor;
 }
 function generateCheck(doc, ctx, schema, accessor, needsValue = true) {
-  const def = schema._zod.def;
-  const type = def.type;
-  if (def.coerce) {
+  const def2 = schema._zod.def;
+  const type = def2.type;
+  if (def2.coerce) {
     throw new ZodCompileUnsupportedError(`coercion (z.coerce.${type}())`);
   }
-  const buildsValue = needsValue || !!def.checks?.length;
+  const buildsValue = needsValue || !!def2.checks?.length;
   let typeAccessor;
   switch (type) {
     case "string":
@@ -13613,16 +13613,16 @@ function generateCheck(doc, ctx, schema, accessor, needsValue = true) {
 }
 function generateStringCheck(doc, ctx, schema, accessor, needsValue = true) {
   doc.write(`if (typeof ${accessor} !== "string") return INVALID;`);
-  const def = schema._zod.def;
-  if (def.format === void 0)
+  const def2 = schema._zod.def;
+  if (def2.format === void 0)
     return accessor;
-  return generateStringFormatCheck(doc, ctx, def, accessor, needsValue);
+  return generateStringFormatCheck(doc, ctx, def2, accessor, needsValue);
 }
 function generateNumberCheck(doc, schema, accessor) {
   doc.write(`if (typeof ${accessor} !== "number" || !Number.isFinite(${accessor})) return INVALID;`);
-  const def = schema._zod.def;
-  if (def.check === "number_format" && def.format) {
-    generateNumberFormatCheck(doc, { format: def.format }, accessor);
+  const def2 = schema._zod.def;
+  if (def2.check === "number_format" && def2.format) {
+    generateNumberFormatCheck(doc, { format: def2.format }, accessor);
   }
   return accessor;
 }
@@ -13632,9 +13632,9 @@ function generateBooleanCheck(doc, accessor) {
 }
 function generateBigIntCheck(doc, schema, accessor) {
   doc.write(`if (typeof ${accessor} !== "bigint") return INVALID;`);
-  const def = schema._zod.def;
-  if (def.format) {
-    switch (def.format) {
+  const def2 = schema._zod.def;
+  if (def2.format) {
+    switch (def2.format) {
       case "int64":
         doc.write(`if (${accessor} < -9223372036854775808n || ${accessor} > 9223372036854775807n) return INVALID;`);
         break;
@@ -13670,9 +13670,9 @@ function generateDateCheck(doc, accessor) {
   return accessor;
 }
 function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   doc.write(`if (typeof ${accessor} !== "object" || ${accessor} === null || Array.isArray(${accessor})) return INVALID;`);
-  const shape = def.shape;
+  const shape = def2.shape;
   const keys = Object.keys(shape);
   const symbolKeys = Object.getOwnPropertySymbols(shape);
   const allKeys = symbolKeys.length ? [...keys, ...symbolKeys] : keys;
@@ -13716,7 +13716,7 @@ function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
         propOutputs.set(key, outputAccessor);
     }
   }
-  const catchall = def.catchall;
+  const catchall = def2.catchall;
   let unknownKeysMode = "none";
   if (catchall) {
     const catchallType = catchall._zod.def.type;
@@ -13789,11 +13789,11 @@ function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
   return outputVar;
 }
 function generateOptionalCheck(doc, ctx, schema, accessor, buildsValue = true) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   if (isExactOptional(schema)) {
-    return generateCheck(doc, ctx, def.innerType, accessor, buildsValue);
+    return generateCheck(doc, ctx, def2.innerType, accessor, buildsValue);
   }
-  if (def.innerType._zod.optin === "defaulted") {
+  if (def2.innerType._zod.optin === "defaulted") {
     const outputVar2 = newVar(ctx);
     const branchVar = newVar(ctx);
     doc.write(`let ${outputVar2};`);
@@ -13801,7 +13801,7 @@ function generateOptionalCheck(doc, ctx, schema, accessor, buildsValue = true) {
     doc.indented((d) => {
       d.write(`const ${branchVar} = (() => {`);
       d.indented((d2) => {
-        const innerOutput = generateCheck(d2, ctx, def.innerType, accessor);
+        const innerOutput = generateCheck(d2, ctx, def2.innerType, accessor);
         d2.write(`return ${innerOutput};`);
       });
       d.write(`})();`);
@@ -13809,7 +13809,7 @@ function generateOptionalCheck(doc, ctx, schema, accessor, buildsValue = true) {
     });
     doc.write(`} else {`);
     doc.indented((d) => {
-      const innerOutput = generateCheck(d, ctx, def.innerType, accessor);
+      const innerOutput = generateCheck(d, ctx, def2.innerType, accessor);
       d.write(`${outputVar2} = ${innerOutput};`);
     });
     doc.write(`}`);
@@ -13820,7 +13820,7 @@ function generateOptionalCheck(doc, ctx, schema, accessor, buildsValue = true) {
     doc.write(`let ${outputVar};`);
   doc.write(`if (${accessor} !== undefined) {`);
   doc.indented((d) => {
-    const innerOutput = generateCheck(d, ctx, def.innerType, accessor, buildsValue);
+    const innerOutput = generateCheck(d, ctx, def2.innerType, accessor, buildsValue);
     if (outputVar && innerOutput !== null)
       d.write(`${outputVar} = ${innerOutput};`);
   });
@@ -13836,8 +13836,8 @@ function requiresPresenceCheck(schema) {
 function fastPathAcceptsAbsence(schema) {
   if (schema._zod.def.coerce)
     return true;
-  const def = schema._zod.def;
-  switch (def.type) {
+  const def2 = schema._zod.def;
+  switch (def2.type) {
     case "any":
     case "unknown":
     case "undefined":
@@ -13867,26 +13867,26 @@ function fastPathAcceptsAbsence(schema) {
     case "template_literal":
       return false;
     case "nonoptional":
-      return def.innerType ? fastPathAcceptsAbsence(def.innerType) : false;
+      return def2.innerType ? fastPathAcceptsAbsence(def2.innerType) : false;
     case "literal":
-      return !!def.values?.includes(void 0);
+      return !!def2.values?.includes(void 0);
     case "enum":
       return !!schema._zod.values?.has(void 0);
     case "optional":
     case "nullable":
     case "readonly":
     case "success":
-      return def.innerType ? fastPathAcceptsAbsence(def.innerType) : true;
+      return def2.innerType ? fastPathAcceptsAbsence(def2.innerType) : true;
     case "catch":
       return true;
     case "union":
-      return def.options ? def.options.some(fastPathAcceptsAbsence) : true;
+      return def2.options ? def2.options.some(fastPathAcceptsAbsence) : true;
     case "intersection":
-      if (!def.left || !def.right)
+      if (!def2.left || !def2.right)
         return true;
-      return fastPathAcceptsAbsence(def.left) && fastPathAcceptsAbsence(def.right);
+      return fastPathAcceptsAbsence(def2.left) && fastPathAcceptsAbsence(def2.right);
     case "pipe":
-      return def.in ? fastPathAcceptsAbsence(def.in) : true;
+      return def2.in ? fastPathAcceptsAbsence(def2.in) : true;
     default:
       return true;
   }
@@ -13898,8 +13898,8 @@ function mayOmitUndefined(schema) {
   return (schema._zod.optin !== "defaulted" || schema._zod.optout === "optional") && mayOutputUndefined(schema);
 }
 function mayOutputUndefined(schema) {
-  const def = schema._zod.def;
-  switch (def.type) {
+  const def2 = schema._zod.def;
+  switch (def2.type) {
     case "string":
     case "number":
     case "boolean":
@@ -13920,7 +13920,7 @@ function mayOutputUndefined(schema) {
     case "success":
       return false;
     case "literal":
-      return !!def.values?.includes(void 0);
+      return !!def2.values?.includes(void 0);
     case "enum":
       return !!schema._zod.values?.has(void 0);
     case "optional":
@@ -13928,25 +13928,25 @@ function mayOutputUndefined(schema) {
     case "nullable":
     case "readonly":
     case "nonoptional":
-      return def.innerType ? mayOutputUndefined(def.innerType) : true;
+      return def2.innerType ? mayOutputUndefined(def2.innerType) : true;
     case "union":
-      return def.options ? def.options.some(mayOutputUndefined) : true;
+      return def2.options ? def2.options.some(mayOutputUndefined) : true;
     case "intersection":
-      return !def.left || !def.right || mayOutputUndefined(def.left) || mayOutputUndefined(def.right);
+      return !def2.left || !def2.right || mayOutputUndefined(def2.left) || mayOutputUndefined(def2.right);
     case "pipe":
-      return def.out ? mayOutputUndefined(def.out) : true;
+      return def2.out ? mayOutputUndefined(def2.out) : true;
     default:
       return true;
   }
 }
 function generateNullableCheck(doc, ctx, schema, accessor, buildsValue = true) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   const outputVar = buildsValue ? newVar(ctx) : null;
   if (outputVar)
     doc.write(`let ${outputVar} = null;`);
   doc.write(`if (${accessor} !== null) {`);
   doc.indented((d) => {
-    const innerOutput = generateCheck(d, ctx, def.innerType, accessor, buildsValue);
+    const innerOutput = generateCheck(d, ctx, def2.innerType, accessor, buildsValue);
     if (outputVar && innerOutput !== null)
       d.write(`${outputVar} = ${innerOutput};`);
   });
@@ -13954,7 +13954,7 @@ function generateNullableCheck(doc, ctx, schema, accessor, buildsValue = true) {
   return outputVar;
 }
 function generateArrayCheck(doc, ctx, schema, accessor, buildsValue = true) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   doc.write(`if (!Array.isArray(${accessor})) return INVALID;`);
   const outputVar = buildsValue ? newVar(ctx) : null;
   const iVar = newVar(ctx);
@@ -13964,7 +13964,7 @@ function generateArrayCheck(doc, ctx, schema, accessor, buildsValue = true) {
   doc.write(`for (let ${iVar} = 0; ${iVar} < ${accessor}.length; ${iVar}++) {`);
   doc.indented((d) => {
     d.write(`const ${elemVar} = ${accessor}[${iVar}];`);
-    const elemOutput = compileChild(d, ctx, def.element, elemVar, buildsValue);
+    const elemOutput = compileChild(d, ctx, def2.element, elemVar, buildsValue);
     if (outputVar && elemOutput !== null)
       d.write(`${outputVar}[${iVar}] = ${elemOutput};`);
   });
@@ -13972,8 +13972,8 @@ function generateArrayCheck(doc, ctx, schema, accessor, buildsValue = true) {
   return outputVar;
 }
 function generateLiteralCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  const values = def.values;
+  const def2 = schema._zod.def;
+  const values = def2.values;
   if (values.length !== 1) {
     const literalSet = addConstant(ctx, new Set(values));
     doc.write(`if (!${literalSet}.has(${accessor})) return INVALID;`);
@@ -14010,22 +14010,22 @@ function generateEnumCheck(doc, ctx, schema, accessor) {
   return accessor;
 }
 function generateWrapperCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  return generateCheck(doc, ctx, def.innerType, accessor);
+  const def2 = schema._zod.def;
+  return generateCheck(doc, ctx, def2.innerType, accessor);
 }
 function generateDefaultCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   const descriptor = Object.getOwnPropertyDescriptor(schema._zod.def, "defaultValue");
   const defaultGetter = descriptor ? () => schema._zod.def.defaultValue : void 0;
   if (schema._zod.def.type === "prefault") {
     if (!defaultGetter) {
-      return generateCheck(doc, ctx, def.innerType, accessor);
+      return generateCheck(doc, ctx, def2.innerType, accessor);
     }
     const defaultFn = addConstant(ctx, defaultGetter);
     const inputVar = newVar(ctx);
     doc.write(`let ${inputVar} = ${accessor};`);
     doc.write(`if (${accessor} === undefined) ${inputVar} = ${defaultFn}();`);
-    return generateCheck(doc, ctx, def.innerType, inputVar);
+    return generateCheck(doc, ctx, def2.innerType, inputVar);
   }
   const outputVar = newVar(ctx);
   if (defaultGetter) {
@@ -14038,7 +14038,7 @@ function generateDefaultCheck(doc, ctx, schema, accessor) {
     });
     doc.write(`} else {`);
     doc.indented((d) => {
-      const innerOutput = generateCheck(d, ctx, def.innerType, accessor);
+      const innerOutput = generateCheck(d, ctx, def2.innerType, accessor);
       d.write(`${outputVar} = ${innerOutput} === undefined ? ${cloneFn}(${defaultFn}()) : ${innerOutput};`);
     });
     doc.write(`}`);
@@ -14046,7 +14046,7 @@ function generateDefaultCheck(doc, ctx, schema, accessor) {
     doc.write(`let ${outputVar};`);
     doc.write(`if (${accessor} !== undefined) {`);
     doc.indented((d) => {
-      const innerOutput = generateCheck(d, ctx, def.innerType, accessor);
+      const innerOutput = generateCheck(d, ctx, def2.innerType, accessor);
       d.write(`${outputVar} = ${innerOutput};`);
     });
     doc.write(`}`);
@@ -14054,17 +14054,17 @@ function generateDefaultCheck(doc, ctx, schema, accessor) {
   return outputVar;
 }
 function generateNonOptionalCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  const innerOutput = generateCheck(doc, ctx, def.innerType, accessor);
+  const def2 = schema._zod.def;
+  const innerOutput = generateCheck(doc, ctx, def2.innerType, accessor);
   const outputVar = newVar(ctx);
   doc.write(`const ${outputVar} = ${innerOutput};`);
   doc.write(`if (${outputVar} === undefined) return INVALID;`);
   return outputVar;
 }
 function generateTupleCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  const items = def.items;
-  const rest = def.rest;
+  const def2 = schema._zod.def;
+  const items = def2.items;
+  const rest = def2.rest;
   doc.write(`if (!Array.isArray(${accessor})) return INVALID;`);
   const optinStart = getTupleOptStart2(items, "optin");
   const optoutStart = getTupleOptStart2(items, "optout");
@@ -14137,12 +14137,12 @@ function getTupleOptStart2(items, key) {
   return 0;
 }
 function generateUnionCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  const options = def.options;
-  if (def.discriminator) {
-    return generateDiscriminatedUnionCheck(doc, ctx, def, accessor);
+  const def2 = schema._zod.def;
+  const options = def2.options;
+  if (def2.discriminator) {
+    return generateDiscriminatedUnionCheck(doc, ctx, def2, accessor);
   }
-  if (def.inclusive === false) {
+  if (def2.inclusive === false) {
     throw new ZodCompileUnsupportedError("exclusive unions (z.xor)");
   }
   if (options.length === 0) {
@@ -14177,22 +14177,22 @@ function generateUnionCheck(doc, ctx, schema, accessor) {
   doc.write(`if (${outputVar} === INVALID) return INVALID;`);
   return outputVar;
 }
-function generateDiscriminatedUnionCheck(doc, ctx, def, accessor) {
-  if (def.unionFallback) {
+function generateDiscriminatedUnionCheck(doc, ctx, def2, accessor) {
+  if (def2.unionFallback) {
     throw new ZodCompileUnsupportedError("discriminated union with unionFallback");
   }
-  if (def.options.length === 0) {
+  if (def2.options.length === 0) {
     doc.write("return INVALID;");
     return accessor;
   }
   const discVar = newVar(ctx);
   const outputVar = newVar(ctx);
-  doc.write(`const ${discVar} = ${accessor}?.[${esc(def.discriminator)}];`);
+  doc.write(`const ${discVar} = ${accessor}?.[${esc(def2.discriminator)}];`);
   doc.write(`let ${outputVar};`);
   let firstBranch = true;
   const claimed = /* @__PURE__ */ new Set();
-  for (const option of def.options) {
-    const values = option._zod.propValues?.[def.discriminator];
+  for (const option of def2.options) {
+    const values = option._zod.propValues?.[def2.discriminator];
     if (!values || values.size === 0) {
       throw new ZodCompileUnsupportedError("discriminated union option without static discriminator values");
     }
@@ -14238,10 +14238,10 @@ function literalEquality(ctx, accessor, value) {
   throw new ZodCompileUnsupportedError(`literal discriminator value ${String(value)}`);
 }
 function generateIntersectionCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   ctx.definite = false;
-  const leftOutput = compileChild(doc, ctx, def.left, accessor);
-  const rightOutput = compileChild(doc, ctx, def.right, accessor);
+  const leftOutput = compileChild(doc, ctx, def2.left, accessor);
+  const rightOutput = compileChild(doc, ctx, def2.right, accessor);
   const mergeConst = addConstant(ctx, mergeValues);
   const mergedVar = newVar(ctx);
   doc.write(`const ${mergedVar} = ${mergeConst}(${leftOutput}, ${rightOutput});`);
@@ -14249,15 +14249,15 @@ function generateIntersectionCheck(doc, ctx, schema, accessor) {
   return `${mergedVar}.data`;
 }
 function generateRecordCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   const isPlainObjectConst = addConstant(ctx, isPlainObject);
   doc.write(`if (!${isPlainObjectConst}(${accessor})) return INVALID;`);
   const outputVar = newVar(ctx);
   const kVar = newVar(ctx);
   const valVar = newVar(ctx);
   doc.write(`const ${outputVar} = {};`);
-  const recordDef = def;
-  const keyValues = recordDef.partial ? void 0 : def.keyType._zod.values;
+  const recordDef = def2;
+  const keyValues = recordDef.partial ? void 0 : def2.keyType._zod.values;
   if (keyValues) {
     const inputKeys = [];
     for (const key of keyValues) {
@@ -14270,10 +14270,10 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
       }
       inputKeys.push(inputKey);
       const keyConst = addConstant(ctx, key);
-      const outKey = generateCheck(doc, ctx, def.keyType, keyConst);
+      const outKey = generateCheck(doc, ctx, def2.keyType, keyConst);
       const valueVar = newVar(ctx);
       doc.write(`const ${valueVar} = ${accessor}[${literalPropertyKey(ctx, inputKey)}];`);
-      const valOutput = compileChild(doc, ctx, def.valueType, valueVar);
+      const valOutput = compileChild(doc, ctx, def2.valueType, valueVar);
       doc.write(`${outputVar}[${outKey}] = ${valOutput};`);
     }
     const knownKeysConst = addConstant(ctx, new Set(inputKeys));
@@ -14289,11 +14289,11 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
     doc.write(`}`);
     return outputVar;
   }
-  const keyDef = def.keyType._zod.def;
+  const keyDef = def2.keyType._zod.def;
   const keyIsBareString = keyDef.type === "string" && keyDef.format === void 0 && !keyDef.coerce && (keyDef.checks?.length ?? 0) === 0;
   if (!keyIsBareString) {
-    const isLoose = def.mode === "loose";
-    const keyFn = compileFn(def.keyType);
+    const isLoose = def2.mode === "loose";
+    const keyFn = compileFn(def2.keyType);
     if (keyFn.definite === false)
       ctx.definite = false;
     const keyFast = addConstant(ctx, keyFn);
@@ -14310,14 +14310,14 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
       d.write(`if (${outKeyVar} === "__proto__") continue;`);
       const valueVar = newVar(ctx);
       d.write(`const ${valueVar} = ${accessor}[${kVar}];`);
-      const valOutput = compileChild(d, ctx, def.valueType, valueVar);
+      const valOutput = compileChild(d, ctx, def2.valueType, valueVar);
       d.write(`${outputVar}[${outKeyVar}] = ${valOutput};`);
     });
     return outputVar;
   }
   emitOwnKeys(doc, ctx, accessor, kVar, (d) => {
     d.write(`const ${valVar} = ${accessor}[${kVar}];`);
-    const valOutput = compileChild(d, ctx, def.valueType, valVar);
+    const valOutput = compileChild(d, ctx, def2.valueType, valVar);
     d.write(`${outputVar}[${kVar}] = ${valOutput};`);
   }, `return INVALID;`);
   return outputVar;
@@ -14353,7 +14353,7 @@ function literalPropertyKey(ctx, key) {
   return addConstant(ctx, key);
 }
 function generateMapCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   doc.write(`if (!(${accessor} instanceof Map)) return INVALID;`);
   const outputVar = newVar(ctx);
   const kVar = newVar(ctx);
@@ -14361,22 +14361,22 @@ function generateMapCheck(doc, ctx, schema, accessor) {
   doc.write(`const ${outputVar} = new Map();`);
   doc.write(`for (const [${kVar}, ${valVar}] of ${accessor}) {`);
   doc.indented((d) => {
-    const keyOutput = generateCheck(d, ctx, def.keyType, kVar);
-    const valOutput = generateCheck(d, ctx, def.valueType, valVar);
+    const keyOutput = generateCheck(d, ctx, def2.keyType, kVar);
+    const valOutput = generateCheck(d, ctx, def2.valueType, valVar);
     d.write(`${outputVar}.set(${keyOutput}, ${valOutput});`);
   });
   doc.write(`}`);
   return outputVar;
 }
 function generateSetCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   doc.write(`if (!(${accessor} instanceof Set)) return INVALID;`);
   const outputVar = newVar(ctx);
   const valVar = newVar(ctx);
   doc.write(`const ${outputVar} = new Set();`);
   doc.write(`for (const ${valVar} of ${accessor}) {`);
   doc.indented((d) => {
-    const valOutput = generateCheck(d, ctx, def.valueType, valVar);
+    const valOutput = generateCheck(d, ctx, def2.valueType, valVar);
     d.write(`${outputVar}.add(${valOutput});`);
   });
   doc.write(`}`);
@@ -14397,8 +14397,8 @@ function generateTemplateLiteralCheck(doc, ctx, schema, accessor) {
   return accessor;
 }
 function generateLazyCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  const getterConst = addUserConstant(ctx, def.getter);
+  const def2 = schema._zod.def;
+  const getterConst = addUserConstant(ctx, def2.getter);
   const cacheConst = addConstant(ctx, { parser: null });
   doc.write(`if (!${cacheConst}.parser) {`);
   doc.indented((d) => {
@@ -14417,13 +14417,13 @@ function generateLazyCheck(doc, ctx, schema, accessor) {
   return outputVar;
 }
 function generatePipeCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  const inputOutput = generateCheck(doc, ctx, def.in, accessor);
-  if (def.transform) {
-    if (isAsyncFunction(def.transform)) {
+  const def2 = schema._zod.def;
+  const inputOutput = generateCheck(doc, ctx, def2.in, accessor);
+  if (def2.transform) {
+    if (isAsyncFunction(def2.transform)) {
       throw new ZodCompileAsyncError("z.compile: async transforms in pipes are not supported");
     }
-    const transformFn = def.transform;
+    const transformFn = def2.transform;
     const helperFn = (value) => {
       const fakePayload = { value, issues: [], addIssue: pushIssue };
       const result = transformFn(value, fakePayload);
@@ -14435,21 +14435,21 @@ function generatePipeCheck(doc, ctx, schema, accessor) {
     const transformedVar = newVar(ctx);
     doc.write(`const ${transformedVar} = ${helperConst}(${inputOutput});`);
     doc.write(`if (${transformedVar} === INVALID) return INVALID;`);
-    return generateCheck(doc, ctx, def.out, transformedVar);
+    return generateCheck(doc, ctx, def2.out, transformedVar);
   } else {
-    return generateCheck(doc, ctx, def.out, inputOutput);
+    return generateCheck(doc, ctx, def2.out, inputOutput);
   }
 }
 function isAsyncFunction(fn) {
   return typeof fn === "function" && (fn.constructor.name === "AsyncFunction" || fn[Symbol.toStringTag] === "AsyncFunction");
 }
 function generateCustomCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  if (def.fn) {
-    if (isAsyncFunction(def.fn)) {
+  const def2 = schema._zod.def;
+  if (def2.fn) {
+    if (isAsyncFunction(def2.fn)) {
       throw new ZodCompileAsyncError("z.compile: async custom predicates are not supported");
     }
-    const fnConst = addUserConstant(ctx, def.fn);
+    const fnConst = addUserConstant(ctx, def2.fn);
     const throwAsyncConst = addConstant(ctx, throwAsync);
     const resVar = newVar(ctx);
     doc.write(`const ${resVar} = ${fnConst}(${accessor});`);
@@ -14470,19 +14470,19 @@ function runtimeCatch(innerSchema, catchValue, value) {
   return catchValue();
 }
 function generateCatchCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  if (!def.catchValue[CONSTANT_CATCH]) {
+  const def2 = schema._zod.def;
+  if (!def2.catchValue[CONSTANT_CATCH]) {
     throw new ZodCompileUnsupportedError("catch with a callback (only a constant catch value compiles)", false);
   }
   const outputVar = newVar(ctx);
   doc.write(`let ${outputVar} = (() => {`);
   doc.indented((d) => {
-    const innerOut = compileChild(d, ctx, def.innerType, accessor);
+    const innerOut = compileChild(d, ctx, def2.innerType, accessor);
     d.write(`return ${innerOut};`);
   });
   doc.write(`})();`);
-  const innerConst = addConstant(ctx, def.innerType);
-  const catchConst = addUserConstant(ctx, def.catchValue);
+  const innerConst = addConstant(ctx, def2.innerType);
+  const catchConst = addUserConstant(ctx, def2.catchValue);
   const catchHelperConst = addConstant(ctx, runtimeCatch);
   doc.write(`if (${outputVar} === INVALID) {`);
   doc.indented((d) => {
@@ -14493,12 +14493,12 @@ function generateCatchCheck(doc, ctx, schema, accessor) {
   return outputVar;
 }
 function generateTransformCheck(doc, ctx, schema, accessor) {
-  const def = schema._zod.def;
-  if (def.transform) {
-    if (isAsyncFunction(def.transform)) {
+  const def2 = schema._zod.def;
+  if (def2.transform) {
+    if (isAsyncFunction(def2.transform)) {
       throw new ZodCompileAsyncError("z.compile: async transforms are not supported");
     }
-    const transformFn = def.transform;
+    const transformFn = def2.transform;
     const helperFn = (value) => {
       const fakePayload = { value, issues: [], addIssue: pushIssue };
       const result = transformFn(value, fakePayload);
@@ -14516,10 +14516,10 @@ function generateTransformCheck(doc, ctx, schema, accessor) {
 }
 
 // ../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/api.js
-function snapshotChecks(def) {
-  if (def.checks)
-    def.checks = [...def.checks];
-  return def;
+function snapshotChecks(def2) {
+  if (def2.checks)
+    def2.checks = [...def2.checks];
+  return def2;
 }
 // @__NO_SIDE_EFFECTS__
 function _string(Class2, params) {
@@ -15560,7 +15560,7 @@ function _stringbool(Classes, _params) {
 // @__NO_SIDE_EFFECTS__
 function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
   const params = normalizeParams(_params);
-  const def = {
+  const def2 = {
     check: "string_format",
     type: "string",
     format,
@@ -15568,9 +15568,9 @@ function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
     ...params
   };
   if (fnOrRegex instanceof RegExp) {
-    def.pattern = fnOrRegex;
+    def2.pattern = fnOrRegex;
   }
-  const inst = new Class2(def);
+  const inst = new Class2(def2);
   return inst;
 }
 
@@ -15621,7 +15621,7 @@ function handleUnrepresentable(schema, ctx, json2, params, message) {
 }
 function processSchema(schema, ctx, _params = { path: [], schemaPath: [] }) {
   var _a3;
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   const seen = ctx.seen.get(schema);
   if (seen) {
     seen.count++;
@@ -15648,9 +15648,9 @@ function processSchema(schema, ctx, _params = { path: [], schemaPath: [] }) {
       schema._zod.processJSONSchema(ctx, result.schema, params);
     } else {
       const _json = result.schema;
-      const processor = ctx.processors[def.type];
+      const processor = ctx.processors[def2.type];
       if (!processor) {
-        throw new Error(`[toJSONSchema]: Non-representable type encountered: ${def.type}`);
+        throw new Error(`[toJSONSchema]: Non-representable type encountered: ${def2.type}`);
       }
       processor(schema, ctx, _json, params);
     }
@@ -16042,49 +16042,49 @@ function isTransforming(_schema, _ctx) {
   if (ctx.seen.has(_schema))
     return false;
   ctx.seen.add(_schema);
-  const def = _schema._zod.def;
-  if (def.type === "transform")
+  const def2 = _schema._zod.def;
+  if (def2.type === "transform")
     return true;
-  if (def.type === "array")
-    return isTransforming(def.element, ctx);
-  if (def.type === "set")
-    return isTransforming(def.valueType, ctx);
-  if (def.type === "lazy")
-    return isTransforming(def.getter(), ctx);
-  if (def.type === "promise" || def.type === "optional" || def.type === "nonoptional" || def.type === "nullable" || def.type === "readonly" || def.type === "default" || def.type === "prefault" || def.type === "catch") {
-    return isTransforming(def.innerType, ctx);
+  if (def2.type === "array")
+    return isTransforming(def2.element, ctx);
+  if (def2.type === "set")
+    return isTransforming(def2.valueType, ctx);
+  if (def2.type === "lazy")
+    return isTransforming(def2.getter(), ctx);
+  if (def2.type === "promise" || def2.type === "optional" || def2.type === "nonoptional" || def2.type === "nullable" || def2.type === "readonly" || def2.type === "default" || def2.type === "prefault" || def2.type === "catch") {
+    return isTransforming(def2.innerType, ctx);
   }
-  if (def.type === "intersection") {
-    return isTransforming(def.left, ctx) || isTransforming(def.right, ctx);
+  if (def2.type === "intersection") {
+    return isTransforming(def2.left, ctx) || isTransforming(def2.right, ctx);
   }
-  if (def.type === "record" || def.type === "map") {
-    return isTransforming(def.keyType, ctx) || isTransforming(def.valueType, ctx);
+  if (def2.type === "record" || def2.type === "map") {
+    return isTransforming(def2.keyType, ctx) || isTransforming(def2.valueType, ctx);
   }
-  if (def.type === "pipe") {
+  if (def2.type === "pipe") {
     if (_schema._zod.traits.has("$ZodCodec"))
       return true;
-    return isTransforming(def.in, ctx) || isTransforming(def.out, ctx);
+    return isTransforming(def2.in, ctx) || isTransforming(def2.out, ctx);
   }
-  if (def.type === "object") {
-    for (const key in def.shape) {
-      if (isTransforming(def.shape[key], ctx))
+  if (def2.type === "object") {
+    for (const key in def2.shape) {
+      if (isTransforming(def2.shape[key], ctx))
         return true;
     }
     return false;
   }
-  if (def.type === "union") {
-    for (const option of def.options) {
+  if (def2.type === "union") {
+    for (const option of def2.options) {
       if (isTransforming(option, ctx))
         return true;
     }
     return false;
   }
-  if (def.type === "tuple") {
-    for (const item of def.items) {
+  if (def2.type === "tuple") {
+    for (const item of def2.items) {
       if (isTransforming(item, ctx))
         return true;
     }
-    if (def.rest && isTransforming(def.rest, ctx))
+    if (def2.rest && isTransforming(def2.rest, ctx))
       return true;
     return false;
   }
@@ -16134,41 +16134,41 @@ var setFormat = (agg, format) => {
   if (format.includes("int"))
     agg.isInt = true;
 };
-var minContributor = (agg, def) => narrowMin(agg, "minimum", def.minimum);
-var maxContributor = (agg, def) => narrowMax(agg, "maximum", def.maximum);
-var formatContributor = (ranges) => (agg, def) => {
-  setFormat(agg, def.format);
-  const [minimum, maximum] = ranges[def.format];
+var minContributor = (agg, def2) => narrowMin(agg, "minimum", def2.minimum);
+var maxContributor = (agg, def2) => narrowMax(agg, "maximum", def2.maximum);
+var formatContributor = (ranges) => (agg, def2) => {
+  setFormat(agg, def2.format);
+  const [minimum, maximum] = ranges[def2.format];
   narrowMin(agg, "minimum", minimum);
   narrowMax(agg, "maximum", maximum);
 };
 var contributors = {
-  greater_than: (agg, def) => narrowMin(agg, def.inclusive ? "minimum" : "exclusiveMinimum", def.value),
-  less_than: (agg, def) => narrowMax(agg, def.inclusive ? "maximum" : "exclusiveMaximum", def.value),
-  multiple_of: (agg, def) => addDivisor(agg, def.value),
+  greater_than: (agg, def2) => narrowMin(agg, def2.inclusive ? "minimum" : "exclusiveMinimum", def2.value),
+  less_than: (agg, def2) => narrowMax(agg, def2.inclusive ? "maximum" : "exclusiveMaximum", def2.value),
+  multiple_of: (agg, def2) => addDivisor(agg, def2.value),
   number_format: formatContributor(NUMBER_FORMAT_RANGES),
   bigint_format: formatContributor(BIGINT_FORMAT_RANGES),
   min_length: minContributor,
   max_length: maxContributor,
-  length_equals: (agg, def) => narrowBoth(agg, def.length),
+  length_equals: (agg, def2) => narrowBoth(agg, def2.length),
   min_size: minContributor,
   max_size: maxContributor,
-  size_equals: (agg, def) => narrowBoth(agg, def.size),
-  string_format: (agg, def) => {
-    setFormat(agg, def.format);
-    if (def.pattern)
-      addPattern(agg, def.pattern);
-    if (def.format === "base64" || def.format === "base64url")
-      agg.contentEncoding = def.format;
-    if (def.local || def.precision === -1)
+  size_equals: (agg, def2) => narrowBoth(agg, def2.size),
+  string_format: (agg, def2) => {
+    setFormat(agg, def2.format);
+    if (def2.pattern)
+      addPattern(agg, def2.pattern);
+    if (def2.format === "base64" || def2.format === "base64url")
+      agg.contentEncoding = def2.format;
+    if (def2.local || def2.precision === -1)
       agg.laxFormat = true;
   },
-  mime_type: (agg, def) => intersectMime(agg, def.mime)
+  mime_type: (agg, def2) => intersectMime(agg, def2.mime)
 };
 function aggregateChecks(schema) {
   const agg = {};
-  const def = schema._zod.def;
-  const list = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+  const def2 = schema._zod.def;
+  const list = schema._zod.traits.has("$ZodCheck") ? [schema, ...def2.checks ?? []] : def2.checks ?? [];
   for (const ch of list)
     contributors[ch._zod.def.check]?.(agg, ch._zod.def);
   const bag = schema._zod.bag;
@@ -16315,8 +16315,8 @@ var dateProcessor = (schema, ctx, json2, params) => {
   handleUnrepresentable(schema, ctx, json2, params, "Date cannot be represented in JSON Schema");
 };
 var enumProcessor = (schema, _ctx, json2, _params) => {
-  const def = schema._zod.def;
-  const values = getEnumValues(def.entries);
+  const def2 = schema._zod.def;
+  const values = getEnumValues(def2.entries);
   if (values.length === 0) {
     json2.not = {};
     return;
@@ -16328,13 +16328,13 @@ var enumProcessor = (schema, _ctx, json2, _params) => {
   json2.enum = values;
 };
 var literalProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  if (def.values.length === 0) {
+  const def2 = schema._zod.def;
+  if (def2.values.length === 0) {
     json2.not = {};
     return;
   }
   const vals = [];
-  for (const val of def.values) {
+  for (const val of def2.values) {
     if (val === void 0) {
       if (handleUnrepresentable(schema, ctx, json2, params, "Literal `undefined` cannot be represented in JSON Schema"))
         return;
@@ -16417,32 +16417,32 @@ var setProcessor = (schema, ctx, json2, params) => {
 };
 var arrayProcessor = (schema, ctx, _json, params) => {
   const json2 = _json;
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   const { minimum, maximum } = aggregateChecks(schema);
   if (typeof minimum === "number")
     json2.minItems = minimum;
   if (typeof maximum === "number")
     json2.maxItems = maximum;
   json2.type = "array";
-  json2.items = processSchema(def.element, ctx, {
+  json2.items = processSchema(def2.element, ctx, {
     ...params,
     path: [...params.path, "items"]
   });
 };
 function inputOptin(schema) {
-  const def = schema._zod.def;
-  if (def.type === "pipe" && def.in._zod.traits.has("$ZodTransform")) {
-    return inputOptin(def.out);
+  const def2 = schema._zod.def;
+  if (def2.type === "pipe" && def2.in._zod.traits.has("$ZodTransform")) {
+    return inputOptin(def2.out);
   }
-  if (def.type === "catch") {
-    return inputOptin(def.innerType);
+  if (def2.type === "catch") {
+    return inputOptin(def2.innerType);
   }
   return schema._zod.optin;
 }
 var objectProcessor = (schema, ctx, _json, params) => {
   const json2 = _json;
-  const def = schema._zod.def;
-  const shape = def.shape;
+  const def2 = schema._zod.def;
+  const shape = def2.shape;
   const symbolKeys = Object.getOwnPropertySymbols(shape);
   if (symbolKeys.length && handleUnrepresentable(schema, ctx, json2, params, "Symbol keys cannot be represented in JSON Schema")) {
     return;
@@ -16457,7 +16457,7 @@ var objectProcessor = (schema, ctx, _json, params) => {
   }
   const requiredKeys = [];
   for (const key of Object.keys(shape)) {
-    const field2 = def.shape[key];
+    const field2 = def2.shape[key];
     if (ctx.io === "input" ? inputOptin(field2) === void 0 : field2._zod.optout === void 0) {
       requiredKeys.push(key);
     }
@@ -16465,22 +16465,22 @@ var objectProcessor = (schema, ctx, _json, params) => {
   if (requiredKeys.length > 0) {
     json2.required = requiredKeys;
   }
-  if (def.catchall?._zod.def.type === "never") {
+  if (def2.catchall?._zod.def.type === "never") {
     json2.additionalProperties = false;
-  } else if (!def.catchall) {
+  } else if (!def2.catchall) {
     if (ctx.io === "output")
       json2.additionalProperties = false;
-  } else if (def.catchall) {
-    json2.additionalProperties = processSchema(def.catchall, ctx, {
+  } else if (def2.catchall) {
+    json2.additionalProperties = processSchema(def2.catchall, ctx, {
       ...params,
       path: [...params.path, "additionalProperties"]
     });
   }
 };
 var unionProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  const isExclusive = def.inclusive === false;
-  const options = def.options.map((x, i) => processSchema(x, ctx, {
+  const def2 = schema._zod.def;
+  const isExclusive = def2.inclusive === false;
+  const options = def2.options.map((x, i) => processSchema(x, ctx, {
     ...params,
     path: [...params.path, isExclusive ? "oneOf" : "anyOf", i]
   }));
@@ -16491,12 +16491,12 @@ var unionProcessor = (schema, ctx, json2, params) => {
   }
 };
 var intersectionProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  const a = processSchema(def.left, ctx, {
+  const def2 = schema._zod.def;
+  const a = processSchema(def2.left, ctx, {
     ...params,
     path: [...params.path, "allOf", 0]
   });
-  const b = processSchema(def.right, ctx, {
+  const b = processSchema(def2.right, ctx, {
     ...params,
     path: [...params.path, "allOf", 1]
   });
@@ -16510,28 +16510,28 @@ var intersectionProcessor = (schema, ctx, json2, params) => {
 };
 var tupleProcessor = (schema, ctx, _json, params) => {
   const json2 = _json;
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   json2.type = "array";
   const prefixPath = ctx.target === "draft-2020-12" ? "prefixItems" : "items";
   const restPath = ctx.target === "draft-2020-12" ? "items" : ctx.target === "openapi-3.0" ? "items" : "additionalItems";
-  const prefixItems = def.items.map((x, i) => processSchema(x, ctx, {
+  const prefixItems = def2.items.map((x, i) => processSchema(x, ctx, {
     ...params,
     path: [...params.path, prefixPath, i]
   }));
-  const rest = def.rest ? processSchema(def.rest, ctx, {
+  const rest = def2.rest ? processSchema(def2.rest, ctx, {
     ...params,
-    path: [...params.path, restPath, ...ctx.target === "openapi-3.0" ? [def.items.length] : []]
+    path: [...params.path, restPath, ...ctx.target === "openapi-3.0" ? [def2.items.length] : []]
   }) : null;
-  let minItems = def.items.length;
+  let minItems = def2.items.length;
   while (minItems > 0) {
-    const item = def.items[minItems - 1];
+    const item = def2.items[minItems - 1];
     const optional2 = ctx.io === "input" ? inputOptin(item) !== void 0 : item._zod.optout === "optional";
     if (!optional2)
       break;
     minItems--;
   }
-  const maxItems = def.items.length;
-  const isClosed = !def.rest;
+  const maxItems = def2.items.length;
+  const isClosed = !def2.rest;
   if (ctx.target === "draft-2020-12") {
     json2.prefixItems = prefixItems;
     if (isClosed) {
@@ -16577,11 +16577,11 @@ function stringifyKeyNames(bySchema, json2, visited) {
     if (visited.has(json2))
       return json2;
     visited.add(json2);
-    const def = bySchema.get(json2)?.def;
-    if (!def)
+    const def2 = bySchema.get(json2)?.def;
+    if (!def2)
       return json2;
-    const inlined = stringifyKeyNames(bySchema, def, visited);
-    return inlined === def ? json2 : inlined;
+    const inlined = stringifyKeyNames(bySchema, def2, visited);
+    return inlined === def2 ? json2 : inlined;
   }
   for (const keyword of ["anyOf", "oneOf"]) {
     const branches = json2[keyword];
@@ -16637,12 +16637,12 @@ function rewriteKeyNames(ctx) {
 }
 var recordProcessor = (schema, ctx, _json, params) => {
   const json2 = _json;
-  const def = schema._zod.def;
+  const def2 = schema._zod.def;
   json2.type = "object";
-  const keyType = def.keyType;
+  const keyType = def2.keyType;
   const patterns = aggregateChecks(keyType).patterns;
-  if (def.mode === "loose" && patterns && patterns.size > 0) {
-    const valueSchema = processSchema(def.valueType, ctx, {
+  if (def2.mode === "loose" && patterns && patterns.size > 0) {
+    const valueSchema = processSchema(def2.valueType, ctx, {
       ...params,
       path: [...params.path, "patternProperties", "*"]
     });
@@ -16652,7 +16652,7 @@ var recordProcessor = (schema, ctx, _json, params) => {
     }
   } else {
     if (ctx.target === "draft-07" || ctx.target === "draft-2020-12") {
-      json2.propertyNames = processSchema(def.keyType, ctx, {
+      json2.propertyNames = processSchema(def2.keyType, ctx, {
         ...params,
         path: [...params.path, "propertyNames"]
       });
@@ -16664,14 +16664,14 @@ var recordProcessor = (schema, ctx, _json, params) => {
       }
       pending.push(schema);
     }
-    json2.additionalProperties = processSchema(def.valueType, ctx, {
+    json2.additionalProperties = processSchema(def2.valueType, ctx, {
       ...params,
       path: [...params.path, "additionalProperties"]
     });
   }
   const keyValues = keyType._zod.values;
-  const omittableOnInput = ctx.io === "input" && inputOptin(def.valueType) !== void 0;
-  if (keyValues && !def.partial && !omittableOnInput) {
+  const omittableOnInput = ctx.io === "input" && inputOptin(def2.valueType) !== void 0;
+  if (keyValues && !def2.partial && !omittableOnInput) {
     const validKeyValues = [...keyValues].filter((v) => typeof v === "string" || typeof v === "number");
     if (validKeyValues.length > 0) {
       json2.required = validKeyValues.map(String);
@@ -16679,21 +16679,21 @@ var recordProcessor = (schema, ctx, _json, params) => {
   }
 };
 var nullableProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  const inner = processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  const inner = processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   if (ctx.target === "openapi-3.0") {
-    seen.ref = def.innerType;
+    seen.ref = def2.innerType;
     json2.nullable = true;
   } else {
     json2.anyOf = [inner, { type: "null" }];
   }
 };
 var nonoptionalProcessor = (schema, ctx, _json, params) => {
-  const def = schema._zod.def;
-  processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
-  seen.ref = def.innerType;
+  seen.ref = def2.innerType;
 };
 var UNREPRESENTABLE_DEFAULT = /* @__PURE__ */ Symbol();
 function serializeDefaultValue(value, schema, ctx, json2, params) {
@@ -16710,33 +16710,33 @@ function serializeDefaultValue(value, schema, ctx, json2, params) {
   return UNREPRESENTABLE_DEFAULT;
 }
 var defaultProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
-  seen.ref = def.innerType;
-  const value = serializeDefaultValue(def.defaultValue, schema, ctx, json2, params);
+  seen.ref = def2.innerType;
+  const value = serializeDefaultValue(def2.defaultValue, schema, ctx, json2, params);
   if (value !== UNREPRESENTABLE_DEFAULT)
     json2.default = value;
 };
 var prefaultProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
-  seen.ref = def.innerType;
+  seen.ref = def2.innerType;
   if (ctx.io !== "input")
     return;
-  const value = serializeDefaultValue(def.defaultValue, schema, ctx, json2, params);
+  const value = serializeDefaultValue(def2.defaultValue, schema, ctx, json2, params);
   if (value !== UNREPRESENTABLE_DEFAULT)
     json2._prefault = value;
 };
 var catchProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
-  seen.ref = def.innerType;
+  seen.ref = def2.innerType;
   let catchValue;
   try {
-    catchValue = def.catchValue(void 0);
+    catchValue = def2.catchValue(void 0);
   } catch {
     handleUnrepresentable(schema, ctx, json2, params, "Dynamic catch values are not supported in JSON Schema");
     return;
@@ -16744,31 +16744,31 @@ var catchProcessor = (schema, ctx, json2, params) => {
   json2.default = catchValue;
 };
 var pipeProcessor = (schema, ctx, _json, params) => {
-  const def = schema._zod.def;
-  const inIsTransform = def.in._zod.traits.has("$ZodTransform");
-  const innerType = ctx.io === "input" ? inIsTransform ? def.out : def.in : def.out;
+  const def2 = schema._zod.def;
+  const inIsTransform = def2.in._zod.traits.has("$ZodTransform");
+  const innerType = ctx.io === "input" ? inIsTransform ? def2.out : def2.in : def2.out;
   processSchema(innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = innerType;
 };
 var readonlyProcessor = (schema, ctx, json2, params) => {
-  const def = schema._zod.def;
-  processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
-  seen.ref = def.innerType;
+  seen.ref = def2.innerType;
   json2.readOnly = true;
 };
 var promiseProcessor = (schema, ctx, _json, params) => {
-  const def = schema._zod.def;
-  processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
-  seen.ref = def.innerType;
+  seen.ref = def2.innerType;
 };
 var optionalProcessor = (schema, ctx, _json, params) => {
-  const def = schema._zod.def;
-  processSchema(def.innerType, ctx, params);
+  const def2 = schema._zod.def;
+  processSchema(def2.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
-  seen.ref = def.innerType;
+  seen.ref = def2.innerType;
 };
 var lazyProcessor = (schema, ctx, _json, params) => {
   const innerType = schema._zod.innerType;
@@ -17218,18 +17218,18 @@ function _ensureDefaultMemoizer() {
   if (!globalConfig.memoizer)
     config({ memoizer: memoizer() });
 }
-var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
+var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def2) => {
   _ensureDefaultLocale();
-  $ZodType.init(inst, def);
-  inst.def = def;
-  inst.type = def.type;
+  $ZodType.init(inst, def2);
+  inst.def = def2;
+  inst.type = def2.type;
   return inst;
 }, {
   check(...chks) {
-    const def = this.def;
-    return this.clone(util_exports.mergeDefs(def, {
+    const def2 = this.def;
+    return this.clone(util_exports.mergeDefs(def2, {
       checks: [
-        ...def.checks ?? [],
+        ...def2.checks ?? [],
         ...chks.map((ch) => typeof ch === "function" ? { _zod: { check: ch, def: { check: "custom" }, onattach: [] } } : ch)
       ]
     }), { parent: true });
@@ -17237,8 +17237,8 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
   with(...chks) {
     return this.check(...chks);
   },
-  clone(def, params) {
-    return clone(this, def, params);
+  clone(def2, params) {
+    return clone(this, def2, params);
   },
   brand() {
     return this;
@@ -17395,9 +17395,9 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
 });
 var _ZodString = /* @__PURE__ */ $constructor(
   "_ZodString",
-  (inst, def) => {
-    $ZodString.init(inst, def);
-    ZodType.init(inst, def);
+  (inst, def2) => {
+    $ZodString.init(inst, def2);
+    ZodType.init(inst, def2);
     inst._zod.processJSONSchema = (ctx, json2, params) => stringProcessor(inst, ctx, json2, params);
   },
   /* @__PURE__ */ util_exports.derived({
@@ -17452,9 +17452,9 @@ var _ZodString = /* @__PURE__ */ $constructor(
     }
   })
 );
-var ZodString = /* @__PURE__ */ $constructor("ZodString", (inst, def) => {
-  $ZodString.init(inst, def);
-  _ZodString.init(inst, def);
+var ZodString = /* @__PURE__ */ $constructor("ZodString", (inst, def2) => {
+  $ZodString.init(inst, def2);
+  _ZodString.init(inst, def2);
 }, {
   email(params) {
     return this.check(_email(ZodEmail, params));
@@ -17538,43 +17538,43 @@ var ZodString = /* @__PURE__ */ $constructor("ZodString", (inst, def) => {
 function string2(params) {
   return _string(ZodString, params);
 }
-var ZodStringFormat = /* @__PURE__ */ $constructor("ZodStringFormat", (inst, def) => {
-  $ZodStringFormat.init(inst, def);
-  _ZodString.init(inst, def);
+var ZodStringFormat = /* @__PURE__ */ $constructor("ZodStringFormat", (inst, def2) => {
+  $ZodStringFormat.init(inst, def2);
+  _ZodString.init(inst, def2);
 });
-var ZodISODateTime = /* @__PURE__ */ $constructor("ZodISODateTime", (inst, def) => {
-  $ZodISODateTime.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodISODateTime = /* @__PURE__ */ $constructor("ZodISODateTime", (inst, def2) => {
+  $ZodISODateTime.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
-var ZodISODate = /* @__PURE__ */ $constructor("ZodISODate", (inst, def) => {
-  $ZodISODate.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodISODate = /* @__PURE__ */ $constructor("ZodISODate", (inst, def2) => {
+  $ZodISODate.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
-var ZodISOTime = /* @__PURE__ */ $constructor("ZodISOTime", (inst, def) => {
-  $ZodISOTime.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodISOTime = /* @__PURE__ */ $constructor("ZodISOTime", (inst, def2) => {
+  $ZodISOTime.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
-var ZodISODuration = /* @__PURE__ */ $constructor("ZodISODuration", (inst, def) => {
-  $ZodISODuration.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodISODuration = /* @__PURE__ */ $constructor("ZodISODuration", (inst, def2) => {
+  $ZodISODuration.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
-var ZodEmail = /* @__PURE__ */ $constructor("ZodEmail", (inst, def) => {
-  $ZodEmail.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodEmail = /* @__PURE__ */ $constructor("ZodEmail", (inst, def2) => {
+  $ZodEmail.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function email2(params) {
   return _email(ZodEmail, params);
 }
-var ZodGUID = /* @__PURE__ */ $constructor("ZodGUID", (inst, def) => {
-  $ZodGUID.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodGUID = /* @__PURE__ */ $constructor("ZodGUID", (inst, def2) => {
+  $ZodGUID.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function guid2(params) {
   return _guid(ZodGUID, params);
 }
-var ZodUUID = /* @__PURE__ */ $constructor("ZodUUID", (inst, def) => {
-  $ZodUUID.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodUUID = /* @__PURE__ */ $constructor("ZodUUID", (inst, def2) => {
+  $ZodUUID.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function uuid2(params) {
   return _uuid(ZodUUID, params);
@@ -17588,9 +17588,9 @@ function uuidv6(params) {
 function uuidv7(params) {
   return _uuidv7(ZodUUID, params);
 }
-var ZodURL = /* @__PURE__ */ $constructor("ZodURL", (inst, def) => {
-  $ZodURL.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodURL = /* @__PURE__ */ $constructor("ZodURL", (inst, def2) => {
+  $ZodURL.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function url(params) {
   return _url(ZodURL, params);
@@ -17602,135 +17602,135 @@ function httpUrl(params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodEmoji = /* @__PURE__ */ $constructor("ZodEmoji", (inst, def) => {
-  $ZodEmoji.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodEmoji = /* @__PURE__ */ $constructor("ZodEmoji", (inst, def2) => {
+  $ZodEmoji.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function emoji2(params) {
   return _emoji2(ZodEmoji, params);
 }
-var ZodNanoID = /* @__PURE__ */ $constructor("ZodNanoID", (inst, def) => {
-  $ZodNanoID.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodNanoID = /* @__PURE__ */ $constructor("ZodNanoID", (inst, def2) => {
+  $ZodNanoID.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function nanoid2(params) {
   return _nanoid(ZodNanoID, params);
 }
-var ZodCUID = /* @__PURE__ */ $constructor("ZodCUID", (inst, def) => {
-  $ZodCUID.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodCUID = /* @__PURE__ */ $constructor("ZodCUID", (inst, def2) => {
+  $ZodCUID.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function cuid3(params) {
   return _cuid(ZodCUID, params);
 }
-var ZodCUID2 = /* @__PURE__ */ $constructor("ZodCUID2", (inst, def) => {
-  $ZodCUID2.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodCUID2 = /* @__PURE__ */ $constructor("ZodCUID2", (inst, def2) => {
+  $ZodCUID2.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function cuid22(params) {
   return _cuid2(ZodCUID2, params);
 }
-var ZodULID = /* @__PURE__ */ $constructor("ZodULID", (inst, def) => {
-  $ZodULID.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodULID = /* @__PURE__ */ $constructor("ZodULID", (inst, def2) => {
+  $ZodULID.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function ulid2(params) {
   return _ulid(ZodULID, params);
 }
-var ZodXID = /* @__PURE__ */ $constructor("ZodXID", (inst, def) => {
-  $ZodXID.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodXID = /* @__PURE__ */ $constructor("ZodXID", (inst, def2) => {
+  $ZodXID.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function xid2(params) {
   return _xid(ZodXID, params);
 }
-var ZodKSUID = /* @__PURE__ */ $constructor("ZodKSUID", (inst, def) => {
-  $ZodKSUID.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodKSUID = /* @__PURE__ */ $constructor("ZodKSUID", (inst, def2) => {
+  $ZodKSUID.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function ksuid2(params) {
   return _ksuid(ZodKSUID, params);
 }
-var ZodIPv4 = /* @__PURE__ */ $constructor("ZodIPv4", (inst, def) => {
-  $ZodIPv4.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodIPv4 = /* @__PURE__ */ $constructor("ZodIPv4", (inst, def2) => {
+  $ZodIPv4.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function ipv42(params) {
   return _ipv4(ZodIPv4, params);
 }
-var ZodMAC = /* @__PURE__ */ $constructor("ZodMAC", (inst, def) => {
-  $ZodMAC.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodMAC = /* @__PURE__ */ $constructor("ZodMAC", (inst, def2) => {
+  $ZodMAC.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function mac2(params) {
   return _mac(ZodMAC, params);
 }
-var ZodIPv6 = /* @__PURE__ */ $constructor("ZodIPv6", (inst, def) => {
-  $ZodIPv6.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodIPv6 = /* @__PURE__ */ $constructor("ZodIPv6", (inst, def2) => {
+  $ZodIPv6.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function ipv62(params) {
   return _ipv6(ZodIPv6, params);
 }
-var ZodCIDRv4 = /* @__PURE__ */ $constructor("ZodCIDRv4", (inst, def) => {
-  $ZodCIDRv4.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodCIDRv4 = /* @__PURE__ */ $constructor("ZodCIDRv4", (inst, def2) => {
+  $ZodCIDRv4.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function cidrv42(params) {
   return _cidrv4(ZodCIDRv4, params);
 }
-var ZodCIDRv6 = /* @__PURE__ */ $constructor("ZodCIDRv6", (inst, def) => {
-  $ZodCIDRv6.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodCIDRv6 = /* @__PURE__ */ $constructor("ZodCIDRv6", (inst, def2) => {
+  $ZodCIDRv6.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function cidrv62(params) {
   return _cidrv6(ZodCIDRv6, params);
 }
-var ZodBase64 = /* @__PURE__ */ $constructor("ZodBase64", (inst, def) => {
-  $ZodBase64.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodBase64 = /* @__PURE__ */ $constructor("ZodBase64", (inst, def2) => {
+  $ZodBase64.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function base642(params) {
   return _base64(ZodBase64, params);
 }
-var ZodBase64URL = /* @__PURE__ */ $constructor("ZodBase64URL", (inst, def) => {
-  $ZodBase64URL.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodBase64URL = /* @__PURE__ */ $constructor("ZodBase64URL", (inst, def2) => {
+  $ZodBase64URL.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function base64url2(params) {
   return _base64url(ZodBase64URL, params);
 }
-var ZodE164 = /* @__PURE__ */ $constructor("ZodE164", (inst, def) => {
-  $ZodE164.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodE164 = /* @__PURE__ */ $constructor("ZodE164", (inst, def2) => {
+  $ZodE164.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function e1642(params) {
   return _e164(ZodE164, params);
 }
-var ZodCreditCard = /* @__PURE__ */ $constructor("ZodCreditCard", (inst, def) => {
-  $ZodCreditCard.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodCreditCard = /* @__PURE__ */ $constructor("ZodCreditCard", (inst, def2) => {
+  $ZodCreditCard.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function creditCard2(params) {
   return _creditCard(ZodCreditCard, params);
 }
-var ZodIBAN = /* @__PURE__ */ $constructor("ZodIBAN", (inst, def) => {
-  $ZodIBAN.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodIBAN = /* @__PURE__ */ $constructor("ZodIBAN", (inst, def2) => {
+  $ZodIBAN.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function iban2(params) {
   return _iban(ZodIBAN, params);
 }
-var ZodJWT = /* @__PURE__ */ $constructor("ZodJWT", (inst, def) => {
-  $ZodJWT.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodJWT = /* @__PURE__ */ $constructor("ZodJWT", (inst, def2) => {
+  $ZodJWT.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function jwt(params) {
   return _jwt(ZodJWT, params);
 }
-var ZodCustomStringFormat = /* @__PURE__ */ $constructor("ZodCustomStringFormat", (inst, def) => {
-  $ZodCustomStringFormat.init(inst, def);
-  ZodStringFormat.init(inst, def);
+var ZodCustomStringFormat = /* @__PURE__ */ $constructor("ZodCustomStringFormat", (inst, def2) => {
+  $ZodCustomStringFormat.init(inst, def2);
+  ZodStringFormat.init(inst, def2);
 });
 function stringFormat(format, fnOrRegex, _params = {}) {
   return _stringFormat(ZodCustomStringFormat, format, fnOrRegex, _params);
@@ -17754,9 +17754,9 @@ function hash(alg, params) {
 }
 var ZodNumber = /* @__PURE__ */ $constructor(
   "ZodNumber",
-  (inst, def) => {
-    $ZodNumber.init(inst, def);
-    ZodType.init(inst, def);
+  (inst, def2) => {
+    $ZodNumber.init(inst, def2);
+    ZodType.init(inst, def2);
     inst._zod.processJSONSchema = (ctx, json2, params) => numberProcessor(inst, ctx, json2, params);
     inst.isFinite = true;
   },
@@ -17825,9 +17825,9 @@ var ZodNumber = /* @__PURE__ */ $constructor(
 function number2(params) {
   return _number(ZodNumber, params);
 }
-var ZodNumberFormat = /* @__PURE__ */ $constructor("ZodNumberFormat", (inst, def) => {
-  $ZodNumberFormat.init(inst, def);
-  ZodNumber.init(inst, def);
+var ZodNumberFormat = /* @__PURE__ */ $constructor("ZodNumberFormat", (inst, def2) => {
+  $ZodNumberFormat.init(inst, def2);
+  ZodNumber.init(inst, def2);
 });
 function int(params) {
   return _int(ZodNumberFormat, params);
@@ -17844,9 +17844,9 @@ function int32(params) {
 function uint32(params) {
   return _uint32(ZodNumberFormat, params);
 }
-var ZodBoolean = /* @__PURE__ */ $constructor("ZodBoolean", (inst, def) => {
-  $ZodBoolean.init(inst, def);
-  ZodType.init(inst, def);
+var ZodBoolean = /* @__PURE__ */ $constructor("ZodBoolean", (inst, def2) => {
+  $ZodBoolean.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => booleanProcessor(inst, ctx, json2, params);
 });
 function boolean2(params) {
@@ -17854,9 +17854,9 @@ function boolean2(params) {
 }
 var ZodBigInt = /* @__PURE__ */ $constructor(
   "ZodBigInt",
-  (inst, def) => {
-    $ZodBigInt.init(inst, def);
-    ZodType.init(inst, def);
+  (inst, def2) => {
+    $ZodBigInt.init(inst, def2);
+    ZodType.init(inst, def2);
     inst._zod.processJSONSchema = (ctx, json2, params) => bigintProcessor(inst, ctx, json2, params);
   },
   /* @__PURE__ */ util_exports.derived({
@@ -17902,9 +17902,9 @@ var ZodBigInt = /* @__PURE__ */ $constructor(
 function bigint2(params) {
   return _bigint(ZodBigInt, params);
 }
-var ZodBigIntFormat = /* @__PURE__ */ $constructor("ZodBigIntFormat", (inst, def) => {
-  $ZodBigIntFormat.init(inst, def);
-  ZodBigInt.init(inst, def);
+var ZodBigIntFormat = /* @__PURE__ */ $constructor("ZodBigIntFormat", (inst, def2) => {
+  $ZodBigIntFormat.init(inst, def2);
+  ZodBigInt.init(inst, def2);
 });
 function int64(params) {
   return _int64(ZodBigIntFormat, params);
@@ -17912,57 +17912,57 @@ function int64(params) {
 function uint64(params) {
   return _uint64(ZodBigIntFormat, params);
 }
-var ZodSymbol = /* @__PURE__ */ $constructor("ZodSymbol", (inst, def) => {
-  $ZodSymbol.init(inst, def);
-  ZodType.init(inst, def);
+var ZodSymbol = /* @__PURE__ */ $constructor("ZodSymbol", (inst, def2) => {
+  $ZodSymbol.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => symbolProcessor(inst, ctx, json2, params);
 });
 function symbol(params) {
   return _symbol(ZodSymbol, params);
 }
-var ZodUndefined = /* @__PURE__ */ $constructor("ZodUndefined", (inst, def) => {
-  $ZodUndefined.init(inst, def);
-  ZodType.init(inst, def);
+var ZodUndefined = /* @__PURE__ */ $constructor("ZodUndefined", (inst, def2) => {
+  $ZodUndefined.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => undefinedProcessor(inst, ctx, json2, params);
 });
 function _undefined3(params) {
   return _undefined2(ZodUndefined, params);
 }
-var ZodNull = /* @__PURE__ */ $constructor("ZodNull", (inst, def) => {
-  $ZodNull.init(inst, def);
-  ZodType.init(inst, def);
+var ZodNull = /* @__PURE__ */ $constructor("ZodNull", (inst, def2) => {
+  $ZodNull.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => nullProcessor(inst, ctx, json2, params);
 });
 function _null3(params) {
   return _null2(ZodNull, params);
 }
-var ZodAny = /* @__PURE__ */ $constructor("ZodAny", (inst, def) => {
-  $ZodAny.init(inst, def);
-  ZodType.init(inst, def);
+var ZodAny = /* @__PURE__ */ $constructor("ZodAny", (inst, def2) => {
+  $ZodAny.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => anyProcessor(inst, ctx, json2, params);
 });
 function any() {
   return _any(ZodAny);
 }
-var ZodUnknown = /* @__PURE__ */ $constructor("ZodUnknown", (inst, def) => {
-  $ZodUnknown.init(inst, def);
-  ZodType.init(inst, def);
+var ZodUnknown = /* @__PURE__ */ $constructor("ZodUnknown", (inst, def2) => {
+  $ZodUnknown.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => unknownProcessor(inst, ctx, json2, params);
 });
 function unknown() {
   return _unknown(ZodUnknown);
 }
-var ZodNever = /* @__PURE__ */ $constructor("ZodNever", (inst, def) => {
-  $ZodNever.init(inst, def);
-  ZodType.init(inst, def);
+var ZodNever = /* @__PURE__ */ $constructor("ZodNever", (inst, def2) => {
+  $ZodNever.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => neverProcessor(inst, ctx, json2, params);
 });
 function never(params) {
   return _never(ZodNever, params);
 }
-var ZodVoid = /* @__PURE__ */ $constructor("ZodVoid", (inst, def) => {
-  $ZodVoid.init(inst, def);
-  ZodType.init(inst, def);
+var ZodVoid = /* @__PURE__ */ $constructor("ZodVoid", (inst, def2) => {
+  $ZodVoid.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => voidProcessor(inst, ctx, json2, params);
 });
 function _void2(params) {
@@ -17970,9 +17970,9 @@ function _void2(params) {
 }
 var ZodDate = /* @__PURE__ */ $constructor(
   "ZodDate",
-  (inst, def) => {
-    $ZodDate.init(inst, def);
-    ZodType.init(inst, def);
+  (inst, def2) => {
+    $ZodDate.init(inst, def2);
+    ZodType.init(inst, def2);
     inst._zod.processJSONSchema = (ctx, json2, params) => dateProcessor(inst, ctx, json2, params);
     inst.min = (value, params) => inst.check(_gte(value, params));
     inst.max = (value, params) => inst.check(_lte(value, params));
@@ -17991,12 +17991,12 @@ var ZodDate = /* @__PURE__ */ $constructor(
 function date2(params) {
   return _date(ZodDate, params);
 }
-var ZodArray = /* @__PURE__ */ $constructor("ZodArray", (inst, def) => {
+var ZodArray = /* @__PURE__ */ $constructor("ZodArray", (inst, def2) => {
   _ensureDefaultMemoizer();
-  $ZodArray.init(inst, def);
-  ZodType.init(inst, def);
+  $ZodArray.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => arrayProcessor(inst, ctx, json2, params);
-  inst.element = def.element;
+  inst.element = def2.element;
 }, {
   min(n, params) {
     return this.check(_minLength(n, params));
@@ -18021,10 +18021,10 @@ function keyof(schema) {
   const shape = schema._zod.def.shape;
   return _enum2(Object.keys(shape));
 }
-var ZodObject = /* @__PURE__ */ $constructor("ZodObject", (inst, def) => {
+var ZodObject = /* @__PURE__ */ $constructor("ZodObject", (inst, def2) => {
   _ensureDefaultMemoizer();
-  $ZodObjectJIT.init(inst, def);
-  ZodType.init(inst, def);
+  $ZodObjectJIT.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => objectProcessor(inst, ctx, json2, params);
   util_exports.installLazyProp(inst, "shape", (self) => self._zod.def.shape, false);
 }, {
@@ -18072,12 +18072,12 @@ var ZodObject = /* @__PURE__ */ $constructor("ZodObject", (inst, def) => {
   }
 });
 function object(shape, params) {
-  const def = {
+  const def2 = {
     type: "object",
     shape: shape ?? {},
     ...util_exports.normalizeParams(params)
   };
-  return new ZodObject(def);
+  return new ZodObject(def2);
 }
 function strictObject(shape, params) {
   return new ZodObject({
@@ -18095,11 +18095,11 @@ function looseObject(shape, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodUnion = /* @__PURE__ */ $constructor("ZodUnion", (inst, def) => {
-  $ZodUnion.init(inst, def);
-  ZodType.init(inst, def);
+var ZodUnion = /* @__PURE__ */ $constructor("ZodUnion", (inst, def2) => {
+  $ZodUnion.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => unionProcessor(inst, ctx, json2, params);
-  inst.options = def.options;
+  inst.options = def2.options;
 });
 function union(options, params) {
   return new ZodUnion({
@@ -18108,11 +18108,11 @@ function union(options, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodXor = /* @__PURE__ */ $constructor("ZodXor", (inst, def) => {
-  ZodUnion.init(inst, def);
-  $ZodXor.init(inst, def);
+var ZodXor = /* @__PURE__ */ $constructor("ZodXor", (inst, def2) => {
+  ZodUnion.init(inst, def2);
+  $ZodXor.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => unionProcessor(inst, ctx, json2, params);
-  inst.options = def.options;
+  inst.options = def2.options;
 });
 function xor(options, params) {
   return new ZodXor({
@@ -18122,9 +18122,9 @@ function xor(options, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("ZodDiscriminatedUnion", (inst, def) => {
-  ZodUnion.init(inst, def);
-  $ZodDiscriminatedUnion.init(inst, def);
+var ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("ZodDiscriminatedUnion", (inst, def2) => {
+  ZodUnion.init(inst, def2);
+  $ZodDiscriminatedUnion.init(inst, def2);
 });
 function discriminatedUnion(discriminator, options, params) {
   return new ZodDiscriminatedUnion({
@@ -18134,9 +18134,9 @@ function discriminatedUnion(discriminator, options, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodIntersection = /* @__PURE__ */ $constructor("ZodIntersection", (inst, def) => {
-  $ZodIntersection.init(inst, def);
-  ZodType.init(inst, def);
+var ZodIntersection = /* @__PURE__ */ $constructor("ZodIntersection", (inst, def2) => {
+  $ZodIntersection.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => intersectionProcessor(inst, ctx, json2, params);
 });
 function intersection(left, right) {
@@ -18146,10 +18146,10 @@ function intersection(left, right) {
     right
   });
 }
-var ZodTuple = /* @__PURE__ */ $constructor("ZodTuple", (inst, def) => {
+var ZodTuple = /* @__PURE__ */ $constructor("ZodTuple", (inst, def2) => {
   _ensureDefaultMemoizer();
-  $ZodTuple.init(inst, def);
-  ZodType.init(inst, def);
+  $ZodTuple.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => tupleProcessor(inst, ctx, json2, params);
 }, {
   rest(rest) {
@@ -18159,12 +18159,12 @@ var ZodTuple = /* @__PURE__ */ $constructor("ZodTuple", (inst, def) => {
     });
   },
   partial() {
-    const def = this._zod.def;
-    if (def.checks?.length)
+    const def2 = this._zod.def;
+    if (def2.checks?.length)
       throw new Error(".partial() cannot be used on tuple schemas containing refinements");
     return this.clone({
-      ...def,
-      items: def.items.map((item) => new ZodOptional({ type: "optional", innerType: item }))
+      ...def2,
+      items: def2.items.map((item) => new ZodOptional({ type: "optional", innerType: item }))
     });
   }
 });
@@ -18179,13 +18179,13 @@ function tuple(items, _paramsOrRest, _params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodRecord = /* @__PURE__ */ $constructor("ZodRecord", (inst, def) => {
+var ZodRecord = /* @__PURE__ */ $constructor("ZodRecord", (inst, def2) => {
   _ensureDefaultMemoizer();
-  $ZodRecord.init(inst, def);
-  ZodType.init(inst, def);
+  $ZodRecord.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => recordProcessor(inst, ctx, json2, params);
-  inst.keyType = def.keyType;
-  inst.valueType = def.valueType;
+  inst.keyType = def2.keyType;
+  inst.valueType = def2.valueType;
 });
 function record(keyType, valueType, params) {
   if (!valueType || !valueType._zod) {
@@ -18221,13 +18221,13 @@ function looseRecord(keyType, valueType, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodMap = /* @__PURE__ */ $constructor("ZodMap", (inst, def) => {
+var ZodMap = /* @__PURE__ */ $constructor("ZodMap", (inst, def2) => {
   _ensureDefaultMemoizer();
-  $ZodMap.init(inst, def);
-  ZodType.init(inst, def);
+  $ZodMap.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => mapProcessor(inst, ctx, json2, params);
-  inst.keyType = def.keyType;
-  inst.valueType = def.valueType;
+  inst.keyType = def2.keyType;
+  inst.valueType = def2.valueType;
   inst.min = (...args) => inst.check(_minSize(...args));
   inst.nonempty = (params) => inst.check(_minSize(1, params));
   inst.max = (...args) => inst.check(_maxSize(...args));
@@ -18241,10 +18241,10 @@ function map(keyType, valueType, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodSet = /* @__PURE__ */ $constructor("ZodSet", (inst, def) => {
+var ZodSet = /* @__PURE__ */ $constructor("ZodSet", (inst, def2) => {
   _ensureDefaultMemoizer();
-  $ZodSet.init(inst, def);
-  ZodType.init(inst, def);
+  $ZodSet.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => setProcessor(inst, ctx, json2, params);
   inst.min = (...args) => inst.check(_minSize(...args));
   inst.nonempty = (params) => inst.check(_minSize(1, params));
@@ -18258,30 +18258,30 @@ function set(valueType, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodEnum = /* @__PURE__ */ $constructor("ZodEnum", (inst, def) => {
-  $ZodEnum.init(inst, def);
-  ZodType.init(inst, def);
+var ZodEnum = /* @__PURE__ */ $constructor("ZodEnum", (inst, def2) => {
+  $ZodEnum.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => enumProcessor(inst, ctx, json2, params);
-  inst.enum = def.entries;
+  inst.enum = def2.entries;
   inst.options = [...inst._zod.values];
-  const keys = new Set(Object.keys(def.entries));
+  const keys = new Set(Object.keys(def2.entries));
   inst.extract = (values, params) => {
     const newEntries = {};
     for (const value of values) {
       if (keys.has(value)) {
-        newEntries[value] = def.entries[value];
+        newEntries[value] = def2.entries[value];
       } else
         throw new Error(`Key ${value} not found in enum`);
     }
     return new ZodEnum({
-      ...def,
+      ...def2,
       checks: [],
       ...util_exports.normalizeParams(params),
       entries: newEntries
     });
   };
   inst.exclude = (values, params) => {
-    const newEntries = { ...def.entries };
+    const newEntries = { ...def2.entries };
     for (const value of values) {
       if (keys.has(value)) {
         delete newEntries[value];
@@ -18289,7 +18289,7 @@ var ZodEnum = /* @__PURE__ */ $constructor("ZodEnum", (inst, def) => {
         throw new Error(`Key ${value} not found in enum`);
     }
     return new ZodEnum({
-      ...def,
+      ...def2,
       checks: [],
       ...util_exports.normalizeParams(params),
       entries: newEntries
@@ -18311,17 +18311,17 @@ function nativeEnum(entries, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodLiteral = /* @__PURE__ */ $constructor("ZodLiteral", (inst, def) => {
-  $ZodLiteral.init(inst, def);
-  ZodType.init(inst, def);
+var ZodLiteral = /* @__PURE__ */ $constructor("ZodLiteral", (inst, def2) => {
+  $ZodLiteral.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => literalProcessor(inst, ctx, json2, params);
-  inst.values = new Set(def.values);
+  inst.values = new Set(def2.values);
   Object.defineProperty(inst, "value", {
     get() {
-      if (def.values.length > 1) {
+      if (def2.values.length > 1) {
         throw new Error("This schema contains multiple valid literal values. Use `.values` instead.");
       }
-      return def.values[0];
+      return def2.values[0];
     }
   });
 });
@@ -18332,9 +18332,9 @@ function literal(value, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodFile = /* @__PURE__ */ $constructor("ZodFile", (inst, def) => {
-  $ZodFile.init(inst, def);
-  ZodType.init(inst, def);
+var ZodFile = /* @__PURE__ */ $constructor("ZodFile", (inst, def2) => {
+  $ZodFile.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => fileProcessor(inst, ctx, json2, params);
   inst.min = (size, params) => inst.check(_minSize(size, params));
   inst.max = (size, params) => inst.check(_maxSize(size, params));
@@ -18343,10 +18343,10 @@ var ZodFile = /* @__PURE__ */ $constructor("ZodFile", (inst, def) => {
 function file(params) {
   return _file(ZodFile, params);
 }
-var ZodTransform = /* @__PURE__ */ $constructor("ZodTransform", (inst, def) => {
+var ZodTransform = /* @__PURE__ */ $constructor("ZodTransform", (inst, def2) => {
   _ensureDefaultMemoizer();
-  $ZodTransform.init(inst, def);
-  ZodType.init(inst, def);
+  $ZodTransform.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => transformProcessor(inst, ctx, json2, params);
   inst._zod.parse = (payload, _ctx) => {
     if (_ctx.direction === "backward") {
@@ -18354,7 +18354,7 @@ var ZodTransform = /* @__PURE__ */ $constructor("ZodTransform", (inst, def) => {
     }
     payload.addIssue = (issue2) => {
       if (typeof issue2 === "string") {
-        payload.issues.push(util_exports.issue(issue2, payload.value, def));
+        payload.issues.push(util_exports.issue(issue2, payload.value, def2));
       } else {
         const _issue = issue2;
         if (_issue.fatal)
@@ -18366,7 +18366,7 @@ var ZodTransform = /* @__PURE__ */ $constructor("ZodTransform", (inst, def) => {
         payload.issues.push(util_exports.issue(_issue));
       }
     };
-    const output2 = def.transform(payload.value, payload);
+    const output2 = def2.transform(payload.value, payload);
     if (output2 instanceof Promise) {
       return output2.then((output3) => {
         payload.value = output3;
@@ -18383,9 +18383,9 @@ function transform(fn) {
     transform: fn
   });
 }
-var ZodOptional = /* @__PURE__ */ $constructor("ZodOptional", (inst, def) => {
-  $ZodOptional.init(inst, def);
-  ZodType.init(inst, def);
+var ZodOptional = /* @__PURE__ */ $constructor("ZodOptional", (inst, def2) => {
+  $ZodOptional.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => optionalProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18395,9 +18395,9 @@ function optional(innerType) {
     innerType
   });
 }
-var ZodExactOptional = /* @__PURE__ */ $constructor("ZodExactOptional", (inst, def) => {
-  $ZodExactOptional.init(inst, def);
-  ZodType.init(inst, def);
+var ZodExactOptional = /* @__PURE__ */ $constructor("ZodExactOptional", (inst, def2) => {
+  $ZodExactOptional.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => optionalProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18407,9 +18407,9 @@ function exactOptional(innerType) {
     innerType
   });
 }
-var ZodNullable = /* @__PURE__ */ $constructor("ZodNullable", (inst, def) => {
-  $ZodNullable.init(inst, def);
-  ZodType.init(inst, def);
+var ZodNullable = /* @__PURE__ */ $constructor("ZodNullable", (inst, def2) => {
+  $ZodNullable.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => nullableProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18422,9 +18422,9 @@ function nullable(innerType) {
 function nullish2(innerType) {
   return optional(nullable(innerType));
 }
-var ZodDefault = /* @__PURE__ */ $constructor("ZodDefault", (inst, def) => {
-  $ZodDefault.init(inst, def);
-  ZodType.init(inst, def);
+var ZodDefault = /* @__PURE__ */ $constructor("ZodDefault", (inst, def2) => {
+  $ZodDefault.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => defaultProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
   inst.removeDefault = inst.unwrap;
@@ -18438,9 +18438,9 @@ function _default2(innerType, defaultValue) {
     }
   });
 }
-var ZodPrefault = /* @__PURE__ */ $constructor("ZodPrefault", (inst, def) => {
-  $ZodPrefault.init(inst, def);
-  ZodType.init(inst, def);
+var ZodPrefault = /* @__PURE__ */ $constructor("ZodPrefault", (inst, def2) => {
+  $ZodPrefault.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => prefaultProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18453,9 +18453,9 @@ function prefault(innerType, defaultValue) {
     }
   });
 }
-var ZodNonOptional = /* @__PURE__ */ $constructor("ZodNonOptional", (inst, def) => {
-  $ZodNonOptional.init(inst, def);
-  ZodType.init(inst, def);
+var ZodNonOptional = /* @__PURE__ */ $constructor("ZodNonOptional", (inst, def2) => {
+  $ZodNonOptional.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => nonoptionalProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18466,9 +18466,9 @@ function nonoptional(innerType, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodSuccess = /* @__PURE__ */ $constructor("ZodSuccess", (inst, def) => {
-  $ZodSuccess.init(inst, def);
-  ZodType.init(inst, def);
+var ZodSuccess = /* @__PURE__ */ $constructor("ZodSuccess", (inst, def2) => {
+  $ZodSuccess.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => successProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18478,9 +18478,9 @@ function success(innerType) {
     innerType
   });
 }
-var ZodCatch = /* @__PURE__ */ $constructor("ZodCatch", (inst, def) => {
-  $ZodCatch.init(inst, def);
-  ZodType.init(inst, def);
+var ZodCatch = /* @__PURE__ */ $constructor("ZodCatch", (inst, def2) => {
+  $ZodCatch.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => catchProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
   inst.removeCatch = inst.unwrap;
@@ -18492,20 +18492,20 @@ function _catch2(innerType, catchValue) {
     catchValue: typeof catchValue === "function" ? catchValue : util_exports.constantCatch(catchValue)
   });
 }
-var ZodNaN = /* @__PURE__ */ $constructor("ZodNaN", (inst, def) => {
-  $ZodNaN.init(inst, def);
-  ZodType.init(inst, def);
+var ZodNaN = /* @__PURE__ */ $constructor("ZodNaN", (inst, def2) => {
+  $ZodNaN.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => nanProcessor(inst, ctx, json2, params);
 });
 function nan(params) {
   return _nan(ZodNaN, params);
 }
-var ZodPipe = /* @__PURE__ */ $constructor("ZodPipe", (inst, def) => {
-  $ZodPipe.init(inst, def);
-  ZodType.init(inst, def);
+var ZodPipe = /* @__PURE__ */ $constructor("ZodPipe", (inst, def2) => {
+  $ZodPipe.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => pipeProcessor(inst, ctx, json2, params);
-  inst.in = def.in;
-  inst.out = def.out;
+  inst.in = def2.in;
+  inst.out = def2.out;
 });
 function pipe(in_, out) {
   return new ZodPipe({
@@ -18515,9 +18515,9 @@ function pipe(in_, out) {
     // ...util.normalizeParams(params),
   });
 }
-var ZodCodec = /* @__PURE__ */ $constructor("ZodCodec", (inst, def) => {
-  ZodPipe.init(inst, def);
-  $ZodCodec.init(inst, def);
+var ZodCodec = /* @__PURE__ */ $constructor("ZodCodec", (inst, def2) => {
+  ZodPipe.init(inst, def2);
+  $ZodCodec.init(inst, def2);
 });
 function codec(in_, out, params) {
   return new ZodCodec({
@@ -18529,22 +18529,22 @@ function codec(in_, out, params) {
   });
 }
 function invertCodec(codec2) {
-  const def = codec2._zod.def;
+  const def2 = codec2._zod.def;
   return new ZodCodec({
     type: "pipe",
-    in: def.out,
-    out: def.in,
-    transform: def.reverseTransform,
-    reverseTransform: def.transform
+    in: def2.out,
+    out: def2.in,
+    transform: def2.reverseTransform,
+    reverseTransform: def2.transform
   });
 }
-var ZodPreprocess = /* @__PURE__ */ $constructor("ZodPreprocess", (inst, def) => {
-  ZodPipe.init(inst, def);
-  $ZodPreprocess.init(inst, def);
+var ZodPreprocess = /* @__PURE__ */ $constructor("ZodPreprocess", (inst, def2) => {
+  ZodPipe.init(inst, def2);
+  $ZodPreprocess.init(inst, def2);
 });
-var ZodReadonly = /* @__PURE__ */ $constructor("ZodReadonly", (inst, def) => {
-  $ZodReadonly.init(inst, def);
-  ZodType.init(inst, def);
+var ZodReadonly = /* @__PURE__ */ $constructor("ZodReadonly", (inst, def2) => {
+  $ZodReadonly.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => readonlyProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18554,9 +18554,9 @@ function readonly(innerType) {
     innerType
   });
 }
-var ZodTemplateLiteral = /* @__PURE__ */ $constructor("ZodTemplateLiteral", (inst, def) => {
-  $ZodTemplateLiteral.init(inst, def);
-  ZodType.init(inst, def);
+var ZodTemplateLiteral = /* @__PURE__ */ $constructor("ZodTemplateLiteral", (inst, def2) => {
+  $ZodTemplateLiteral.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => templateLiteralProcessor(inst, ctx, json2, params);
 });
 function templateLiteral(parts, params) {
@@ -18566,9 +18566,9 @@ function templateLiteral(parts, params) {
     ...util_exports.normalizeParams(params)
   });
 }
-var ZodLazy = /* @__PURE__ */ $constructor("ZodLazy", (inst, def) => {
-  $ZodLazy.init(inst, def);
-  ZodType.init(inst, def);
+var ZodLazy = /* @__PURE__ */ $constructor("ZodLazy", (inst, def2) => {
+  $ZodLazy.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => lazyProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.getter();
 });
@@ -18578,9 +18578,9 @@ function lazy(getter) {
     getter
   });
 }
-var ZodPromise = /* @__PURE__ */ $constructor("ZodPromise", (inst, def) => {
-  $ZodPromise.init(inst, def);
-  ZodType.init(inst, def);
+var ZodPromise = /* @__PURE__ */ $constructor("ZodPromise", (inst, def2) => {
+  $ZodPromise.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => promiseProcessor(inst, ctx, json2, params);
   inst.unwrap = () => inst._zod.def.innerType;
 });
@@ -18590,9 +18590,9 @@ function promise(innerType) {
     innerType
   });
 }
-var ZodFunction = /* @__PURE__ */ $constructor("ZodFunction", (inst, def) => {
-  $ZodFunction.init(inst, def);
-  ZodType.init(inst, def);
+var ZodFunction = /* @__PURE__ */ $constructor("ZodFunction", (inst, def2) => {
+  $ZodFunction.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => functionProcessor(inst, ctx, json2, params);
 });
 function _function(params) {
@@ -18602,9 +18602,9 @@ function _function(params) {
     output: params?.output ?? unknown()
   });
 }
-var ZodCustom = /* @__PURE__ */ $constructor("ZodCustom", (inst, def) => {
-  $ZodCustom.init(inst, def);
-  ZodType.init(inst, def);
+var ZodCustom = /* @__PURE__ */ $constructor("ZodCustom", (inst, def2) => {
+  $ZodCustom.init(inst, def2);
+  ZodType.init(inst, def2);
   inst._zod.processJSONSchema = (ctx, json2, params) => customProcessor(inst, ctx, json2, params);
 });
 function check(fn) {
@@ -18626,8 +18626,8 @@ function superRefine(fn, params) {
 }
 var describe2 = describe;
 var meta2 = meta;
-var ZodInstanceOf = /* @__PURE__ */ $constructor("ZodInstanceOf", (inst, def) => {
-  ZodCustom.init(inst, def);
+var ZodInstanceOf = /* @__PURE__ */ $constructor("ZodInstanceOf", (inst, def2) => {
+  ZodCustom.init(inst, def2);
 }, {
   properties(shape, params) {
     return this.check(_properties(shape, params));
@@ -19483,11 +19483,11 @@ function visit(schema, fnOrHandlers) {
     return mapped;
   }
   function mapInner(s) {
-    const def = s._zod.def;
-    const kind = def.type;
+    const def2 = s._zod.def;
+    const kind = def2.type;
     switch (kind) {
       case "object": {
-        const oldShape = def.shape;
+        const oldShape = def2.shape;
         const keys = Object.keys(oldShape);
         let changed = false;
         const newShape = {};
@@ -19497,20 +19497,20 @@ function visit(schema, fnOrHandlers) {
             changed = true;
           newShape[k] = mapped;
         }
-        let newCatchall = def.catchall;
-        if (def.catchall) {
-          newCatchall = run(def.catchall);
-          if (newCatchall !== def.catchall)
+        let newCatchall = def2.catchall;
+        if (def2.catchall) {
+          newCatchall = run(def2.catchall);
+          if (newCatchall !== def2.catchall)
             changed = true;
         }
-        return changed ? clone(s, { ...def, shape: newShape, catchall: newCatchall }) : s;
+        return changed ? clone(s, { ...def2, shape: newShape, catchall: newCatchall }) : s;
       }
       case "array": {
-        const mapped = run(def.element);
-        return mapped === def.element ? s : clone(s, { ...def, element: mapped });
+        const mapped = run(def2.element);
+        return mapped === def2.element ? s : clone(s, { ...def2, element: mapped });
       }
       case "tuple": {
-        const oldItems = def.items;
+        const oldItems = def2.items;
         let changed = false;
         const newItems = [];
         for (const item of oldItems) {
@@ -19519,26 +19519,26 @@ function visit(schema, fnOrHandlers) {
             changed = true;
           newItems.push(mapped);
         }
-        let newRest = def.rest;
-        if (def.rest) {
-          newRest = run(def.rest);
-          if (newRest !== def.rest)
+        let newRest = def2.rest;
+        if (def2.rest) {
+          newRest = run(def2.rest);
+          if (newRest !== def2.rest)
             changed = true;
         }
-        return changed ? clone(s, { ...def, items: newItems, rest: newRest }) : s;
+        return changed ? clone(s, { ...def2, items: newItems, rest: newRest }) : s;
       }
       case "record":
       case "map": {
-        const newKey = run(def.keyType);
-        const newVal = run(def.valueType);
-        return newKey === def.keyType && newVal === def.valueType ? s : clone(s, { ...def, keyType: newKey, valueType: newVal });
+        const newKey = run(def2.keyType);
+        const newVal = run(def2.valueType);
+        return newKey === def2.keyType && newVal === def2.valueType ? s : clone(s, { ...def2, keyType: newKey, valueType: newVal });
       }
       case "set": {
-        const newVal = run(def.valueType);
-        return newVal === def.valueType ? s : clone(s, { ...def, valueType: newVal });
+        const newVal = run(def2.valueType);
+        return newVal === def2.valueType ? s : clone(s, { ...def2, valueType: newVal });
       }
       case "union": {
-        const oldOptions = def.options;
+        const oldOptions = def2.options;
         let changed = false;
         const newOptions = [];
         for (const opt of oldOptions) {
@@ -19547,12 +19547,12 @@ function visit(schema, fnOrHandlers) {
             changed = true;
           newOptions.push(mapped);
         }
-        return changed ? clone(s, { ...def, options: newOptions }) : s;
+        return changed ? clone(s, { ...def2, options: newOptions }) : s;
       }
       case "intersection": {
-        const newLeft = run(def.left);
-        const newRight = run(def.right);
-        return newLeft === def.left && newRight === def.right ? s : clone(s, { ...def, left: newLeft, right: newRight });
+        const newLeft = run(def2.left);
+        const newRight = run(def2.right);
+        return newLeft === def2.left && newRight === def2.right ? s : clone(s, { ...def2, left: newLeft, right: newRight });
       }
       case "optional":
       case "nullable":
@@ -19563,22 +19563,22 @@ function visit(schema, fnOrHandlers) {
       case "nonoptional":
       case "promise":
       case "success": {
-        const newInner = run(def.innerType);
-        return newInner === def.innerType ? s : clone(s, { ...def, innerType: newInner });
+        const newInner = run(def2.innerType);
+        return newInner === def2.innerType ? s : clone(s, { ...def2, innerType: newInner });
       }
       case "pipe": {
-        const newIn = run(def.in);
-        const newOut = run(def.out);
-        return newIn === def.in && newOut === def.out ? s : clone(s, { ...def, in: newIn, out: newOut });
+        const newIn = run(def2.in);
+        const newOut = run(def2.out);
+        return newIn === def2.in && newOut === def2.out ? s : clone(s, { ...def2, in: newIn, out: newOut });
       }
       case "function": {
-        const newInput = run(def.input);
-        const newOutput = run(def.output);
-        return newInput === def.input && newOutput === def.output ? s : clone(s, { ...def, input: newInput, output: newOutput });
+        const newInput = run(def2.input);
+        const newOutput = run(def2.output);
+        return newInput === def2.input && newOutput === def2.output ? s : clone(s, { ...def2, input: newInput, output: newOutput });
       }
       case "lazy": {
-        const original = def.getter;
-        const { _cachedInner, ...rest } = def;
+        const original = def2.getter;
+        const { _cachedInner, ...rest } = def2;
         return clone(s, { ...rest, getter: () => run(original()) });
       }
       // A leaf by choice: `parts` are regex fragments, not data positions.
@@ -19619,8 +19619,8 @@ function deepPartial(schema) {
     object: (s) => s.partial(),
     // Every partialed option now admits `undefined`, which the constructor rejects as a duplicate.
     union: (s) => {
-      const def = s._zod.def;
-      return def.discriminator === void 0 ? s : union(def.options);
+      const def2 = s._zod.def;
+      return def2.discriminator === void 0 ? s : union(def2.options);
     }
   });
 }
@@ -19629,14 +19629,14 @@ function deepPartial(schema) {
 function withChecks(side, checks) {
   if (!checks?.length)
     return side;
-  const def = side._zod.def;
-  return clone(side, mergeDefs(def, { checks: [...def.checks ?? [], ...checks] }), { parent: true });
+  const def2 = side._zod.def;
+  return clone(side, mergeDefs(def2, { checks: [...def2.checks ?? [], ...checks] }), { parent: true });
 }
-function outSide(def) {
-  return withChecks(def.out, def.checks);
+function outSide(def2) {
+  return withChecks(def2.out, def2.checks);
 }
-function inSide(def) {
-  return def.in._zod.traits.has("$ZodTransform") ? outSide(def) : def.in;
+function inSide(def2) {
+  return def2.in._zod.traits.has("$ZodTransform") ? outSide(def2) : def2.in;
 }
 function input(schema) {
   return visit(schema, {
@@ -19680,7 +19680,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/constants.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/constants.js
 var COMPANY_STATUSES = ["active", "paused", "archived"];
 var DEPLOYMENT_MODES = ["local_trusted", "authenticated"];
 var DEPLOYMENT_EXPOSURES = ["private", "public"];
@@ -19726,7 +19726,6 @@ var AGENT_ROLES = [
   "researcher",
   "general"
 ];
-var MODEL_PROFILE_KEYS = ["cheap"];
 var AGENT_ICON_NAMES = [
   "bot",
   "cpu",
@@ -19864,7 +19863,8 @@ var ISSUE_THREAD_INTERACTION_KINDS = [
   "ask_user_questions",
   "request_confirmation",
   "request_checkbox_confirmation",
-  "request_item_verdicts"
+  "request_item_verdicts",
+  "connection_intent"
 ];
 var ISSUE_THREAD_INTERACTION_CANONICAL_RESOLVER_POLICIES = [
   "anyone",
@@ -20174,7 +20174,7 @@ var PERMISSION_KEYS = [
   "pipelines:write",
   "joins:approve"
 ];
-var TOOL_APPLICATION_TYPES = ["mcp_http", "mcp_stdio", "paperclip_plugin", "a2a"];
+var TOOL_APPLICATION_TYPES = ["mcp_http", "mcp_stdio", "paperclip_plugin", "a2a", "chat"];
 var TOOL_APPLICATION_STATUSES = ["draft", "active", "disabled", "archived"];
 var TOOL_CONNECTION_KINDS = ["managed"];
 var TOOL_CONNECTION_HEALTH_STATUSES = [
@@ -20216,7 +20216,14 @@ var TOOL_MCP_GATEWAY_CONTEXT_SCOPE_TYPES = [
   "agent"
 ];
 var TOOL_MCP_GATEWAY_TOKEN_SUBJECT_TYPES = ["gateway_client", "heartbeat_run", "board_user", "agent"];
-var TOOL_MCP_GATEWAY_TOKEN_ACTIONS = ["tools/list", "tools/call"];
+var TOOL_MCP_GATEWAY_TOKEN_ACTIONS = [
+  "tools/list",
+  "tools/call",
+  "resources/list",
+  "resources/read",
+  "prompts/list",
+  "prompts/get"
+];
 var CONNECTION_TOKEN_ISSUANCE_PATHS = ["exchange", "oauth_access", "static"];
 var TOOL_POLICY_TYPES = [
   "allow",
@@ -20520,14 +20527,107 @@ var PLUGIN_STATE_SCOPE_KINDS = [
   "run"
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/adapter-type.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/adapter-type.js
 var agentAdapterTypeSchema = external_exports.string().trim().min(1).default("process").describe(`Known built-in adapters: ${AGENT_ADAPTER_TYPES.join(", ")}. External adapters may register additional non-empty string types at runtime.`);
 var optionalAgentAdapterTypeSchema = external_exports.string().trim().min(1).optional();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/native-finalization.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/runner-goal.js
+var RUNNER_GOAL_MAX_OBJECTIVE_CHARS = 4e3;
+var runnerGoalAvailabilitySchema = external_exports.enum([
+  "available",
+  "unsupported",
+  "policy_disabled"
+]);
+var runnerGoalCapabilityActionSchema = external_exports.enum(["set", "pause", "resume", "clear"]);
+var runnerGoalStatusSchema = external_exports.enum([
+  "active",
+  "paused",
+  "blocked",
+  "limited",
+  "usage_limited",
+  "budget_limited",
+  "complete"
+]);
+var runnerGoalActionSchema = external_exports.enum([
+  "create",
+  "edit",
+  "replace",
+  "pause",
+  "resume",
+  "clear"
+]);
+var runnerGoalPendingActionSchema = external_exports.enum([
+  "starting",
+  "editing",
+  "replacing",
+  "pausing",
+  "resuming",
+  "clearing",
+  "continuing"
+]);
+var objectiveSchema = external_exports.string().trim().min(1).max(RUNNER_GOAL_MAX_OBJECTIVE_CHARS);
+var runnerGoalActionRequestSchema = external_exports.object({
+  requestId: external_exports.string().trim().min(1).max(160),
+  agentId: external_exports.string().uuid(),
+  expectedRevision: external_exports.number().int().nonnegative(),
+  action: runnerGoalActionSchema,
+  objective: objectiveSchema.optional(),
+  tokenBudget: external_exports.number().int().positive().nullable().optional(),
+  confirmReplace: external_exports.boolean().optional()
+}).superRefine((value, context) => {
+  const objectiveAction = value.action === "create" || value.action === "edit" || value.action === "replace";
+  if (objectiveAction && value.objective === void 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["objective"],
+      message: `${value.action} requires a nonblank objective`
+    });
+  }
+  if (!objectiveAction && (value.objective !== void 0 || value.tokenBudget !== void 0)) {
+    context.addIssue({
+      code: "custom",
+      path: [value.objective !== void 0 ? "objective" : "tokenBudget"],
+      message: `${value.action} does not accept an objective or token budget`
+    });
+  }
+  if (value.action === "replace" && value.confirmReplace !== true) {
+    context.addIssue({
+      code: "custom",
+      path: ["confirmReplace"],
+      message: "replace requires explicit confirmation"
+    });
+  }
+});
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/connection-intent-guidance.js
+var CONNECTION_INTENT_AGENT_GUIDANCE = [
+  "Connection tools:",
+  "- When work requires a known external service and usable access is uncertain, call `connections_search` with the service name or capability.",
+  "- This applies both when the user explicitly asks to connect a service and when the requested work implicitly depends on that service.",
+  "- If search returns `ready`, use the installed connection; do not create a connection intent.",
+  "- If search returns `available` or `needs_user_action`, call `connection_request` with the returned service identifier.",
+  "- When the user has already asked to connect a known service, use the real connection request. Do not ask whether to connect again or imitate the Connect / Not now card with `ask_user_questions`, a generic confirmation, or a comment. Only `connection_request` creates the actual connection setup card.",
+  "- If search returns `unavailable`, explain that the service is unavailable and do not call `connection_request`.",
+  "- If `connection_request` returns `needs_user_action`, finish any independent work, then yield in a waiting posture. Do not retry the request, ask for credentials in comments, or claim access.",
+  "- Do not use connection tools for arbitrary MCP URLs, unsupported services, or work that does not require an external service.",
+  "- Keep an existing pending card across messages. Do not request again after the user declines unless they explicitly ask to retry.",
+  "- On a continuation run after connection setup, use the newly installed connection instead of requesting it again."
+].join("\n");
+var CONNECTIONS_SEARCH_TOOL_DESCRIPTION = [
+  "Search Paperclip's catalog services and authorized configured custom connections and report this run's agent-relative access state.",
+  "Use it when work requires a known external service and usable access is uncertain; do not use it for arbitrary MCP URLs or unrelated work.",
+  "If the user already asked to connect the service, search and request it through the connection tools instead of asking a generic confirmation question."
+].join(" ");
+var CONNECTION_REQUEST_TOOL_DESCRIPTION = [
+  "Request access to a known connectable service for this run's agent from the responsible user.",
+  "This creates the real Connect / Not now setup card. When the user already asked to connect, use this tool; do not recreate those choices with ask_user_questions, request_confirmation, or a comment. A generic question does not start connection setup.",
+  "Call it only with the service identifier returned as available or needs_user_action by connections_search; if user action is needed, finish independent work, then yield without retrying or asking for credentials in comments."
+].join(" ");
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/native-finalization.js
 var NATIVE_FINALIZATION_SCHEMA = "paperclip.native-finalization.v1";
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/native-finalization.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/native-finalization.js
 var nativeFinalizationResultV1Schema = external_exports.object({
   schema: external_exports.literal(NATIVE_FINALIZATION_SCHEMA),
   runtimeMode: external_exports.literal("native"),
@@ -20558,7 +20658,7 @@ var nativeReportedWorkDispositionSchema = external_exports.enum([
   "yielded"
 ]);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/decision.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/decision.js
 var decisionEffectStalenessSchema = external_exports.enum(["strict", "lenient"]);
 var decisionOptionStyleSchema = external_exports.enum(["default", "primary", "destructive"]);
 var decisionEffectBaseShape = {
@@ -20687,7 +20787,21 @@ var decisionSpecSchema = external_exports.object({
   inputs: decisionInputsSchema.nullable().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/connection-intent.js
+var connectionsSearchInputSchema = external_exports.object({
+  query: external_exports.string().trim().max(200).default("")
+}).strict();
+var connectionRequestInputSchema = external_exports.object({
+  service: external_exports.string().trim().min(1).max(120)
+}).strict();
+var completeConnectionIntentSchema = external_exports.object({
+  connectionId: external_exports.string().guid()
+}).strict();
+var declineConnectionIntentSchema = external_exports.object({
+  reason: external_exports.string().trim().max(4e3).optional()
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
 var workspaceFileListSearchMaxBytes = 128;
 function utf8ByteLength(value) {
   return new TextEncoder().encode(value).length;
@@ -20792,7 +20906,7 @@ var workspaceFileContentSchema = external_exports.object({
   })
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/partial.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/partial.js
 function fieldWithoutDefault(field2) {
   if (field2 instanceof external_exports.ZodDefault) {
     return fieldWithoutDefault(field2.unwrap());
@@ -20815,7 +20929,7 @@ function objectWithoutDefaults(schema) {
   return external_exports.object(shapeWithoutDefaults(schema.shape));
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/work-product.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/work-product.js
 function attachmentContentPath(attachmentId) {
   return `/api/attachments/${attachmentId}/content`;
 }
@@ -20899,7 +21013,7 @@ var createIssueWorkProductSchema = external_exports.object({
 });
 var updateIssueWorkProductSchema = objectWithoutDefaults(createIssueWorkProductSchema).partial();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/markdown-work-products.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/markdown-work-products.js
 var MARKDOWN_ATTACHMENT_CONTENT_TYPES = [
   "text/markdown",
   "text/x-markdown",
@@ -20909,13 +21023,14 @@ var MARKDOWN_ATTACHMENT_CONTENT_TYPES = [
 var MARKDOWN_ATTACHMENT_CONTENT_TYPE_SET = new Set(MARKDOWN_ATTACHMENT_CONTENT_TYPES);
 var MARKDOWN_REVIEW_DOCUMENT_MAX_BYTES = 512 * 1024;
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/attention.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/attention.js
 var ATTENTION_SOURCE_KINDS = [
   "approval",
   "decision",
   "issue_thread_interaction",
   "join_request",
   "recovery_action",
+  // Legacy persisted decision sources remain readable; no feed items are generated.
   "productivity_review",
   "blocker_attention",
   "review",
@@ -20924,7 +21039,7 @@ var ATTENTION_SOURCE_KINDS = [
   "agent_error_alert"
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/decision-queue.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/decision-queue.js
 var decisionAttentionSourceKindSchema = external_exports.enum(ATTENTION_SOURCE_KINDS);
 var decisionQueueKeySchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Queue key must be URL-safe lowercase kebab-case");
 var createDecisionQueueSchema = external_exports.object({
@@ -20979,7 +21094,7 @@ var createDecisionArchiveProposalSchema = external_exports.object({
   });
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/frontmatter.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/frontmatter.js
 var SKILL_FRONTMATTER_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 var skillMetadataValueSchema = external_exports.lazy(() => external_exports.union([
   external_exports.string(),
@@ -20996,13 +21111,64 @@ var skillFrontmatterSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), skillMetadataValueSchema).optional()
 }).passthrough();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/trust-policy.js
 var TRUST_PRESETS = ["standard", "low_trust_review"];
 var LOW_TRUST_REVIEW_PRESET = "low_trust_review";
 var LOW_TRUST_REVIEW_PRESET_VERSION = 1;
 var LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION = "quarantine";
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/zapier.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/agentmail.json
+var agentmail_default = {
+  schemaVersion: 1,
+  slug: "agentmail",
+  name: "AgentMail",
+  description: "Give agents email inboxes and handle each conversation as a task.",
+  categories: [
+    "communication"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/agentmail.svg"
+  },
+  urlPatterns: [
+    "https://console.agentmail.to/*"
+  ],
+  methods: [
+    {
+      key: "email-agent",
+      label: "Email with an agent",
+      purpose: "channel",
+      provider: "agentmail",
+      transport: "rest_api",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Assign an inbox to an agent and manage email conversations in tasks.",
+      credentialFields: [
+        {
+          key: "apiKey",
+          label: "AgentMail API key",
+          type: "password",
+          placeholder: "am_\u2026",
+          required: true,
+          secret: true
+        }
+      ],
+      guidanceMd: "Connect an AgentMail API key, then create or select an inbox for your agent. WebSocket receiving works without a public URL.",
+      consoleLinks: {
+        keys: "https://console.agentmail.to",
+        docs: "https://docs.agentmail.to/inboxes"
+      },
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "inbox"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/zapier.json
 var zapier_default = {
   schemaVersion: 1,
   slug: "zapier",
@@ -21013,61 +21179,77 @@ var zapier_default = {
   ],
   featured: true,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=zapier.com&sz=128"
+    logoUrl: "/brands/apps/zapier.svg"
   },
   urlPatterns: [
     "https://mcp.zapier.com/*"
   ],
   methods: [
     {
-      key: "mcp-key",
+      key: "generated-url",
       transport: "mcp_remote",
-      auth: "api_key",
+      auth: "none",
       ownershipModes: [
         "customer"
       ],
-      whenToUse: "Use the provider-hosted connection for the quickest setup.",
-      defaults: {
-        serverUrl: "https://mcp.zapier.com/api/mcp"
-      },
-      guidanceMd: "Create a Zapier MCP connection, then paste its token here.",
+      whenToUse: "Use the complete provider-generated MCP URL from Zapier.",
+      defaults: {},
+      guidanceMd: "Create a Zapier MCP server, then paste the complete generated connection URL. The token remains embedded in that URL.",
       riskTier: "S3",
-      credentialFields: [
-        {
-          key: "authorization",
-          label: "Zapier MCP token",
-          type: "password",
-          required: true,
-          placeholder: "Paste your Zapier token",
-          secret: true
-        }
-      ],
-      keyPlacement: {
-        location: "header",
-        name: "Authorization",
-        prefix: "Bearer "
-      }
+      label: "Paste generated MCP URL"
     }
-  ]
+  ],
+  docsUrl: "https://docs.zapier.com/mcp/quickstart"
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/github.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/github.json
 var github_default = {
   schemaVersion: 1,
   slug: "github",
   name: "GitHub",
-  description: "Read code and pull requests, and coordinate repository work.",
+  description: "Give agents repository tools or let people work with an agent from GitHub issues and pull requests.",
   categories: [
     "developer"
   ],
   featured: true,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=github.com&sz=128"
+    logoUrl: "/brands/apps/github.svg",
+    darkLogoUrl: "/brands/apps/github-dark.svg"
   },
   urlPatterns: [
-    "https://api.githubcopilot.com/mcp/*"
+    "https://api.githubcopilot.com/mcp/*",
+    "https://github.com/*"
   ],
   methods: [
+    {
+      key: "managed",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Connect your GitHub account for durable MCP, shell Git, gh, and repository access.",
+      defaults: {
+        serverUrl: "https://api.githubcopilot.com/mcp/"
+      },
+      guidanceMd: "Authorize Paperclip, then choose selected repositories in GitHub. You can edit repository access later from GitHub's installation settings.",
+      riskTier: "S3",
+      label: "Use this connection as an agent tool",
+      purpose: "tool",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "github.code",
+      grantKinds: [
+        "user",
+        "agent"
+      ],
+      warnings: [
+        "Shell Git and gh receive this identity for the run and are not constrained by per-tool Ask-first controls."
+      ],
+      requiredResourceFilters: [
+        "organization",
+        "repository"
+      ]
+    },
     {
       key: "mcp-key",
       transport: "mcp_remote",
@@ -21081,6 +21263,8 @@ var github_default = {
       },
       guidanceMd: "Create a fine-grained token limited to the repositories agents should use.",
       riskTier: "S3",
+      label: "Personal access token (advanced)",
+      purpose: "tool",
       credentialFields: [
         {
           key: "authorization",
@@ -21100,25 +21284,66 @@ var github_default = {
         "organization",
         "repository"
       ]
+    },
+    {
+      key: "chat-agent",
+      label: "Chat with an agent",
+      purpose: "channel",
+      provider: "github",
+      transport: "chat_sdk",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Let people in GitHub start and continue work with one Paperclip agent.",
+      credentialFields: [
+        {
+          key: "appId",
+          label: "GitHub App ID",
+          type: "text",
+          required: true,
+          placeholder: "123456",
+          secret: false
+        },
+        {
+          key: "privateKey",
+          label: "Private key (PEM)",
+          type: "textarea",
+          required: true,
+          placeholder: "-----BEGIN RSA PRIVATE KEY-----",
+          secret: true
+        }
+      ],
+      guidanceMd: "Generate the webhook secret in Paperclip, then create one private GitHub App with active SSL-verified webhooks, Issues and Pull requests read/write permission, and the selectable issue_comment and pull_request_review_comment events. GitHub sends installation and installation_repositories automatically. Install the App only on repositories where people may mention the agent.",
+      consoleLinks: {
+        register: "https://github.com/settings/apps/new",
+        docs: "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app"
+      },
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "organization",
+        "repository"
+      ]
     }
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/slack.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/slack.json
 var slack_default = {
   schemaVersion: 1,
   slug: "slack",
   name: "Slack",
-  description: "Search channels and coordinate team communication.",
+  description: "Give agents Slack tools or let people start and continue Paperclip work from Slack.",
   categories: [
     "communication"
   ],
   featured: true,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=slack.com&sz=128"
+    logoUrl: "/brands/apps/slack.svg"
   },
   urlPatterns: [
-    "https://mcp.slack.com/*"
+    "https://mcp.slack.com/*",
+    "https://app.slack.com/client/*"
   ],
   methods: [
     {
@@ -21126,8 +21351,7 @@ var slack_default = {
       transport: "mcp_remote",
       auth: "oauth",
       ownershipModes: [
-        "customer",
-        "dcr"
+        "customer"
       ],
       whenToUse: "Use the provider-hosted connection for the quickest setup.",
       defaults: {
@@ -21142,6 +21366,48 @@ var slack_default = {
       },
       guidanceMd: "Connect a Slack workspace and limit access to the channels agents need.",
       riskTier: "S3",
+      label: "Use this connection as an agent tool",
+      purpose: "tool",
+      requiredResourceFilters: [
+        "workspace",
+        "channel"
+      ]
+    },
+    {
+      key: "chat-agent",
+      label: "Chat with an agent",
+      purpose: "channel",
+      provider: "slack",
+      transport: "chat_sdk",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Let people in Slack start and continue work with one Paperclip agent.",
+      credentialFields: [
+        {
+          key: "botToken",
+          label: "Bot User OAuth Token",
+          type: "password",
+          required: true,
+          placeholder: "xoxb-...",
+          secret: true
+        },
+        {
+          key: "signingSecret",
+          label: "Signing Secret",
+          type: "password",
+          required: true,
+          placeholder: "Paste the Slack App signing secret",
+          secret: true
+        }
+      ],
+      guidanceMd: "Create and install one Slack App for this agent. Paperclip receives verified Events API requests and interactive callbacks, acknowledges with reactions, responds in direct messages, and starts one Paperclip task per new mentioned channel thread.",
+      consoleLinks: {
+        register: "https://api.slack.com/apps",
+        docs: "https://api.slack.com/start/quickstart"
+      },
+      riskTier: "S3",
       requiredResourceFilters: [
         "workspace",
         "channel"
@@ -21150,7 +21416,251 @@ var slack_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/notion.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/microsoft-teams.json
+var microsoft_teams_default = {
+  schemaVersion: 1,
+  slug: "microsoft-teams",
+  name: "Microsoft Teams",
+  description: "Let people start and continue Paperclip work with an agent from Microsoft Teams.",
+  categories: [
+    "communication"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/microsoft-teams.svg"
+  },
+  urlPatterns: [
+    "https://teams.microsoft.com/*"
+  ],
+  methods: [
+    {
+      key: "chat-agent",
+      label: "Chat with an agent",
+      purpose: "channel",
+      provider: "microsoft-teams",
+      transport: "chat_sdk",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Let people in Microsoft Teams start and continue work with one Paperclip agent.",
+      credentialFields: [
+        {
+          key: "clientId",
+          label: "Application / Client ID",
+          type: "text",
+          required: true,
+          placeholder: "00000000-0000-0000-0000-000000000000",
+          secret: false
+        },
+        {
+          key: "tenantId",
+          label: "Directory / Tenant ID",
+          type: "text",
+          required: true,
+          placeholder: "00000000-0000-0000-0000-000000000000",
+          secret: false
+        },
+        {
+          key: "clientSecret",
+          label: "Client secret",
+          type: "password",
+          required: true,
+          placeholder: "Paste the client-secret value",
+          secret: true
+        }
+      ],
+      guidanceMd: "Use a Microsoft 365 work or school organization where you can register an Entra app, create a single-tenant Azure Bot, and upload or install a Teams app. Personal or free Teams accounts at teams.live.com cannot complete this setup. Enable personal, team, and groupChat bot scopes and the ChannelMessage.Read.Group and ChatMessage.Read.Chat resource-specific application permissions. Those RSC grants let an installed app receive every message in a team or group chat without an @mention, so explain that access to installers. One team install covers its standard channels; private and shared channels require a separate installation and are not supported by this release.",
+      consoleLinks: {
+        register: "https://dev.teams.microsoft.com/apps",
+        docs: "https://learn.microsoft.com/en-us/microsoftteams/platform/bots/how-to/create-a-bot-for-teams"
+      },
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "team",
+        "channel",
+        "chat"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/imessage-photon.json
+var imessage_photon_default = {
+  schemaVersion: 1,
+  slug: "imessage-photon",
+  name: "iMessage Photon",
+  description: "Message a Paperclip agent from Apple Messages using Photon Cloud. Pro supports DMs; dedicated lines also support groups.",
+  categories: [
+    "communication"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/imessage-photon.png"
+  },
+  urlPatterns: [
+    "https://photon.codes/*"
+  ],
+  methods: [
+    {
+      key: "chat-agent",
+      label: "Chat with an agent",
+      purpose: "channel",
+      provider: "imessage-photon",
+      transport: "chat_sdk",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Let people in iMessage Photon start and continue work with one Paperclip agent.",
+      credentialFields: [
+        {
+          key: "projectSecret",
+          label: "Project secret",
+          type: "password",
+          required: true,
+          placeholder: "Photon project secret",
+          secret: true
+        }
+      ],
+      guidanceMd: "Connect a Photon Cloud project. Pro shared lines support DMs after sender enrollment in Photon and identity linking in Paperclip. Dedicated lines also support individually enabled groups.",
+      consoleLinks: {
+        register: "https://photon.codes/",
+        docs: "https://photon.codes/docs/spectrum-ts/providers/imessage/connection-and-routing"
+      },
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "direct_message",
+        "group_chat"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/telegram.json
+var telegram_default = {
+  schemaVersion: 1,
+  slug: "telegram",
+  name: "Telegram",
+  description: "Let people start and continue Paperclip work with an agent from Telegram.",
+  categories: [
+    "communication"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/telegram.svg"
+  },
+  urlPatterns: [
+    "https://t.me/*",
+    "https://telegram.me/*",
+    "https://api.telegram.org/*"
+  ],
+  methods: [
+    {
+      key: "chat-agent",
+      label: "Chat with an agent",
+      purpose: "channel",
+      provider: "telegram",
+      transport: "chat_sdk",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Let people in Telegram start and continue work with one Paperclip agent.",
+      credentialFields: [
+        {
+          key: "botToken",
+          label: "Bot token",
+          type: "password",
+          required: true,
+          placeholder: "123456789:AA...",
+          secret: true
+        }
+      ],
+      guidanceMd: "Create one dedicated bot with BotFather, then connect its token to the public Paperclip webhook endpoint.",
+      consoleLinks: {
+        register: "https://t.me/BotFather",
+        docs: "https://core.telegram.org/bots/tutorial"
+      },
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "chat",
+        "group",
+        "topic"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/discord.json
+var discord_default = {
+  schemaVersion: 1,
+  slug: "discord",
+  name: "Discord",
+  description: "Let people start and continue Paperclip work with an agent from Discord.",
+  categories: [
+    "communication"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/discord.svg",
+    darkLogoUrl: "/brands/apps/discord-dark.svg"
+  },
+  urlPatterns: [
+    "https://discord.com/*"
+  ],
+  methods: [
+    {
+      key: "chat-agent",
+      label: "Chat with an agent",
+      purpose: "channel",
+      provider: "discord",
+      transport: "chat_sdk",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Let people in Discord start and continue work with one Paperclip agent.",
+      credentialFields: [
+        {
+          key: "botToken",
+          label: "Bot token",
+          type: "password",
+          required: true,
+          placeholder: "Paste the Discord bot token",
+          secret: true
+        },
+        {
+          key: "applicationId",
+          label: "Application ID",
+          type: "text",
+          required: true,
+          placeholder: "123456789012345678",
+          secret: false
+        },
+        {
+          key: "guildId",
+          label: "Server ID",
+          type: "text",
+          required: true,
+          placeholder: "123456789012345678",
+          secret: false
+        }
+      ],
+      guidanceMd: "Create one dedicated Discord application and bot, enable the Message Content intent, install it in one server with the documented bot permissions, then connect its bot token, Application ID, and server ID. Paperclip starts one Discord thread per root bot mention and keeps the linked Paperclip task authoritative.",
+      consoleLinks: {
+        register: "https://discord.com/developers/applications",
+        docs: "https://discord.com/developers/docs/quick-start/getting-started"
+      },
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "channel"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/notion.json
 var notion_default = {
   schemaVersion: 1,
   slug: "notion",
@@ -21161,7 +21671,7 @@ var notion_default = {
   ],
   featured: true,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=notion.so&sz=128"
+    logoUrl: "/brands/apps/notion.svg"
   },
   urlPatterns: [
     "https://mcp.notion.com/*"
@@ -21185,13 +21695,311 @@ var notion_default = {
         "workspace",
         "page",
         "database"
-      ]
+      ],
+      credentialSources: {
+        vercelConnect: {
+          services: [
+            "notion"
+          ],
+          principalModes: [
+            "user"
+          ],
+          scopes: [
+            "*"
+          ],
+          header: {
+            name: "Authorization",
+            prefix: "Bearer "
+          }
+        }
+      }
     }
   ],
+  redirectConstraints: "https-or-loopback-http",
+  docsUrl: "https://developers.notion.com/guides/mcp/build-mcp-client"
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/posthog.json
+var posthog_default = {
+  schemaVersion: 1,
+  slug: "posthog",
+  name: "PostHog",
+  description: "Analyze product usage, errors, feature flags, and experiments with PostHog's hosted MCP server.",
+  categories: [
+    "analytics"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/posthog.svg",
+    darkLogoUrl: "/brands/apps/posthog-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.posthog.com/*"
+  ],
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer",
+        "dcr"
+      ],
+      whenToUse: "Sign in with PostHog in the browser. Recommended for hosted PostHog accounts.",
+      defaults: {
+        serverUrl: "https://mcp.posthog.com/mcp"
+      },
+      guidanceMd: "Connect with PostHog's recommended defaults. Project pinning, read-only access, and catalog filters are optional advanced controls.",
+      riskTier: "S3",
+      tenantFields: [
+        {
+          key: "projectId",
+          label: "Pin to project ID",
+          type: "text",
+          advanced: true,
+          placeholder: "Optional numeric project ID",
+          helperMd: "Optional. Pin this connection to one project and remove PostHog's project-switching tool.",
+          validation: {
+            pattern: "^[0-9]+$",
+            maxLength: 32
+          },
+          transport: {
+            location: "header",
+            name: "x-posthog-project-id"
+          }
+        },
+        {
+          key: "readOnly",
+          label: "Read-only mode",
+          type: "checkbox",
+          advanced: true,
+          defaultValue: false,
+          helperMd: "Turn on to hide tools that can change PostHog data.",
+          transport: {
+            location: "query",
+            name: "readonly",
+            format: "boolean",
+            omitFalse: true
+          }
+        },
+        {
+          key: "features",
+          label: "Feature groups",
+          type: "textarea",
+          advanced: true,
+          placeholder: "Optional comma-separated feature groups",
+          helperMd: "Leave blank to expose every feature group, or enter a comma-separated list to narrow access.",
+          validation: {
+            maxLength: 500
+          },
+          transport: {
+            location: "query",
+            name: "features",
+            format: "csv"
+          }
+        },
+        {
+          key: "tools",
+          label: "Individual tools",
+          type: "textarea",
+          advanced: true,
+          placeholder: "Optional comma-separated tool names",
+          helperMd: "Leave blank to expose all tools. Exact names here are combined with any feature groups.",
+          validation: {
+            maxLength: 2e3
+          },
+          transport: {
+            location: "query",
+            name: "tools",
+            format: "csv"
+          }
+        },
+        {
+          key: "mode",
+          label: "Tool response mode",
+          type: "select",
+          hidden: true,
+          required: true,
+          placeholder: "Individual tools",
+          defaultValue: "tools",
+          options: [
+            {
+              value: "tools",
+              label: "Individual tools"
+            }
+          ],
+          helperMd: "Paperclip uses individual tools so every action can be governed. CLI mode remains unavailable until nested execution is governed.",
+          transport: {
+            location: "query",
+            name: "mode"
+          }
+        }
+      ],
+      label: "Sign in with PostHog",
+      consoleLinks: {
+        docs: "https://posthog.com/docs/model-context-protocol"
+      },
+      credentialSources: {
+        vercelConnect: {
+          services: [
+            "posthog",
+            "mcp.posthog.com/mcp"
+          ],
+          principalModes: [
+            "user"
+          ],
+          scopes: [
+            "*"
+          ],
+          header: {
+            name: "Authorization",
+            prefix: "Bearer "
+          }
+        }
+      }
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a PostHog personal API key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.posthog.com/mcp"
+      },
+      guidanceMd: "Connect with PostHog's recommended defaults. Project pinning, read-only access, and catalog filters are optional advanced controls.",
+      riskTier: "S3",
+      tenantFields: [
+        {
+          key: "projectId",
+          label: "Pin to project ID",
+          type: "text",
+          advanced: true,
+          placeholder: "Optional numeric project ID",
+          helperMd: "Optional. Pin this connection to one project and remove PostHog's project-switching tool.",
+          validation: {
+            pattern: "^[0-9]+$",
+            maxLength: 32
+          },
+          transport: {
+            location: "header",
+            name: "x-posthog-project-id"
+          }
+        },
+        {
+          key: "readOnly",
+          label: "Read-only mode",
+          type: "checkbox",
+          advanced: true,
+          defaultValue: false,
+          helperMd: "Turn on to hide tools that can change PostHog data.",
+          transport: {
+            location: "query",
+            name: "readonly",
+            format: "boolean",
+            omitFalse: true
+          }
+        },
+        {
+          key: "features",
+          label: "Feature groups",
+          type: "textarea",
+          advanced: true,
+          placeholder: "Optional comma-separated feature groups",
+          helperMd: "Leave blank to expose every feature group, or enter a comma-separated list to narrow access.",
+          validation: {
+            maxLength: 500
+          },
+          transport: {
+            location: "query",
+            name: "features",
+            format: "csv"
+          }
+        },
+        {
+          key: "tools",
+          label: "Individual tools",
+          type: "textarea",
+          advanced: true,
+          placeholder: "Optional comma-separated tool names",
+          helperMd: "Leave blank to expose all tools. Exact names here are combined with any feature groups.",
+          validation: {
+            maxLength: 2e3
+          },
+          transport: {
+            location: "query",
+            name: "tools",
+            format: "csv"
+          }
+        },
+        {
+          key: "mode",
+          label: "Tool response mode",
+          type: "select",
+          hidden: true,
+          required: true,
+          placeholder: "Individual tools",
+          defaultValue: "tools",
+          options: [
+            {
+              value: "tools",
+              label: "Individual tools"
+            }
+          ],
+          helperMd: "Paperclip uses individual tools so every action can be governed. CLI mode remains unavailable until nested execution is governed.",
+          transport: {
+            location: "query",
+            name: "mode"
+          }
+        }
+      ],
+      label: "Use a personal API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "PostHog personal API key",
+          type: "password",
+          required: true,
+          placeholder: "phx_...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://posthog.com/docs/model-context-protocol/faq",
+        docs: "https://posthog.com/docs/model-context-protocol/faq"
+      },
+      credentialSources: {
+        vercelConnect: {
+          services: [
+            "posthog",
+            "mcp.posthog.com/mcp"
+          ],
+          principalModes: [
+            "app"
+          ],
+          scopes: [
+            "*"
+          ],
+          header: {
+            name: "Authorization",
+            prefix: "Bearer "
+          }
+        }
+      }
+    }
+  ],
+  docsUrl: "https://posthog.com/docs/model-context-protocol",
   redirectConstraints: "https-or-loopback-http"
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/linear.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/linear.json
 var linear_default = {
   schemaVersion: 1,
   slug: "linear",
@@ -21202,7 +22010,8 @@ var linear_default = {
   ],
   featured: true,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=linear.app&sz=128"
+    logoUrl: "/brands/apps/linear.svg",
+    darkLogoUrl: "/brands/apps/linear-dark.svg"
   },
   urlPatterns: [
     "https://mcp.linear.app/*"
@@ -21213,8 +22022,7 @@ var linear_default = {
       transport: "mcp_remote",
       auth: "oauth",
       ownershipModes: [
-        "customer",
-        "dcr"
+        "customer"
       ],
       whenToUse: "Use the provider-hosted connection for the quickest setup.",
       defaults: {
@@ -21232,50 +22040,30 @@ var linear_default = {
         "workspace",
         "team",
         "project"
-      ]
-    }
-  ]
-};
-
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/google-sheets.json
-var google_sheets_default = {
-  schemaVersion: 1,
-  slug: "google-sheets",
-  name: "Google Sheets",
-  description: "Read and update selected spreadsheets.",
-  categories: [
-    "data"
-  ],
-  featured: false,
-  branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=sheets.google.com&sz=128"
-  },
-  urlPatterns: [
-    "https://docs.google.com/spreadsheets/*",
-    "https://sheets.google.com/*"
-  ],
-  methods: [
-    {
-      key: "local",
-      transport: "local_stdio",
-      auth: "none",
-      ownershipModes: [
-        "customer"
       ],
-      whenToUse: "Use credentials from your provider account.",
-      defaults: {
-        templateKey: "paperclip.google-sheets"
-      },
-      guidanceMd: "Share each spreadsheet with the Paperclip robot email, then paste the sheet links.",
-      riskTier: "S3",
-      requiredResourceFilters: [
-        "spreadsheet"
-      ]
+      credentialSources: {
+        vercelConnect: {
+          services: [
+            "linear"
+          ],
+          principalModes: [
+            "user"
+          ],
+          scopes: [
+            "read",
+            "write"
+          ],
+          header: {
+            name: "Authorization",
+            prefix: "Bearer "
+          }
+        }
+      }
     }
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/context7.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/context7.json
 var context7_default = {
   schemaVersion: 1,
   slug: "context7",
@@ -21286,7 +22074,8 @@ var context7_default = {
   ],
   featured: false,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=context7.com&sz=128"
+    logoUrl: "/brands/apps/context7.svg",
+    darkLogoUrl: "/brands/apps/context7-dark.svg"
   },
   urlPatterns: [
     "https://mcp.context7.com/*"
@@ -21309,7 +22098,180 @@ var context7_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/oauth-generic.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/shopify.json
+var shopify_default = {
+  schemaVersion: 1,
+  slug: "shopify",
+  name: "Shopify",
+  description: "Search a store's products and policies, and manage shopping carts.",
+  categories: [
+    "commerce"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/shopify.svg"
+  },
+  urlPatterns: [
+    "https://*.myshopify.com/api/ucp/mcp",
+    "https://*.myshopify.com/api/mcp"
+  ],
+  methods: [
+    {
+      key: "ucp-commerce",
+      transport: "mcp_remote",
+      auth: "none",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Recommended for Shopify's current UCP catalog, cart, and checkout tools.",
+      defaults: {
+        serverUrlTemplate: "https://{storeDomain}/api/ucp/mcp",
+        toolArgumentDefaults: {
+          meta: {
+            "ucp-agent": {
+              profile: "https://shopify.dev/ucp/agent-profiles/examples/2026-04-08/valid-with-capabilities.json"
+            }
+          }
+        }
+      },
+      guidanceMd: "Connect Shopify's current UCP server for shopper-facing catalog and commerce tools. Paperclip supplies the required agent profile automatically.",
+      riskTier: "S3",
+      label: "Shopify UCP commerce",
+      tenantFields: [
+        {
+          key: "storeDomain",
+          label: "Store domain",
+          type: "text",
+          required: true,
+          placeholder: "your-store.myshopify.com",
+          helperMd: "Enter the permanent myshopify.com domain without https://. Custom storefront domains are not the MCP endpoint.",
+          validation: {
+            pattern: "^[A-Za-z0-9][A-Za-z0-9-]*\\.myshopify\\.com$",
+            maxLength: 255
+          }
+        }
+      ],
+      consoleLinks: {
+        docs: "https://shopify.dev/docs/agents/catalog/storefront-catalog"
+      },
+      warnings: [
+        "This is Shopify's shopper-facing UCP server, not Admin API access. It does not manage merchant products or customers.",
+        "The storefront must be public. A private or password-protected storefront returns HTTP 401 even when the merchant is signed in to Shopify Admin.",
+        "Paperclip currently uses Shopify's documented hosted agent-profile fixture while Paperclip's production UCP profile is being established."
+      ],
+      requiredResourceFilters: [
+        "store"
+      ]
+    },
+    {
+      key: "storefront-mcp",
+      transport: "mcp_remote",
+      auth: "none",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use Shopify's compatibility server when agents need storefront policy and FAQ search.",
+      defaults: {
+        serverUrlTemplate: "https://{storeDomain}/api/mcp"
+      },
+      guidanceMd: "Connect Shopify's official Storefront MCP server for shopper-facing catalog, policy, and cart tools.",
+      riskTier: "S3",
+      label: "Storefront policies and compatibility tools",
+      tenantFields: [
+        {
+          key: "storeDomain",
+          label: "Store domain",
+          type: "text",
+          required: true,
+          placeholder: "your-store.myshopify.com",
+          helperMd: "Enter the permanent myshopify.com domain without https://. Custom storefront domains are not the MCP endpoint.",
+          validation: {
+            pattern: "^[A-Za-z0-9][A-Za-z0-9-]*\\.myshopify\\.com$",
+            maxLength: 255
+          }
+        }
+      ],
+      consoleLinks: {
+        docs: "https://shopify.dev/docs/apps/build/storefront-mcp/servers/storefront"
+      },
+      warnings: [
+        "This is Shopify's Storefront MCP, not Admin API access. It does not manage merchant products, orders, or customers.",
+        "The storefront must be public. A private or password-protected storefront returns HTTP 401 even when the merchant is signed in to Shopify Admin."
+      ],
+      requiredResourceFilters: [
+        "store"
+      ]
+    }
+  ],
+  docsUrl: "https://shopify.dev/docs/apps/build/storefront-mcp/servers/storefront",
+  setupPrerequisite: {
+    title: "Launch the storefront before connecting",
+    description: "Shopify's Storefront MCP is a public, no-auth endpoint. Paperclip cannot use the merchant's Shopify Admin session to bypass a private storefront.",
+    steps: [
+      "Select a Shopify plan; Shopify keeps trial storefronts private until a plan is selected.",
+      "In Shopify Admin, open Online Store \u2192 Preferences and set Storefront visibility to Public (remove password protection).",
+      "Use the permanent <store>.myshopify.com domain in Paperclip, even if the store also has a custom domain."
+    ],
+    actionLabel: "Open Shopify Admin",
+    actionUrl: "https://admin.shopify.com/"
+  }
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/composio.json
+var composio_default = {
+  schemaVersion: 1,
+  slug: "composio",
+  name: "Composio",
+  description: "Connect Composio so Paperclip can discover and manage the toolkits in your project.",
+  categories: [
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/composio.svg",
+    darkLogoUrl: "/brands/apps/composio-dark.svg"
+  },
+  urlPatterns: [
+    "https://backend.composio.dev/*"
+  ],
+  methods: [
+    {
+      key: "api-key",
+      transport: "rest_api",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a project API key from the Composio project that owns the toolkits and connected accounts.",
+      defaults: {
+        serviceHost: "backend.composio.dev"
+      },
+      guidanceMd: "Create a scoped project API key in Composio. It needs read access to toolkits and auth configs; later service-connection phases also need connected-account and session access.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "apiKey",
+          label: "Composio project API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste the Composio API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "x-api-key"
+      },
+      consoleLinks: {
+        keys: "https://app.composio.dev/",
+        settings: "https://app.composio.dev/",
+        docs: "https://docs.composio.dev/reference/authenticating-to-composio/project-api-key-permissions"
+      }
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/oauth-generic.json
 var oauth_generic_default = {
   schemaVersion: 1,
   slug: "oauth-generic",
@@ -21320,7 +22282,7 @@ var oauth_generic_default = {
   ],
   featured: false,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=oauth.net&sz=128"
+    logoUrl: "/brands/apps/oauth-generic.svg"
   },
   urlPatterns: [],
   methods: [
@@ -21358,7 +22320,7 @@ var oauth_generic_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/api-key-generic.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/api-key-generic.json
 var api_key_generic_default = {
   schemaVersion: 1,
   slug: "api-key-generic",
@@ -21369,7 +22331,7 @@ var api_key_generic_default = {
   ],
   featured: false,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=openapis.org&sz=128"
+    logoUrl: "/brands/apps/api-key-generic.svg"
   },
   urlPatterns: [],
   methods: [
@@ -21403,7 +22365,7 @@ var api_key_generic_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/sentry.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/sentry.json
 var sentry_default = {
   schemaVersion: 1,
   slug: "sentry",
@@ -21414,7 +22376,8 @@ var sentry_default = {
   ],
   featured: false,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=sentry.io&sz=128"
+    logoUrl: "/brands/apps/sentry.svg",
+    darkLogoUrl: "/brands/apps/sentry-dark.svg"
   },
   urlPatterns: [
     "https://mcp.sentry.dev/*"
@@ -21441,10 +22404,12 @@ var sentry_default = {
         "environment"
       ]
     }
-  ]
+  ],
+  docsUrl: "https://mcp.sentry.dev/.well-known/oauth-authorization-server",
+  redirectConstraints: "https-or-loopback-http"
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/vercel.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/vercel.json
 var vercel_default = {
   schemaVersion: 1,
   slug: "vercel",
@@ -21455,7 +22420,8 @@ var vercel_default = {
   ],
   featured: false,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=vercel.com&sz=128"
+    logoUrl: "/brands/apps/vercel.svg",
+    darkLogoUrl: "/brands/apps/vercel-dark.svg"
   },
   urlPatterns: [
     "https://mcp.vercel.com/*"
@@ -21481,10 +22447,14 @@ var vercel_default = {
         "environment"
       ]
     }
-  ]
+  ],
+  availability: {
+    available: false,
+    reason: "Vercel currently reviews and approves MCP clients."
+  }
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions/anthropic.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/anthropic.json
 var anthropic_default = {
   schemaVersion: 1,
   slug: "anthropic",
@@ -21495,24 +22465,53 @@ var anthropic_default = {
   ],
   featured: false,
   branding: {
-    logoUrl: "https://www.google.com/s2/favicons?domain=anthropic.com&sz=128"
+    logoUrl: "/brands/apps/anthropic.svg",
+    darkLogoUrl: "/brands/apps/anthropic-dark.svg"
   },
   urlPatterns: [
     "https://api.anthropic.com/*"
   ],
   methods: [
     {
-      key: "api-key",
-      transport: "rest_api",
-      auth: "api_key",
+      key: "ai-subscription",
+      label: "Claude subscription",
+      purpose: "ai",
+      transport: "runtime_auth",
+      auth: "oauth",
+      ai: {
+        provider: "anthropic",
+        method: "subscription"
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
       ownershipModes: [
         "customer"
       ],
-      whenToUse: "Use credentials from your provider account.",
-      defaults: {
-        serviceHost: "api.anthropic.com"
+      whenToUse: "Authenticate an agent with this account.",
+      guidanceMd: "Use your personal account or an explicitly shared company account.",
+      riskTier: "S3"
+    },
+    {
+      key: "ai-api_key",
+      label: "Claude API key",
+      purpose: "ai",
+      transport: "runtime_auth",
+      auth: "api_key",
+      ai: {
+        provider: "anthropic",
+        method: "api_key"
       },
-      guidanceMd: "Create a key in the Anthropic Console and rotate it if it has been exposed.",
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Authenticate an agent with this account.",
+      guidanceMd: "Use your personal account or an explicitly shared company account.",
       riskTier: "S3",
       credentialFields: [
         {
@@ -21520,34 +22519,4435 @@ var anthropic_default = {
           label: "API key",
           type: "password",
           required: true,
-          placeholder: "sk-ant-api03-...",
+          placeholder: "Enter API key",
           secret: true
         }
       ],
       keyPlacement: {
-        location: "header",
-        name: "x-api-key"
+        location: "env",
+        name: "ANTHROPIC_API_KEY"
       }
     }
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions.generated.js
-var APP_DEFINITIONS = [zapier_default, github_default, slack_default, notion_default, linear_default, google_sheets_default, context7_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default];
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/jira.json
+var jira_default = {
+  schemaVersion: 1,
+  slug: "jira",
+  name: "Jira",
+  description: "Connect Jira's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/jira.svg"
+  },
+  urlPatterns: [
+    "https://mcp.atlassian.com/*"
+  ],
+  docsUrl: "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.atlassian.com/v1/mcp/authv2",
+        scopesHint: [
+          "read:me",
+          "read:account",
+          "offline_access",
+          "email",
+          "read:jira-work",
+          "write:jira-work",
+          "search:confluence",
+          "read:confluence-user",
+          "read:page:confluence",
+          "write:page:confluence",
+          "read:comment:confluence",
+          "write:comment:confluence",
+          "read:space:confluence",
+          "read:hierarchical-content:confluence",
+          "write:component:compass",
+          "read:component:compass",
+          "read:scorecard:compass",
+          "write:scorecard:compass",
+          "read:event:compass",
+          "read:metric:compass",
+          "read:all:twg",
+          "write:all:twg"
+        ]
+      },
+      guidanceMd: "Connect Jira in the browser. An active Jira or Confluence site; tenant policy may require an administrator to approve the client.",
+      riskTier: "S3",
+      label: "Sign in with Jira",
+      consoleLinks: {
+        docs: "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/"
+      },
+      warnings: [
+        "An active Jira or Confluence site; tenant policy may require an administrator to approve the client."
+      ]
+    }
+  ]
+};
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/app-definitions.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/airtable.json
+var airtable_default = {
+  schemaVersion: 1,
+  slug: "airtable",
+  name: "Airtable",
+  description: "Connect Airtable's provider-hosted MCP server.",
+  categories: [
+    "data"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/airtable.svg"
+  },
+  urlPatterns: [
+    "https://mcp.airtable.com/*"
+  ],
+  docsUrl: "https://support.airtable.com/articles/9897799762-using-the-airtable-mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.airtable.com/mcp"
+      },
+      guidanceMd: "Connect Airtable in the browser. An Airtable account; enterprise administrators may need to allowlist the client.",
+      riskTier: "S3",
+      label: "Sign in with Airtable",
+      consoleLinks: {
+        docs: "https://support.airtable.com/articles/9897799762-using-the-airtable-mcp-server"
+      },
+      warnings: [
+        "An Airtable account; enterprise administrators may need to allowlist the client."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/beehiiv.json
+var beehiiv_default = {
+  schemaVersion: 1,
+  slug: "beehiiv",
+  name: "beehiiv",
+  description: "Connect beehiiv's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/beehiiv.png"
+  },
+  urlPatterns: [
+    "https://mcp.beehiiv.com/*"
+  ],
+  docsUrl: "https://www.beehiiv.com/features/mcp/getting-started",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.beehiiv.com/mcp"
+      },
+      guidanceMd: "Connect beehiiv in the browser. A beehiiv account; the subscription plan controls available write capabilities.",
+      riskTier: "S3",
+      label: "Sign in with beehiiv",
+      consoleLinks: {
+        docs: "https://www.beehiiv.com/features/mcp/getting-started"
+      },
+      warnings: [
+        "A beehiiv account; the subscription plan controls available write capabilities."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/bitly.json
+var bitly_default = {
+  schemaVersion: 1,
+  slug: "bitly",
+  name: "Bitly",
+  description: "Connect Bitly's provider-hosted MCP server.",
+  categories: [
+    "analytics"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/bitly.svg"
+  },
+  urlPatterns: [
+    "https://api-ssl.bitly.com/*"
+  ],
+  docsUrl: "https://dev.bitly.com/bitly-mcp/overview/quickstart/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://api-ssl.bitly.com/v4/mcp"
+      },
+      guidanceMd: "Connect Bitly in the browser. A Bitly account with either browser authorization or an API token.",
+      riskTier: "S2",
+      label: "Sign in with Bitly",
+      consoleLinks: {
+        docs: "https://dev.bitly.com/bitly-mcp/overview/quickstart/"
+      },
+      warnings: [
+        "A Bitly account with either browser authorization or an API token."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://api-ssl.bitly.com/v4/mcp"
+      },
+      guidanceMd: "Use a customer-created Bitly key. A Bitly account with either browser authorization or an API token.",
+      riskTier: "S2",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Bitly API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your Bitly API token",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://dev.bitly.com/bitly-mcp/overview/quickstart/",
+        docs: "https://dev.bitly.com/bitly-mcp/overview/quickstart/"
+      },
+      warnings: [
+        "A Bitly account with either browser authorization or an API token."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/candid.json
+var candid_default = {
+  schemaVersion: 1,
+  slug: "candid",
+  name: "Candid",
+  description: "Connect Candid's provider-hosted MCP server.",
+  categories: [
+    "data"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/candid.png"
+  },
+  urlPatterns: [
+    "https://mcp.candid.org/*"
+  ],
+  docsUrl: "https://learning.candid.org/getting-started-with-the-candid-mcp-connector/375441",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.candid.org/mcp"
+      },
+      guidanceMd: "Connect Candid in the browser. A Candid account with access to the MCP connector.",
+      riskTier: "S2",
+      label: "Sign in with Candid",
+      consoleLinks: {
+        docs: "https://learning.candid.org/getting-started-with-the-candid-mcp-connector/375441"
+      },
+      warnings: [
+        "A Candid account with access to the MCP connector."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/cloudflare.json
+var cloudflare_default = {
+  schemaVersion: 1,
+  slug: "cloudflare",
+  name: "Cloudflare",
+  description: "Connect Cloudflare's provider-hosted MCP server.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/cloudflare.svg"
+  },
+  urlPatterns: [
+    "https://mcp.cloudflare.com/*"
+  ],
+  docsUrl: "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.cloudflare.com/mcp"
+      },
+      guidanceMd: "Connect Cloudflare in the browser. A Cloudflare account with access to the resources being connected.",
+      riskTier: "S3",
+      label: "Sign in with Cloudflare",
+      consoleLinks: {
+        docs: "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/"
+      },
+      warnings: [
+        "A Cloudflare account with access to the resources being connected."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.cloudflare.com/mcp"
+      },
+      guidanceMd: "Use a customer-created Cloudflare key. A Cloudflare account with access to the resources being connected.",
+      riskTier: "S3",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Cloudflare API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your Cloudflare API token",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/",
+        docs: "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/"
+      },
+      warnings: [
+        "A Cloudflare account with access to the resources being connected."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/cloudinary.json
+var cloudinary_default = {
+  schemaVersion: 1,
+  slug: "cloudinary",
+  name: "Cloudinary",
+  description: "Connect Cloudinary's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/cloudinary.svg",
+    darkLogoUrl: "/brands/apps/cloudinary-dark.svg"
+  },
+  urlPatterns: [
+    "https://asset-management.mcp.cloudinary.com/*"
+  ],
+  docsUrl: "https://cloudinary.com/documentation/cloudinary_llm_mcp",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://asset-management.mcp.cloudinary.com/mcp"
+      },
+      guidanceMd: "Connect Cloudinary in the browser. A Cloudinary account; authorization is limited by the signed-in user's roles.",
+      riskTier: "S3",
+      label: "Sign in with Cloudinary",
+      consoleLinks: {
+        docs: "https://cloudinary.com/documentation/cloudinary_llm_mcp"
+      },
+      warnings: [
+        "A Cloudinary account; authorization is limited by the signed-in user's roles."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/coda.json
+var coda_default = {
+  schemaVersion: 1,
+  slug: "coda",
+  name: "Coda",
+  description: "Connect Coda's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/coda.svg"
+  },
+  urlPatterns: [
+    "https://coda.io/*"
+  ],
+  docsUrl: "https://help.coda.io/hc/en-us/articles/44722769665549-Security-recommendations-for-the-Coda-MCP",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://coda.io/apis/mcp"
+      },
+      guidanceMd: "Connect Coda in the browser. A Coda account; the hosted MCP service is currently beta.",
+      riskTier: "S3",
+      label: "Sign in with Coda",
+      consoleLinks: {
+        docs: "https://help.coda.io/hc/en-us/articles/44722769665549-Security-recommendations-for-the-Coda-MCP"
+      },
+      warnings: [
+        "A Coda account; the hosted MCP service is currently beta.",
+        "This provider's hosted MCP server is currently beta or preview."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://coda.io/apis/mcp"
+      },
+      guidanceMd: "Use a customer-created Coda key. A Coda account; the hosted MCP service is currently beta.",
+      riskTier: "S3",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Coda API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your Coda API token",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://help.coda.io/hc/en-us/articles/44722769665549-Security-recommendations-for-the-Coda-MCP",
+        docs: "https://help.coda.io/hc/en-us/articles/44722769665549-Security-recommendations-for-the-Coda-MCP"
+      },
+      warnings: [
+        "A Coda account; the hosted MCP service is currently beta.",
+        "This provider's hosted MCP server is currently beta or preview."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/hugging-face.json
+var hugging_face_default = {
+  schemaVersion: 1,
+  slug: "hugging-face",
+  name: "Hugging Face",
+  description: "Connect Hugging Face's provider-hosted MCP server.",
+  categories: [
+    "ai"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/hugging-face.svg"
+  },
+  urlPatterns: [
+    "https://huggingface.co/*"
+  ],
+  docsUrl: "https://huggingface.co/docs/hub/agents-mcp",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://huggingface.co/mcp?login&gradio=none",
+        scopesHint: [
+          "read-mcp"
+        ]
+      },
+      guidanceMd: "Connect Hugging Face in the browser. A Hugging Face account.",
+      riskTier: "S2",
+      label: "Sign in with Hugging Face",
+      consoleLinks: {
+        docs: "https://huggingface.co/docs/hub/agents-mcp"
+      },
+      warnings: [
+        "A Hugging Face account."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/kernel.json
+var kernel_default = {
+  schemaVersion: 1,
+  slug: "kernel",
+  name: "Kernel",
+  description: "Connect Kernel's provider-hosted MCP server.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/kernel.svg"
+  },
+  urlPatterns: [
+    "https://mcp.onkernel.com/*"
+  ],
+  docsUrl: "https://www.kernel.sh/docs/reference/mcp-server/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.onkernel.com/mcp"
+      },
+      guidanceMd: "Connect Kernel in the browser. A Kernel account with either browser authorization or an API key.",
+      riskTier: "S3",
+      label: "Sign in with Kernel",
+      consoleLinks: {
+        docs: "https://www.kernel.sh/docs/reference/mcp-server/"
+      },
+      warnings: [
+        "A Kernel account with either browser authorization or an API key."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.onkernel.com/mcp"
+      },
+      guidanceMd: "Use a customer-created Kernel key. A Kernel account with either browser authorization or an API key.",
+      riskTier: "S3",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Kernel API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your Kernel API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "X-API-Key",
+        prefix: null
+      },
+      consoleLinks: {
+        keys: "https://www.kernel.sh/docs/reference/mcp-server/",
+        docs: "https://www.kernel.sh/docs/reference/mcp-server/"
+      },
+      warnings: [
+        "A Kernel account with either browser authorization or an API key."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/local-falcon.json
+var local_falcon_default = {
+  schemaVersion: 1,
+  slug: "local-falcon",
+  name: "Local Falcon",
+  description: "Connect Local Falcon's provider-hosted MCP server.",
+  categories: [
+    "analytics"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/local-falcon.png"
+  },
+  urlPatterns: [
+    "https://mcp.localfalcon.com/*"
+  ],
+  docsUrl: "https://docs.localfalcon.com/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.localfalcon.com"
+      },
+      guidanceMd: "Connect Local Falcon in the browser. A Local Falcon account with MCP access.",
+      riskTier: "S2",
+      label: "Sign in with Local Falcon",
+      consoleLinks: {
+        docs: "https://docs.localfalcon.com/"
+      },
+      warnings: [
+        "A Local Falcon account with MCP access."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/make.json
+var make_default = {
+  schemaVersion: 1,
+  slug: "make",
+  name: "Make",
+  description: "Connect Make's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/make.svg",
+    darkLogoUrl: "/brands/apps/make-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.make.com/*"
+  ],
+  docsUrl: "https://developers.make.com/mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.make.com"
+      },
+      guidanceMd: "Connect Make in the browser. A Make account and access to the scenarios exposed to MCP.",
+      riskTier: "S3",
+      label: "Sign in with Make",
+      consoleLinks: {
+        docs: "https://developers.make.com/mcp-server"
+      },
+      warnings: [
+        "A Make account and access to the scenarios exposed to MCP."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/manufact.json
+var manufact_default = {
+  schemaVersion: 1,
+  slug: "manufact",
+  name: "Manufact",
+  description: "Connect Manufact's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/manufact.svg",
+    darkLogoUrl: "/brands/apps/manufact-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.manufact.com/*"
+  ],
+  docsUrl: "https://docs.manufact.com/mcp",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.manufact.com/mcp"
+      },
+      guidanceMd: "Connect Manufact in the browser. A Manufact account with MCP access.",
+      riskTier: "S3",
+      label: "Sign in with Manufact",
+      consoleLinks: {
+        docs: "https://docs.manufact.com/mcp"
+      },
+      warnings: [
+        "A Manufact account with MCP access."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/miro.json
+var miro_default = {
+  schemaVersion: 1,
+  slug: "miro",
+  name: "Miro",
+  description: "Connect Miro's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/miro.svg"
+  },
+  urlPatterns: [
+    "https://mcp.miro.com/*"
+  ],
+  docsUrl: "https://help.miro.com/hc/en-us/articles/31625301583890-How-to-enable-Miro-s-MCP-Server-user-guide",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.miro.com/"
+      },
+      guidanceMd: "Connect Miro in the browser. A Miro account; enterprise administrators may restrict third-party MCP clients.",
+      riskTier: "S3",
+      label: "Sign in with Miro",
+      consoleLinks: {
+        docs: "https://help.miro.com/hc/en-us/articles/31625301583890-How-to-enable-Miro-s-MCP-Server-user-guide"
+      },
+      warnings: [
+        "A Miro account; enterprise administrators may restrict third-party MCP clients."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/netlify.json
+var netlify_default = {
+  schemaVersion: 1,
+  slug: "netlify",
+  name: "Netlify",
+  description: "Connect Netlify's provider-hosted MCP server.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/netlify.svg",
+    darkLogoUrl: "/brands/apps/netlify-dark.svg"
+  },
+  urlPatterns: [
+    "https://netlify-mcp.netlify.app/*"
+  ],
+  docsUrl: "https://docs.netlify.com/build/build-with-ai/agent-setup-guides/agent-setup-overview/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://netlify-mcp.netlify.app/mcp"
+      },
+      guidanceMd: "Connect Netlify in the browser. A Netlify account with access to the relevant team and sites.",
+      riskTier: "S3",
+      label: "Sign in with Netlify",
+      consoleLinks: {
+        docs: "https://docs.netlify.com/build/build-with-ai/agent-setup-guides/agent-setup-overview/"
+      },
+      warnings: [
+        "A Netlify account with access to the relevant team and sites."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/oreilly.json
+var oreilly_default = {
+  schemaVersion: 1,
+  slug: "oreilly",
+  name: "O'Reilly",
+  description: "Connect O'Reilly's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/oreilly.svg"
+  },
+  urlPatterns: [
+    "https://api.oreilly.com/*"
+  ],
+  docsUrl: "https://learning.oreilly.com/apidocs/mcp/content/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://api.oreilly.com/api/content-discovery/v1/mcp/"
+      },
+      guidanceMd: "Connect O'Reilly in the browser. An O'Reilly Learning subscription with MCP or API access.",
+      riskTier: "S2",
+      label: "Sign in with O'Reilly",
+      consoleLinks: {
+        docs: "https://learning.oreilly.com/apidocs/mcp/content/"
+      },
+      warnings: [
+        "An O'Reilly Learning subscription with MCP or API access."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://api.oreilly.com/api/content-discovery/v1/mcp/"
+      },
+      guidanceMd: "Use a customer-created O'Reilly key. An O'Reilly Learning subscription with MCP or API access.",
+      riskTier: "S2",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "O'Reilly API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your O'Reilly API token",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://learning.oreilly.com/apidocs/mcp/content/",
+        docs: "https://learning.oreilly.com/apidocs/mcp/content/"
+      },
+      warnings: [
+        "An O'Reilly Learning subscription with MCP or API access."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/planetscale.json
+var planetscale_default = {
+  schemaVersion: 1,
+  slug: "planetscale",
+  name: "PlanetScale",
+  description: "Connect PlanetScale's provider-hosted MCP server.",
+  categories: [
+    "data"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/planetscale.svg",
+    darkLogoUrl: "/brands/apps/planetscale-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.pscale.dev/*"
+  ],
+  docsUrl: "https://planetscale.com/docs/connect/mcp",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.pscale.dev/mcp/planetscale"
+      },
+      guidanceMd: "Connect PlanetScale in the browser. A PlanetScale account; database and branch access are chosen during authorization.",
+      riskTier: "S4",
+      label: "Database access",
+      consoleLinks: {
+        docs: "https://planetscale.com/docs/connect/mcp"
+      },
+      warnings: [
+        "A PlanetScale account; database and branch access are chosen during authorization."
+      ],
+      tenantFields: [
+        {
+          key: "project",
+          label: "Project or database",
+          type: "text",
+          advanced: true,
+          placeholder: "Optional project or database name",
+          helperMd: "Records the intended database boundary; final access is selected during PlanetScale authorization."
+        },
+        {
+          key: "branch",
+          label: "Branch",
+          type: "text",
+          advanced: true,
+          placeholder: "Optional branch name",
+          helperMd: "Records the intended branch boundary; final access is selected during PlanetScale authorization."
+        }
+      ],
+      requiredResourceFilters: [
+        "organization",
+        "database",
+        "branch"
+      ]
+    },
+    {
+      key: "mcp-insights-only",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use query insights and schema recommendations without query execution tools.",
+      defaults: {
+        serverUrl: "https://mcp.pscale.dev/mcp/planetscale-insights-only"
+      },
+      guidanceMd: "Connect PlanetScale in the browser. A PlanetScale account; database and branch access are chosen during authorization.",
+      riskTier: "S4",
+      label: "Insights only",
+      consoleLinks: {
+        docs: "https://planetscale.com/docs/connect/mcp"
+      },
+      warnings: [
+        "A PlanetScale account; database and branch access are chosen during authorization."
+      ],
+      requiredResourceFilters: [
+        "organization",
+        "database",
+        "branch"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/resend.json
+var resend_default = {
+  schemaVersion: 1,
+  slug: "resend",
+  name: "Resend",
+  description: "Connect Resend's provider-hosted MCP server.",
+  categories: [
+    "communication"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/resend.svg",
+    darkLogoUrl: "/brands/apps/resend-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.resend.com/*"
+  ],
+  docsUrl: "https://resend.com/changelog/remote-mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.resend.com/mcp"
+      },
+      guidanceMd: "Connect Resend in the browser. A Resend account with access to the relevant domains.",
+      riskTier: "S3",
+      label: "Sign in with Resend",
+      consoleLinks: {
+        docs: "https://resend.com/changelog/remote-mcp-server"
+      },
+      warnings: [
+        "A Resend account with access to the relevant domains."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/ticktick.json
+var ticktick_default = {
+  schemaVersion: 1,
+  slug: "ticktick",
+  name: "TickTick",
+  description: "Connect TickTick's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/ticktick.svg"
+  },
+  urlPatterns: [
+    "https://mcp.ticktick.com/*"
+  ],
+  docsUrl: "https://help.ticktick.com/articles/7438129581631995904",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.ticktick.com"
+      },
+      guidanceMd: "Connect TickTick in the browser. A TickTick account with MCP access.",
+      riskTier: "S3",
+      label: "Sign in with TickTick",
+      consoleLinks: {
+        docs: "https://help.ticktick.com/articles/7438129581631995904"
+      },
+      warnings: [
+        "A TickTick account with MCP access."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/todoist.json
+var todoist_default = {
+  schemaVersion: 1,
+  slug: "todoist",
+  name: "Todoist",
+  description: "Connect Todoist's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/todoist.svg"
+  },
+  urlPatterns: [
+    "https://ai.todoist.net/*"
+  ],
+  docsUrl: "https://developer.todoist.com/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://ai.todoist.net/mcp"
+      },
+      guidanceMd: "Connect Todoist in the browser. A Todoist account.",
+      riskTier: "S3",
+      label: "Sign in with Todoist",
+      consoleLinks: {
+        docs: "https://developer.todoist.com/"
+      },
+      warnings: [
+        "A Todoist account."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/webflow.json
+var webflow_default = {
+  schemaVersion: 1,
+  slug: "webflow",
+  name: "Webflow",
+  description: "Connect Webflow's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/webflow.svg"
+  },
+  urlPatterns: [
+    "https://mcp.webflow.com/*"
+  ],
+  docsUrl: "https://developers.webflow.com/mcp/reference/getting-started",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.webflow.com/mcp"
+      },
+      guidanceMd: "Connect Webflow in the browser. A Webflow account; workspace and site roles constrain accessible sites.",
+      riskTier: "S3",
+      label: "Sign in with Webflow",
+      consoleLinks: {
+        docs: "https://developers.webflow.com/mcp/reference/getting-started"
+      },
+      warnings: [
+        "A Webflow account; workspace and site roles constrain accessible sites."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/wix.json
+var wix_default = {
+  schemaVersion: 1,
+  slug: "wix",
+  name: "Wix",
+  description: "Connect Wix's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/wix.svg",
+    darkLogoUrl: "/brands/apps/wix-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.wix.com/*"
+  ],
+  docsUrl: "https://www.wix.com/studio/developers/mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.wix.com/mcp"
+      },
+      guidanceMd: "Connect Wix in the browser. A Wix account with access to the relevant sites.",
+      riskTier: "S3",
+      label: "Sign in with Wix",
+      consoleLinks: {
+        docs: "https://www.wix.com/studio/developers/mcp-server"
+      },
+      warnings: [
+        "A Wix account with access to the relevant sites."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/brex.json
+var brex_default = {
+  schemaVersion: 1,
+  slug: "brex",
+  name: "Brex",
+  description: "Connect Brex's provider-hosted MCP server.",
+  categories: [
+    "commerce"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/brex.svg",
+    darkLogoUrl: "/brands/apps/brex-dark.svg"
+  },
+  urlPatterns: [
+    "https://api.brex.com/*"
+  ],
+  docsUrl: "https://www.brex.com/support/using-brex-in-ai-apps",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://api.brex.com/mcp"
+      },
+      guidanceMd: "Connect Brex in the browser. Brex early access and an administrator enabling the integration; financial actions require explicit approval.",
+      riskTier: "S4",
+      label: "Sign in with Brex",
+      consoleLinks: {
+        docs: "https://www.brex.com/support/using-brex-in-ai-apps"
+      },
+      warnings: [
+        "Brex early access and an administrator enabling the integration; financial actions require explicit approval.",
+        "Financial or destructive actions must be explicitly approved before execution."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/clickhouse.json
+var clickhouse_default = {
+  schemaVersion: 1,
+  slug: "clickhouse",
+  name: "ClickHouse",
+  description: "Connect ClickHouse's provider-hosted MCP server.",
+  categories: [
+    "data"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/clickhouse.svg",
+    darkLogoUrl: "/brands/apps/clickhouse-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.clickhouse.cloud/*"
+  ],
+  docsUrl: "https://clickhouse.com/blog/announcing-managed-clickstack-mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.clickhouse.cloud/clickstack"
+      },
+      guidanceMd: "Connect ClickHouse in the browser. A ClickHouse Cloud ClickStack service and its service ID.",
+      riskTier: "S4",
+      label: "Sign in with ClickHouse",
+      consoleLinks: {
+        docs: "https://clickhouse.com/blog/announcing-managed-clickstack-mcp-server"
+      },
+      warnings: [
+        "A ClickHouse Cloud ClickStack service and its service ID."
+      ],
+      tenantFields: [
+        {
+          key: "serviceId",
+          label: "ClickHouse Cloud service ID",
+          type: "text",
+          required: true,
+          placeholder: "11e1031f-9a13-4cac-9bc7-d4ec9286ec17",
+          helperMd: "Copy the service ID from ClickStack \u2192 Team Settings \u2192 API & Agents.",
+          transport: {
+            location: "header",
+            name: "x-service-id"
+          }
+        }
+      ],
+      requiredResourceFilters: [
+        "service"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/egnyte.json
+var egnyte_default = {
+  schemaVersion: 1,
+  slug: "egnyte",
+  name: "Egnyte",
+  description: "Connect Egnyte's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/egnyte.svg"
+  },
+  urlPatterns: [
+    "https://mcp-server.egnyte.com/*"
+  ],
+  docsUrl: "https://developers.egnyte.com/docs/Remote_MCP_Server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp-server.egnyte.com/mcp"
+      },
+      guidanceMd: "Connect Egnyte in the browser. An eligible Egnyte plan and administrator approval for external LLM access.",
+      riskTier: "S3",
+      label: "Sign in with Egnyte",
+      consoleLinks: {
+        docs: "https://developers.egnyte.com/docs/Remote_MCP_Server"
+      },
+      warnings: [
+        "An eligible Egnyte plan and administrator approval for external LLM access."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/embat.json
+var embat_default = {
+  schemaVersion: 1,
+  slug: "embat",
+  name: "Embat",
+  description: "Connect Embat's provider-hosted MCP server.",
+  categories: [
+    "commerce"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/embat.svg"
+  },
+  urlPatterns: [
+    "https://tellme.embat.io/*"
+  ],
+  docsUrl: "https://tellme.embat.io/.well-known/oauth-protected-resource/mcp",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://tellme.embat.io/mcp"
+      },
+      guidanceMd: "Connect Embat in the browser. An Embat account; pilot the connection because provider setup documentation is sparse.",
+      riskTier: "S4",
+      label: "Sign in with Embat",
+      consoleLinks: {
+        docs: "https://tellme.embat.io/.well-known/oauth-protected-resource/mcp"
+      },
+      warnings: [
+        "An Embat account; pilot the connection because provider setup documentation is sparse."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/mixpanel.json
+var mixpanel_default = {
+  schemaVersion: 1,
+  slug: "mixpanel",
+  name: "Mixpanel",
+  description: "Connect Mixpanel's provider-hosted MCP server.",
+  categories: [
+    "analytics"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/mixpanel.svg",
+    darkLogoUrl: "/brands/apps/mixpanel-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.mixpanel.com/*"
+  ],
+  docsUrl: "https://mixpanel.com/blog/mixpanel-mcp-server/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.mixpanel.com/mcp"
+      },
+      guidanceMd: "Connect Mixpanel in the browser. A Mixpanel account; the hosted MCP server is currently beta.",
+      riskTier: "S3",
+      label: "Sign in with Mixpanel",
+      consoleLinks: {
+        docs: "https://mixpanel.com/blog/mixpanel-mcp-server/"
+      },
+      warnings: [
+        "A Mixpanel account; the hosted MCP server is currently beta.",
+        "This provider's hosted MCP server is currently beta or preview."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/postman.json
+var postman_default = {
+  schemaVersion: 1,
+  slug: "postman",
+  name: "Postman",
+  description: "Connect Postman's provider-hosted MCP server.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/postman.svg"
+  },
+  urlPatterns: [
+    "https://mcp.postman.com/*"
+  ],
+  docsUrl: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth-minimal",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.postman.com/minimal"
+      },
+      guidanceMd: "Connect Postman in the browser. A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints.",
+      riskTier: "S3",
+      label: "US \xB7 Browser sign-in",
+      consoleLinks: {
+        docs: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server"
+      },
+      warnings: [
+        "A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints."
+      ],
+      capabilityProfile: {
+        key: "minimal",
+        label: "Minimal",
+        description: "Essential workspace, collection, and environment tools with the smallest tool catalog."
+      }
+    },
+    {
+      key: "mcp-oauth-code",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.postman.com/code"
+      },
+      guidanceMd: "Connect Postman in the browser. A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints.",
+      riskTier: "S3",
+      label: "US \xB7 Browser sign-in",
+      consoleLinks: {
+        docs: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server"
+      },
+      warnings: [
+        "A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints."
+      ],
+      capabilityProfile: {
+        key: "code",
+        label: "Code",
+        description: "Tools for generating client code from API definitions."
+      }
+    },
+    {
+      key: "mcp-oauth-full",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.postman.com/mcp"
+      },
+      guidanceMd: "Connect Postman in the browser. A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints.",
+      riskTier: "S3",
+      label: "US \xB7 Browser sign-in",
+      consoleLinks: {
+        docs: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server"
+      },
+      warnings: [
+        "A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints."
+      ],
+      capabilityProfile: {
+        key: "write",
+        label: "Full",
+        description: "All Postman API tools, including write-capable collaboration and advanced features."
+      }
+    },
+    {
+      key: "mcp-eu-key-minimal",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.eu.postman.com/minimal"
+      },
+      guidanceMd: "Use a customer-created Postman key. A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints.",
+      riskTier: "S3",
+      label: "EU \xB7 API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Postman API key",
+          type: "password",
+          required: true,
+          placeholder: "PMAK-...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server",
+        docs: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server"
+      },
+      warnings: [
+        "A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints."
+      ],
+      capabilityProfile: {
+        key: "minimal",
+        label: "Minimal",
+        description: "Essential workspace, collection, and environment tools with the smallest tool catalog."
+      }
+    },
+    {
+      key: "mcp-eu-key-code",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.eu.postman.com/code"
+      },
+      guidanceMd: "Use a customer-created Postman key. A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints.",
+      riskTier: "S3",
+      label: "EU \xB7 API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Postman API key",
+          type: "password",
+          required: true,
+          placeholder: "PMAK-...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server",
+        docs: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server"
+      },
+      warnings: [
+        "A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints."
+      ],
+      capabilityProfile: {
+        key: "code",
+        label: "Code",
+        description: "Tools for generating client code from API definitions."
+      }
+    },
+    {
+      key: "mcp-eu-key-full",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.eu.postman.com/mcp"
+      },
+      guidanceMd: "Use a customer-created Postman key. A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints.",
+      riskTier: "S3",
+      label: "EU \xB7 API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Postman API key",
+          type: "password",
+          required: true,
+          placeholder: "PMAK-...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server",
+        docs: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server"
+      },
+      warnings: [
+        "A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints."
+      ],
+      capabilityProfile: {
+        key: "write",
+        label: "Full",
+        description: "All Postman API tools, including write-capable collaboration and advanced features."
+      }
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/razorpay.json
+var razorpay_default = {
+  schemaVersion: 1,
+  slug: "razorpay",
+  name: "Razorpay",
+  description: "Connect Razorpay's provider-hosted MCP server.",
+  categories: [
+    "commerce"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/razorpay.svg",
+    darkLogoUrl: "/brands/apps/razorpay-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.razorpay.com/*"
+  ],
+  docsUrl: "https://razorpay.com/docs/mcp-server/oauth/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.razorpay.com/mcp"
+      },
+      guidanceMd: "Connect Razorpay in the browser. A Razorpay account; financial or destructive actions always require explicit approval.",
+      riskTier: "S4",
+      label: "Sign in with Razorpay",
+      consoleLinks: {
+        docs: "https://razorpay.com/docs/mcp-server/oauth/"
+      },
+      warnings: [
+        "A Razorpay account; financial or destructive actions always require explicit approval.",
+        "Financial or destructive actions must be explicitly approved before execution."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.razorpay.com/mcp"
+      },
+      guidanceMd: "Use a customer-created Razorpay key. A Razorpay account; financial or destructive actions always require explicit approval.",
+      riskTier: "S4",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Razorpay API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste the base64-encoded key ID and secret",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Basic "
+      },
+      consoleLinks: {
+        keys: "https://razorpay.com/docs/mcp-server/oauth/",
+        docs: "https://razorpay.com/docs/mcp-server/oauth/"
+      },
+      warnings: [
+        "A Razorpay account; financial or destructive actions always require explicit approval.",
+        "Financial or destructive actions must be explicitly approved before execution."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/sanity.json
+var sanity_default = {
+  schemaVersion: 1,
+  slug: "sanity",
+  name: "Sanity",
+  description: "Connect Sanity's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/sanity.svg",
+    darkLogoUrl: "/brands/apps/sanity-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.sanity.io/*"
+  ],
+  docsUrl: "https://www.sanity.io/docs/ai/mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.sanity.io"
+      },
+      guidanceMd: "Connect Sanity in the browser. A Sanity account with access to the relevant projects and datasets.",
+      riskTier: "S3",
+      label: "Sign in with Sanity",
+      consoleLinks: {
+        docs: "https://www.sanity.io/docs/ai/mcp-server"
+      },
+      warnings: [
+        "A Sanity account with access to the relevant projects and datasets."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.sanity.io"
+      },
+      guidanceMd: "Use a customer-created Sanity key. A Sanity account with access to the relevant projects and datasets.",
+      riskTier: "S3",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Sanity API key",
+          type: "password",
+          required: true,
+          placeholder: "sk...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://www.sanity.io/docs/ai/mcp-server",
+        docs: "https://www.sanity.io/docs/ai/mcp-server"
+      },
+      warnings: [
+        "A Sanity account with access to the relevant projects and datasets."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/stripe.json
+var stripe_default = {
+  schemaVersion: 1,
+  slug: "stripe",
+  name: "Stripe",
+  description: "Connect Stripe's provider-hosted MCP server.",
+  categories: [
+    "commerce"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/stripe.svg"
+  },
+  urlPatterns: [
+    "https://mcp.stripe.com/*"
+  ],
+  docsUrl: "https://docs.stripe.com/mcp",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.stripe.com"
+      },
+      guidanceMd: "Connect Stripe in the browser. A Stripe account; the server is public preview and payment actions require explicit approval.",
+      riskTier: "S4",
+      label: "Sign in with Stripe",
+      consoleLinks: {
+        docs: "https://docs.stripe.com/mcp"
+      },
+      warnings: [
+        "A Stripe account; the server is public preview and payment actions require explicit approval.",
+        "Financial or destructive actions must be explicitly approved before execution."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.stripe.com"
+      },
+      guidanceMd: "Use a customer-created Stripe key. A Stripe account; the server is public preview and payment actions require explicit approval.",
+      riskTier: "S4",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Stripe API key",
+          type: "password",
+          required: true,
+          placeholder: "sk_...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://docs.stripe.com/mcp",
+        docs: "https://docs.stripe.com/mcp"
+      },
+      warnings: [
+        "A Stripe account; the server is public preview and payment actions require explicit approval.",
+        "Financial or destructive actions must be explicitly approved before execution."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/supabase.json
+var supabase_default = {
+  schemaVersion: 1,
+  slug: "supabase",
+  name: "Supabase",
+  description: "Connect Supabase's provider-hosted MCP server.",
+  categories: [
+    "data"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/supabase.svg"
+  },
+  urlPatterns: [
+    "https://mcp.supabase.com/*"
+  ],
+  docsUrl: "https://supabase.com/docs/guides/ai-tools/mcp",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.supabase.com/mcp"
+      },
+      guidanceMd: "Connect Supabase in the browser and scope the connection to one development project. Write tools start enabled and remain governed by Paperclip's action policies.",
+      riskTier: "S4",
+      label: "Sign in with Supabase",
+      consoleLinks: {
+        docs: "https://supabase.com/docs/guides/ai-tools/mcp"
+      },
+      warnings: [
+        "A Supabase account; use a development project and review write actions before connecting production data.",
+        "Do not connect production data unless you have reviewed Supabase's MCP security guidance."
+      ],
+      tenantFields: [
+        {
+          key: "projectRef",
+          label: "Project reference",
+          type: "text",
+          required: true,
+          placeholder: "abcdefghijklmnopqrst",
+          helperMd: "Scope the connection to one development project.",
+          transport: {
+            location: "query",
+            name: "project_ref"
+          }
+        },
+        {
+          key: "readOnly",
+          label: "Read-only mode",
+          type: "checkbox",
+          defaultValue: false,
+          helperMd: "Enable this to prevent the connection from changing the database.",
+          transport: {
+            location: "query",
+            name: "read_only",
+            format: "boolean"
+          }
+        },
+        {
+          key: "features",
+          label: "Feature groups",
+          type: "textarea",
+          advanced: true,
+          placeholder: "database,docs",
+          helperMd: "Optional comma-separated feature groups.",
+          transport: {
+            location: "query",
+            name: "features",
+            format: "csv"
+          }
+        }
+      ],
+      requiredResourceFilters: [
+        "project"
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.supabase.com/mcp"
+      },
+      guidanceMd: "Use a customer-created Supabase key scoped to one development project. Write tools start enabled and remain governed by Paperclip's action policies.",
+      riskTier: "S4",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Supabase API key",
+          type: "password",
+          required: true,
+          placeholder: "sbp_...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://supabase.com/docs/guides/ai-tools/mcp",
+        docs: "https://supabase.com/docs/guides/ai-tools/mcp"
+      },
+      warnings: [
+        "A Supabase account; use a development project and review write actions before connecting production data.",
+        "Do not connect production data unless you have reviewed Supabase's MCP security guidance."
+      ],
+      tenantFields: [
+        {
+          key: "projectRef",
+          label: "Project reference",
+          type: "text",
+          required: true,
+          placeholder: "abcdefghijklmnopqrst",
+          helperMd: "Scope the connection to one development project.",
+          transport: {
+            location: "query",
+            name: "project_ref"
+          }
+        },
+        {
+          key: "readOnly",
+          label: "Read-only mode",
+          type: "checkbox",
+          defaultValue: false,
+          helperMd: "Enable this to prevent the connection from changing the database.",
+          transport: {
+            location: "query",
+            name: "read_only",
+            format: "boolean"
+          }
+        },
+        {
+          key: "features",
+          label: "Feature groups",
+          type: "textarea",
+          advanced: true,
+          placeholder: "database,docs",
+          helperMd: "Optional comma-separated feature groups.",
+          transport: {
+            location: "query",
+            name: "features",
+            format: "csv"
+          }
+        }
+      ],
+      requiredResourceFilters: [
+        "project"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/ticket-tailor.json
+var ticket_tailor_default = {
+  schemaVersion: 1,
+  slug: "ticket-tailor",
+  name: "Ticket Tailor",
+  description: "Connect Ticket Tailor's provider-hosted MCP server.",
+  categories: [
+    "commerce"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/ticket-tailor.svg",
+    darkLogoUrl: "/brands/apps/ticket-tailor-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.tickettailor.ai/*"
+  ],
+  docsUrl: "https://developers.tickettailor.com/docs/mcp/authentication/",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.tickettailor.ai/mcp"
+      },
+      guidanceMd: "Connect Ticket Tailor in the browser. A Ticket Tailor account; the provider may request an API key during its hosted authorization prompt.",
+      riskTier: "S3",
+      label: "Sign in with Ticket Tailor",
+      consoleLinks: {
+        docs: "https://developers.tickettailor.com/docs/mcp/authentication/"
+      },
+      warnings: [
+        "A Ticket Tailor account; the provider may request an API key during its hosted authorization prompt."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/asana.json
+var asana_default = {
+  schemaVersion: 1,
+  slug: "asana",
+  name: "Asana",
+  description: "Connect Asana's provider-hosted MCP server.",
+  categories: [
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/asana.svg"
+  },
+  urlPatterns: [
+    "https://mcp.asana.com/*"
+  ],
+  docsUrl: "https://developers.asana.com/docs/integrating-with-asanas-mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-own-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Register an OAuth app with Asana, then enter its client ID and secret.",
+      defaults: {
+        serverUrl: "https://mcp.asana.com/v2/mcp"
+      },
+      guidanceMd: "Connect Asana in the browser. Create an Asana MCP OAuth app and register Paperclip's callback URI; DCR is not supported.",
+      riskTier: "S3",
+      label: "Use your own OAuth app",
+      consoleLinks: {
+        register: "https://developers.asana.com/docs/integrating-with-asanas-mcp-server",
+        docs: "https://developers.asana.com/docs/integrating-with-asanas-mcp-server"
+      },
+      warnings: [
+        "Create an Asana MCP OAuth app and register Paperclip's callback URI; DCR is not supported."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/box.json
+var box_default = {
+  schemaVersion: 1,
+  slug: "box",
+  name: "Box",
+  description: "Connect Box's provider-hosted MCP server.",
+  categories: [
+    "content"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/box.svg"
+  },
+  urlPatterns: [
+    "https://mcp.box.com/*"
+  ],
+  docsUrl: "https://support.box.com/hc/en-us/articles/43847256139923-Managing-Box-MCP-Servers",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-own-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Register an OAuth app with Box, then enter its client ID and secret.",
+      defaults: {
+        serverUrl: "https://mcp.box.com"
+      },
+      guidanceMd: "Connect Box in the browser. A Box administrator creates the OAuth integration and enables AI access.",
+      riskTier: "S3",
+      label: "Use your own OAuth app",
+      consoleLinks: {
+        register: "https://support.box.com/hc/en-us/articles/43847256139923-Managing-Box-MCP-Servers",
+        docs: "https://support.box.com/hc/en-us/articles/43847256139923-Managing-Box-MCP-Servers"
+      },
+      warnings: [
+        "A Box administrator creates the OAuth integration and enables AI access."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/mem0.json
+var mem0_default = {
+  schemaVersion: 1,
+  slug: "mem0",
+  name: "Mem0",
+  description: "Connect Mem0's provider-hosted MCP server.",
+  categories: [
+    "ai"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/mem0.svg"
+  },
+  urlPatterns: [
+    "https://mcp.mem0.ai/*"
+  ],
+  docsUrl: "https://docs.mem0.ai/platform/mem0-mcp",
+  methods: [
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.mem0.ai/mcp/"
+      },
+      guidanceMd: "Use a customer-created Mem0 key. A Mem0 API key; the live server currently requires the slash-normalized endpoint.",
+      riskTier: "S3",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Mem0 API key",
+          type: "password",
+          required: true,
+          placeholder: "m0sk_...",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://docs.mem0.ai/platform/mem0-mcp",
+        docs: "https://docs.mem0.ai/platform/mem0-mcp"
+      },
+      warnings: [
+        "A Mem0 API key; the live server currently requires the slash-normalized endpoint."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/pagerduty.json
+var pagerduty_default = {
+  schemaVersion: 1,
+  slug: "pagerduty",
+  name: "PagerDuty",
+  description: "Connect PagerDuty's provider-hosted MCP server.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/pagerduty.svg"
+  },
+  urlPatterns: [
+    "https://mcp.pagerduty.com/*"
+  ],
+  docsUrl: "https://support.pagerduty.com/main/docs/pagerduty-mcp-server",
+  methods: [
+    {
+      key: "mcp-api-key-us",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.pagerduty.com/mcp"
+      },
+      guidanceMd: "Use a customer-created PagerDuty key. A PagerDuty API token; choose the regional endpoint that hosts the account.",
+      riskTier: "S4",
+      label: "US service region",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "PagerDuty API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your PagerDuty user API token",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Token token="
+      },
+      consoleLinks: {
+        keys: "https://support.pagerduty.com/main/docs/pagerduty-mcp-server",
+        docs: "https://support.pagerduty.com/main/docs/pagerduty-mcp-server"
+      },
+      warnings: [
+        "A PagerDuty API token; choose the regional endpoint that hosts the account."
+      ]
+    },
+    {
+      key: "mcp-api-key-eu",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.eu.pagerduty.com/mcp"
+      },
+      guidanceMd: "Use a customer-created PagerDuty key. A PagerDuty API token; choose the regional endpoint that hosts the account.",
+      riskTier: "S4",
+      label: "EU service region",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "PagerDuty API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your PagerDuty user API token",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Token token="
+      },
+      consoleLinks: {
+        keys: "https://support.pagerduty.com/main/docs/pagerduty-mcp-server",
+        docs: "https://support.pagerduty.com/main/docs/pagerduty-mcp-server"
+      },
+      warnings: [
+        "A PagerDuty API token; choose the regional endpoint that hosts the account."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/similarweb.json
+var similarweb_default = {
+  schemaVersion: 1,
+  slug: "similarweb",
+  name: "Similarweb",
+  description: "Connect Similarweb's provider-hosted MCP server.",
+  categories: [
+    "analytics"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/similarweb.svg",
+    darkLogoUrl: "/brands/apps/similarweb-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.similarweb.com/*"
+  ],
+  docsUrl: "https://developers.similarweb.com/docs/similarweb-mcp",
+  methods: [
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.similarweb.com"
+      },
+      guidanceMd: "Use a customer-created Similarweb key. A Similarweb subscription with API access and an API key.",
+      riskTier: "S2",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Similarweb API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your Similarweb API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "api-key",
+        prefix: null
+      },
+      consoleLinks: {
+        keys: "https://developers.similarweb.com/docs/similarweb-mcp",
+        docs: "https://developers.similarweb.com/docs/similarweb-mcp"
+      },
+      warnings: [
+        "A Similarweb subscription with API access and an API key."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/xero.json
+var xero_default = {
+  schemaVersion: 1,
+  slug: "xero",
+  name: "Xero",
+  description: "Connect Xero's provider-hosted MCP server.",
+  categories: [
+    "commerce"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/xero.svg"
+  },
+  urlPatterns: [
+    "https://mcp.xero.com/*"
+  ],
+  docsUrl: "https://developer.xero.com/ai",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-own-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Register an OAuth app with Xero, then enter its client ID and secret.",
+      defaults: {
+        serverUrl: "https://mcp.xero.com/mcp",
+        scopesHint: [
+          "openid",
+          "profile",
+          "email",
+          "offline_access",
+          "accounting.settings",
+          "accounting.invoices.read",
+          "accounting.reports.aged.read",
+          "accounting.reports.balancesheet.read",
+          "accounting.reports.profitandloss.read"
+        ]
+      },
+      guidanceMd: "Connect Xero in the browser. Create a Xero OAuth app and confirm the applicable AI and data-use terms before connecting.",
+      riskTier: "S4",
+      label: "Use your own OAuth app",
+      consoleLinks: {
+        register: "https://developer.xero.com/ai",
+        docs: "https://developer.xero.com/ai"
+      },
+      warnings: [
+        "Create a Xero OAuth app and confirm the applicable AI and data-use terms before connecting."
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/gmail.json
+var gmail_default = {
+  schemaVersion: 1,
+  slug: "gmail",
+  name: "Gmail",
+  description: "Search and read Gmail messages and create drafts without enabling mail sending.",
+  categories: [
+    "communication",
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/gmail.svg"
+  },
+  urlPatterns: [
+    "https://gmailmcp.googleapis.com/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/gmail/api/reference/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "gmail.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Search and read messages, threads, drafts, and labels."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed Google OAuth for read-only Gmail access.",
+      defaults: {
+        serverUrl: "https://gmailmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/gmail.readonly"
+        ]
+      },
+      guidanceMd: "Connect Gmail with read-only access. Sending, deleting, moving, and relabeling mail are not enabled.",
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Search and read messages, threads, drafts, and labels."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned Google OAuth client for read-only Gmail access.",
+      defaults: {
+        serverUrl: "https://gmailmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/gmail.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "paperclip-draft",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "gmail.draft",
+      capabilityProfile: {
+        key: "draft",
+        label: "Read & create drafts",
+        description: "Read Gmail and create drafts for review in Gmail."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed Google OAuth to read Gmail and create drafts.",
+      defaults: {
+        serverUrl: "https://gmailmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/gmail.readonly",
+          "https://www.googleapis.com/auth/gmail.compose"
+        ]
+      },
+      guidanceMd: "Connect Gmail to search and read mail and create drafts. Sending mail is permanently disabled.",
+      warnings: [
+        "Draft creation requires approval. Sending mail is not enabled.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "customer-draft-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "draft",
+        label: "Read & create drafts",
+        description: "Read Gmail and create drafts for review in Gmail."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned Google OAuth client to read Gmail and create drafts.",
+      defaults: {
+        serverUrl: "https://gmailmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/gmail.readonly",
+          "https://www.googleapis.com/auth/gmail.compose"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Draft creation requires approval. Sending mail is not enabled.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-drive.json
+var google_drive_default = {
+  schemaVersion: 1,
+  slug: "google-drive",
+  name: "Google Drive",
+  description: "Search, read, create, and copy files in Google Drive.",
+  categories: [
+    "content",
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/google-drive.svg"
+  },
+  urlPatterns: [
+    "https://drivemcp.googleapis.com/*",
+    "https://drive.google.com/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/drive/api/reference/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "drive.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Search and read files and metadata."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for read-only Drive access.",
+      defaults: {
+        serverUrl: "https://drivemcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google Drive to search and read files. Google's Developer Preview Program must register the signed-in Workspace account and Google Cloud project before tools can run.",
+      warnings: [
+        "Before connecting, enroll the signed-in Workspace account and Google Cloud project in Google's Developer Preview Program and wait for the registration confirmation."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Search and read files and metadata."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for read-only Drive access.",
+      defaults: {
+        serverUrl: "https://drivemcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enroll the Workspace account and Google Cloud project in Google's Developer Preview Program, enable the Drive and Drive MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Before connecting, enroll the signed-in Workspace account and Google Cloud project in Google's Developer Preview Program and wait for the registration confirmation."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "paperclip-write",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "drive.write",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & create",
+        description: "Read files and create or copy files."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for Drive read and create access.",
+      defaults: {
+        serverUrl: "https://drivemcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file"
+        ]
+      },
+      guidanceMd: "Connect Google Drive to read files and create or copy app-accessible files. Google's Developer Preview Program must register the signed-in Workspace account and Google Cloud project before tools can run.",
+      warnings: [
+        "File creation and copying require approval.",
+        "Before connecting, enroll the signed-in Workspace account and Google Cloud project in Google's Developer Preview Program and wait for the registration confirmation."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "customer-write-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & create",
+        description: "Read files and create or copy files."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for Drive read and create access.",
+      defaults: {
+        serverUrl: "https://drivemcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enroll the Workspace account and Google Cloud project in Google's Developer Preview Program, enable the Drive and Drive MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "File creation and copying require approval.",
+        "Before connecting, enroll the signed-in Workspace account and Google Cloud project in Google's Developer Preview Program and wait for the registration confirmation."
+      ],
+      riskTier: "S4"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-docs.json
+var google_docs_default = {
+  schemaVersion: 1,
+  slug: "google-docs",
+  name: "Google Docs",
+  description: "Read and update Google Docs documents.",
+  categories: [
+    "content",
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/google-docs.svg"
+  },
+  urlPatterns: [
+    "https://docsmcp.googleapis.com/*",
+    "https://docs.google.com/document/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/docs/api/reference/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "docs.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read document text and structure."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for read-only Docs access.",
+      defaults: {
+        serverUrl: "https://docsmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/documents.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google Docs to read documents.",
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read document text and structure."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for read-only Docs access.",
+      defaults: {
+        serverUrl: "https://docsmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/documents.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Drive, Docs, and Docs MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "paperclip-write",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "docs.write",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & edit",
+        description: "Read and update documents."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth to read and update Docs.",
+      defaults: {
+        serverUrl: "https://docsmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/documents"
+        ]
+      },
+      guidanceMd: "Connect Google Docs to read and update documents.",
+      warnings: [
+        "Document updates require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "customer-write-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & edit",
+        description: "Read and update documents."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client to read and update Docs.",
+      defaults: {
+        serverUrl: "https://docsmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/documents"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Drive, Docs, and Docs MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Document updates require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-sheets.json
+var google_sheets_default = {
+  schemaVersion: 1,
+  slug: "google-sheets",
+  name: "Google Sheets",
+  description: "Read and update Google Sheets spreadsheets.",
+  categories: [
+    "data",
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/google-sheets.svg"
+  },
+  urlPatterns: [
+    "https://sheetsmcp.googleapis.com/*",
+    "https://docs.google.com/spreadsheets/*",
+    "https://sheets.google.com/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/sheets/api/reference/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "sheets.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read spreadsheet values and structure."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for read-only Sheets access.",
+      defaults: {
+        serverUrl: "https://sheetsmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/spreadsheets.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google Sheets to read spreadsheets.",
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read spreadsheet values and structure."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for read-only Sheets access.",
+      defaults: {
+        serverUrl: "https://sheetsmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/spreadsheets.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Drive, Sheets, and Sheets MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "paperclip-write",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "sheets.write",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & edit",
+        description: "Read and update spreadsheet values, formulas, and dimensions."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth to read and update Sheets.",
+      defaults: {
+        serverUrl: "https://sheetsmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/spreadsheets"
+        ]
+      },
+      guidanceMd: "Connect Google Sheets to read and update spreadsheets.",
+      warnings: [
+        "Spreadsheet updates require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "customer-write-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & edit",
+        description: "Read and update spreadsheet values, formulas, and dimensions."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client to read and update Sheets.",
+      defaults: {
+        serverUrl: "https://sheetsmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/spreadsheets"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Drive, Sheets, and Sheets MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Spreadsheet updates require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "local",
+      label: "Use the Paperclip robot account",
+      transport: "local_stdio",
+      auth: "none",
+      capabilityProfile: {
+        key: "robot",
+        label: "Share selected sheets",
+        description: "Share only named spreadsheets with the Paperclip robot account."
+      },
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Share selected spreadsheets with the Paperclip robot account instead of connecting a Google identity.",
+      defaults: {
+        templateKey: "paperclip.google-sheets"
+      },
+      guidanceMd: "Share each spreadsheet with the Paperclip robot email, then paste the sheet links.",
+      riskTier: "S3",
+      requiredResourceFilters: [
+        "spreadsheet"
+      ]
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-slides.json
+var google_slides_default = {
+  schemaVersion: 1,
+  slug: "google-slides",
+  name: "Google Slides",
+  description: "Read and update Google Slides presentations.",
+  categories: [
+    "content",
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/google-slides.svg"
+  },
+  urlPatterns: [
+    "https://slidesmcp.googleapis.com/*",
+    "https://docs.google.com/presentation/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/slides/api/reference/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "slides.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read presentation slides and content."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for read-only Slides access.",
+      defaults: {
+        serverUrl: "https://slidesmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/presentations.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google Slides to read presentations.",
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read presentation slides and content."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for read-only Slides access.",
+      defaults: {
+        serverUrl: "https://slidesmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/presentations.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Drive, Slides, and Slides MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "paperclip-write",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "slides.write",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & edit",
+        description: "Read and update presentations."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth to read and update Slides.",
+      defaults: {
+        serverUrl: "https://slidesmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/presentations"
+        ]
+      },
+      guidanceMd: "Connect Google Slides to read and update presentations.",
+      warnings: [
+        "Presentation updates require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "customer-write-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & edit",
+        description: "Read and update presentations."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client to read and update Slides.",
+      defaults: {
+        serverUrl: "https://slidesmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/presentations"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Drive, Slides, and Slides MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Presentation updates require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-calendar.json
+var google_calendar_default = {
+  schemaVersion: 1,
+  slug: "google-calendar",
+  name: "Google Calendar",
+  description: "Read calendars and manage Google Calendar events.",
+  categories: [
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/google-calendar.svg"
+  },
+  urlPatterns: [
+    "https://calendarmcp.googleapis.com/*",
+    "https://calendar.google.com/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/calendar/api/reference/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "calendar.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read calendars, events, and availability."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for read-only Calendar access.",
+      defaults: {
+        serverUrl: "https://calendarmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+          "https://www.googleapis.com/auth/calendar.events.freebusy",
+          "https://www.googleapis.com/auth/calendar.events.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google Calendar to read schedules and availability.",
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Read calendars, events, and availability."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for read-only Calendar access.",
+      defaults: {
+        serverUrl: "https://calendarmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+          "https://www.googleapis.com/auth/calendar.events.freebusy",
+          "https://www.googleapis.com/auth/calendar.events.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Calendar and Calendar MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "paperclip-write",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "calendar.write",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & manage",
+        description: "Create, update, respond to, and delete events."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth to read and manage Calendar events.",
+      defaults: {
+        serverUrl: "https://calendarmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+          "https://www.googleapis.com/auth/calendar.events.freebusy",
+          "https://www.googleapis.com/auth/calendar.events"
+        ]
+      },
+      guidanceMd: "Connect Google Calendar to read and manage events.",
+      warnings: [
+        "All event mutations require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "customer-write-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & manage",
+        description: "Create, update, respond to, and delete events."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client to read and manage Calendar events.",
+      defaults: {
+        serverUrl: "https://calendarmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+          "https://www.googleapis.com/auth/calendar.events.freebusy",
+          "https://www.googleapis.com/auth/calendar.events"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Calendar and Calendar MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "All event mutations require approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-chat.json
+var google_chat_default = {
+  schemaVersion: 1,
+  slug: "google-chat",
+  name: "Google Chat",
+  description: "Search and read Google Chat conversations and send messages.",
+  categories: [
+    "communication",
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/google-chat.svg"
+  },
+  urlPatterns: [
+    "https://chatmcp.googleapis.com/*",
+    "https://chat.google.com/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/chat/api/reference/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "chat.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Search conversations and read messages."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for read-only Chat access.",
+      defaults: {
+        serverUrl: "https://chatmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/chat.spaces.readonly",
+          "https://www.googleapis.com/auth/chat.memberships.readonly",
+          "https://www.googleapis.com/auth/chat.messages.readonly",
+          "https://www.googleapis.com/auth/chat.users.readstate.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google Chat to search conversations and read messages.",
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read only",
+        description: "Search conversations and read messages."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for read-only Chat access.",
+      defaults: {
+        serverUrl: "https://chatmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/chat.spaces.readonly",
+          "https://www.googleapis.com/auth/chat.memberships.readonly",
+          "https://www.googleapis.com/auth/chat.messages.readonly",
+          "https://www.googleapis.com/auth/chat.users.readstate.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Chat and Chat MCP APIs, configure a Chat app, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "A Google Chat app must be configured in the Cloud project.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "paperclip-write",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "chat.write",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & send",
+        description: "Read Chat and send messages."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth to read Chat and send messages.",
+      defaults: {
+        serverUrl: "https://chatmcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/chat.spaces.readonly",
+          "https://www.googleapis.com/auth/chat.memberships.readonly",
+          "https://www.googleapis.com/auth/chat.messages.readonly",
+          "https://www.googleapis.com/auth/chat.users.readstate.readonly",
+          "https://www.googleapis.com/auth/chat.messages.create"
+        ]
+      },
+      guidanceMd: "Connect Google Chat to read conversations and send approved messages.",
+      warnings: [
+        "Sending messages requires approval.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    },
+    {
+      key: "customer-write-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "write",
+        label: "Read & send",
+        description: "Read Chat and send messages."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client to read Chat and send messages.",
+      defaults: {
+        serverUrl: "https://chatmcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/chat.spaces.readonly",
+          "https://www.googleapis.com/auth/chat.memberships.readonly",
+          "https://www.googleapis.com/auth/chat.messages.readonly",
+          "https://www.googleapis.com/auth/chat.users.readstate.readonly",
+          "https://www.googleapis.com/auth/chat.messages.create"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Chat and Chat MCP APIs, configure a Chat app, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Sending messages requires approval.",
+        "A Google Chat app must be configured in the Cloud project.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S4"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-people.json
+var google_people_default = {
+  schemaVersion: 1,
+  slug: "google-people",
+  name: "Google People",
+  description: "Search contacts and directory profiles with the Google People API.",
+  categories: [
+    "communication",
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/google-people.svg"
+  },
+  urlPatterns: [
+    "https://people.googleapis.com/*"
+  ],
+  docsUrl: "https://developers.google.com/people/api/mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "people.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Read contacts",
+        description: "Search contacts, directory people, and your profile."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for Google People access.",
+      defaults: {
+        serverUrl: "https://people.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/directory.readonly",
+          "https://www.googleapis.com/auth/userinfo.profile",
+          "https://www.googleapis.com/auth/contacts.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google People to search contacts and directory profiles.",
+      warnings: [
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Read contacts",
+        description: "Search contacts, directory people, and your profile."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for Google People access.",
+      defaults: {
+        serverUrl: "https://people.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/directory.readonly",
+          "https://www.googleapis.com/auth/userinfo.profile",
+          "https://www.googleapis.com/auth/contacts.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the People and People MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/configure-mcp-servers"
+      },
+      warnings: [
+        "Directory search availability depends on your Workspace account.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-workspace-search.json
+var google_workspace_search_default = {
+  schemaVersion: 1,
+  slug: "google-workspace-search",
+  name: "Google Workspace Search",
+  description: "Search Gmail, Drive, Calendar, and Chat through one read-only Google Workspace search tool.",
+  categories: [
+    "data",
+    "productivity"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/google-workspace-search.svg"
+  },
+  urlPatterns: [
+    "https://workspacemcp.googleapis.com/*"
+  ],
+  docsUrl: "https://developers.google.com/workspace/guides/universal-search-mcp",
+  setupPrerequisite: {
+    title: "Google Developer Preview access required",
+    description: "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    steps: [
+      "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
+      "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
+      "Add every additional tester email or Cloud project through Google's member request forms before connecting."
+    ],
+    actionLabel: "Apply or verify Developer Preview enrollment",
+    actionUrl: "https://developers.google.com/workspace/preview"
+  },
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "paperclip-read",
+      label: "Connect with Paperclip",
+      transport: "mcp_remote",
+      auth: "oauth",
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "workspace-search.read",
+      capabilityProfile: {
+        key: "read",
+        label: "Search Workspace",
+        description: "Search Gmail, Drive, Calendar, and Chat without write access."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "platform_shared"
+      ],
+      whenToUse: "Use Paperclip-managed OAuth for cross-product Workspace search.",
+      defaults: {
+        serverUrl: "https://workspacemcp.googleapis.com/mcp/v1",
+        scopesHint: [
+          "https://www.googleapis.com/auth/gmail.readonly",
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/calendar.readonly",
+          "https://www.googleapis.com/auth/chat.messages.readonly"
+        ]
+      },
+      guidanceMd: "Connect Google Workspace Search for one read-only search tool spanning Gmail, Drive, Calendar, and Chat.",
+      warnings: [
+        "This requests read access to all four supported search corpora.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    },
+    {
+      key: "customer-read-oauth",
+      label: "Use your own Google OAuth app",
+      transport: "mcp_remote",
+      auth: "oauth",
+      capabilityProfile: {
+        key: "read",
+        label: "Search Workspace",
+        description: "Search Gmail, Drive, Calendar, and Chat without write access."
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a customer-owned OAuth client for cross-product Workspace search.",
+      defaults: {
+        serverUrl: "https://workspacemcp.googleapis.com/mcp/v1",
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+        metadataUrl: "https://accounts.google.com/.well-known/openid-configuration",
+        scopesHint: [
+          "https://www.googleapis.com/auth/gmail.readonly",
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/calendar.readonly",
+          "https://www.googleapis.com/auth/chat.messages.readonly"
+        ],
+        oauthAuthorizationParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Enable the Gmail, Drive, Calendar, Chat, and Workspace MCP APIs, then register Paperclip's callback URI.",
+      consoleLinks: {
+        register: "https://console.cloud.google.com/auth/clients",
+        docs: "https://developers.google.com/workspace/guides/universal-search-mcp"
+      },
+      warnings: [
+        "This requests read access to all four supported search corpora.",
+        "Google Workspace MCP servers are in Developer Preview."
+      ],
+      riskTier: "S3"
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/openai.json
+var openai_default = {
+  schemaVersion: 1,
+  slug: "openai",
+  name: "OpenAI",
+  description: "Connect OpenAI accounts for your agents.",
+  categories: [
+    "ai"
+  ],
+  branding: {
+    logoUrl: "/brands/apps/openai.svg",
+    darkLogoUrl: "/brands/apps/openai-dark.svg"
+  },
+  urlPatterns: [
+    "https://api.openai.com/*"
+  ],
+  methods: [
+    {
+      key: "ai-subscription",
+      label: "OpenAI subscription",
+      purpose: "ai",
+      transport: "runtime_auth",
+      auth: "oauth",
+      ai: {
+        provider: "openai",
+        method: "subscription"
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Authenticate an agent with this account.",
+      guidanceMd: "Use your personal account or an explicitly shared company account.",
+      riskTier: "S3"
+    },
+    {
+      key: "ai-api_key",
+      label: "OpenAI API key",
+      purpose: "ai",
+      transport: "runtime_auth",
+      auth: "api_key",
+      ai: {
+        provider: "openai",
+        method: "api_key"
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Authenticate an agent with this account.",
+      guidanceMd: "Use your personal account or an explicitly shared company account.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "apiKey",
+          label: "API key",
+          type: "password",
+          required: true,
+          placeholder: "Enter API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "env",
+        name: "OPENAI_API_KEY"
+      }
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/openrouter.json
+var openrouter_default = {
+  schemaVersion: 1,
+  slug: "openrouter",
+  name: "OpenRouter",
+  description: "Connect OpenRouter accounts for your agents.",
+  categories: [
+    "ai"
+  ],
+  branding: {
+    logoUrl: "/brands/apps/openrouter.svg",
+    darkLogoUrl: "/brands/apps/openrouter-dark.svg"
+  },
+  urlPatterns: [
+    "https://openrouter.ai/api/*"
+  ],
+  methods: [
+    {
+      key: "ai-api_key",
+      label: "OpenRouter API key",
+      purpose: "ai",
+      transport: "runtime_auth",
+      auth: "api_key",
+      ai: {
+        provider: "openrouter",
+        method: "api_key"
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Authenticate an agent with this account.",
+      guidanceMd: "Use your personal account or an explicitly shared company account.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "apiKey",
+          label: "API key",
+          type: "password",
+          required: true,
+          placeholder: "Enter API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "env",
+        name: "OPENROUTER_API_KEY"
+      }
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/xai.json
+var xai_default = {
+  schemaVersion: 1,
+  slug: "xai",
+  name: "Grok",
+  description: "Connect Grok accounts for your agents.",
+  categories: [
+    "ai"
+  ],
+  branding: {
+    logoUrl: "/brands/apps/xai.svg",
+    darkLogoUrl: "/brands/apps/xai-dark.svg"
+  },
+  urlPatterns: [
+    "https://api.x.ai/*"
+  ],
+  methods: [
+    {
+      key: "ai-subscription",
+      label: "Grok subscription",
+      purpose: "ai",
+      transport: "runtime_auth",
+      auth: "oauth",
+      ai: {
+        provider: "xai",
+        method: "subscription"
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Authenticate an agent with this account.",
+      guidanceMd: "Use your personal account or an explicitly shared company account.",
+      riskTier: "S3"
+    },
+    {
+      key: "ai-api_key",
+      label: "Grok API key",
+      purpose: "ai",
+      transport: "runtime_auth",
+      auth: "api_key",
+      ai: {
+        provider: "xai",
+        method: "api_key"
+      },
+      grantKinds: [
+        "user",
+        "organization"
+      ],
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Authenticate an agent with this account.",
+      guidanceMd: "Use your personal account or an explicitly shared company account.",
+      riskTier: "S3",
+      credentialFields: [
+        {
+          key: "apiKey",
+          label: "API key",
+          type: "password",
+          required: true,
+          placeholder: "Enter API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "env",
+        name: "XAI_API_KEY"
+      }
+    }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions.generated.js
+var APP_DEFINITIONS = [agentmail_default, zapier_default, github_default, slack_default, microsoft_teams_default, imessage_photon_default, telegram_default, discord_default, notion_default, posthog_default, linear_default, context7_default, shopify_default, composio_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default, jira_default, airtable_default, beehiiv_default, bitly_default, candid_default, cloudflare_default, cloudinary_default, coda_default, hugging_face_default, kernel_default, local_falcon_default, make_default, manufact_default, miro_default, netlify_default, oreilly_default, planetscale_default, resend_default, ticktick_default, todoist_default, webflow_default, wix_default, brex_default, clickhouse_default, egnyte_default, embat_default, mixpanel_default, postman_default, razorpay_default, sanity_default, stripe_default, supabase_default, ticket_tailor_default, asana_default, box_default, mem0_default, pagerduty_default, similarweb_default, xero_default, gmail_default, google_drive_default, google_docs_default, google_sheets_default, google_slides_default, google_calendar_default, google_chat_default, google_people_default, google_workspace_search_default, openai_default, openrouter_default, xai_default];
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/self-serve-mcp-research.json
+var self_serve_mcp_research_default = {
+  schemaVersion: 1,
+  verifiedAt: "2026-08-26",
+  entries: [
+    { slug: "jira", name: "Jira", wave: 1, status: "self_serve", docsUrl: "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/", serverUrl: "https://mcp.atlassian.com/v1/mcp/authv2", authMode: "dcr_cimd", prerequisite: "An active Jira or Confluence site; tenant policy may require an administrator to approve the client.", riskTier: "S3" },
+    { slug: "airtable", name: "Airtable", wave: 1, status: "self_serve", docsUrl: "https://support.airtable.com/articles/9897799762-using-the-airtable-mcp-server", serverUrl: "https://mcp.airtable.com/mcp", authMode: "dcr", prerequisite: "An Airtable account; enterprise administrators may need to allowlist the client.", riskTier: "S3" },
+    { slug: "beehiiv", name: "beehiiv", wave: 1, status: "self_serve", docsUrl: "https://www.beehiiv.com/features/mcp/getting-started", serverUrl: "https://mcp.beehiiv.com/mcp", authMode: "dcr", prerequisite: "A beehiiv account; the subscription plan controls available write capabilities.", riskTier: "S3" },
+    { slug: "bitly", name: "Bitly", wave: 1, status: "self_serve", docsUrl: "https://dev.bitly.com/bitly-mcp/overview/quickstart/", serverUrl: "https://api-ssl.bitly.com/v4/mcp", authMode: "dcr_or_api_key", prerequisite: "A Bitly account with either browser authorization or an API token.", riskTier: "S2" },
+    { slug: "candid", name: "Candid", wave: 1, status: "self_serve", docsUrl: "https://learning.candid.org/getting-started-with-the-candid-mcp-connector/375441", serverUrl: "https://mcp.candid.org/mcp", authMode: "dcr", prerequisite: "A Candid account with access to the MCP connector.", riskTier: "S2" },
+    { slug: "cloudflare", name: "Cloudflare", wave: 1, status: "self_serve", docsUrl: "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/", serverUrl: "https://mcp.cloudflare.com/mcp", authMode: "dcr_or_api_key", prerequisite: "A Cloudflare account with access to the resources being connected.", riskTier: "S3" },
+    { slug: "cloudinary", name: "Cloudinary", wave: 1, status: "self_serve", docsUrl: "https://cloudinary.com/documentation/cloudinary_llm_mcp", serverUrl: "https://asset-management.mcp.cloudinary.com/mcp", authMode: "dcr", prerequisite: "A Cloudinary account; authorization is limited by the signed-in user's roles.", riskTier: "S3" },
+    { slug: "coda", name: "Coda", wave: 1, status: "self_serve", docsUrl: "https://help.coda.io/hc/en-us/articles/44722769665549-Security-recommendations-for-the-Coda-MCP", serverUrl: "https://coda.io/apis/mcp", authMode: "dcr_or_api_key", prerequisite: "A Coda account; the hosted MCP service is currently beta.", riskTier: "S3" },
+    { slug: "hugging-face", name: "Hugging Face", wave: 1, status: "self_serve", docsUrl: "https://huggingface.co/docs/hub/agents-mcp", serverUrl: "https://huggingface.co/mcp?login&gradio=none", authMode: "dcr_cimd", prerequisite: "A Hugging Face account.", riskTier: "S2" },
+    { slug: "kernel", name: "Kernel", wave: 1, status: "self_serve", docsUrl: "https://www.kernel.sh/docs/reference/mcp-server/", serverUrl: "https://mcp.onkernel.com/mcp", authMode: "dcr_or_api_key", prerequisite: "A Kernel account with either browser authorization or an API key.", riskTier: "S3" },
+    { slug: "local-falcon", name: "Local Falcon", wave: 1, status: "self_serve", docsUrl: "https://docs.localfalcon.com/", serverUrl: "https://mcp.localfalcon.com", authMode: "dcr", prerequisite: "A Local Falcon account with MCP access.", riskTier: "S2" },
+    { slug: "make", name: "Make", wave: 1, status: "self_serve", docsUrl: "https://developers.make.com/mcp-server", serverUrl: "https://mcp.make.com", authMode: "dcr", prerequisite: "A Make account and access to the scenarios exposed to MCP.", riskTier: "S3" },
+    { slug: "manufact", name: "Manufact", wave: 1, status: "self_serve", docsUrl: "https://docs.manufact.com/mcp", serverUrl: "https://mcp.manufact.com/mcp", authMode: "dcr", prerequisite: "A Manufact account with MCP access.", riskTier: "S3" },
+    { slug: "miro", name: "Miro", wave: 1, status: "self_serve", docsUrl: "https://help.miro.com/hc/en-us/articles/31625301583890-How-to-enable-Miro-s-MCP-Server-user-guide", serverUrl: "https://mcp.miro.com/", authMode: "dcr", prerequisite: "A Miro account; enterprise administrators may restrict third-party MCP clients.", riskTier: "S3" },
+    { slug: "netlify", name: "Netlify", wave: 1, status: "self_serve", docsUrl: "https://docs.netlify.com/build/build-with-ai/agent-setup-guides/agent-setup-overview/", serverUrl: "https://netlify-mcp.netlify.app/mcp", authMode: "dcr", prerequisite: "A Netlify account with access to the relevant team and sites.", riskTier: "S3" },
+    { slug: "notion", name: "Notion", wave: 1, status: "self_serve", docsUrl: "https://developers.notion.com/guides/mcp/build-mcp-client", serverUrl: "https://mcp.notion.com/mcp", authMode: "dcr", prerequisite: "A Notion account and access to the pages or databases being shared.", riskTier: "S3" },
+    { slug: "oreilly", name: "O'Reilly", wave: 1, status: "self_serve", docsUrl: "https://learning.oreilly.com/apidocs/mcp/content/", serverUrl: "https://api.oreilly.com/api/content-discovery/v1/mcp/", authMode: "dcr_or_api_key", prerequisite: "An O'Reilly Learning subscription with MCP or API access.", riskTier: "S2" },
+    { slug: "planetscale", name: "PlanetScale", wave: 1, status: "self_serve", docsUrl: "https://planetscale.com/docs/connect/mcp", serverUrl: "https://mcp.pscale.dev/mcp/planetscale", authMode: "dcr", prerequisite: "A PlanetScale account; database and branch access are chosen during authorization.", riskTier: "S4" },
+    { slug: "posthog", name: "PostHog", wave: 1, status: "self_serve", docsUrl: "https://posthog.com/docs/model-context-protocol", serverUrl: "https://mcp.posthog.com/mcp", authMode: "dcr_or_api_key", prerequisite: "A PostHog account; personal API keys and optional organization or project pinning are supported as alternatives and advanced controls.", riskTier: "S3" },
+    { slug: "resend", name: "Resend", wave: 1, status: "self_serve", docsUrl: "https://resend.com/changelog/remote-mcp-server", serverUrl: "https://mcp.resend.com/mcp", authMode: "dcr", prerequisite: "A Resend account with access to the relevant domains.", riskTier: "S3" },
+    { slug: "sentry", name: "Sentry", wave: 1, status: "self_serve", docsUrl: "https://mcp.sentry.dev/.well-known/oauth-authorization-server", serverUrl: "https://mcp.sentry.dev/mcp", authMode: "dcr_cimd", prerequisite: "A Sentry account with access to the relevant organizations and projects.", riskTier: "S3" },
+    { slug: "ticktick", name: "TickTick", wave: 1, status: "self_serve", docsUrl: "https://help.ticktick.com/articles/7438129581631995904", serverUrl: "https://mcp.ticktick.com", authMode: "dcr", prerequisite: "A TickTick account with MCP access.", riskTier: "S3" },
+    { slug: "todoist", name: "Todoist", wave: 1, status: "self_serve", docsUrl: "https://developer.todoist.com/", serverUrl: "https://ai.todoist.net/mcp", authMode: "dcr", prerequisite: "A Todoist account.", riskTier: "S3" },
+    { slug: "webflow", name: "Webflow", wave: 1, status: "self_serve", docsUrl: "https://developers.webflow.com/mcp/reference/getting-started", serverUrl: "https://mcp.webflow.com/mcp", authMode: "dcr", prerequisite: "A Webflow account; workspace and site roles constrain accessible sites.", riskTier: "S3" },
+    { slug: "wix", name: "Wix", wave: 1, status: "self_serve", docsUrl: "https://www.wix.com/studio/developers/mcp-server", serverUrl: "https://mcp.wix.com/mcp", authMode: "dcr", prerequisite: "A Wix account with access to the relevant sites.", riskTier: "S3" },
+    { slug: "brex", name: "Brex", wave: 2, status: "self_serve", docsUrl: "https://www.brex.com/support/using-brex-in-ai-apps", serverUrl: "https://api.brex.com/mcp", authMode: "dcr", prerequisite: "Brex early access and an administrator enabling the integration; financial actions require explicit approval.", riskTier: "S4" },
+    { slug: "clickhouse", name: "ClickHouse", wave: 2, status: "self_serve", docsUrl: "https://clickhouse.com/blog/announcing-managed-clickstack-mcp-server", serverUrl: "https://mcp.clickhouse.cloud/clickstack", authMode: "dcr", prerequisite: "A ClickHouse Cloud ClickStack service and its service ID.", riskTier: "S4" },
+    { slug: "egnyte", name: "Egnyte", wave: 2, status: "self_serve", docsUrl: "https://developers.egnyte.com/docs/Remote_MCP_Server", serverUrl: "https://mcp-server.egnyte.com/mcp", authMode: "dcr", prerequisite: "An eligible Egnyte plan and administrator approval for external LLM access.", riskTier: "S3" },
+    { slug: "embat", name: "Embat", wave: 2, status: "self_serve", docsUrl: "https://tellme.embat.io/.well-known/oauth-protected-resource/mcp", serverUrl: "https://tellme.embat.io/mcp", authMode: "dcr_cimd", prerequisite: "An Embat account; pilot the connection because provider setup documentation is sparse.", riskTier: "S4" },
+    { slug: "mixpanel", name: "Mixpanel", wave: 2, status: "self_serve", docsUrl: "https://mixpanel.com/blog/mixpanel-mcp-server/", serverUrl: "https://mcp.mixpanel.com/mcp", authMode: "dcr", prerequisite: "A Mixpanel account; the hosted MCP server is currently beta.", riskTier: "S3" },
+    { slug: "postman", name: "Postman", wave: 2, status: "self_serve", docsUrl: "https://learning.postman.com/latest-v-12/docs/reference/postman-api/postman-mcp-server/postman-mcp-remote-server", serverUrl: "https://mcp.postman.com/minimal", authMode: "dcr_or_api_key", prerequisite: "A Postman account; OAuth is available for US endpoints and API keys are required for EU endpoints.", riskTier: "S3" },
+    { slug: "razorpay", name: "Razorpay", wave: 2, status: "self_serve", docsUrl: "https://razorpay.com/docs/mcp-server/oauth/", serverUrl: "https://mcp.razorpay.com/mcp", authMode: "dcr_or_api_key", prerequisite: "A Razorpay account; financial or destructive actions always require explicit approval.", riskTier: "S4" },
+    { slug: "sanity", name: "Sanity", wave: 2, status: "self_serve", docsUrl: "https://www.sanity.io/docs/ai/mcp-server", serverUrl: "https://mcp.sanity.io", authMode: "dcr_or_api_key", prerequisite: "A Sanity account with access to the relevant projects and datasets.", riskTier: "S3" },
+    { slug: "stripe", name: "Stripe", wave: 2, status: "self_serve", docsUrl: "https://docs.stripe.com/mcp", serverUrl: "https://mcp.stripe.com", authMode: "dcr_or_api_key", prerequisite: "A Stripe account; the server is public preview and payment actions require explicit approval.", riskTier: "S4" },
+    { slug: "supabase", name: "Supabase", wave: 2, status: "self_serve", docsUrl: "https://supabase.com/docs/guides/ai-tools/mcp", serverUrl: "https://mcp.supabase.com/mcp", authMode: "dcr_or_api_key", prerequisite: "A Supabase account; use a development project and review write actions before connecting production data.", riskTier: "S4" },
+    { slug: "ticket-tailor", name: "Ticket Tailor", wave: 2, status: "self_serve", docsUrl: "https://developers.tickettailor.com/docs/mcp/authentication/", serverUrl: "https://mcp.tickettailor.ai/mcp", authMode: "dcr", prerequisite: "A Ticket Tailor account; the provider may request an API key during its hosted authorization prompt.", riskTier: "S3" },
+    { slug: "asana", name: "Asana", wave: 3, status: "self_serve", docsUrl: "https://developers.asana.com/docs/integrating-with-asanas-mcp-server", serverUrl: "https://mcp.asana.com/v2/mcp", authMode: "customer_oauth", prerequisite: "Create an Asana MCP OAuth app and register Paperclip's callback URI; DCR is not supported.", riskTier: "S3" },
+    { slug: "box", name: "Box", wave: 3, status: "self_serve", docsUrl: "https://support.box.com/hc/en-us/articles/43847256139923-Managing-Box-MCP-Servers", serverUrl: "https://mcp.box.com", authMode: "customer_oauth", prerequisite: "A Box administrator creates the OAuth integration and enables AI access.", riskTier: "S3" },
+    { slug: "mem0", name: "Mem0", wave: 3, status: "self_serve", docsUrl: "https://docs.mem0.ai/platform/mem0-mcp", serverUrl: "https://mcp.mem0.ai/mcp/", authMode: "api_key", prerequisite: "A Mem0 API key; the live server currently requires the slash-normalized endpoint.", riskTier: "S3" },
+    { slug: "pagerduty", name: "PagerDuty", wave: 3, status: "self_serve", docsUrl: "https://support.pagerduty.com/main/docs/pagerduty-mcp-server", serverUrl: "https://mcp.pagerduty.com/mcp", authMode: "api_key", prerequisite: "A PagerDuty API token; choose the regional endpoint that hosts the account.", riskTier: "S4" },
+    { slug: "similarweb", name: "Similarweb", wave: 3, status: "self_serve", docsUrl: "https://developers.similarweb.com/docs/similarweb-mcp", serverUrl: "https://mcp.similarweb.com", authMode: "api_key", prerequisite: "A Similarweb subscription with API access and an API key.", riskTier: "S2" },
+    { slug: "xero", name: "Xero", wave: 3, status: "self_serve", docsUrl: "https://developer.xero.com/ai", serverUrl: "https://mcp.xero.com/mcp", authMode: "customer_oauth", prerequisite: "Create a Xero OAuth app and confirm the applicable AI and data-use terms before connecting.", riskTier: "S4" },
+    { slug: "zapier", name: "Zapier", wave: 3, status: "self_serve", docsUrl: "https://docs.zapier.com/mcp/quickstart", serverUrl: "https://mcp.zapier.com/", authMode: "generated_url", prerequisite: "Create a Zapier MCP server, choose the actions it exposes, and paste its generated connection URL.", riskTier: "S3" },
+    { slug: "g2", name: "G2", wave: "blocked", status: "blocked", docsUrl: "https://documentation.g2.com/docs/g2-mcp-server", serverUrl: "https://mcp.g2.com/mcp", authMode: "provider_approval", prerequisite: "G2 must enable cross-application token introspection before an independently registered client can work.", riskTier: "S3" },
+    { slug: "vercel", name: "Vercel", wave: "blocked", status: "blocked", docsUrl: "https://vercel.com/docs/agent-resources/vercel-mcp", serverUrl: "https://mcp.vercel.com", authMode: "provider_approval", prerequisite: "Vercel currently reviews and approves MCP clients.", riskTier: "S3" },
+    { slug: "zomato", name: "Zomato", wave: "blocked", status: "blocked", docsUrl: "https://github.com/Zomato/mcp-server-manifest", serverUrl: "https://mcp-server.zomato.com/mcp", authMode: "provider_approval", prerequisite: "Zomato currently limits third-party clients and requires redirect-URI allowlisting.", riskTier: "S3" }
+  ]
+};
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/self-serve-mcp-research.js
+var SELF_SERVE_MCP_RESEARCH = self_serve_mcp_research_default;
+var SELF_SERVE_MCP_CANDIDATES = SELF_SERVE_MCP_RESEARCH.entries.filter((entry) => entry.status === "self_serve");
+var BLOCKED_MCP_PROVIDERS = SELF_SERVE_MCP_RESEARCH.entries.filter((entry) => entry.status === "blocked");
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions.js
 var CONNECTABLE_APP_SLUGS = /* @__PURE__ */ new Set([
+  "anthropic",
+  "openai",
+  "openrouter",
+  "xai",
+  "agentmail",
+  ...SELF_SERVE_MCP_CANDIDATES.map((entry) => entry.slug),
   "zapier",
-  "github",
   "slack",
   "notion",
+  "posthog",
   "linear",
   "google-sheets",
-  "context7"
+  "context7",
+  "shopify",
+  "composio",
+  "gmail",
+  "google-drive",
+  "google-docs",
+  "google-slides",
+  "google-calendar",
+  "google-chat",
+  "google-people",
+  "google-workspace-search",
+  "github",
+  "discord",
+  "microsoft-teams",
+  "telegram",
+  "imessage-photon"
 ]);
 var CONNECTABLE_APP_DEFINITIONS = APP_DEFINITIONS.filter((app) => CONNECTABLE_APP_SLUGS.has(app.slug));
+var APP_STORE_HIDDEN_SLUGS = /* @__PURE__ */ new Set([
+  "beehiiv",
+  "bitly",
+  "brex",
+  "candid",
+  "coda",
+  "composio",
+  "context7",
+  "egnyte",
+  "embat",
+  "kernel",
+  "local-falcon",
+  "make",
+  "manufact",
+  "oreilly",
+  "planetscale",
+  "razorpay",
+  "sanity",
+  "similarweb",
+  "ticket-tailor",
+  "ticktick",
+  "xero"
+]);
+var APP_STORE_DEFINITIONS = CONNECTABLE_APP_DEFINITIONS.filter((app) => !APP_STORE_HIDDEN_SLUGS.has(app.slug));
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/agent-url-key.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/google-workspace-connectors.js
+var auth = (scope) => `https://www.googleapis.com/auth/${scope}`;
+var GOOGLE_WORKSPACE_CONNECTOR_PROFILES = {
+  "gmail.read": def("gmail", "https://gmailmcp.googleapis.com/mcp/v1", [auth("gmail.readonly")]),
+  "gmail.draft": def("gmail", "https://gmailmcp.googleapis.com/mcp/v1", [auth("gmail.readonly"), auth("gmail.compose")], ["create_draft"]),
+  "drive.read": def("google-drive", "https://drivemcp.googleapis.com/mcp/v1", [auth("drive.readonly")]),
+  "drive.write": def("google-drive", "https://drivemcp.googleapis.com/mcp/v1", [auth("drive.readonly"), auth("drive.file")], ["copy_file", "create_file"]),
+  "docs.read": def("google-docs", "https://docsmcp.googleapis.com/mcp/v1", [auth("drive.readonly"), auth("documents.readonly")]),
+  "docs.write": def("google-docs", "https://docsmcp.googleapis.com/mcp/v1", [auth("drive.readonly"), auth("drive.file"), auth("documents")], ["update_doc"]),
+  "sheets.read": def("google-sheets", "https://sheetsmcp.googleapis.com/mcp/v1", [auth("drive.readonly"), auth("spreadsheets.readonly")]),
+  "sheets.write": def("google-sheets", "https://sheetsmcp.googleapis.com/mcp/v1", [auth("drive.readonly"), auth("drive.file"), auth("spreadsheets")], ["update_spreadsheet", "update_values", "update_formulas", "insert_dimension"]),
+  "slides.read": def("google-slides", "https://slidesmcp.googleapis.com/mcp/v1", [auth("drive.readonly"), auth("presentations.readonly")]),
+  "slides.write": def("google-slides", "https://slidesmcp.googleapis.com/mcp/v1", [auth("drive.readonly"), auth("drive.file"), auth("presentations")], ["update_presentation"]),
+  "calendar.read": def("google-calendar", "https://calendarmcp.googleapis.com/mcp/v1", [auth("calendar.calendarlist.readonly"), auth("calendar.events.freebusy"), auth("calendar.events.readonly")]),
+  "calendar.write": def("google-calendar", "https://calendarmcp.googleapis.com/mcp/v1", [auth("calendar.calendarlist.readonly"), auth("calendar.events.freebusy"), auth("calendar.events")], ["create_event", "update_event", "delete_event", "respond_to_event"]),
+  "chat.read": def("google-chat", "https://chatmcp.googleapis.com/mcp/v1", [auth("chat.spaces.readonly"), auth("chat.memberships.readonly"), auth("chat.messages.readonly"), auth("chat.users.readstate.readonly")]),
+  "chat.write": def("google-chat", "https://chatmcp.googleapis.com/mcp/v1", [auth("chat.spaces.readonly"), auth("chat.memberships.readonly"), auth("chat.messages.readonly"), auth("chat.users.readstate.readonly"), auth("chat.messages.create")], ["send_message"]),
+  "people.read": def("google-people", "https://people.googleapis.com/mcp/v1", [auth("directory.readonly"), auth("userinfo.profile"), auth("contacts.readonly")]),
+  "workspace-search.read": def("google-workspace-search", "https://workspacemcp.googleapis.com/mcp/v1", [auth("gmail.readonly"), auth("drive.readonly"), auth("calendar.readonly"), auth("chat.messages.readonly")])
+};
+function def(appSlug, serverUrl, scopes, writeTools = []) {
+  return { appSlug, serverUrl, scopes, writeTools };
+}
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/agent-url-key.js
 var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function isUuidLike(value) {
   if (typeof value !== "string")
@@ -21555,13 +26955,13 @@ function isUuidLike(value) {
   return UUID_RE.test(value.trim());
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/search.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/search.js
 var COMPANY_SEARCH_SCOPES = ["all", "issues", "comments", "documents", "artifacts", "agents", "projects"];
 var COMPANY_SEARCH_SORTS = ["relevance", "updated", "created", "priority"];
 var COMPANY_SEARCH_EXTRACT_SCOPES = ["all", "issues", "comments", "documents"];
 var COMPANY_SEARCH_EXTRACT_KINDS = ["literal", "url"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/search.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/search.js
 var COMPANY_SEARCH_MAX_QUERY_LENGTH = 200;
 var COMPANY_SEARCH_DEFAULT_LIMIT = 20;
 var COMPANY_SEARCH_MAX_LIMIT = 50;
@@ -21748,7 +27148,7 @@ var companySearchExtractQuerySchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/status-card.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/status-card.js
 function isValidTimeZone(timezone) {
   try {
     new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
@@ -21904,13 +27304,198 @@ var writeStatusCardSummarySchema = external_exports.object({
   model: external_exports.string().trim().min(1).max(200).optional().nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/text.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/ai-connections.js
+var connectionPurposeTransportSchema = external_exports.discriminatedUnion("connectionPurpose", [
+  external_exports.object({
+    connectionPurpose: external_exports.literal("tool"),
+    transport: external_exports.enum(["mcp_remote", "rest_api", "local_stdio"])
+  }),
+  external_exports.object({
+    connectionPurpose: external_exports.literal("channel"),
+    transport: external_exports.enum(["chat_sdk", "rest_api"]),
+    config: external_exports.object({ provider: external_exports.string().optional() }).passthrough().optional()
+  }).refine((connection) => connection.transport === "chat_sdk" || connection.config?.provider === "agentmail", { message: "REST channel connections require the AgentMail provider", path: ["config", "provider"] }),
+  external_exports.object({
+    connectionPurpose: external_exports.literal("ai"),
+    transport: external_exports.literal("runtime_auth")
+  })
+]);
+var AI_PROVIDERS = [
+  "anthropic",
+  "openai",
+  "openrouter",
+  "xai"
+];
+var aiProviderSchema = external_exports.enum(AI_PROVIDERS);
+var aiAuthMethodSchema = external_exports.enum(["subscription", "api_key"]);
+var requirement = { provider: aiProviderSchema, method: aiAuthMethodSchema };
+var aiConnectionBindingSchema = external_exports.discriminatedUnion("mode", [
+  external_exports.object({
+    provider: aiProviderSchema,
+    // Retained on the wire for older servers during rolling upgrades. The
+    // responsible user's provider default determines the actual run method.
+    method: aiAuthMethodSchema,
+    mode: external_exports.literal("responsible_user")
+  }).strict(),
+  external_exports.object({
+    ...requirement,
+    mode: external_exports.literal("shared"),
+    connectionId: external_exports.string().uuid(),
+    grantId: external_exports.string().uuid()
+  }).strict(),
+  external_exports.object({
+    ...requirement,
+    // Legacy wire format only; human access still applies. New UI never creates it.
+    mode: external_exports.literal("delegated"),
+    connectionId: external_exports.string().uuid(),
+    grantId: external_exports.string().uuid()
+  }).strict()
+]);
+var aiConnectionMetadataSchema = external_exports.object(requirement).strict();
+var AI_CONNECTION_CAPABILITIES = {
+  anthropic: {
+    name: "Claude",
+    methods: {
+      subscription: {
+        adapters: ["claude_local"],
+        envKey: "CLAUDE_CODE_OAUTH_TOKEN"
+      },
+      api_key: { adapters: ["claude_local"], envKey: "ANTHROPIC_API_KEY" }
+    }
+  },
+  openai: {
+    name: "OpenAI",
+    methods: {
+      subscription: { adapters: ["codex_local"], envKey: "CODEX_HOME" },
+      api_key: { adapters: ["codex_local"], envKey: "OPENAI_API_KEY" }
+    }
+  },
+  openrouter: {
+    name: "OpenRouter",
+    methods: {
+      api_key: { adapters: ["opencode_local"], envKey: "OPENROUTER_API_KEY" }
+    }
+  },
+  xai: {
+    name: "Grok",
+    methods: {
+      subscription: { adapters: ["grok_local"], envKey: "GROK_HOME" },
+      api_key: { adapters: ["grok_local"], envKey: "XAI_API_KEY" }
+    }
+  }
+};
+var createAiConnectionSchema = external_exports.object({
+  ...requirement,
+  name: external_exports.string().trim().min(1).max(160),
+  ownership: external_exports.enum(["personal", "shared"]),
+  apiKey: external_exports.string().trim().min(1).max(32768).optional(),
+  loginSessionId: external_exports.string().max(128).optional(),
+  connectionId: external_exports.string().uuid().optional(),
+  agentIds: external_exports.array(external_exports.string().uuid()).max(1e3).default([]),
+  allAgents: external_exports.boolean().default(false)
+}).strict().superRefine((v, ctx) => {
+  if (!AI_CONNECTION_CAPABILITIES[v.provider].methods[v.method])
+    ctx.addIssue({ code: "custom", message: "Unsupported sign-in method" });
+  if (v.method === "api_key" ? !v.apiKey || Boolean(v.loginSessionId) : !v.loginSessionId || Boolean(v.apiKey)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Provide exactly the credential for the selected sign-in method"
+    });
+  }
+});
+var aiConnectionLoginIntentSchema = external_exports.object({
+  provider: aiProviderSchema,
+  method: external_exports.literal("subscription"),
+  name: external_exports.string().trim().min(1).max(160),
+  ownership: external_exports.enum(["personal", "shared"]),
+  connectionId: external_exports.string().uuid().optional(),
+  agentIds: external_exports.array(external_exports.string().uuid()).max(1e3).default([]),
+  allAgents: external_exports.boolean().default(false)
+}).strict();
+var localAiConnectionSchema = aiConnectionLoginIntentSchema.extend({
+  localSessionId: external_exports.string().uuid().optional()
+});
+var localAiLoginStartSchema = aiConnectionLoginIntentSchema.extend({ restart: external_exports.boolean().optional() });
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/mcp-remote-headers.js
+var HTTP_TOKEN_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+var MAX_HEADER_NAME_LENGTH = 128;
+var MAX_HEADER_VALUE_LENGTH = 8192;
+var FORBIDDEN_HEADER_NAMES = /* @__PURE__ */ new Set([
+  "connection",
+  "content-length",
+  "cookie",
+  "cookie2",
+  "expect",
+  "host",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "proxy-connection",
+  "set-cookie",
+  "set-cookie2",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "via"
+]);
+var FORBIDDEN_HEADER_PREFIXES = ["proxy-", "sec-", "http2-"];
+var OK = { ok: true };
+function checkMcpRemoteHeaderName(name) {
+  const trimmed = name.trim();
+  if (!trimmed)
+    return { ok: false, reason: "empty" };
+  if (trimmed.length > MAX_HEADER_NAME_LENGTH)
+    return { ok: false, reason: "too_long" };
+  if (!HTTP_TOKEN_PATTERN.test(trimmed))
+    return { ok: false, reason: "invalid_characters" };
+  const lower = trimmed.toLowerCase();
+  if (FORBIDDEN_HEADER_NAMES.has(lower))
+    return { ok: false, reason: "forbidden" };
+  if (FORBIDDEN_HEADER_PREFIXES.some((prefix) => lower.startsWith(prefix))) {
+    return { ok: false, reason: "forbidden" };
+  }
+  return OK;
+}
+function checkMcpRemoteHeaderValue(value) {
+  if (value.length > MAX_HEADER_VALUE_LENGTH)
+    return { ok: false, reason: "value_too_long" };
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(value)) {
+    return { ok: false, reason: "value_control_characters" };
+  }
+  return OK;
+}
+function mcpRemoteHeaderRejectionMessage(headerName, reason) {
+  switch (reason) {
+    case "empty":
+      return "Header names cannot be blank.";
+    case "too_long":
+      return `Header name "${headerName.slice(0, MAX_HEADER_NAME_LENGTH)}" is too long.`;
+    case "invalid_characters":
+      return `"${headerName.slice(0, MAX_HEADER_NAME_LENGTH)}" is not a valid header name. Use letters, digits, and dashes.`;
+    case "forbidden":
+      return `Paperclip manages the "${headerName}" header and cannot send a custom value for it.`;
+    case "value_too_long":
+      return `The value for "${headerName}" is too long.`;
+    case "value_control_characters":
+      return `The value for "${headerName}" contains line breaks or control characters.`;
+  }
+}
+function mcpRemoteHeaderNameFromConfigPath(configPath) {
+  if (!configPath.startsWith("headers."))
+    return null;
+  const name = configPath.slice("headers.".length).trim();
+  return name.length > 0 ? name : null;
+}
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/text.js
 function normalizeEscapedLineBreaks(value) {
   return value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
 }
 var multilineTextSchema = external_exports.string().transform(normalizeEscapedLineBreaks);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
 var trustPresetSchema = external_exports.enum(TRUST_PRESETS);
 var lowTrustOutputPromotionTargetSchema = external_exports.object({
   type: external_exports.literal("issue"),
@@ -21968,7 +27553,7 @@ var sourceTrustMetadataSchema = external_exports.object({
   promotedAt: external_exports.string().datetime({ offset: true }).nullable().optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/issue.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/issue.js
 var issueBlockedInboxStateSchema = external_exports.enum([
   "needs_attention",
   "awaiting_decision",
@@ -21976,7 +27561,12 @@ var issueBlockedInboxStateSchema = external_exports.enum([
   "recovery_open",
   "missing_disposition"
 ]);
-var issueBlockedInboxSeveritySchema = external_exports.enum(["critical", "high", "medium", "low"]);
+var issueBlockedInboxSeveritySchema = external_exports.enum([
+  "critical",
+  "high",
+  "medium",
+  "low"
+]);
 var issueBlockedInboxReasonSchema = external_exports.enum([
   "blocked_by_unassigned_issue",
   "blocked_by_assigned_backlog_issue",
@@ -22049,7 +27639,12 @@ function isValidExistingBranchName(value) {
   return true;
 }
 var executionWorkspaceStrategySchema = external_exports.object({
-  type: external_exports.enum(["project_primary", "git_worktree", "adapter_managed", "cloud_sandbox"]).optional(),
+  type: external_exports.enum([
+    "project_primary",
+    "git_worktree",
+    "adapter_managed",
+    "cloud_sandbox"
+  ]).optional(),
   baseRef: external_exports.string().optional().nullable(),
   branchTemplate: external_exports.string().optional().nullable(),
   existingBranch: external_exports.string().trim().refine(isValidExistingBranchName, {
@@ -22091,8 +27686,8 @@ var protectedTaskEgressCidrs = [
 function ipv4CidrRange(cidr) {
   if (!ipv4CidrPattern.test(cidr))
     return null;
-  const [address, prefixText] = cidr.split("/");
-  const addressValue = address.split(".").reduce((value, octet) => value * 256 + Number(octet), 0);
+  const [address2, prefixText] = cidr.split("/");
+  const addressValue = address2.split(".").reduce((value, octet) => value * 256 + Number(octet), 0);
   const prefix = Number(prefixText);
   const blockSize = 2 ** (32 - prefix);
   const start = Math.floor(addressValue / blockSize) * blockSize;
@@ -22127,7 +27722,6 @@ var issueExecutionWorkspaceSettingsSchema = external_exports.object({
   }
 });
 var issueAssigneeAdapterOverridesSchema = external_exports.object({
-  modelProfile: external_exports.enum(MODEL_PROFILE_KEYS).optional(),
   adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
   useProjectWorkspace: external_exports.boolean().optional()
 }).strict();
@@ -22139,18 +27733,34 @@ var issueExecutionStagePrincipalBaseSchema = external_exports.object({
 var issueExecutionStagePrincipalSchema = issueExecutionStagePrincipalBaseSchema.superRefine((value, ctx) => {
   if (value.type === "agent") {
     if (!value.agentId) {
-      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Agent participants require agentId", path: ["agentId"] });
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "Agent participants require agentId",
+        path: ["agentId"]
+      });
     }
     if (value.userId) {
-      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Agent participants cannot set userId", path: ["userId"] });
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "Agent participants cannot set userId",
+        path: ["userId"]
+      });
     }
     return;
   }
   if (!value.userId) {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "User participants require userId", path: ["userId"] });
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "User participants require userId",
+      path: ["userId"]
+    });
   }
   if (value.agentId) {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "User participants cannot set agentId", path: ["agentId"] });
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "User participants cannot set agentId",
+      path: ["agentId"]
+    });
   }
 });
 var issueExecutionStageParticipantSchema = issueExecutionStagePrincipalBaseSchema.extend({
@@ -22158,18 +27768,34 @@ var issueExecutionStageParticipantSchema = issueExecutionStagePrincipalBaseSchem
 }).superRefine((value, ctx) => {
   if (value.type === "agent") {
     if (!value.agentId) {
-      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Agent participants require agentId", path: ["agentId"] });
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "Agent participants require agentId",
+        path: ["agentId"]
+      });
     }
     if (value.userId) {
-      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Agent participants cannot set userId", path: ["userId"] });
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "Agent participants cannot set userId",
+        path: ["userId"]
+      });
     }
     return;
   }
   if (!value.userId) {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "User participants require userId", path: ["userId"] });
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "User participants require userId",
+      path: ["userId"]
+    });
   }
   if (value.agentId) {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "User participants cannot set agentId", path: ["agentId"] });
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "User participants cannot set agentId",
+      path: ["agentId"]
+    });
   }
 });
 var issueExecutionStageSchema = external_exports.object({
@@ -22266,6 +27892,12 @@ var RESOLVE_ISSUE_RECOVERY_ACTION_OUTCOMES = [
   "cancelled"
 ];
 var resolveIssueRecoveryActionSchema = external_exports.object({
+  executionReconciliation: external_exports.object({
+    runId: external_exports.string().guid(),
+    providerStopped: external_exports.literal(true),
+    actionOutcome: external_exports.enum(["completed", "not_performed", "mixed"]),
+    outcomeEvidence: external_exports.string().trim().min(20).max(12e3)
+  }).strict().optional(),
   actionId: external_exports.string().guid().optional(),
   outcome: external_exports.enum(RESOLVE_ISSUE_RECOVERY_ACTION_OUTCOMES),
   sourceIssueStatus: external_exports.enum(["todo", "done", "in_review", "blocked"]),
@@ -22384,6 +28016,7 @@ function requireBlockedStatusForUnblockDescriptor(value, ctx) {
   }
 }
 var createIssueDuplicateGuardSchema = {
+  initialPlan: external_exports.string().min(1).max(2e5).optional().nullable(),
   idempotencyKey: external_exports.string().trim().min(1).max(255).optional().nullable(),
   allowDuplicate: external_exports.boolean().describe("Bypasses recent-title duplicate detection; idempotency keys always replay their original issue").optional().default(false)
 };
@@ -22419,6 +28052,9 @@ var createIssueLabelSchema = external_exports.object({
   name: external_exports.string().trim().min(1).max(48),
   color: external_exports.string().regex(/^#(?:[0-9a-fA-F]{6})$/, "Color must be a 6-digit hex value")
 });
+var issueCommentAttachmentIdsSchema = external_exports.array(external_exports.string().uuid()).max(20).refine((ids) => new Set(ids).size === ids.length, {
+  message: "Attachment ids must be unique"
+});
 var updateIssueSchema = objectWithoutDefaults(createIssueBaseSchema.omit({
   createdByUserId: true,
   responsibleUserId: true,
@@ -22427,12 +28063,17 @@ var updateIssueSchema = objectWithoutDefaults(createIssueBaseSchema.omit({
   requestDepth: issueRequestDepthInputSchema.optional(),
   assigneeAgentId: external_exports.string().trim().min(1).optional().nullable(),
   comment: multilineTextSchema.pipe(external_exports.string().min(1)).optional(),
+  commentClientRequestId: external_exports.string().uuid().optional(),
+  /** Only valid with a comment; the route binds these in the update transaction. */
+  attachmentIds: issueCommentAttachmentIdsSchema.optional(),
   onBehalfOfUserId: external_exports.string().trim().min(1).optional().nullable(),
   reviewInteractionId: external_exports.string().guid().optional(),
   reviewRequest: issueReviewRequestSchema.optional().nullable(),
   reopen: external_exports.boolean().optional(),
   resume: external_exports.boolean().optional(),
   interrupt: external_exports.boolean().optional(),
+  /** Assignment-only handoff; the following structured goal action owns the wake. */
+  deferWakeForGoal: external_exports.boolean().optional(),
   hiddenAt: external_exports.string().datetime().nullable().optional()
 });
 var stalledReviewDecisionSchema = external_exports.object({
@@ -22518,12 +28159,15 @@ var issueCommentMetadataSectionSchema = external_exports.object({
 }).strict();
 var issueCommentMetadataSchema = external_exports.object({
   version: external_exports.literal(1),
+  sourceChannel: external_exports.literal("imessage-photon").optional(),
   sourceRunId: external_exports.string().guid().nullable().optional(),
   authorizationReason: external_exports.string().trim().min(1).max(160).nullable().optional(),
   sections: external_exports.array(issueCommentMetadataSectionSchema).min(1).max(20)
 }).strict();
 var addIssueCommentSchema = external_exports.object({
+  clientRequestId: external_exports.string().uuid().optional(),
   body: multilineTextSchema.pipe(external_exports.string().min(1)),
+  attachmentIds: issueCommentAttachmentIdsSchema.optional(),
   onBehalfOfUserId: external_exports.string().trim().min(1).optional().nullable(),
   authorType: issueCommentAuthorTypeSchema.optional(),
   presentation: issueCommentPresentationSchema.nullable().optional(),
@@ -22539,6 +28183,53 @@ var issueThreadInteractionResolverPolicySchema = external_exports.enum(ISSUE_THR
 var issueThreadInteractionResolverPolicyProvenanceSchema = external_exports.enum(ISSUE_THREAD_INTERACTION_RESOLVER_POLICY_PROVENANCES);
 var issueThreadInteractionEffectiveResolverPolicySourceSchema = external_exports.enum(ISSUE_THREAD_INTERACTION_EFFECTIVE_RESOLVER_POLICY_SOURCES);
 var issueThreadInteractionContinuationPolicySchema = external_exports.enum(ISSUE_THREAD_INTERACTION_CONTINUATION_POLICIES);
+var connectionIntentPhaseSchema = external_exports.enum([
+  "requested",
+  "authorizing",
+  "needs_retry"
+]);
+var connectionIntentBrandAssetSchema = external_exports.string().max(2048).refine((value) => {
+  if (/^\/brands\/apps\/[a-z0-9][a-z0-9._-]*\.(?:svg|png)$/i.test(value))
+    return true;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}, "Connection intent brand assets must be HTTPS URLs or local app brand paths");
+var connectionIntentPayloadSchema = external_exports.object({
+  purpose: external_exports.literal("ai").optional(),
+  version: external_exports.literal(1),
+  serviceSlug: external_exports.string().trim().min(1).max(120),
+  serviceName: external_exports.string().trim().min(1).max(160),
+  serviceLogoUrl: connectionIntentBrandAssetSchema.nullable().optional(),
+  serviceDarkLogoUrl: connectionIntentBrandAssetSchema.nullable().optional(),
+  requestingAgentId: external_exports.string().guid(),
+  requestingAgentName: external_exports.string().trim().min(1).max(160),
+  phase: connectionIntentPhaseSchema
+}).strict();
+var connectionIntentResultSchema = external_exports.object({
+  version: external_exports.literal(1),
+  outcome: external_exports.enum(["connected", "declined", "superseded", "expired"]),
+  connectionId: external_exports.string().guid().nullable().optional(),
+  reason: external_exports.string().trim().max(4e3).nullable().optional(),
+  supersededByInteractionId: external_exports.string().guid().nullable().optional()
+}).strict().superRefine((value, ctx) => {
+  if (value.outcome === "connected" && !value.connectionId) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["connectionId"],
+      message: "Connected intents require a connection id"
+    });
+  }
+  if (value.outcome === "superseded" && !value.supersededByInteractionId) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["supersededByInteractionId"],
+      message: "Superseded intents require the replacement interaction id"
+    });
+  }
+});
 var issueDocumentKeySchema = external_exports.string().trim().min(1).max(64).regex(/^[a-z0-9][a-z0-9_-]*$/, "Document key must be lowercase letters, numbers, _ or -");
 var suggestedTaskDraftSchema = external_exports.object({
   clientKey: external_exports.string().trim().min(1).max(120),
@@ -22592,25 +28283,26 @@ var suggestTasksResultCreatedTaskSchema = external_exports.object({
 });
 var suggestTasksResultSchema = external_exports.object({
   version: external_exports.literal(1),
-  outcome: external_exports.enum(["withdrawn", "issue_closed", "addressee_deleted"]).optional(),
+  outcome: external_exports.enum(["skipped", "withdrawn", "issue_closed", "addressee_deleted"]).optional(),
   reason: external_exports.string().trim().max(4e3).nullable().optional(),
   createdTasks: external_exports.array(suggestTasksResultCreatedTaskSchema).max(50).optional(),
   skippedClientKeys: external_exports.array(external_exports.string().trim().min(1).max(120)).max(50).optional(),
   rejectionReason: external_exports.string().trim().max(4e3).nullable().optional()
 });
 var askUserQuestionsQuestionOptionSchema = external_exports.object({
-  id: external_exports.string().trim().min(1).max(120),
-  label: external_exports.string().trim().min(1).max(120),
-  description: external_exports.string().trim().max(500).nullable().optional(),
+  id: external_exports.string().trim().min(1).max(160),
+  label: external_exports.string().trim().min(1).max(1e3),
+  description: external_exports.string().trim().max(4e3).nullable().optional(),
   freeText: external_exports.boolean().optional().describe(`When true, selecting this option reveals an inline text field; the typed value is returned as the question's otherText. Use this for a real "I'll describe it" choice instead of authoring a dead option that does nothing. At most one free-text option per question.`)
 });
 var askUserQuestionsQuestionSchema = external_exports.object({
-  id: external_exports.string().trim().min(1).max(120),
-  prompt: external_exports.string().trim().min(1).max(500),
-  helpText: external_exports.string().trim().max(1e3).nullable().optional(),
+  id: external_exports.string().trim().min(1).max(160),
+  prompt: external_exports.string().trim().min(1).max(4e3),
+  helpText: external_exports.string().trim().max(4e3).nullable().optional(),
   selectionMode: external_exports.enum(["single", "multi"]),
   required: external_exports.boolean().optional(),
-  options: external_exports.array(askUserQuestionsQuestionOptionSchema).min(1).max(10)
+  allowOther: external_exports.boolean().optional(),
+  options: external_exports.array(askUserQuestionsQuestionOptionSchema).min(1).max(129)
 });
 var paperclipQuestionOptionSchema = external_exports.object({
   id: external_exports.string().min(1).max(160),
@@ -22639,22 +28331,86 @@ var paperclipQuestionSchema = external_exports.object({
     minimum: external_exports.number().finite().optional(),
     maximum: external_exports.number().finite().optional()
   }).optional()
+}).superRefine((value, ctx) => {
+  if (value.answerMode === "text" && value.options && value.options.length > 0) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "text questions cannot define options",
+      path: ["options"]
+    });
+  }
+  if (value.answerMode !== "text" && (!value.options || value.options.length === 0)) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "select questions require options",
+      path: ["options"]
+    });
+  }
+  if (value.answerMode === "text" && value.customAnswer) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "text questions cannot define customAnswer",
+      path: ["customAnswer"]
+    });
+  }
+  if (value.textValidation?.minLength !== void 0 && value.textValidation.maxLength !== void 0 && value.textValidation.minLength > value.textValidation.maxLength) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "minLength cannot exceed maxLength",
+      path: ["textValidation"]
+    });
+  }
+  if (value.textValidation?.minimum !== void 0 && value.textValidation.maximum !== void 0 && value.textValidation.minimum > value.textValidation.maximum) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "minimum cannot exceed maximum",
+      path: ["textValidation"]
+    });
+  }
+  if (value.textValidation?.pattern !== void 0) {
+    try {
+      new RegExp(value.textValidation.pattern);
+    } catch {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        message: "pattern must be a valid regular expression",
+        path: ["textValidation", "pattern"]
+      });
+    }
+  }
+  const optionIds = value.options?.map((option) => option.id) ?? [];
+  if (new Set(optionIds).size !== optionIds.length) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "option ids must be unique",
+      path: ["options"]
+    });
+  }
 });
-var paperclipQuestionSetSchema = external_exports.object({
+var paperclipQuestionSetPayloadSchema = external_exports.object({
   schema: external_exports.literal("paperclip.question_set.v1"),
   title: external_exports.string().max(1e3).optional(),
   description: external_exports.string().max(4e3).optional(),
   submitLabel: external_exports.string().max(200).optional(),
   questions: external_exports.array(paperclipQuestionSchema).min(1).max(64)
+}).superRefine((value, ctx) => {
+  const questionIds = value.questions.map((question) => question.id);
+  if (new Set(questionIds).size !== questionIds.length) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      message: "question ids must be unique",
+      path: ["questions"]
+    });
+  }
 });
 var askUserQuestionsPayloadSchema = external_exports.object({
   version: external_exports.literal(1),
   title: external_exports.string().trim().max(240).nullable().optional(),
   submitLabel: external_exports.string().trim().max(120).nullable().optional(),
   supersedeOnUserComment: external_exports.boolean().optional(),
-  questions: external_exports.array(askUserQuestionsQuestionSchema).min(1).max(10),
+  questions: external_exports.array(askUserQuestionsQuestionSchema).min(1).max(64),
   /** Exact canonical presentation retained for a recovered harness request. */
-  questionSet: paperclipQuestionSetSchema.optional(),
+  questionSet: paperclipQuestionSetPayloadSchema.optional(),
   /** Stable correlation for draft handoff from a live runtime request. */
   runtimeRequestId: external_exports.string().trim().min(1).max(255).nullable().optional()
 }).superRefine((value, ctx) => {
@@ -22685,7 +28441,13 @@ var askUserQuestionsPayloadSchema = external_exports.object({
           ctx.addIssue({
             code: external_exports.ZodIssueCode.custom,
             message: "A question may declare at most one free-text option",
-            path: ["questions", questionIndex, "options", optionIndex, "freeText"]
+            path: [
+              "questions",
+              questionIndex,
+              "options",
+              optionIndex,
+              "freeText"
+            ]
           });
         }
       }
@@ -22693,15 +28455,15 @@ var askUserQuestionsPayloadSchema = external_exports.object({
   }
 });
 var askUserQuestionsAnswerSchema = external_exports.object({
-  questionId: external_exports.string().trim().min(1).max(120),
-  optionIds: external_exports.array(external_exports.string().trim().min(1).max(120)).max(20),
-  otherText: multilineTextSchema.pipe(external_exports.string().trim().max(4e3)).nullable().optional()
+  questionId: external_exports.string().trim().min(1).max(160),
+  optionIds: external_exports.array(external_exports.string().trim().min(1).max(160)).max(129),
+  otherText: multilineTextSchema.pipe(external_exports.string().trim().max(1e5)).nullable().optional()
 });
 var askUserQuestionsResultSchema = external_exports.object({
   version: external_exports.literal(1),
-  outcome: external_exports.enum(["withdrawn", "issue_closed", "addressee_deleted"]).optional(),
+  outcome: external_exports.enum(["skipped", "withdrawn", "issue_closed", "addressee_deleted"]).optional(),
   reason: external_exports.string().trim().max(4e3).nullable().optional(),
-  answers: external_exports.array(askUserQuestionsAnswerSchema).max(20),
+  answers: external_exports.array(askUserQuestionsAnswerSchema).max(64),
   cancelled: external_exports.literal(true).optional(),
   cancellationReason: external_exports.string().trim().max(4e3).nullable().optional(),
   expirationReason: external_exports.enum(["superseded_by_comment", "superseded_by_newer_interaction"]).optional(),
@@ -22749,7 +28511,8 @@ var requestConfirmationToolActionPayloadSchema = external_exports.object({
   connectionId: external_exports.string().guid().nullable(),
   applicationId: external_exports.string().guid().nullable(),
   appDisplayName: external_exports.string().trim().min(1).max(500).nullable(),
-  risk: external_exports.enum(["write", "destructive"]),
+  risk: external_exports.enum(["read", "write", "destructive"]),
+  rememberActionScope: external_exports.string().trim().min(1).max(1e3).optional(),
   previewMarkdown: external_exports.string().trim().min(1).max(2e4),
   argumentsSummaryJson: external_exports.string().max(2e4),
   argumentsHash: external_exports.string().trim().min(1).max(255),
@@ -22883,6 +28646,7 @@ var requestConfirmationResumeFailureSchema = external_exports.object({
 });
 var requestConfirmationToolActionResultSchema = external_exports.object({
   version: external_exports.literal(1),
+  rememberedAction: external_exports.boolean().optional(),
   status: external_exports.enum(["approved", "executing", "executed", "failed", "expired"]),
   errorCode: external_exports.string().trim().min(1).max(120).nullable().optional(),
   errorMessage: external_exports.string().trim().min(1).max(4e3).nullable().optional(),
@@ -22907,6 +28671,7 @@ var requestConfirmationResultSchema = external_exports.object({
     "superseded_by_comment",
     "superseded_by_newer_request",
     "stale_target",
+    "skipped",
     "withdrawn",
     "issue_closed",
     "addressee_deleted"
@@ -22935,7 +28700,11 @@ var requestCheckboxConfirmationResultSchema = requestConfirmationResultSchema.ex
     seenOptionIds.add(optionId);
   }
 });
-var requestItemVerdictValueSchema = external_exports.enum(["approve", "reject", "defer"]);
+var requestItemVerdictValueSchema = external_exports.enum([
+  "approve",
+  "reject",
+  "defer"
+]);
 var requestItemVerdictsItemSchema = external_exports.object({
   id: external_exports.string().trim().min(1).max(120),
   label: external_exports.string().trim().min(1).max(120),
@@ -23032,7 +28801,16 @@ var requestItemVerdictsResultItemSchema = external_exports.object({
 });
 var requestItemVerdictsResultSchema = external_exports.object({
   version: external_exports.literal(1),
-  outcome: external_exports.enum(["resolved", "superseded_by_comment", "stale_target", "cancelled", "withdrawn", "issue_closed", "addressee_deleted"]),
+  outcome: external_exports.enum([
+    "resolved",
+    "superseded_by_comment",
+    "stale_target",
+    "cancelled",
+    "skipped",
+    "withdrawn",
+    "issue_closed",
+    "addressee_deleted"
+  ]),
   reason: external_exports.string().trim().max(4e3).nullable().optional(),
   complete: external_exports.boolean(),
   items: external_exports.array(requestItemVerdictsResultItemSchema).max(REQUEST_ITEM_VERDICTS_ITEM_LIMIT),
@@ -23053,7 +28831,8 @@ var requestItemVerdictsResultSchema = external_exports.object({
 });
 var createIssueThreadInteractionCommon = {
   resolverPolicy: issueThreadInteractionResolverPolicySchema.optional(),
-  addresseeAgentId: external_exports.string().guid().nullable().optional()
+  addresseeAgentId: external_exports.string().guid().nullable().optional(),
+  addresseeUserId: external_exports.string().trim().min(1).nullable().optional()
 };
 var createIssueThreadInteractionSchema = external_exports.discriminatedUnion("kind", [
   external_exports.object({
@@ -23113,6 +28892,7 @@ var createIssueThreadInteractionSchema = external_exports.discriminatedUnion("ki
   })
 ]);
 var acceptIssueThreadInteractionSchema = external_exports.object({
+  rememberAction: external_exports.boolean().optional(),
   selectedClientKeys: external_exports.array(external_exports.string().trim().min(1).max(120)).min(1).max(50).optional(),
   selectedOptionIds: external_exports.array(external_exports.string().trim().min(1).max(120)).max(REQUEST_CHECKBOX_CONFIRMATION_OPTION_LIMIT).optional()
 }).superRefine((value, ctx) => {
@@ -23145,6 +28925,9 @@ var rejectIssueThreadInteractionSchema = external_exports.object({
   reason: external_exports.string().trim().max(4e3).optional()
 });
 var cancelIssueThreadInteractionSchema = external_exports.object({
+  reason: external_exports.string().trim().max(4e3).optional()
+});
+var skipIssueThreadInteractionSchema = external_exports.object({
   reason: external_exports.string().trim().max(4e3).optional()
 });
 var withdrawIssueThreadInteractionSchema = external_exports.object({
@@ -23190,7 +28973,7 @@ var upsertIssueDocumentSchema = external_exports.object({
 });
 var restoreIssueDocumentRevisionSchema = external_exports.object({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/secret.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/secret.js
 var secretKeySchema = external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/);
 var secretVersionSelectorSchema = external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]);
 var creatableSecretStatusSchema = external_exports.enum(["active", "disabled", "archived"]);
@@ -23523,7 +29306,7 @@ var remoteSecretImportSchema = external_exports.object({
   secrets: external_exports.array(remoteSecretImportSelectionSchema).min(1).max(100)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/routine-variables.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/routine-variables.js
 var HUMAN_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "long",
@@ -23561,7 +29344,7 @@ function isValidRoutineDateString(value) {
   return day >= 1 && day <= daysInMonth;
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/routine.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/routine.js
 var routineVariableValueSchema = external_exports.union([external_exports.string(), external_exports.number().finite(), external_exports.boolean()]);
 var routineVariableSchema = external_exports.object({
   name: external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/),
@@ -23702,7 +29485,7 @@ var runRoutineSchema = external_exports.object({
 });
 var rotateRoutineTriggerSecretSchema = external_exports.object({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/external-object.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/external-object.js
 var externalObjectStatusCategorySchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_CATEGORIES);
 var externalObjectStatusToneSchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_TONES);
 var externalObjectLivenessStateSchema = external_exports.enum(EXTERNAL_OBJECT_LIVENESS_STATES);
@@ -23722,7 +29505,7 @@ var externalObjectMentionSourceSchema = external_exports.object({
   propertyKey: external_exports.string().trim().min(1).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/plugin.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/plugin.js
 var jsonSchemaSchema = external_exports.record(external_exports.string(), external_exports.unknown()).refine((val) => {
   if (Object.keys(val).length === 0)
     return true;
@@ -23790,7 +29573,8 @@ var sandboxProviderCapabilitiesSchema = external_exports.object({
   independentControlCommands: external_exports.boolean().optional(),
   incrementalSessionOutput: external_exports.boolean().optional(),
   concurrentSyncOperations: external_exports.boolean().optional(),
-  duplexCommandStream: external_exports.boolean().optional()
+  duplexCommandStream: external_exports.boolean().optional(),
+  runnerWebSocketIngress: external_exports.boolean().optional()
 }).strict();
 var pluginEnvironmentDriverDeclarationSchema = external_exports.object({
   driverKey: external_exports.string().min(1).regex(/^[a-z0-9][a-z0-9._-]*$/, "Environment driver key must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, hyphens, or underscores"),
@@ -24218,25 +30002,25 @@ var pluginManifestV1Schema = external_exports.object({
     slots: external_exports.array(pluginUiSlotDeclarationSchema).min(1).optional(),
     launchers: external_exports.array(pluginLauncherDeclarationSchema).optional()
   }).optional()
-}).superRefine((manifest, ctx) => {
-  const hasUiSlots = (manifest.ui?.slots?.length ?? 0) > 0;
-  const hasUiLaunchers = (manifest.ui?.launchers?.length ?? 0) > 0;
-  if ((hasUiSlots || hasUiLaunchers) && !manifest.entrypoints.ui) {
+}).superRefine((manifest2, ctx) => {
+  const hasUiSlots = (manifest2.ui?.slots?.length ?? 0) > 0;
+  const hasUiLaunchers = (manifest2.ui?.launchers?.length ?? 0) > 0;
+  if ((hasUiSlots || hasUiLaunchers) && !manifest2.entrypoints.ui) {
     ctx.addIssue({
       code: external_exports.ZodIssueCode.custom,
       message: "entrypoints.ui is required when ui.slots or ui.launchers are declared",
       path: ["entrypoints", "ui"]
     });
   }
-  if (manifest.minimumHostVersion && manifest.minimumPaperclipVersion && manifest.minimumHostVersion !== manifest.minimumPaperclipVersion) {
+  if (manifest2.minimumHostVersion && manifest2.minimumPaperclipVersion && manifest2.minimumHostVersion !== manifest2.minimumPaperclipVersion) {
     ctx.addIssue({
       code: external_exports.ZodIssueCode.custom,
       message: "minimumHostVersion and minimumPaperclipVersion must match when both are declared",
       path: ["minimumHostVersion"]
     });
   }
-  if (manifest.tools && manifest.tools.length > 0) {
-    if (!manifest.capabilities.includes("agent.tools.register")) {
+  if (manifest2.tools && manifest2.tools.length > 0) {
+    if (!manifest2.capabilities.includes("agent.tools.register")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'agent.tools.register' is required when tools are declared",
@@ -24244,8 +30028,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.environmentDrivers && manifest.environmentDrivers.length > 0) {
-    if (!manifest.capabilities.includes("environment.drivers.register")) {
+  if (manifest2.environmentDrivers && manifest2.environmentDrivers.length > 0) {
+    if (!manifest2.capabilities.includes("environment.drivers.register")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'environment.drivers.register' is required when environmentDrivers are declared",
@@ -24253,8 +30037,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.agents && manifest.agents.length > 0) {
-    if (!manifest.capabilities.includes("agents.managed")) {
+  if (manifest2.agents && manifest2.agents.length > 0) {
+    if (!manifest2.capabilities.includes("agents.managed")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'agents.managed' is required when managed agents are declared",
@@ -24262,8 +30046,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.projects && manifest.projects.length > 0) {
-    if (!manifest.capabilities.includes("projects.managed")) {
+  if (manifest2.projects && manifest2.projects.length > 0) {
+    if (!manifest2.capabilities.includes("projects.managed")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'projects.managed' is required when managed projects are declared",
@@ -24271,8 +30055,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.routines && manifest.routines.length > 0) {
-    if (!manifest.capabilities.includes("routines.managed")) {
+  if (manifest2.routines && manifest2.routines.length > 0) {
+    if (!manifest2.capabilities.includes("routines.managed")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'routines.managed' is required when managed routines are declared",
@@ -24280,8 +30064,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.skills && manifest.skills.length > 0) {
-    if (!manifest.capabilities.includes("skills.managed")) {
+  if (manifest2.skills && manifest2.skills.length > 0) {
+    if (!manifest2.capabilities.includes("skills.managed")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'skills.managed' is required when managed skills are declared",
@@ -24289,8 +30073,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.localFolders && manifest.localFolders.length > 0) {
-    if (!manifest.capabilities.includes("local.folders")) {
+  if (manifest2.localFolders && manifest2.localFolders.length > 0) {
+    if (!manifest2.capabilities.includes("local.folders")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'local.folders' is required when local folders are declared",
@@ -24298,8 +30082,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.jobs && manifest.jobs.length > 0) {
-    if (!manifest.capabilities.includes("jobs.schedule")) {
+  if (manifest2.jobs && manifest2.jobs.length > 0) {
+    if (!manifest2.capabilities.includes("jobs.schedule")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'jobs.schedule' is required when jobs are declared",
@@ -24307,8 +30091,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.webhooks && manifest.webhooks.length > 0) {
-    if (!manifest.capabilities.includes("webhooks.receive")) {
+  if (manifest2.webhooks && manifest2.webhooks.length > 0) {
+    if (!manifest2.capabilities.includes("webhooks.receive")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'webhooks.receive' is required when webhooks are declared",
@@ -24316,8 +30100,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.apiRoutes && manifest.apiRoutes.length > 0) {
-    if (!manifest.capabilities.includes("api.routes.register")) {
+  if (manifest2.apiRoutes && manifest2.apiRoutes.length > 0) {
+    if (!manifest2.capabilities.includes("api.routes.register")) {
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: "Capability 'api.routes.register' is required when apiRoutes are declared",
@@ -24325,9 +30109,9 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.objectReferences && manifest.objectReferences.length > 0) {
+  if (manifest2.objectReferences && manifest2.objectReferences.length > 0) {
     for (const capability of ["external.objects.detect", "external.objects.read"]) {
-      if (!manifest.capabilities.includes(capability)) {
+      if (!manifest2.capabilities.includes(capability)) {
         ctx.addIssue({
           code: external_exports.ZodIssueCode.custom,
           message: `Capability '${capability}' is required when objectReferences are declared`,
@@ -24335,8 +30119,8 @@ var pluginManifestV1Schema = external_exports.object({
         });
       }
     }
-    const declaredWebhookKeys = new Set((manifest.webhooks ?? []).map((webhook) => webhook.endpointKey));
-    for (const [providerIndex, provider] of manifest.objectReferences.entries()) {
+    const declaredWebhookKeys = new Set((manifest2.webhooks ?? []).map((webhook) => webhook.endpointKey));
+    for (const [providerIndex, provider] of manifest2.objectReferences.entries()) {
       for (const endpointKey of provider.webhookEndpointKeys ?? []) {
         if (!declaredWebhookKeys.has(endpointKey)) {
           ctx.addIssue({
@@ -24348,13 +30132,13 @@ var pluginManifestV1Schema = external_exports.object({
       }
     }
   }
-  if (manifest.database) {
+  if (manifest2.database) {
     const requiredCapabilities = [
       "database.namespace.migrate",
       "database.namespace.read"
     ];
     for (const capability of requiredCapabilities) {
-      if (!manifest.capabilities.includes(capability)) {
+      if (!manifest2.capabilities.includes(capability)) {
         ctx.addIssue({
           code: external_exports.ZodIssueCode.custom,
           message: `Capability '${capability}' is required when database migrations are declared`,
@@ -24362,7 +30146,7 @@ var pluginManifestV1Schema = external_exports.object({
         });
       }
     }
-    const coreReadTables = manifest.database.coreReadTables ?? [];
+    const coreReadTables = manifest2.database.coreReadTables ?? [];
     const duplicates = coreReadTables.filter((table, i) => coreReadTables.indexOf(table) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24372,8 +30156,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.jobs) {
-    const jobKeys = manifest.jobs.map((j) => j.jobKey);
+  if (manifest2.jobs) {
+    const jobKeys = manifest2.jobs.map((j) => j.jobKey);
     const duplicates = jobKeys.filter((key, i) => jobKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24383,8 +30167,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.webhooks) {
-    const endpointKeys = manifest.webhooks.map((w) => w.endpointKey);
+  if (manifest2.webhooks) {
+    const endpointKeys = manifest2.webhooks.map((w) => w.endpointKey);
     const duplicates = endpointKeys.filter((key, i) => endpointKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24394,8 +30178,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.apiRoutes) {
-    const routeKeys = manifest.apiRoutes.map((route) => route.routeKey);
+  if (manifest2.apiRoutes) {
+    const routeKeys = manifest2.apiRoutes.map((route) => route.routeKey);
     const duplicateKeys = routeKeys.filter((key, i) => routeKeys.indexOf(key) !== i);
     if (duplicateKeys.length > 0) {
       ctx.addIssue({
@@ -24404,7 +30188,7 @@ var pluginManifestV1Schema = external_exports.object({
         path: ["apiRoutes"]
       });
     }
-    const routeSignatures = manifest.apiRoutes.map((route) => `${route.method} ${route.path}`);
+    const routeSignatures = manifest2.apiRoutes.map((route) => `${route.method} ${route.path}`);
     const duplicateRoutes = routeSignatures.filter((sig, i) => routeSignatures.indexOf(sig) !== i);
     if (duplicateRoutes.length > 0) {
       ctx.addIssue({
@@ -24414,8 +30198,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.tools) {
-    const toolNames = manifest.tools.map((t) => t.name);
+  if (manifest2.tools) {
+    const toolNames = manifest2.tools.map((t) => t.name);
     const duplicates = toolNames.filter((name, i) => toolNames.indexOf(name) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24425,8 +30209,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.environmentDrivers) {
-    const driverKeys = manifest.environmentDrivers.map((d) => d.driverKey);
+  if (manifest2.environmentDrivers) {
+    const driverKeys = manifest2.environmentDrivers.map((d) => d.driverKey);
     const duplicates = driverKeys.filter((key, i) => driverKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24436,8 +30220,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.localFolders) {
-    const folderKeys = manifest.localFolders.map((folder) => folder.folderKey);
+  if (manifest2.localFolders) {
+    const folderKeys = manifest2.localFolders.map((folder) => folder.folderKey);
     const duplicates = folderKeys.filter((key, i) => folderKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24447,8 +30231,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.agents) {
-    const agentKeys = manifest.agents.map((agent) => agent.agentKey);
+  if (manifest2.agents) {
+    const agentKeys = manifest2.agents.map((agent) => agent.agentKey);
     const duplicates = agentKeys.filter((key, i) => agentKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24458,8 +30242,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.projects) {
-    const projectKeys = manifest.projects.map((project) => project.projectKey);
+  if (manifest2.projects) {
+    const projectKeys = manifest2.projects.map((project) => project.projectKey);
     const duplicates = projectKeys.filter((key, i) => projectKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24469,8 +30253,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.routines) {
-    const routineKeys = manifest.routines.map((routine) => routine.routineKey);
+  if (manifest2.routines) {
+    const routineKeys = manifest2.routines.map((routine) => routine.routineKey);
     const duplicates = routineKeys.filter((key, i) => routineKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24480,8 +30264,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.skills) {
-    const skillKeys = manifest.skills.map((skill) => skill.skillKey);
+  if (manifest2.skills) {
+    const skillKeys = manifest2.skills.map((skill) => skill.skillKey);
     const duplicates = skillKeys.filter((key, i) => skillKeys.indexOf(key) !== i);
     if (duplicates.length > 0) {
       ctx.addIssue({
@@ -24491,8 +30275,8 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.objectReferences) {
-    const providerKeys = manifest.objectReferences.map((provider) => provider.providerKey);
+  if (manifest2.objectReferences) {
+    const providerKeys = manifest2.objectReferences.map((provider) => provider.providerKey);
     const duplicateProviders = providerKeys.filter((key, i) => providerKeys.indexOf(key) !== i);
     if (duplicateProviders.length > 0) {
       ctx.addIssue({
@@ -24502,9 +30286,9 @@ var pluginManifestV1Schema = external_exports.object({
       });
     }
   }
-  if (manifest.ui) {
-    if (manifest.ui.slots) {
-      const slotIds = manifest.ui.slots.map((s) => s.id);
+  if (manifest2.ui) {
+    if (manifest2.ui.slots) {
+      const slotIds = manifest2.ui.slots.map((s) => s.id);
       const duplicates = slotIds.filter((id, i) => slotIds.indexOf(id) !== i);
       if (duplicates.length > 0) {
         ctx.addIssue({
@@ -24516,8 +30300,8 @@ var pluginManifestV1Schema = external_exports.object({
     }
   }
   const allLaunchers = [
-    ...manifest.launchers ?? [],
-    ...manifest.ui?.launchers ?? []
+    ...manifest2.launchers ?? [],
+    ...manifest2.ui?.launchers ?? []
   ];
   if (allLaunchers.length > 0) {
     const launcherIds = allLaunchers.map((launcher) => launcher.id);
@@ -24526,7 +30310,7 @@ var pluginManifestV1Schema = external_exports.object({
       ctx.addIssue({
         code: external_exports.ZodIssueCode.custom,
         message: `Duplicate launcher ids: ${[...new Set(duplicates)].join(", ")}`,
-        path: manifest.ui?.launchers ? ["ui", "launchers"] : ["launchers"]
+        path: manifest2.ui?.launchers ? ["ui", "launchers"] : ["launchers"]
       });
     }
   }
@@ -24572,17 +30356,43 @@ var listPluginStateSchema = external_exports.object({
   namespace: external_exports.string().min(1).optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/tool-access.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/tool-access.js
 var toolApplicationTypeSchema = external_exports.enum(TOOL_APPLICATION_TYPES);
 var toolApplicationStatusSchema = external_exports.enum(TOOL_APPLICATION_STATUSES);
-var toolConnectionTransportSchema = external_exports.enum(["mcp_remote", "rest_api", "local_stdio"]);
+var toolConnectionTransportSchema = external_exports.enum(["mcp_remote", "rest_api", "local_stdio", "chat_sdk"]);
+var toolConnectionPurposeSchema = external_exports.enum(["tool", "channel"]);
 var toolConnectionAuthKindSchema = external_exports.enum(["oauth", "api_key", "none"]);
 var toolConnectionOwnershipSchema = external_exports.enum(["platform_shared", "platform_provisioned", "customer", "dcr"]);
-var connectionGrantKindSchema = external_exports.enum(["workspace", "user"]);
+var toolConnectionCredentialSourceSchema = external_exports.enum(["paperclip_vault", "vercel_connect"]);
+var vercelConnectCredentialSummarySchema = external_exports.object({
+  provider: external_exports.literal("vercel_connect"),
+  connectorId: external_exports.string().trim().min(1).max(255),
+  connectorUid: external_exports.string().trim().min(1).max(255),
+  service: external_exports.string().trim().min(1).max(255),
+  connectorType: external_exports.string().trim().min(1).max(255),
+  principalMode: external_exports.enum(["app", "user"]),
+  headerName: external_exports.string().trim().min(1).max(160),
+  headerPrefix: external_exports.string().max(120).nullable().optional(),
+  scopes: external_exports.array(external_exports.string().trim().min(1).max(500)).max(50)
+}).strict();
+var vercelConnectGrantSummarySchema = external_exports.object({
+  provider: external_exports.literal("vercel_connect"),
+  subjectType: external_exports.enum(["app", "user"]),
+  installationId: external_exports.string().trim().min(1).max(255).optional(),
+  tenantId: external_exports.string().trim().min(1).max(255).optional(),
+  tokenId: external_exports.string().trim().min(1).max(255).optional(),
+  expiresAt: external_exports.string().datetime({ offset: true }).optional(),
+  lastVerifiedAt: external_exports.string().datetime({ offset: true }).optional()
+}).strict();
+var connectionGrantKindSchema = external_exports.enum(["organization", "user", "agent"]);
 var connectionGrantStatusSchema = external_exports.enum(["active", "revoked", "expired", "needs_reauthorization"]);
+var createConnectionGrantDelegationSchema = external_exports.object({
+  agentId: external_exports.string().guid()
+});
+var toolConnectionCredentialPolicySchema = external_exports.enum(["shared", "per_user", "per_user_with_fallback", "per_agent"]);
 var toolConnectionStatusSchema = external_exports.enum(["draft", "active", "disabled", "archived"]);
 var toolConnectionInstallTargetTypeSchema = external_exports.enum(["company", "agent"]);
-var toolCredentialPlacementSchema = external_exports.enum(["header", "env"]);
+var toolCredentialPlacementSchema = external_exports.enum(["header", "env", "url"]);
 var toolConnectionKindSchema = external_exports.enum(TOOL_CONNECTION_KINDS);
 var toolConnectionHealthStatusSchema = external_exports.enum(TOOL_CONNECTION_HEALTH_STATUSES);
 var toolCatalogEntryKindSchema = external_exports.enum(TOOL_CATALOG_ENTRY_KINDS);
@@ -24671,8 +30481,10 @@ var createToolConnectionSchema = external_exports.object({
   applicationId: external_exports.string().guid().optional(),
   applicationName: external_exports.string().trim().min(1).max(160).optional(),
   name: external_exports.string().trim().min(1).max(160),
+  connectionPurpose: toolConnectionPurposeSchema.default("tool"),
   transport: toolConnectionTransportSchema.optional(),
   authKind: toolConnectionAuthKindSchema.default("none"),
+  credentialPolicy: toolConnectionCredentialPolicySchema.optional(),
   ownership: toolConnectionOwnershipSchema.default("customer"),
   status: toolConnectionStatusSchema.optional(),
   connectionKind: toolConnectionKindSchema.default("managed"),
@@ -24689,11 +30501,37 @@ var connectionGrantSchema = external_exports.object({
   connectionId: external_exports.string().guid(),
   kind: connectionGrantKindSchema,
   subjectUserId: external_exports.string().nullable(),
+  subjectAgentId: external_exports.string().guid().nullable().optional(),
   providerTenant: external_exports.object({
     name: external_exports.string().trim().min(1).max(200).optional(),
-    externalId: external_exports.string().trim().min(1).max(400).optional()
+    externalId: external_exports.string().trim().min(1).max(400).optional(),
+    oauth: external_exports.object({
+      strategy: external_exports.string().trim().min(1).max(100).optional(),
+      accessTokenExpiresAt: external_exports.string().datetime().nullable().optional(),
+      scopes: external_exports.array(external_exports.string().trim().min(1).max(500)).max(20).optional(),
+      tokenType: external_exports.string().trim().min(1).max(100).optional(),
+      refreshTokenExpiresAt: external_exports.string().datetime().optional(),
+      refreshedAt: external_exports.string().datetime().optional()
+    }).optional(),
+    github: external_exports.object({
+      userId: external_exports.string().regex(/^[1-9][0-9]{0,30}$/),
+      login: external_exports.string().trim().min(1).max(100),
+      avatarUrl: external_exports.string().url().max(2e3).optional(),
+      installationCount: external_exports.number().int().nonnegative(),
+      repositoryCount: external_exports.number().int().nonnegative(),
+      repositorySelection: external_exports.enum(["all", "selected", "mixed", "none"]),
+      installationIds: external_exports.array(external_exports.string().regex(/^[1-9][0-9]{0,30}$/)).max(100),
+      installationOwnerLogins: external_exports.array(external_exports.string().trim().min(1).max(100)).max(100),
+      installationUrl: external_exports.string().url().max(2e3).optional(),
+      managementUrl: external_exports.string().url().max(2e3).optional(),
+      appSlug: external_exports.string().regex(/^[a-z0-9-]{1,100}$/).optional(),
+      lastAccessRefreshAt: external_exports.string().datetime().optional(),
+      lastWebhookAt: external_exports.string().datetime().optional(),
+      webhookHealth: external_exports.enum(["pending", "healthy", "unhealthy"]).optional()
+    }).optional()
   }).nullable(),
   credentialSecretRefs: external_exports.array(toolCredentialSecretRefSchema),
+  externalCredential: vercelConnectGrantSummarySchema.nullable().optional(),
   status: connectionGrantStatusSchema,
   isDefault: external_exports.boolean(),
   createdByAgentId: external_exports.string().guid().nullable(),
@@ -24705,8 +30543,12 @@ var connectionGrantSchema = external_exports.object({
   createdAt: external_exports.coerce.date(),
   updatedAt: external_exports.coerce.date()
 }).superRefine((grant, ctx) => {
-  if (grant.kind === "user" !== Boolean(grant.subjectUserId)) {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["subjectUserId"], message: "User grants require a subject user; workspace grants must not have one" });
+  const validSubject = grant.kind === "user" && Boolean(grant.subjectUserId) && !grant.subjectAgentId || grant.kind === "agent" && Boolean(grant.subjectAgentId) && !grant.subjectUserId || grant.kind === "organization" && !grant.subjectUserId && !grant.subjectAgentId;
+  if (!validSubject) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["kind"], message: "User and agent grants require exactly their matching subject; organization grants cannot have a subject" });
+  }
+  if (grant.externalCredential && grant.credentialSecretRefs.length > 0) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["credentialSecretRefs"], message: "External grants cannot also contain Paperclip secret references" });
   }
 });
 var putToolConnectionInstallsSchema = external_exports.object({
@@ -24714,6 +30556,9 @@ var putToolConnectionInstallsSchema = external_exports.object({
     targetType: toolConnectionInstallTargetTypeSchema,
     targetId: external_exports.string().trim().min(1).max(200)
   })).max(1e3)
+}).strict();
+var replaceConnectionGrantMembersSchema = external_exports.object({
+  memberUserIds: external_exports.array(external_exports.string().trim().min(1).max(500)).max(1e3)
 }).strict();
 var connectionTokenIssuancePathSchema = external_exports.enum(CONNECTION_TOKEN_ISSUANCE_PATHS);
 var connectionTokenScopeSchema = external_exports.union([
@@ -24755,18 +30600,117 @@ var createToolStdioCommandTemplateSchema = external_exports.object({
 var disableToolStdioCommandTemplateSchema = external_exports.object({
   reason: external_exports.string().trim().max(1e3).optional().nullable()
 });
+var GENERIC_MCP_AUTH_MODES = ["auto", "none", "bearer", "custom_headers", "oauth"];
+var genericMcpAuthModeSchema = external_exports.enum(GENERIC_MCP_AUTH_MODES);
+var genericMcpOAuthClientSchema = external_exports.object({
+  clientId: external_exports.string().trim().min(1).max(4096),
+  clientSecret: external_exports.string().min(1).max(16384).optional()
+}).strict();
+function rejectUnsafeHeaderCredentials(credentialValues, ctx, path2) {
+  for (const [configPath, value] of Object.entries(credentialValues)) {
+    const headerName = mcpRemoteHeaderNameFromConfigPath(configPath);
+    if (configPath.startsWith("headers.") && !headerName) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, configPath],
+        message: "Header names cannot be blank."
+      });
+      continue;
+    }
+    if (!headerName)
+      continue;
+    const nameCheck = checkMcpRemoteHeaderName(headerName);
+    if (!nameCheck.ok) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, configPath],
+        message: mcpRemoteHeaderRejectionMessage(headerName, nameCheck.reason)
+      });
+      continue;
+    }
+    const valueCheck = checkMcpRemoteHeaderValue(value);
+    if (!valueCheck.ok) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, configPath],
+        message: mcpRemoteHeaderRejectionMessage(headerName, valueCheck.reason)
+      });
+    }
+  }
+}
 var connectToolAppSchema = external_exports.object({
   galleryKey: external_exports.string().trim().min(1).max(120).optional(),
+  connectionMethodKey: external_exports.string().trim().min(1).max(120).optional(),
   link: external_exports.string().trim().url().max(2e3).optional(),
   name: external_exports.string().trim().min(1).max(160).optional(),
   credentialValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.string().min(1)).optional(),
   configValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.unknown()).optional(),
-  applicationId: external_exports.string().guid().optional()
-}).refine((value) => Boolean(value.galleryKey) !== Boolean(value.link), { message: "Provide exactly one of galleryKey or link" });
+  applicationId: external_exports.string().guid().optional(),
+  /** Pending connection request this setup should resolve after authorization. */
+  interactionId: external_exports.string().uuid().optional(),
+  /** Exact draft to continue after an interrupted setup. */
+  resumeConnectionId: external_exports.string().guid().optional(),
+  /** Exact configured connection to reauthorize without replacing its identity. */
+  reconnectConnectionId: external_exports.string().guid().optional(),
+  authMode: genericMcpAuthModeSchema.optional(),
+  oauthClient: genericMcpOAuthClientSchema.optional(),
+  credentialSource: external_exports.enum(["paperclip_vault", "vercel_connect"]).optional(),
+  vercelConnect: external_exports.object({ connector: external_exports.string().trim().min(1).max(255) }).strict().optional(),
+  /**
+   * Which identity this credential becomes (PAP-17835). `user` means "Just me":
+   * the credential is committed to the caller's own personal grant and never to
+   * the connection row's shared secret refs or the default organization grant.
+   * Omitted keeps the historical shared-credential behaviour.
+   */
+  grantKind: connectionGrantKindSchema.optional(),
+  /** Same-company agent that owns a dedicated provider identity. */
+  subjectAgentId: external_exports.string().guid().optional()
+}).superRefine((value, ctx) => {
+  if (value.configValues)
+    rejectSensitiveConfigKeys(value.configValues, ctx, ["configValues"]);
+  if (value.credentialValues)
+    rejectUnsafeHeaderCredentials(value.credentialValues, ctx, ["credentialValues"]);
+  if (value.grantKind === "agent" !== Boolean(value.subjectAgentId)) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["subjectAgentId"], message: "subjectAgentId is required exactly for an agent grant" });
+  }
+  if (value.authMode && value.galleryKey) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["authMode"],
+      message: "Authentication mode selection applies to a pasted URL, not a gallery app"
+    });
+  }
+  if (value.resumeConnectionId && value.reconnectConnectionId) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["reconnectConnectionId"], message: "Choose resume or reconnect, not both" });
+  }
+  if (value.resumeConnectionId && !value.galleryKey) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["resumeConnectionId"],
+      message: "Only gallery app setup can resume a draft connection"
+    });
+  }
+  const source = value.credentialSource ?? "paperclip_vault";
+  if (source === "vercel_connect") {
+    if (!value.vercelConnect) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["vercelConnect"], message: "A Vercel connector UID is required" });
+    }
+    if (value.credentialValues && Object.keys(value.credentialValues).length > 0) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["credentialValues"], message: "Vercel-backed connections cannot include provider credentials" });
+    }
+    if (value.oauthClient) {
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["oauthClient"], message: "Vercel-backed connections cannot include OAuth client credentials" });
+    }
+  } else if (value.vercelConnect) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["vercelConnect"], message: "Vercel connector metadata requires the vercel_connect credential source" });
+  }
+}).refine((value) => Boolean(value.galleryKey) || Boolean(value.link), { message: "Provide a galleryKey or link" });
 var reconnectToolAppSchema = external_exports.object({
   credentialValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.string().min(1))
 });
 var finishToolAppSchema = external_exports.object({
+  /** Task setup adds access while preserving existing assignments and action policies. */
+  preserveExistingAccess: external_exports.boolean().optional(),
   enabledCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).default([]),
   askFirstCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).default([]),
   reviewedCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).optional(),
@@ -24775,6 +30719,18 @@ var finishToolAppSchema = external_exports.object({
     external_exports.object({ agentIds: external_exports.array(external_exports.string().guid()).min(1).max(250) })
   ])
 });
+var finalizeOAuthAccessSchema = external_exports.object({
+  grantKind: connectionGrantKindSchema
+}).strict();
+var startToolOAuthSchema = external_exports.object({
+  asCurrentUser: external_exports.boolean().optional(),
+  asAgentId: external_exports.string().uuid().optional(),
+  interactionId: external_exports.string().uuid().optional()
+}).strict().superRefine((value, ctx) => {
+  if (value.asCurrentUser && value.asAgentId) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["asAgentId"], message: "Choose either the current user or one dedicated agent" });
+  }
+}).default({});
 var upsertToolCatalogEntrySchema = external_exports.object({
   applicationId: external_exports.string().guid(),
   connectionId: external_exports.string().guid(),
@@ -24925,7 +30881,7 @@ var createToolMcpGatewayTokenSchema = external_exports.object({
   subjectType: toolMcpGatewayTokenSubjectTypeSchema.default("gateway_client").optional(),
   subjectId: external_exports.string().trim().min(1).max(240).optional().nullable(),
   clientLabel: external_exports.string().trim().min(1).max(160),
-  ownerNote: external_exports.string().trim().min(1).max(1e3),
+  ownerNote: external_exports.string().trim().max(1e3).default(""),
   allowedActions: external_exports.array(toolMcpGatewayTokenActionSchema).min(1).max(TOOL_MCP_GATEWAY_TOKEN_ACTIONS.length).default(["tools/list", "tools/call"]).optional(),
   expiresAt: external_exports.coerce.date().optional().nullable(),
   expiryOverrideReason: external_exports.string().trim().min(1).max(1e3).optional().nullable()
@@ -25119,6 +31075,7 @@ var toolTrustRuleBatchApprovalSchema = external_exports.object({
   windowSeconds: external_exports.number().int().positive().max(31536e3).optional()
 });
 var createToolTrustRuleFromActionRequestSchema = external_exports.object({
+  argumentMode: external_exports.enum(["exact", "action"]).optional(),
   name: external_exports.string().trim().min(1).max(160).optional(),
   description: external_exports.string().max(4e3).optional().nullable(),
   priority: external_exports.number().int().min(0).max(1e4).default(40),
@@ -25165,16 +31122,61 @@ var toolPolicyTestRequestSchema = external_exports.object({
   writeAuditEvent: external_exports.boolean().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/app-definition.js
-var field = external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1), type: external_exports.enum(["text", "password", "textarea", "datetime", "select", "checkbox"]), required: external_exports.boolean().optional(), placeholder: external_exports.string().optional(), helperMd: external_exports.string().optional(), secret: external_exports.boolean().optional(), prefix: external_exports.string().optional() }).superRefine((v, c) => {
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/app-definition.js
+var appBrandAssetUrlSchema = external_exports.string().refine((value) => {
+  if (/^\/brands\/apps\/[a-z0-9][a-z0-9._-]*\.(?:svg|png)$/i.test(value))
+    return true;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}, { message: "Brand assets must be HTTPS URLs or local /brands/apps SVG/PNG paths" });
+var field = external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1), type: external_exports.enum(["text", "password", "textarea", "datetime", "select", "checkbox"]), required: external_exports.boolean().optional(), advanced: external_exports.boolean().optional(), hidden: external_exports.boolean().optional(), placeholder: external_exports.string().optional(), helperMd: external_exports.string().optional(), secret: external_exports.boolean().optional(), prefix: external_exports.string().optional(), defaultValue: external_exports.union([external_exports.string(), external_exports.boolean()]).optional(), validation: external_exports.object({ pattern: external_exports.string().optional(), maxLength: external_exports.number().int().positive().optional() }).optional(), options: external_exports.array(external_exports.object({ value: external_exports.string(), label: external_exports.string() })).optional(), transport: external_exports.object({ location: external_exports.enum(["query", "header"]), name: external_exports.string().min(1), format: external_exports.enum(["string", "csv", "boolean"]).optional(), omitFalse: external_exports.boolean().optional() }).optional() }).superRefine((v, c) => {
   if (v.required && v.type !== "checkbox" && !v.placeholder)
     c.addIssue({ code: "custom", message: "Required fields need placeholders", path: ["placeholder"] });
+  if (v.type === "select" && (!v.options || v.options.length === 0))
+    c.addIssue({ code: "custom", message: "Select fields need options", path: ["options"] });
+  if (v.hidden && v.defaultValue === void 0)
+    c.addIssue({ code: "custom", message: "Hidden fields need defaults", path: ["defaultValue"] });
 });
-var connectionMethodDefSchema = external_exports.object({ key: external_exports.string().min(1), transport: toolConnectionTransportSchema, auth: external_exports.enum(["oauth", "api_key", "none"]), ownershipModes: external_exports.array(toolConnectionOwnershipSchema).min(1), whenToUse: external_exports.string().min(1), defaults: external_exports.object({ serverUrl: external_exports.string().url().optional(), discoveryUrl: external_exports.string().url().nullable().optional(), serviceHost: external_exports.string().optional(), templateKey: external_exports.string().optional(), authorizationEndpoint: external_exports.string().url().optional(), tokenEndpoint: external_exports.string().url().optional(), metadataUrl: external_exports.string().url().optional(), scopesHint: external_exports.array(external_exports.string()).optional() }).optional(), tenantFields: external_exports.array(field).optional(), extensionFields: external_exports.array(field).optional(), credentialFields: external_exports.array(field).optional(), keyPlacement: external_exports.object({ location: external_exports.enum(["header", "query", "body_json", "env"]), name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }).optional(), guidanceMd: external_exports.string().min(1), consoleLinks: external_exports.object({ register: external_exports.string().url().optional(), keys: external_exports.string().url().optional(), settings: external_exports.string().url().optional(), docs: external_exports.string().url().optional() }).optional(), warnings: external_exports.array(external_exports.string()).optional(), variants: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), whenToUse: external_exports.string(), tenantFields: external_exports.array(field).optional() })).optional(), riskTier: external_exports.enum(["S1", "S2", "S3", "S4"]), requiredResourceFilters: external_exports.array(external_exports.string()).optional() }).superRefine((v, c) => {
-  if (v.auth === "api_key" && !v.keyPlacement)
-    c.addIssue({ code: "custom", message: "API-key methods require keyPlacement", path: ["keyPlacement"] });
+var connectionMethodDefSchema = external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1).optional(), purpose: external_exports.union([toolConnectionPurposeSchema, external_exports.literal("ai")]).optional(), provider: external_exports.enum(["slack", "github", "discord", "microsoft-teams", "telegram", "agentmail", "imessage-photon"]).optional(), transport: external_exports.union([toolConnectionTransportSchema, external_exports.literal("runtime_auth")]), ai: aiConnectionMetadataSchema.optional(), auth: external_exports.enum(["oauth", "api_key", "none"]), oauthStrategy: external_exports.enum(["paperclip_cloud_connector", "paperclip_id_connector"]).optional(), connectorProfile: external_exports.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/).optional(), capabilityProfile: external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1), description: external_exports.string().min(1).optional() }).optional(), grantKinds: external_exports.array(connectionGrantKindSchema).min(1).optional(), ownershipModes: external_exports.array(toolConnectionOwnershipSchema).min(1), whenToUse: external_exports.string().min(1), defaults: external_exports.object({ serverUrl: external_exports.string().url().optional(), serverUrlTemplate: external_exports.string().regex(/^https:\/\//).optional(), discoveryUrl: external_exports.string().url().nullable().optional(), serviceHost: external_exports.string().optional(), templateKey: external_exports.string().optional(), authorizationEndpoint: external_exports.string().url().optional(), tokenEndpoint: external_exports.string().url().optional(), metadataUrl: external_exports.string().url().optional(), scopesHint: external_exports.array(external_exports.string()).optional(), oauthAuthorizationParams: external_exports.object({ access_type: external_exports.literal("offline").optional(), prompt: external_exports.literal("consent").optional() }).optional(), toolArgumentDefaults: external_exports.record(external_exports.string(), external_exports.unknown()).optional() }).optional(), tenantFields: external_exports.array(field).optional(), extensionFields: external_exports.array(field).optional(), configRequirements: external_exports.object({ atLeastOneOf: external_exports.array(external_exports.string().min(1)).min(1).optional() }).optional(), credentialFields: external_exports.array(field).optional(), keyPlacement: external_exports.object({ location: external_exports.enum(["header", "query", "body_json", "env"]), name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }).optional(), credentialSources: external_exports.object({ vercelConnect: external_exports.object({ services: external_exports.array(external_exports.string().min(1)).min(1), principalModes: external_exports.array(external_exports.enum(["app", "user"])).min(1), scopes: external_exports.array(external_exports.string().min(1)).min(1), header: external_exports.object({ name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }) }).optional() }).optional(), guidanceMd: external_exports.string().min(1), consoleLinks: external_exports.object({ register: external_exports.string().url().optional(), keys: external_exports.string().url().optional(), settings: external_exports.string().url().optional(), docs: external_exports.string().url().optional() }).optional(), warnings: external_exports.array(external_exports.string()).optional(), variants: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), whenToUse: external_exports.string(), tenantFields: external_exports.array(field).optional() })).optional(), riskTier: external_exports.enum(["S1", "S2", "S3", "S4"]), requiredResourceFilters: external_exports.array(external_exports.string()).optional() }).superRefine((v, c) => {
+  if (v.transport === "runtime_auth" !== Boolean(v.ai))
+    c.addIssue({ code: "custom", message: "Runtime authentication requires AI metadata and AI metadata requires runtime_auth", path: ["ai"] });
+  if (v.ai && !AI_CONNECTION_CAPABILITIES[v.ai.provider].methods[v.ai.method])
+    c.addIssue({ code: "custom", message: "Unsupported AI sign-in method", path: ["ai", "method"] });
+  if (v.ai && v.auth !== (v.ai.method === "subscription" ? "oauth" : "api_key"))
+    c.addIssue({ code: "custom", message: "AI sign-in method must match authentication", path: ["auth"] });
+  const purpose = v.purpose ?? "tool";
+  if (purpose === "ai" !== (v.transport === "runtime_auth"))
+    c.addIssue({ code: "custom", message: "AI methods require runtime_auth and runtime_auth requires AI purpose", path: ["purpose"] });
+  if (v.transport === "chat_sdk" && purpose !== "channel")
+    c.addIssue({ code: "custom", message: "Chat SDK methods must be channel connections", path: ["purpose"] });
+  if (purpose === "channel" && v.transport !== "chat_sdk" && !(v.provider === "agentmail" && v.transport === "rest_api"))
+    c.addIssue({ code: "custom", message: "Channel connections must use the Chat SDK transport", path: ["transport"] });
+  if (purpose === "channel" && !v.provider)
+    c.addIssue({ code: "custom", message: "Channel connections require a chat provider", path: ["provider"] });
+  if (v.auth === "api_key" && !v.keyPlacement && purpose !== "channel")
+    c.addIssue({ code: "custom", message: "API-key tool methods require keyPlacement", path: ["keyPlacement"] });
+  if (v.oauthStrategy && v.auth !== "oauth")
+    c.addIssue({ code: "custom", message: "OAuth strategies require OAuth auth", path: ["oauthStrategy"] });
+  if (v.oauthStrategy && !v.connectorProfile)
+    c.addIssue({ code: "custom", message: "Paperclip Cloud connector methods require connectorProfile", path: ["connectorProfile"] });
+  if (v.connectorProfile && !v.oauthStrategy)
+    c.addIssue({ code: "custom", message: "connectorProfile requires a Paperclip Cloud OAuth strategy", path: ["connectorProfile"] });
+  if (v.credentialSources?.vercelConnect && (v.transport !== "mcp_remote" || v.auth === "none"))
+    c.addIssue({ code: "custom", message: "Vercel Connect requires an authenticated remote MCP method", path: ["credentialSources", "vercelConnect"] });
+  const keys = new Set([...v.tenantFields ?? [], ...v.extensionFields ?? []].map((entry) => entry.key));
+  for (const key of v.configRequirements?.atLeastOneOf ?? [])
+    if (!keys.has(key))
+      c.addIssue({ code: "custom", message: "Config requirement references an unknown field", path: ["configRequirements", "atLeastOneOf"] });
+  if (v.defaults?.serverUrl && v.defaults.serverUrlTemplate)
+    c.addIssue({ code: "custom", message: "Use either serverUrl or serverUrlTemplate", path: ["defaults"] });
+  for (const placeholder of v.defaults?.serverUrlTemplate?.matchAll(/\{([a-zA-Z0-9_-]+)\}/g) ?? [])
+    if (!keys.has(placeholder[1]))
+      c.addIssue({ code: "custom", message: "Server URL template references an unknown field", path: ["defaults", "serverUrlTemplate"] });
 });
-var appDefinitionSchema = external_exports.object({ schemaVersion: external_exports.literal(1), slug: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: external_exports.string().min(1), description: external_exports.string().min(1), categories: external_exports.array(external_exports.enum(["ai", "analytics", "commerce", "communication", "content", "data", "developer", "productivity", "other"])).min(1), featured: external_exports.boolean().optional(), branding: external_exports.object({ logoUrl: external_exports.string().url(), darkLogoUrl: external_exports.string().url().optional(), backgroundColor: external_exports.string().optional(), accentColor: external_exports.string().optional() }), urlPatterns: external_exports.array(external_exports.string()), docsUrl: external_exports.string().url().optional(), redirectConstraints: external_exports.enum(["https-or-loopback-http"]).optional(), methods: external_exports.array(connectionMethodDefSchema).min(1), suggestable: external_exports.boolean().optional(), availability: external_exports.object({ available: external_exports.boolean(), reason: external_exports.string().optional(), robotEmail: external_exports.string().optional() }).optional(), ownershipAvailability: external_exports.object({ platform_shared: external_exports.boolean().optional(), platform_provisioned: external_exports.boolean().optional(), customer: external_exports.boolean().optional(), dcr: external_exports.boolean().optional() }).optional() });
+var appDefinitionSchema = external_exports.object({ schemaVersion: external_exports.literal(1), slug: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: external_exports.string().min(1), description: external_exports.string().min(1), categories: external_exports.array(external_exports.enum(["ai", "analytics", "commerce", "communication", "content", "data", "developer", "productivity", "other"])).min(1), featured: external_exports.boolean().optional(), branding: external_exports.object({ logoUrl: appBrandAssetUrlSchema, darkLogoUrl: appBrandAssetUrlSchema.optional(), backgroundColor: external_exports.string().optional(), accentColor: external_exports.string().optional() }), urlPatterns: external_exports.array(external_exports.string()), docsUrl: external_exports.string().url().optional(), setupPrerequisite: external_exports.object({ title: external_exports.string().min(1), description: external_exports.string().min(1), steps: external_exports.array(external_exports.string().min(1)).min(1).optional(), actionLabel: external_exports.string().min(1), actionUrl: external_exports.string().url() }).optional(), redirectConstraints: external_exports.enum(["https-or-loopback-http"]).optional(), methods: external_exports.array(connectionMethodDefSchema).min(1), suggestable: external_exports.boolean().optional(), availability: external_exports.object({ available: external_exports.boolean(), reason: external_exports.string().optional(), robotEmail: external_exports.string().optional() }).optional(), ownershipAvailability: external_exports.object({ platform_shared: external_exports.boolean().optional(), platform_provisioned: external_exports.boolean().optional(), customer: external_exports.boolean().optional(), dcr: external_exports.boolean().optional() }).optional() });
 var appDefinitionsSchema = external_exports.array(appDefinitionSchema).superRefine((v, c) => {
   const s = /* @__PURE__ */ new Set();
   v.forEach((a, i) => {
@@ -25184,7 +31186,218 @@ var appDefinitionsSchema = external_exports.array(appDefinitionSchema).superRefi
   });
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/summary-slot.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/chat-channels.js
+var CHAT_PROVIDERS = [
+  "slack",
+  "github",
+  "discord",
+  "microsoft-teams",
+  "telegram",
+  "agentmail",
+  "imessage-photon"
+];
+var CHAT_ENDPOINT_STATUSES = [
+  "draft",
+  "verifying",
+  "active",
+  "paused",
+  "attention",
+  "revoked",
+  "archived"
+];
+var CHAT_CONCURRENCY_POLICIES = [
+  "burst",
+  "queue",
+  "debounce",
+  "drop",
+  "concurrent"
+];
+var CHAT_EVENT_KINDS = [
+  "mention",
+  "message",
+  "direct_message",
+  "message_updated",
+  "message_deleted",
+  "message_restored",
+  "reaction_added",
+  "reaction_removed",
+  "action",
+  "modal_submitted",
+  "modal_closed",
+  "slash_command",
+  "file_shared",
+  "installation",
+  "uninstallation",
+  "unknown"
+];
+var CHAT_DELIVERY_STATES = [
+  "received",
+  "filtered",
+  "processing",
+  "processed",
+  "retry",
+  "failed"
+];
+var CHAT_PUBLICATION_STATES = [
+  "pending",
+  "awaiting_consent",
+  "streaming",
+  "published",
+  "retry",
+  "delivery_unknown",
+  "failed",
+  "cancelled"
+];
+var CHAT_FILE_TRANSFER_PHASES = [
+  "consent_pending",
+  "consent_sending",
+  "consent_unknown",
+  "awaiting_consent",
+  "upload_pending",
+  "uploading",
+  "upload_unknown",
+  "file_info_pending",
+  "file_info_sending",
+  "file_info_unknown",
+  "delivered",
+  "declined",
+  "expired",
+  "cancelled",
+  "conflict"
+];
+var CHAT_PRINCIPAL_KINDS = ["user", "bot", "app", "system"];
+var CHAT_IDENTITY_LINK_STATUSES = [
+  "pending",
+  "linked",
+  "revoked",
+  "expired"
+];
+var CHAT_RESOURCE_AVAILABILITIES = [
+  "available",
+  "unavailable",
+  "removed"
+];
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/chat-channels.js
+var chatProviderSchema = external_exports.enum(CHAT_PROVIDERS);
+var chatEndpointStatusSchema = external_exports.enum(CHAT_ENDPOINT_STATUSES);
+var chatConcurrencyPolicySchema = external_exports.enum(CHAT_CONCURRENCY_POLICIES);
+var chatEventKindSchema = external_exports.enum(CHAT_EVENT_KINDS);
+var chatDeliveryStateSchema = external_exports.enum(CHAT_DELIVERY_STATES);
+var chatPublicationStateSchema = external_exports.enum(CHAT_PUBLICATION_STATES);
+var chatPrincipalKindSchema = external_exports.enum(CHAT_PRINCIPAL_KINDS);
+var chatIdentityLinkStatusSchema = external_exports.enum(CHAT_IDENTITY_LINK_STATUSES);
+var chatResourceAvailabilitySchema = external_exports.enum(CHAT_RESOURCE_AVAILABILITIES);
+var microsoftTeamsCredentialIdSchema = external_exports.string().trim().uuid().refine((value) => value !== "00000000-0000-0000-0000-000000000000", {
+  message: "Microsoft Teams credential IDs cannot be the nil UUID"
+}).transform((value) => value.toLowerCase());
+var chatEndpointCredentialsSchema = external_exports.record(external_exports.string(), external_exports.string().min(1)).superRefine((credentials, ctx) => {
+  for (const key of ["clientId", "tenantId"]) {
+    const value = credentials[key];
+    if (value === void 0)
+      continue;
+    const parsed = microsoftTeamsCredentialIdSchema.safeParse(value);
+    if (parsed.success)
+      continue;
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: [key],
+      message: `${key} must be a canonical Microsoft Entra UUID`
+    });
+  }
+}).transform((credentials) => {
+  const normalized = { ...credentials };
+  for (const key of ["clientId", "tenantId"]) {
+    const value = normalized[key];
+    if (value !== void 0) {
+      normalized[key] = microsoftTeamsCredentialIdSchema.parse(value);
+    }
+  }
+  return normalized;
+});
+var createChatEndpointSchema = external_exports.object({
+  provider: chatProviderSchema.exclude(["agentmail"]),
+  assignedAgentId: external_exports.string().uuid(),
+  applicationId: external_exports.string().uuid().optional(),
+  name: external_exports.string().trim().min(1).max(160).optional()
+}).strict();
+var updateChatEndpointSchema = external_exports.object({
+  allowDirectMessages: external_exports.boolean().optional(),
+  allowGroupChats: external_exports.boolean().optional(),
+  allowUnlinkedPeople: external_exports.boolean().optional()
+}).strict().refine((value) => Object.keys(value).length > 0, {
+  message: "At least one chat endpoint field is required"
+});
+var photonProjectIdSchema = external_exports.string().trim().min(1).max(128).regex(/^[a-zA-Z0-9_-]+$/);
+var photonLineIdSchema = external_exports.string().trim().min(1).max(63).regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/);
+var photonChannelConfigurationSchema = external_exports.union([
+  external_exports.object({ allocation: external_exports.literal("dedicated").default("dedicated"), projectId: photonProjectIdSchema, lineId: photonLineIdSchema }).strict(),
+  external_exports.object({ allocation: external_exports.literal("shared"), projectId: photonProjectIdSchema }).strict()
+]);
+var inspectPhotonProjectSchema = external_exports.object({
+  projectId: photonProjectIdSchema,
+  projectSecret: external_exports.string().min(1).max(4096)
+}).strict();
+var configureChatEndpointSchema = external_exports.object({
+  action: external_exports.enum([
+    "configure",
+    "verify",
+    "pause",
+    "resume",
+    "reconnect",
+    "remove"
+  ]),
+  credentials: chatEndpointCredentialsSchema.optional(),
+  photon: photonChannelConfigurationSchema.optional()
+}).strict().superRefine((value, ctx) => {
+  if ((value.credentials || value.photon) && value.action !== "configure" && value.action !== "reconnect") {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["credentials"],
+      message: `Credentials are not accepted for the ${value.action} action`
+    });
+  }
+});
+var replaceChatEndpointResourcesSchema = external_exports.object({
+  resources: external_exports.array(external_exports.object({
+    id: external_exports.string().uuid(),
+    enabled: external_exports.boolean()
+  }).strict()).max(500)
+}).strict();
+var publishChatCommentSchema = external_exports.object({
+  commentId: external_exports.string().uuid()
+}).strict();
+var publishChatBoardMessageSchema = external_exports.object({
+  body: multilineTextSchema.pipe(external_exports.string().trim().min(1).max(1e5)),
+  idempotencyKey: external_exports.string().trim().min(16).max(200),
+  attachmentIds: external_exports.array(external_exports.string().uuid()).max(20).refine((ids) => new Set(ids).size === ids.length, {
+    message: "Attachment ids must be unique"
+  }).optional()
+}).strict();
+var publishChatPublicationSchema = external_exports.union([
+  publishChatCommentSchema,
+  publishChatBoardMessageSchema
+]);
+var resolveChatPublicationSchema = external_exports.object({
+  action: external_exports.enum(["mark_delivered", "retry_anyway", "cancel"]),
+  fileTransfer: external_exports.object({
+    phase: external_exports.enum(CHAT_FILE_TRANSFER_PHASES),
+    version: external_exports.number().int().positive().max(Number.MAX_SAFE_INTEGER)
+  }).strict().optional()
+}).strict();
+var resolveChatActionSchema = external_exports.object({
+  action: external_exports.enum(["mark_delivered", "retry_anyway", "cancel"])
+}).strict();
+var createChatIdentityLinkIntentSchema = external_exports.object({
+  expiresInSeconds: external_exports.number().int().min(300).max(86400).default(1800)
+}).strict().default({ expiresInSeconds: 1800 });
+var confirmChatIdentityLinkSchema = external_exports.object({
+  token: external_exports.string().min(32).max(4096)
+}).strict();
+var replayChatDeliverySchema = external_exports.object({}).strict();
+var chatPublicEndpointIdSchema = external_exports.string().regex(/^[a-zA-Z0-9_-]{32,128}$/);
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/summary-slot.js
 var optionalScopeIdSchema = external_exports.string().guid().optional().nullable();
 var summarySlotScopeKindSchema = external_exports.enum(SUMMARY_SLOT_SCOPE_KINDS);
 var summarySlotKeySchema = external_exports.enum(SUMMARY_SLOT_KEYS);
@@ -25226,7 +31439,7 @@ var writeSummarySlotSchema = external_exports.object({
   model: external_exports.string().trim().min(1).max(200).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/network-bind.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/network-bind.js
 function normalizeHost(host) {
   const trimmed = host?.trim();
   return trimmed ? trimmed : void 0;
@@ -25269,26 +31482,23 @@ function validateConfiguredBindMode(input2) {
   return errors;
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/smoke-lab.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/smoke-lab.js
 var SMOKE_RUN_TRIGGERS = ["manual", "routine", "ci"];
 var SMOKE_RUN_STATUSES = ["running", "passed", "failed", "cancelled"];
 var SMOKE_RUN_STEP_PATHS = ["P1", "P2", "P3", "P4", "P5", "P6", "P7"];
 var SMOKE_RUN_STEP_STATUSES = ["pass", "fail", "skipped"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/instance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/instance.js
 var DAILY_RETENTION_PRESETS = [3, 7, 14];
 var WEEKLY_RETENTION_PRESETS = [1, 2, 4];
 var MONTHLY_RETENTION_PRESETS = [1, 3, 6];
-var DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 24;
-var MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 1;
-var MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS = 24 * 30;
 var DEFAULT_BACKUP_RETENTION = {
   dailyDays: 7,
   weeklyWeeks: 4,
   monthlyMonths: 1
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/agent.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/agent.js
 var ADAPTER_AUTH_SESSION_STATUSES = [
   "starting",
   "waiting_for_user",
@@ -25308,10 +31518,10 @@ var ADAPTER_AUTH_PANEL_MODES = [
 ];
 var SETUP_TOKEN_TRANSPORT_ADVISORY_CODE = "insecure_transport";
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
 var RESOURCE_MEMBERSHIP_STATES = ["joined", "left"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/adapter-auth-session.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/adapter-auth-session.js
 var ADAPTER_AUTH_SESSION_ACTIVE_STATUSES = [
   "starting",
   "waiting_for_user",
@@ -25319,7 +31529,7 @@ var ADAPTER_AUTH_SESSION_ACTIVE_STATUSES = [
 ];
 var ACTIVE_STATUS_SET = new Set(ADAPTER_AUTH_SESSION_ACTIVE_STATUSES);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/adapter-auth-session.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/adapter-auth-session.js
 var isoDateTime = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
 var adapterAuthSessionStatusSchema = external_exports.enum(ADAPTER_AUTH_SESSION_STATUSES);
 var adapterAuthSessionFailureSchema = external_exports.object({
@@ -25338,15 +31548,17 @@ var adapterAuthSessionPromptSchema = external_exports.object({
   code: external_exports.string().min(1)
 }).strict();
 var adapterAuthSessionOwnerResponseSchema = adapterAuthSessionResponseSchema.extend({
-  prompt: adapterAuthSessionPromptSchema.nullable()
+  prompt: adapterAuthSessionPromptSchema.nullable(),
+  aiConnection: aiConnectionLoginIntentSchema.optional()
 }).strict();
 var startAdapterAuthSessionRequestSchema = external_exports.object({
+  aiConnection: aiConnectionLoginIntentSchema.optional(),
   environmentId: external_exports.string().guid(),
   adapterType: external_exports.enum(AGENT_ADAPTER_TYPES),
   ttlSeconds: external_exports.number().int().min(60).max(24 * 60 * 60).optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/claude-setup-token-session.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/claude-setup-token-session.js
 var isoDateTime2 = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
 var setupTokenTransportAdvisorySchema = external_exports.object({
   code: external_exports.literal(SETUP_TOKEN_TRANSPORT_ADVISORY_CODE)
@@ -25356,6 +31568,7 @@ var claudeSetupTokenOverwriteSchema = external_exports.object({
   expectedLatestVersion: external_exports.number().int().min(1)
 }).strict();
 var startClaudeSetupTokenSessionRequestSchema = external_exports.object({
+  aiConnection: aiConnectionLoginIntentSchema.optional(),
   environmentId: external_exports.string().guid(),
   adapterType: external_exports.enum(AGENT_ADAPTER_TYPES),
   overwrite: claudeSetupTokenOverwriteSchema.optional()
@@ -25376,7 +31589,8 @@ var claudeSetupTokenSessionPromptSchema = external_exports.object({
 }).strict();
 var claudeSetupTokenSessionOwnerResponseSchema = claudeSetupTokenSessionResponseSchema.extend({
   panelMode: adapterAuthPanelModeSchema,
-  prompt: claudeSetupTokenSessionPromptSchema.nullable()
+  prompt: claudeSetupTokenSessionPromptSchema.nullable(),
+  aiConnection: aiConnectionLoginIntentSchema.optional()
 }).strict();
 var BROWSER_CODE_MAX_LENGTH = 512;
 var BROWSER_CODE_DISALLOWED_CHAR = /[^\x21-\x7E]/;
@@ -25396,7 +31610,7 @@ var claudeOAuthTokenStatusResponseSchema = external_exports.object({
   latestVersion: external_exports.number().int().min(1)
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
 var sidebarOrderedIdSchema = external_exports.string().guid();
 var sidebarOrderPreferenceSchema = external_exports.object({
   orderedIds: external_exports.array(sidebarOrderedIdSchema),
@@ -25406,7 +31620,7 @@ var upsertSidebarOrderPreferenceSchema = external_exports.object({
   orderedIds: external_exports.array(sidebarOrderedIdSchema)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
 var resourceMembershipStateSchema = external_exports.enum(RESOURCE_MEMBERSHIP_STATES);
 var updateResourceMembershipSchema = external_exports.object({
   state: resourceMembershipStateSchema.optional(),
@@ -25421,7 +31635,7 @@ var updateDocumentResourceMembershipSchema = external_exports.object({
   starred: external_exports.boolean()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/inbox-agent-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/inbox-agent-policy.js
 var inboxAgentPolicyModeSchema = external_exports.enum(["open", "allowlist", "disabled"]);
 var updateInboxAgentPolicySchema = external_exports.object({
   mode: inboxAgentPolicyModeSchema,
@@ -25436,7 +31650,7 @@ var updateInboxAgentPolicySchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
 var executionWorkspaceStatusSchema = external_exports.enum([
   "active",
   "idle",
@@ -25596,14 +31810,14 @@ var reconcileExecutionWorkspaceBranchSchema = external_exports.discriminatedUnio
   }).strict()
 ]);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/types/feedback.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/feedback.js
 var FEEDBACK_TARGET_TYPES = ["issue_comment", "issue_document_revision"];
 var FEEDBACK_VOTE_VALUES = ["up", "down"];
 var FEEDBACK_DATA_SHARING_PREFERENCES = ["allowed", "not_allowed", "prompt"];
 var DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE = "prompt";
 var FEEDBACK_TRACE_STATUSES = ["local_only", "pending", "sent", "failed"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/feedback.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/feedback.js
 var feedbackTargetTypeSchema = external_exports.enum(FEEDBACK_TARGET_TYPES);
 var feedbackTraceStatusSchema = external_exports.enum(FEEDBACK_TRACE_STATUSES);
 var feedbackVoteValueSchema = external_exports.enum(FEEDBACK_VOTE_VALUES);
@@ -25616,9 +31830,9 @@ var upsertIssueFeedbackVoteSchema = external_exports.object({
   allowSharing: external_exports.boolean().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/instance.js
-function presetSchema(presets, label) {
-  return external_exports.number().refine((v) => presets.includes(v), { message: `${label} must be one of: ${presets.join(", ")}` });
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/instance.js
+function presetSchema(presets, label2) {
+  return external_exports.number().refine((v) => presets.includes(v), { message: `${label2} must be one of: ${presets.join(", ")}` });
 }
 var backupRetentionPolicySchema = external_exports.object({
   dailyDays: presetSchema(DAILY_RETENTION_PRESETS, "dailyDays").default(DEFAULT_BACKUP_RETENTION.dailyDays),
@@ -25637,16 +31851,22 @@ var instanceGeneralSettingsSchema = external_exports.object({
 var patchInstanceGeneralSettingsSchema = external_exports.object(shapeWithoutDefaults(instanceGeneralSettingsSchema.shape)).partial().strict();
 var instanceExperimentalSettingsSchema = external_exports.object({
   enableEnvironments: external_exports.boolean().default(false),
-  enableNativeRunner: external_exports.boolean().default(false),
+  enableNativeRunner: external_exports.boolean().default(true),
   enableManagedSandboxOnly: external_exports.boolean().default(false),
   enableIsolatedWorkspaces: external_exports.boolean().default(false),
+  enableIsolatedWorkspacesByDefault: external_exports.boolean().default(false),
   enableStreamlinedLeftNavigation: external_exports.boolean().default(true),
-  enableApps: external_exports.boolean().default(false),
+  enableStreamlinedUi: external_exports.boolean().default(true),
+  // Deprecated compatibility key. Apps is a standard product surface and is
+  // always enabled; this remains accepted so older stored rows and managed
+  // configs continue to load during upgrades.
+  enableApps: external_exports.boolean().default(true),
+  enableChatConnectors: external_exports.boolean().default(false),
   enablePipelines: external_exports.boolean().default(false),
   enableCases: external_exports.boolean().default(false),
+  enableAgentChat: external_exports.boolean().default(false),
   enableConferenceRoomChat: external_exports.boolean().default(false),
   enableClassicTaskInterface: external_exports.boolean().default(false),
-  enableTaskWatchdogs: external_exports.boolean().default(false),
   enableIssuePlanDecompositions: external_exports.boolean().default(false),
   enableExperimentalFileViewer: external_exports.boolean().default(false),
   enableExternalObjects: external_exports.boolean().default(false),
@@ -25658,9 +31878,10 @@ var instanceExperimentalSettingsSchema = external_exports.object({
   enableDecisions: external_exports.boolean().default(false),
   enableGoalsSidebarLink: external_exports.boolean().default(false),
   enableServerInfoDebugView: external_exports.boolean().default(false),
+  enablePaperclipDeveloperMode: external_exports.boolean().default(false),
   enableSimplifiedEnglishInteractions: external_exports.boolean().default(false),
+  enableFirstTaskPlanProposal: external_exports.boolean().default(false),
   autoRestartDevServerWhenIdle: external_exports.boolean().default(false),
-  enableIssueGraphLivenessAutoRecovery: external_exports.boolean().default(false),
   enableWorkspaceBranchReconcileForward: external_exports.boolean().default(true),
   enableWorkspaceDirtyQuarantineRepair: external_exports.boolean().default(true),
   enableOwnerInstanceAdmin: external_exports.boolean().default(false),
@@ -25668,10 +31889,12 @@ var instanceExperimentalSettingsSchema = external_exports.object({
   // off the host keeps the file bridge for every run with no manifest change and
   // no redeploy. The host reads this per run before it selects the transport.
   enableSandboxDuplexBridge: external_exports.boolean().default(false),
+  // Deprecated compatibility key. Runner ingress follows enableNativeRunner;
+  // this remains accepted so older stored rows and managed configs keep loading.
+  enableRunnerPreviewIngress: external_exports.boolean().default(false),
   enableWorktreeRunExecution: external_exports.boolean().default(false),
   worktreeRunExecutionActivatedAt: external_exports.string().datetime().nullable().default(null),
-  worktreeRunExecutionActivationInstanceId: external_exports.string().min(1).nullable().default(null),
-  issueGraphLivenessAutoRecoveryLookbackHours: external_exports.number().int().min(MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).max(MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).default(DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS)
+  worktreeRunExecutionActivationInstanceId: external_exports.string().min(1).nullable().default(null)
 }).strict();
 var patchInstanceExperimentalSettingsSchema = external_exports.object(shapeWithoutDefaults(instanceExperimentalSettingsSchema.omit({
   worktreeRunExecutionActivatedAt: true,
@@ -25687,8 +31910,9 @@ var instanceExperimentalSettingsWithManagedSchema = instanceExperimentalSettings
 var patchInstanceSettingsSchema = external_exports.object({
   defaultEnvironmentId: external_exports.string().guid().nullable().optional()
 }).strict();
-var issueGraphLivenessAutoRecoveryRequestSchema = external_exports.object({
-  lookbackHours: external_exports.number().int().min(MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).max(MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS).optional()
+var MAX_TASK_DRAIN_TTL_MS = 24 * 60 * 60 * 1e3;
+var startTaskDrainRequestSchema = external_exports.object({
+  ttlMs: external_exports.number().int().positive().max(MAX_TASK_DRAIN_TTL_MS).nullable().optional()
 }).strict();
 var instanceSettingsSchema = external_exports.object({
   id: external_exports.string().guid(),
@@ -25699,7 +31923,7 @@ var instanceSettingsSchema = external_exports.object({
   updatedAt: external_exports.union([external_exports.date(), external_exports.string().datetime()])
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/budget.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/budget.js
 var upsertBudgetPolicySchema = external_exports.object({
   scopeType: external_exports.enum(BUDGET_SCOPE_TYPES),
   scopeId: external_exports.string().guid(),
@@ -25725,7 +31949,7 @@ var resolveBudgetIncidentSchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/smoke-lab.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/smoke-lab.js
 var smokeRunTriggerSchema = external_exports.enum(SMOKE_RUN_TRIGGERS);
 var smokeRunStatusSchema = external_exports.enum(SMOKE_RUN_STATUSES);
 var smokeRunStepPathSchema = external_exports.enum(SMOKE_RUN_STEP_PATHS);
@@ -25747,7 +31971,7 @@ var recordSmokeRunStepSchema = external_exports.object({
   durationMs: external_exports.number().int().min(0).max(24 * 60 * 60 * 1e3).nullable().optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/company.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/company.js
 var logoAssetIdSchema = external_exports.string().guid().nullable().optional();
 var feedbackDataSharingTermsVersionSchema = external_exports.string().min(1).nullable().optional();
 var interactionResolverKindGovernanceSchema = external_exports.object({
@@ -25784,7 +32008,7 @@ var updateCompanyBrandingSchema = external_exports.object({
   logoAssetId: logoAssetIdSchema
 }).strict().refine((value) => value.name !== void 0 || value.description !== void 0 || value.logoAssetId !== void 0, "At least one branding field must be provided");
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/environment.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/environment.js
 var environmentDriverSchema = external_exports.enum(ENVIRONMENT_DRIVERS);
 var environmentStatusSchema = external_exports.enum(ENVIRONMENT_STATUSES);
 var environmentLeaseStatusSchema = external_exports.enum(ENVIRONMENT_LEASE_STATUSES);
@@ -25817,7 +32041,7 @@ var probeEnvironmentConfigSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
 var isoDateTime3 = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
 var providerKeySchema = external_exports.string().min(1).max(200);
 var optionalRecordSchema = external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable();
@@ -25896,7 +32120,7 @@ var environmentCustomImageTerminalSessionTokenSchema = external_exports.object({
   websocketPath: external_exports.string().min(1)
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/company-skill.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/company-skill.js
 var companySkillSourceTypeSchema = external_exports.enum(["local_path", "github", "url", "catalog", "skills_sh"]);
 var companySkillTrustLevelSchema = external_exports.enum(["markdown_only", "assets", "scripts_executables"]);
 var companySkillCompatibilitySchema = external_exports.enum(["compatible", "unknown", "invalid"]);
@@ -26414,7 +32638,7 @@ var companySkillInstallCatalogResultSchema = external_exports.object({
   warnings: external_exports.array(external_exports.string())
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/folder.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/folder.js
 var folderKindSchema = external_exports.enum(["routine", "skill"]);
 var folderSlugSchema = external_exports.string().trim().min(1).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Folder slug must contain only lowercase letters, numbers, and single hyphens");
 var folderSchema = external_exports.object({
@@ -26470,7 +32694,7 @@ var moveFolderItemSchema = external_exports.object({
   folderId: external_exports.string().guid().optional().nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/company-portability.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/company-portability.js
 var portabilityIncludeSchema = external_exports.object({
   company: external_exports.boolean().optional(),
   agents: external_exports.boolean().optional(),
@@ -26758,7 +32982,7 @@ var companyPortabilityImportSchema = companyPortabilityPreviewSchema.extend({
   pauseAutomations: external_exports.boolean().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
 var catalogTeamKindSchema = external_exports.enum(["bundled", "optional"]);
 var catalogTeamTrustLevelSchema = external_exports.enum([
   "markdown_only",
@@ -26904,7 +33128,7 @@ var catalogTeamSkillPreparationSchema = external_exports.object({
   reason: external_exports.string().min(1).nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
 var agentSkillStateSchema = external_exports.enum([
   "available",
   "configured",
@@ -26966,9 +33190,11 @@ var agentSkillSyncSchema = external_exports.object({
   desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/agent.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/agent.js
 var agentPermissionsSchema = external_exports.object({
-  canCreateAgents: external_exports.boolean().optional().default(false),
+  // No schema default: the server derives the default (enabled unless the
+  // permissions record marks the agent low-trust) when the field is omitted.
+  canCreateAgents: external_exports.boolean().optional(),
   canCreateSkills: external_exports.boolean().optional().default(true),
   trustPreset: trustPresetSchema.optional(),
   authorizationPolicy: trustAuthorizationPolicySchema.optional()
@@ -27004,16 +33230,20 @@ var createAgentInstructionsBundleSchema = external_exports.object({
     message: "instructionsBundle.files must contain at least one file"
   })
 });
-var agentModelProfileConfigSchema = external_exports.object({
-  enabled: external_exports.boolean().optional(),
-  label: external_exports.string().trim().min(1).optional(),
-  adapterConfig: adapterConfigSchema
-}).strict();
 var agentRuntimeConfigSchema = external_exports.object({
-  modelProfiles: external_exports.object({
-    cheap: agentModelProfileConfigSchema.optional()
+  aiConnection: aiConnectionBindingSchema.optional(),
+  debug: external_exports.object({
+    providerTrace: external_exports.literal("raw").optional()
   }).strict().optional()
-}).catchall(external_exports.unknown());
+}).catchall(external_exports.unknown()).superRefine((value, ctx) => {
+  if (Object.prototype.hasOwnProperty.call(value, "modelProfiles")) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["modelProfiles"],
+      message: "runtimeConfig.modelProfiles is no longer supported"
+    });
+  }
+});
 var createAgentSchema = external_exports.object({
   name: external_exports.string().min(1),
   role: external_exports.enum(AGENT_ROLES).optional().default("general"),
@@ -27038,7 +33268,13 @@ var createAgentSchema = external_exports.object({
   // Claude OAuth token reference to the owner stored value with no new login
   // round trip. The server permits the no-claim bind only for a user actor and
   // only when that owner already has a stored value. It carries no token.
-  applyStoredClaudeLogin: external_exports.boolean().optional()
+  applyStoredClaudeLogin: external_exports.boolean().optional(),
+  // Narrow intent flag set by the onboarding wizard when it hires the very first
+  // agent (the chief of staff). It is not an agent column: the server consumes
+  // it to seed the server-owned chief-of-staff persona over the agent's entry
+  // instruction file instead of the generic default, and honors it only for
+  // board-authored requests. Mirrors onboardingFirstTask on issue create.
+  onboardingFirstAgent: external_exports.boolean().optional()
 });
 var builtInAgentProvisionSchema = external_exports.object({
   adapterType: agentAdapterTypeSchema.optional(),
@@ -27053,7 +33289,7 @@ var createAgentHireSchema = createAgentSchema.extend({
   sourceIssueId: external_exports.string().guid().optional().nullable(),
   sourceIssueIds: external_exports.array(external_exports.string().guid()).optional()
 });
-var updateAgentSchema = objectWithoutDefaults(createAgentSchema.omit({ permissions: true })).partial().extend({
+var updateAgentSchema = objectWithoutDefaults(createAgentSchema.omit({ permissions: true, onboardingFirstAgent: true })).partial().extend({
   permissions: external_exports.never().optional(),
   replaceAdapterConfig: external_exports.boolean().optional(),
   status: external_exports.enum(AGENT_STATUSES).optional(),
@@ -27105,14 +33341,38 @@ var wakeAgentSchema = external_exports.object({
   source: external_exports.enum(["timer", "assignment", "on_demand", "automation"]).optional().default("on_demand"),
   triggerDetail: external_exports.enum(["manual", "ping", "callback", "system"]).optional(),
   reason: external_exports.string().optional().nullable(),
+  /** Select an exact failed run; its chat request and actor are server-derived. */
+  failedRunId: external_exports.string().uuid().optional(),
   payload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
   idempotencyKey: external_exports.string().optional().nullable(),
-  forceFreshSession: external_exports.preprocess((value) => value === null ? void 0 : value, external_exports.boolean().optional().default(false))
+  forceFreshSession: external_exports.preprocess((value) => value === null ? void 0 : value, external_exports.boolean().optional().default(false)),
+  debug: external_exports.object({
+    providerTrace: external_exports.literal("raw")
+  }).strict().optional()
 });
 var resetAgentSessionSchema = external_exports.object({
   taskKey: external_exports.string().min(1).optional().nullable()
 });
 var testAdapterEnvironmentSchema = external_exports.object({
+  aiConnection: aiConnectionBindingSchema.optional(),
+  /** Saved agent whose redacted environment entries are restored for this probe. */
+  agentId: external_exports.string().guid().optional(),
+  /** One-shot provider keys for a probe. Never persist these in agent config. */
+  testCredentials: external_exports.object({
+    ANTHROPIC_API_KEY: external_exports.string().max(16384),
+    OPENAI_API_KEY: external_exports.string().max(16384),
+    OPENROUTER_API_KEY: external_exports.string().max(16384),
+    GEMINI_API_KEY: external_exports.string().max(16384),
+    XAI_API_KEY: external_exports.string().max(16384),
+    GROQ_API_KEY: external_exports.string().max(16384),
+    OPENCODE_API_KEY: external_exports.string().max(16384),
+    CURSOR_API_KEY: external_exports.string().max(16384),
+    KIMI_MODEL_API_KEY: external_exports.string().max(16384),
+    API_SERVER_KEY: external_exports.string().max(16384),
+    ZAI_API_KEY: external_exports.string().max(16384),
+    KIMI_API_KEY: external_exports.string().max(16384),
+    MINIMAX_API_KEY: external_exports.string().max(16384)
+  }).partial().strict().optional(),
   adapterConfig: adapterConfigSchema.optional().default({}),
   /**
    * Optional environment to run the adapter test inside. When omitted, the
@@ -27130,7 +33390,7 @@ var updateAgentPermissionsSchema = external_exports.object({
   authorizationPolicy: trustAuthorizationPolicySchema.optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/project.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/project.js
 var executionWorkspaceStrategySchema2 = external_exports.object({
   type: external_exports.enum(["project_primary", "git_worktree", "adapter_managed", "cloud_sandbox"]).optional(),
   baseRef: external_exports.string().optional().nullable(),
@@ -27225,12 +33485,15 @@ var projectFields = {
   archivedAt: external_exports.string().datetime().optional().nullable()
 };
 var createProjectSchema = external_exports.object({
+  idempotencyKey: external_exports.string().trim().min(1).max(255).optional(),
   ...projectFields,
-  workspace: createProjectWorkspaceSchema.optional()
+  workspace: createProjectWorkspaceSchema.optional(),
+  repositoryIds: external_exports.array(external_exports.string().regex(/^\d+$/)).optional(),
+  repositoryUrls: external_exports.array(external_exports.string().url().max(2e3)).max(100).optional()
 });
 var updateProjectSchema = objectWithoutDefaults(external_exports.object(projectFields)).partial();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
 var documentAnnotationThreadStatusSchema = external_exports.enum(DOCUMENT_ANNOTATION_THREAD_STATUSES);
 var documentAnnotationAnchorStateSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_STATES);
 var documentAnnotationAnchorConfidenceSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_CONFIDENCES);
@@ -27281,7 +33544,7 @@ var updateDocumentAnnotationThreadSchema = external_exports.object({
   message: "At least one field must be provided"
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
 var issueTreeControlModeSchema = external_exports.enum(ISSUE_TREE_CONTROL_MODES);
 var issueTreeHoldReleasePolicySchema = external_exports.object({
   strategy: external_exports.enum(ISSUE_TREE_HOLD_RELEASE_POLICY_STRATEGIES).default("manual"),
@@ -27303,7 +33566,7 @@ var releaseIssueTreeHoldSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/artifact.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/artifact.js
 var COMPANY_ARTIFACTS_DEFAULT_LIMIT = 30;
 var COMPANY_ARTIFACTS_MAX_LIMIT = 100;
 var COMPANY_ARTIFACTS_MAX_QUERY_LENGTH = 160;
@@ -27368,7 +33631,7 @@ var companyArtifactsResponseSchema = external_exports.object({
   nextCursor: external_exports.string().nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/goal.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/goal.js
 var createGoalSchema = external_exports.object({
   title: external_exports.string().min(1),
   description: external_exports.string().optional().nullable(),
@@ -27379,7 +33642,7 @@ var createGoalSchema = external_exports.object({
 });
 var updateGoalSchema = objectWithoutDefaults(createGoalSchema).partial();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/onboarding-seed.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/onboarding-seed.js
 var MISSION_MAX_LENGTH = 2e3;
 var AGENT_NAME_MAX_LENGTH = 80;
 var AGENT_ROLE_MAX_LENGTH = 120;
@@ -27398,7 +33661,7 @@ var applyOnboardingSeedSchema = external_exports.object({
   }).optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/approval.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/approval.js
 var createApprovalSchema = external_exports.object({
   type: external_exports.enum(APPROVAL_TYPES),
   requestedByAgentId: external_exports.string().guid().optional().nullable(),
@@ -27418,7 +33681,7 @@ var addApprovalCommentSchema = external_exports.object({
   body: multilineTextSchema.pipe(external_exports.string().min(1))
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/cost.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/cost.js
 var createCostEventSchema = external_exports.object({
   agentId: external_exports.string().guid(),
   issueId: external_exports.string().guid().optional().nullable(),
@@ -27444,7 +33707,7 @@ var updateBudgetSchema = external_exports.object({
   budgetMonthlyCents: external_exports.number().int().nonnegative()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/finance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/finance.js
 var createFinanceEventSchema = external_exports.object({
   agentId: external_exports.string().guid().optional().nullable(),
   issueId: external_exports.string().guid().optional().nullable(),
@@ -27475,7 +33738,7 @@ var createFinanceEventSchema = external_exports.object({
   currency: value.currency.toUpperCase()
 }));
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/asset.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/asset.js
 var ASSET_NAMESPACE_MAX_LENGTH = 120;
 var ASSET_NAMESPACE_PATTERN = /^[a-zA-Z0-9/_.:@|-]+$/;
 var ASSET_NAMESPACE_RULE = `"namespace" must be 1-${ASSET_NAMESPACE_MAX_LENGTH} characters of letters, numbers, or / _ - . : @ |, and cannot contain "." or ".." path segments`;
@@ -27489,7 +33752,7 @@ var createAssetImageMetadataSchema = external_exports.object({
   namespace: external_exports.string().trim().min(1).max(ASSET_NAMESPACE_MAX_LENGTH).regex(ASSET_NAMESPACE_PATTERN, ASSET_NAMESPACE_RULE).refine(hasNoDotSegments, { message: ASSET_NAMESPACE_RULE }).optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/pipeline.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/pipeline.js
 var routineVariableLikeNameSchema = external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/);
 var pipelineStageKindSchema = external_exports.enum(["working", "review", "done", "cancelled"]);
 var legacyPipelineStageKindSchema = external_exports.enum(["open", "working", "review", "done", "cancelled"]);
@@ -27621,7 +33884,7 @@ var pipelineAutomationRetryRequestSchema = external_exports.object({
   })
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/access.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/access.js
 var createCompanyInviteSchema = external_exports.object({
   allowedJoinTypes: external_exports.enum(INVITE_JOIN_TYPES).default("both"),
   humanRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
@@ -27738,9 +34001,10 @@ var authSessionSchema = external_exports.object({
     userId: external_exports.string().min(1)
   }),
   user: currentUserProfileSchema,
-  // The Sentry DSN for the current instance, or `null` when the operator has
-  // not set `SENTRY_DSN`. Required, not optional: a missing value must fail
-  // the response schema instead of silently disabling browser error
+  // The front-end Sentry DSN for the current instance, or `null` when the
+  // operator has set neither `SENTRY_DSN_FRONTEND` nor the legacy
+  // `SENTRY_DSN`. Required, not optional: a missing value must fail the
+  // response schema instead of silently disabling browser error
   // monitoring. The browser reads this value to open its own Sentry gate —
   // see `ui/src/lib/sentry.ts`.
   sentryDsn: external_exports.string().min(1).nullable()
@@ -27750,7 +34014,7 @@ var updateCurrentUserProfileSchema = external_exports.object({
   image: external_exports.union([profileImageSchema, external_exports.literal(""), external_exports.null()]).optional().transform((value) => value === "" ? null : value)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/skill-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/skill-policy.js
 var SKILL_POLICY_ACTIONS = [
   "skills.create",
   "skills.import",
@@ -27852,7 +34116,156 @@ var evaluateSkillPolicySchema = external_exports.object({
   principal: external_exports.object({ agentId: external_exports.string().guid() }).strict().optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/api.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/provider-trace.js
+var providerTraceDirectionSchema = external_exports.enum([
+  "client_to_provider",
+  "provider_to_client",
+  "provider_stderr"
+]);
+var providerTraceDispositionSchema = external_exports.enum([
+  "mapped",
+  "generic",
+  "ignored",
+  "rejected",
+  "operator_only"
+]);
+var providerTraceFieldMappingSchema = external_exports.object({
+  inputPath: external_exports.string().min(1).optional(),
+  outputPath: external_exports.string().min(1).optional(),
+  action: external_exports.enum([
+    "copied",
+    "renamed",
+    "normalized",
+    "derived",
+    "dropped",
+    "redacted"
+  ]),
+  reason: external_exports.string().optional()
+}).strict();
+var providerTraceStatusSchema = external_exports.enum([
+  "capturing",
+  "complete",
+  "incomplete",
+  "truncated",
+  "deleted",
+  "expired"
+]);
+var sha256DigestSchema = external_exports.string().regex(/^sha256:[a-f0-9]{64}$/i);
+var dateValueSchema = external_exports.union([external_exports.string().datetime(), external_exports.date()]);
+var providerTraceFrameSchema = external_exports.object({
+  kind: external_exports.literal("frame").optional(),
+  schema: external_exports.literal("paperclip.provider_trace_frame.v1"),
+  debugChannel: external_exports.string().min(1),
+  debugSequence: external_exports.number().int().positive(),
+  frameId: external_exports.number().int().positive(),
+  timestamp: external_exports.string().min(1),
+  direction: providerTraceDirectionSchema,
+  transport: external_exports.string().min(1),
+  provider: external_exports.string().min(1),
+  byteLength: external_exports.number().int().nonnegative(),
+  digest: sha256DigestSchema,
+  rawBase64: external_exports.string()
+}).strict();
+var providerTraceInterpretationSchema = external_exports.object({
+  kind: external_exports.literal("interpretation").optional(),
+  schema: external_exports.literal("paperclip.provider_trace_interpretation.v1"),
+  debugChannel: external_exports.string().min(1),
+  debugSequence: external_exports.number().int().positive(),
+  frameId: external_exports.number().int().positive(),
+  stage: external_exports.string().min(1),
+  ruleId: external_exports.string().min(1),
+  disposition: providerTraceDispositionSchema,
+  emittedEventIds: external_exports.array(external_exports.string()),
+  droppedFields: external_exports.array(external_exports.string()),
+  fieldMappings: external_exports.array(providerTraceFieldMappingSchema).optional(),
+  reason: external_exports.string()
+}).strict();
+var providerTraceMetadataSchema = external_exports.object({
+  schema: external_exports.literal("paperclip.provider_trace_metadata.v1"),
+  id: external_exports.string().min(1),
+  runId: external_exports.string().min(1),
+  companyId: external_exports.string().min(1),
+  status: providerTraceStatusSchema,
+  provider: external_exports.string().min(1),
+  frameCount: external_exports.number().int().nonnegative(),
+  byteCount: external_exports.number().int().nonnegative(),
+  digest: sha256DigestSchema.nullable(),
+  reason: external_exports.string().nullable(),
+  requestedBy: external_exports.string().min(1),
+  createdAt: dateValueSchema,
+  expiresAt: dateValueSchema,
+  deletedAt: dateValueSchema.nullable()
+}).strict();
+var runPresentationSourceSchema = external_exports.enum([
+  "existing_issue_comment",
+  "final_agent_message",
+  "semantic_result_summary",
+  "adapter_final_response",
+  "none"
+]);
+var runPresentationDecisionSchema = external_exports.object({
+  schema: external_exports.literal("paperclip.run_presentation_decision.v1"),
+  resolverVersion: external_exports.string().min(1),
+  chosenSource: runPresentationSourceSchema,
+  sourceEventId: external_exports.string().nullable(),
+  commentAction: external_exports.enum(["reuse", "create", "none"]),
+  commentId: external_exports.string().nullable(),
+  activityDisposition: external_exports.literal("collapse"),
+  reasonCodes: external_exports.array(external_exports.string())
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/email.js
+var address = external_exports.string().trim().email().max(320);
+var addresses = external_exports.array(address).max(50);
+var emailEndpointSetupSchema = external_exports.object({
+  assignedAgentId: external_exports.string().uuid(),
+  applicationId: external_exports.string().uuid().optional(),
+  apiKey: external_exports.string().min(1).max(4096).optional(),
+  credentialConnectionId: external_exports.string().uuid().optional(),
+  inboxId: address.optional(),
+  username: external_exports.string().regex(/^[a-zA-Z0-9._-]+$/).max(64).optional(),
+  domain: external_exports.string().max(253).optional(),
+  receiveMode: external_exports.enum(["websocket", "webhook"]).default("websocket"),
+  idempotencyKey: external_exports.string().uuid()
+}).strict().refine((v) => Boolean(v.apiKey) !== Boolean(v.credentialConnectionId), {
+  message: "Supply an API key or a saved connection, not both"
+});
+var emailSendSchema = external_exports.object({
+  endpointId: external_exports.string().uuid(),
+  parentIssueId: external_exports.string().uuid().optional(),
+  conversationId: external_exports.string().uuid().optional(),
+  replyToMessageId: external_exports.string().min(1).max(998).optional(),
+  replyAll: external_exports.boolean().default(false),
+  to: addresses.optional(),
+  cc: addresses.optional(),
+  bcc: addresses.optional(),
+  subject: external_exports.string().trim().min(1).max(998).regex(/^[^\r\n]+$/).optional(),
+  text: external_exports.string().trim().min(1).max(1e5),
+  attachmentIds: external_exports.array(external_exports.string().uuid()).max(20).default([]),
+  idempotencyKey: external_exports.string().uuid()
+}).strict().superRefine((v, ctx) => {
+  const fail = (message) => ctx.addIssue({ code: "custom", message });
+  if (v.conversationId) {
+    if (!v.replyToMessageId)
+      fail("A reply requires its exact message ID");
+    if (v.parentIssueId || v.to || v.cc || v.bcc || v.subject)
+      fail("Reply recipients come from the original message; use replyAll explicitly");
+  } else {
+    if (!v.parentIssueId || !v.to?.length || !v.subject)
+      fail("A new email requires a parent task, recipient, and subject");
+    if (v.replyToMessageId || v.replyAll)
+      fail("A new email cannot be a reply");
+  }
+});
+var emailConnectionSchema = external_exports.object({
+  apiKey: external_exports.string().min(1).max(4096),
+  grantKind: external_exports.enum(["user", "organization"]).default("user"),
+  allAgents: external_exports.boolean().default(false),
+  agentIds: external_exports.array(external_exports.string().uuid()).max(500).default([]),
+  idempotencyKey: external_exports.string().uuid()
+}).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/api.js
 var API_PREFIX = "/api";
 var API = {
   health: `${API_PREFIX}/health`,
@@ -27922,7 +34335,7 @@ var API = {
   admin: `${API_PREFIX}/admin`
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/config-schema.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/config-schema.js
 var configMetaSchema = external_exports.object({
   version: external_exports.literal(1),
   updatedAt: external_exports.string(),
@@ -28082,7 +34495,7 @@ var paperclipConfigSchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
 var adapterRegistryEntrySchema = external_exports.object({
   adapterType: external_exports.string().min(1),
   enabled: external_exports.boolean().default(true),
@@ -28094,7 +34507,7 @@ var adapterRegistryEntrySchema = external_exports.object({
 }).strict();
 var adapterRegistrySchema = external_exports.array(adapterRegistryEntrySchema);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/feature-catalog.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/feature-catalog.js
 var FEATURE_TIERS = ["preference", "managed", "floor"];
 var INSTANCE_FEATURE_CATALOG = {
   enableEnvironments: {
@@ -28106,10 +34519,13 @@ var INSTANCE_FEATURE_CATALOG = {
   },
   enableNativeRunner: {
     title: "Paperclip Runner",
-    description: "Allow new Codex agents to use the experimental Rust Paperclip Runner transport.",
+    description: "Allow explicitly configured local Codex, OpenCode, and qualified ACPX agents to use the experimental Rust Paperclip Runner, including authenticated sandbox ingress when required. Onboarding remains on legacy adapters.",
     tier: "managed",
     cloudDefault: false,
-    selfHostedDefault: false
+    // On by default for self-hosted instances. Requires a Rust toolchain (or
+    // PAPERCLIP_RUNNER_BINARY) for `pnpm dev`, which builds runnerd whenever
+    // this is on.
+    selfHostedDefault: true
   },
   enableManagedSandboxOnly: {
     title: "Managed Environment Only",
@@ -28125,6 +34541,13 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: false,
     selfHostedDefault: false
   },
+  enableIsolatedWorkspacesByDefault: {
+    title: "Isolated Workspaces By Default",
+    description: "Treat a project that has no execution workspace policy of its own as if it selected isolated workspaces, so its tasks get a per-task worktree instead of sharing the project checkout. Requires Isolated Workspaces. A project that carries its own policy keeps it.",
+    tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
   enableStreamlinedLeftNavigation: {
     title: "Streamlined Left Navigation",
     description: "Use the streamlined main sidebar navigation layout.",
@@ -28132,9 +34555,23 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: true,
     selfHostedDefault: true
   },
+  enableStreamlinedUi: {
+    title: "Streamlined UI",
+    description: "Use the streamlined application shell, shared task collections, focused task detail layout, contextual navigation, and simplified main sidebar.",
+    tier: "preference",
+    cloudDefault: true,
+    selfHostedDefault: true
+  },
   enableApps: {
-    title: "Apps",
-    description: "Show the Apps navigation and allow access to app connections, gateways, and advanced app tooling.",
+    title: "Apps (compatibility)",
+    description: "Deprecated compatibility key. Apps is always enabled; stored and managed values are ignored.",
+    tier: "managed",
+    cloudDefault: true,
+    selfHostedDefault: true
+  },
+  enableChatConnectors: {
+    title: "Chat connectors",
+    description: "Show experimental chat connector setup and Board surfaces. Existing connections keep running when hidden; GitHub and other tool connectors are unaffected.",
     tier: "managed",
     cloudDefault: false,
     selfHostedDefault: false
@@ -28153,6 +34590,13 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: false,
     selfHostedDefault: false
   },
+  enableAgentChat: {
+    title: "Agent Chat",
+    description: "Persistent task-backed conversations that clarify goals and hand work off to tasks.",
+    tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
   enableConferenceRoomChat: {
     title: "Conference Room Chat",
     description: "Add the Conference Room team chat, the live activity feed, and the redesigned onboarding; restyles task threads as chat bubbles.",
@@ -28167,15 +34611,8 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: false,
     selfHostedDefault: false
   },
-  enableTaskWatchdogs: {
-    title: "Task Watchdogs",
-    description: "Show task detail controls for configuring watchdog agents that verify stopped task subtrees and restore live paths when work should continue.",
-    tier: "managed",
-    cloudDefault: false,
-    selfHostedDefault: false
-  },
   enableIssuePlanDecompositions: {
-    title: "Task Plan Decomposition Panel",
+    title: "Task Plan Decomposition",
     description: "Show accepted-plan decomposition history on task detail pages.",
     tier: "managed",
     cloudDefault: false,
@@ -28258,17 +34695,17 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: false,
     selfHostedDefault: false
   },
-  autoRestartDevServerWhenIdle: {
-    title: "Auto-Restart Dev Server When Idle",
-    description: "In local development, wait for queued and running agent runs to finish, then restart the server automatically when backend changes make the current boot stale.",
+  enablePaperclipDeveloperMode: {
+    title: "Paperclip Developer Mode",
+    description: "Show internal Paperclip maintainer tools and observability links, including Honeycomb trace queries on run pages.",
     tier: "preference",
     cloudDefault: false,
     selfHostedDefault: false
   },
-  enableIssueGraphLivenessAutoRecovery: {
-    title: "Auto-Create Recovery Tasks",
-    description: "Let the heartbeat scheduler create recovery tasks for task dependency chains found inside the configured lookback window.",
-    tier: "managed",
+  autoRestartDevServerWhenIdle: {
+    title: "Auto-Restart Dev Server When Idle",
+    description: "In local development, wait for queued and running agent runs to finish, then restart the server automatically when backend changes make the current boot stale.",
+    tier: "preference",
     cloudDefault: false,
     selfHostedDefault: false
   },
@@ -28300,10 +34737,24 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: false,
     selfHostedDefault: false
   },
+  enableRunnerPreviewIngress: {
+    title: "Runner Preview Ingress (Deprecated)",
+    description: "Compatibility-only key retained for older managed configs. Runner ingress follows the Paperclip Runner setting.",
+    tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
   enableWorktreeRunExecution: {
     title: "Worktree Run Execution",
     description: "Let the scheduler execute runs inside an isolated git-worktree preview instance for tasks created after activation.",
     tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
+  enableFirstTaskPlanProposal: {
+    title: "First task: propose with a plan document",
+    description: "When the user's first request is a single task, the chief of staff writes a short plan document and a checkbox card instead of a one-card confirmation. Applies to organizations created after the toggle is flipped.",
+    tier: "preference",
     cloudDefault: false,
     selfHostedDefault: false
   }
@@ -28314,7 +34765,7 @@ var featureCatalogArtifactSchema = external_exports.object({
   features: external_exports.record(external_exports.string().min(1), external_exports.object({ tier: external_exports.enum(FEATURE_TIERS) }).strict())
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/settings-visibility.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/settings-visibility.js
 var HIDEABLE_INSTANCE_PAGES = [
   "instance.profile",
   "instance.environments",
@@ -28353,14 +34804,14 @@ var HIDEABLE_SETTING_KEYS = [
   ...INSTANCE_FEATURE_KEYS.map(experimentalSettingKey)
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/setting-defaults.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/setting-defaults.js
 var DEFAULTABLE_GENERAL_SETTINGS = [
   "feedbackDataSharingPreference"
 ];
 var defaultableFieldsSchema = instanceGeneralSettingsSchema.pick(Object.fromEntries(DEFAULTABLE_GENERAL_SETTINGS.map((key) => [key, true]))).partial();
 var schemaDefaults = instanceGeneralSettingsSchema.parse({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/validators/runtime-exposure.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/runtime-exposure.js
 var runtimeExposureProviderSchema = external_exports.literal("tailscale_https");
 var runtimeExposureFailurePolicySchema = external_exports.literal("fail_closed");
 var runtimeExposureConfigSchema = external_exports.object({
@@ -28397,21 +34848,78 @@ var runtimeExposureStatusSchema = external_exports.object({
   updatedAt: external_exports.string().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.831.1/node_modules/@paperclipai/shared/dist/runtime-exposure/ports.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/runtime-exposure/ports.js
 var RUNTIME_EXPOSURE_APP_PORT_MIN = 42e3;
 var RUNTIME_EXPOSURE_APP_PORT_MAX = 42999;
 var RUNTIME_EXPOSURE_HMR_PORT_OFFSET = 1e4;
 var RUNTIME_EXPOSURE_HMR_PORT_MIN = RUNTIME_EXPOSURE_APP_PORT_MIN + RUNTIME_EXPOSURE_HMR_PORT_OFFSET;
 var RUNTIME_EXPOSURE_HMR_PORT_MAX = RUNTIME_EXPOSURE_APP_PORT_MAX + RUNTIME_EXPOSURE_HMR_PORT_OFFSET;
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.831.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/announcements.js
+var ANNOUNCEMENT_MANIFEST_MAX_BYTES = 64 * 1024;
+var ANNOUNCEMENT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+var ANNOUNCEMENT_ANIMATION_MAX_BYTES = 128 * 1024;
+var ANNOUNCEMENT_APP_ROUTES = [
+  "/dashboard",
+  "/issues",
+  "/projects",
+  "/agents",
+  "/skills",
+  "/apps",
+  "/routines",
+  "/artifacts",
+  "/company/settings"
+];
+var announcementIdSchema = external_exports.string().regex(/^[a-z0-9][a-z0-9-]{0,95}$/);
+var label = external_exports.string().trim().min(1).max(48);
+var httpsUrl = external_exports.string().max(2048).url().refine((value) => {
+  try {
+    const url2 = new URL(value);
+    return url2.protocol === "https:" && !url2.username && !url2.password;
+  } catch {
+    return false;
+  }
+}, "Use an HTTPS URL without credentials");
+var announcementActionSchema = external_exports.discriminatedUnion("kind", [
+  external_exports.object({ kind: external_exports.literal("external"), label, url: httpsUrl }).strict(),
+  external_exports.object({ kind: external_exports.literal("route"), label, path: external_exports.enum(ANNOUNCEMENT_APP_ROUTES) }).strict()
+]);
+var announcementSchema = external_exports.object({
+  id: announcementIdSchema,
+  eyebrow: external_exports.string().trim().min(1).max(48),
+  title: external_exports.string().trim().min(1).max(100),
+  description: external_exports.string().trim().min(1).max(400),
+  image: external_exports.object({
+    // Immutable, content-addressed raster assets beneath the feed directory.
+    path: external_exports.string().regex(/^assets\/[a-f0-9]{64}\.(png|jpg|webp)$/),
+    alt: external_exports.string().max(200)
+  }).strict().optional(),
+  animation: external_exports.object({
+    path: external_exports.string().regex(/^assets\/[a-f0-9]{64}\.html$/),
+    alt: external_exports.string().trim().min(1).max(200)
+  }).strict().optional(),
+  secondaryLink: announcementActionSchema.optional(),
+  primaryAction: announcementActionSchema,
+  expiresAt: external_exports.string().datetime({ offset: true }).optional(),
+  minimumPaperclipVersion: external_exports.string().regex(/^\d+\.\d+\.\d+$/).optional()
+}).strict().refine((value) => !value.animation || Boolean(value.image), {
+  message: "An animation requires a static fallback image",
+  path: ["image"]
+});
+var announcementManifestSchema = external_exports.object({
+  schemaVersion: external_exports.literal(1),
+  announcement: announcementSchema.nullable()
+}).strict();
+var dismissAnnouncementSchema = external_exports.object({ companyId: external_exports.string().uuid() }).strict();
+
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 import fs from "node:fs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.831.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
 var JSONRPC_VERSION = "2.0";
 var JSONRPC_ERROR_CODES = {
   /** Invalid JSON was received by the server. */
@@ -28558,7 +35066,7 @@ var JsonRpcCallError = class extends Error {
   }
 };
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.831.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 var DEFAULT_RPC_TIMEOUT_MS = 3e4;
 function realpathOrResolvedPath(filePath) {
   const resolvedPath = path.resolve(filePath);
@@ -28608,7 +35116,7 @@ function startWorkerRpcHost(options) {
   const rpcTimeoutMs = options.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS;
   let running = true;
   let initialized = false;
-  let manifest = null;
+  let manifest2 = null;
   let currentConfig = {};
   let configCompanyId = null;
   let databaseNamespace = null;
@@ -28692,9 +35200,9 @@ function startWorkerRpcHost(options) {
   function buildContext() {
     return {
       get manifest() {
-        if (!manifest)
+        if (!manifest2)
           throw new Error("Plugin context accessed before initialization");
-        return manifest;
+        return manifest2;
       },
       config: {
         async get(companyId) {
@@ -28703,9 +35211,9 @@ function startWorkerRpcHost(options) {
       },
       localFolders: {
         declarations() {
-          if (!manifest)
+          if (!manifest2)
             throw new Error("Plugin context accessed before initialization");
-          return manifest.localFolders ?? [];
+          return manifest2.localFolders ?? [];
         },
         async configure(input2) {
           return callHost("localFolders.configure", {
@@ -29451,17 +35959,22 @@ function startWorkerRpcHost(options) {
         }
       },
       loginPty: {
-        output(workerSessionId, chunk) {
+        output(hostRouteId, workerSessionId, chunk) {
+          if (typeof hostRouteId !== "string" || hostRouteId.length === 0)
+            return;
           if (typeof workerSessionId !== "string" || workerSessionId.length === 0)
             return;
           if (typeof chunk !== "string" || chunk.length === 0)
             return;
-          notifyHost(LOGIN_PTY_OUTPUT_NOTIFICATION, { workerSessionId, chunk });
+          notifyHost(LOGIN_PTY_OUTPUT_NOTIFICATION, { hostRouteId, workerSessionId, chunk });
         },
-        exit(workerSessionId, exitCode) {
+        exit(hostRouteId, workerSessionId, exitCode) {
+          if (typeof hostRouteId !== "string" || hostRouteId.length === 0)
+            return;
           if (typeof workerSessionId !== "string" || workerSessionId.length === 0)
             return;
           notifyHost(LOGIN_PTY_EXIT_NOTIFICATION, {
+            hostRouteId,
             workerSessionId,
             exitCode: typeof exitCode === "number" ? exitCode : null
           });
@@ -29620,6 +36133,8 @@ function startWorkerRpcHost(options) {
         return handleEnvironmentRealizeWorkspace(params);
       case "environmentExecute":
         return handleEnvironmentExecute(params);
+      case "environmentRunnerIngressEndpoint":
+        return handleEnvironmentRunnerIngressEndpoint(params);
       case "environmentSyncIn":
         return handleEnvironmentSyncIn(params);
       case "environmentSyncOut":
@@ -29658,7 +36173,7 @@ function startWorkerRpcHost(options) {
     if (initialized) {
       throw new Error("Worker already initialized");
     }
-    manifest = params.manifest;
+    manifest2 = params.manifest;
     currentConfig = params.config;
     databaseNamespace = params.databaseNamespace ?? null;
     await plugin2.definition.setup(ctx);
@@ -29696,6 +36211,9 @@ function startWorkerRpcHost(options) {
       supportedMethods.push("environmentRealizeWorkspace");
     if (plugin2.definition.onEnvironmentExecute)
       supportedMethods.push("environmentExecute");
+    if (plugin2.definition.onEnvironmentRunnerIngressEndpoint) {
+      supportedMethods.push("environmentRunnerIngressEndpoint");
+    }
     if (plugin2.definition.onEnvironmentSyncIn)
       supportedMethods.push("environmentSyncIn");
     if (plugin2.definition.onEnvironmentSyncOut)
@@ -29923,6 +36441,12 @@ function startWorkerRpcHost(options) {
       throw methodNotImplemented("environmentExecute");
     }
     return plugin2.definition.onEnvironmentExecute(params);
+  }
+  async function handleEnvironmentRunnerIngressEndpoint(params) {
+    if (!plugin2.definition.onEnvironmentRunnerIngressEndpoint) {
+      throw methodNotImplemented("environmentRunnerIngressEndpoint");
+    }
+    return plugin2.definition.onEnvironmentRunnerIngressEndpoint(params);
   }
   async function handleEnvironmentSyncIn(params) {
     if (!plugin2.definition.onEnvironmentSyncIn) {
@@ -30899,8 +37423,8 @@ var PRECEDENCE_TIERS = [
   ["frontend"],
   ["feature"]
 ];
-function tierRank(label) {
-  const l = label.toLowerCase();
+function tierRank(label2) {
+  const l = label2.toLowerCase();
   for (let i = 0; i < PRECEDENCE_TIERS.length; i++) {
     const tier = PRECEDENCE_TIERS[i];
     if (tier && tier.includes(l)) return i;
@@ -31553,6 +38077,686 @@ function buildInboundCreateReconcilePing(s) {
   return `\u{1FA9E} inbound-create-reconcile: created ${s.created} missing Paperclip twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
 }
 
+// src/heartbeat.ts
+var HEARTBEAT_TABLE = "github_sync_heartbeat";
+var HEARTBEAT_ROW_ID = 1;
+var HEARTBEAT_STALE_MS = 15 * 60 * 1e3;
+function qualifiedTable2(db) {
+  return `${db.namespace}.${HEARTBEAT_TABLE}`;
+}
+async function recordHeartbeat(db, row) {
+  await db.execute(
+    `INSERT INTO ${qualifiedTable2(db)} (id, updated_at, worker_booted_at, worker_version)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE
+         SET updated_at = EXCLUDED.updated_at,
+             worker_booted_at = EXCLUDED.worker_booted_at,
+             worker_version = EXCLUDED.worker_version`,
+    [HEARTBEAT_ROW_ID, row.updatedAt, row.workerBootedAt, row.workerVersion]
+  );
+}
+async function getHeartbeat(db) {
+  const rows = await db.query(
+    `SELECT updated_at, worker_booted_at, worker_version
+       FROM ${qualifiedTable2(db)} WHERE id = $1`,
+    [HEARTBEAT_ROW_ID]
+  );
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    updatedAt: String(r.updated_at),
+    workerBootedAt: String(r.worker_booted_at),
+    workerVersion: r.worker_version != null ? String(r.worker_version) : ""
+  };
+}
+function heartbeatAgeMs(row, now) {
+  if (!row) return null;
+  const t = Date.parse(row.updatedAt);
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, now - t);
+}
+
+// src/boot.ts
+var defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function bootWithRetry(init, deps) {
+  const maxAttempts = deps.maxAttempts ?? 5;
+  const baseDelayMs = deps.baseDelayMs ?? 1e3;
+  const sleep = deps.sleep ?? defaultSleep;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await init();
+      return;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      if (attempt >= maxAttempts) {
+        deps.logger.error("worker init failed after retries; staying up degraded", {
+          attempts: attempt,
+          error: detail
+        });
+        if (deps.onExhausted) {
+          try {
+            await deps.onExhausted(err, attempt);
+          } catch {
+          }
+        }
+        return;
+      }
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      deps.logger.warn("worker init attempt failed; retrying with backoff", {
+        attempt,
+        nextDelayMs: delayMs,
+        error: detail
+      });
+      await sleep(delayMs);
+    }
+  }
+}
+
+// src/manifest.ts
+var manifest = {
+  id: "agenticos.github-sync-plugin",
+  apiVersion: 1,
+  // Bump on ANY manifest change — a stale stored manifest silently masks changes
+  // (spec gotcha; see #228). 0.6.0 = discipline label routing (GOL-150).
+  // 0.7.0 = agent PR review pipeline (GOL-158, Phase 2): `github-pr` webhook.
+  // 0.7.1 = plugin-side agent-review sign-off completion (GOL-186): an
+  //   issue.updated dispatch completes the `agent-review/*` check-run to success
+  //   when the review issue closes `done` (Phase 3 prerequisite). No new
+  //   capabilities/webhooks — reuses issues.read + http.outbound (checks:write is
+  //   an App-side grant, GOL-175), so the manifest surface is unchanged bar version.
+  // 0.8.0 = swallowed-failure observability (GOL-296): caught exceptions in
+  //   onWebhook / event dispatch now write a queryable `github_sync_error` row
+  //   (migrations/003) AND fire a 🚨 ops-webhook alert, instead of vanishing into
+  //   host server.log. No new capabilities — reuses database.namespace.write +
+  //   http.outbound; a new migration ships under the existing `database` block.
+  // 0.9.0 = CI → Paperclip fix-issue loop (GOL-305, from the GOL-303 audit). The App's
+  //   native `check_suite`/`workflow_run` **completed** events land on the same
+  //   `github-app` webhook URL and are fanned out by X-GitHub-Event: a failing CI
+  //   check on an agent-authored PR opens/updates an author-assigned fix issue, and a
+  //   green suite auto-closes it (loop-guarded per (repo, PR#) via github_ci_failure,
+  //   migrations/004). No new capabilities/webhook endpoints — reuses issues.create/
+  //   update + issue.comments.create + http.outbound; needs the App subscribed to
+  //   `check_suite`/`workflow_run` and granted `checks:read` (GOL-304 / T1).
+  // 0.9.1 = inbound invocation-scope fix (GOL-300/GOL-295): the mirror-create and
+  //   closure paths now re-enter the captured host scope (runInScope), matching the
+  //   PR-path fix (GOL-179). Bugfix only — manifest surface unchanged bar version.
+  // 0.10.0 = inbound scope-expiry REST-bypass fallback (GOL-323, board-authorized
+  //   interim mitigation for GOL-295/GOL-300). runInScope alone does not fully close
+  //   the drop: the host still expires the per-delivery scope before some awaited
+  //   ctx.issues.* writes land. On that error ONLY, the mirror-create / closure
+  //   paths retry via the Paperclip REST API. The internal loopback (127.0.0.1) is
+  //   NOT reachable — the host's plugin http.outbound SSRF filter blocks private
+  //   IPs — so the fallback targets the CF-Access-gated public host and carries a
+  //   Cloudflare Access service token. Four new optional config fields:
+  //   paperclipApiBaseUrl + paperclipApiToken + paperclipCfAccessClientId +
+  //   paperclipCfAccessClientSecret. Catch-fallback only — zero-risk to the working
+  //   scope path. No new capabilities (reuses http.outbound); the new config fields
+  //   deliberately do NOT use format:"secret-ref" (see the field comments).
+  // 0.11.0 = gh-token-broker bearer auth (GOL-666, fixes the M3/PR #356 regression).
+  //   Since PR #356 the broker REQUIRES `Authorization: Bearer <GH_BROKER_API_KEY>`
+  //   and rejects unauthenticated mints with HTTP 401 — but the plugin's broker
+  //   client never sent it, so every repo-scoped token mint 401'd and the PR-review
+  //   pipeline died at "failed to fetch PR changed files" (seen on grove-odoo-modules).
+  //   Sandboxed plugin workers can't read GH_BROKER_API_KEY(_FILE) from env, so the
+  //   key arrives via one new config field, tokenBrokerApiKey (NOT secret-ref — same
+  //   host-strips-secret-ref reasoning as the GOL-323 fields). No new capabilities.
+  // 0.11.1 = PR-review pipeline-error observability + alert hygiene (GOL-724). The
+  //   `🔥 PR review pipeline error` pings for HMAC-reject / broker-401 changed-file
+  //   fetch fail / CI check-run fetch fail were fire-and-forget: invisible to DB triage
+  //   AND un-deduped, so one worker-crash window + GitHub webhook redelivery spammed N
+  //   identical lines at ops. Now every such error persists a queryable `github_sync_error`
+  //   row (reuses migrations/003) and all error-class ops alerts pass through an in-memory
+  //   per-content throttle that collapses a burst to one ping per window with a
+  //   `(+N suppressed)` note. Bugfix only — manifest surface unchanged bar version.
+  // 0.11.2 = complete the 0.11.1 throttle: OpsPingThrottle.prune() was defined+tested
+  //   but never called, so the per-content window Map grew unbounded over the long-lived
+  //   worker (contradicting its own "can't grow unbounded" docstring) — GOL-728. decide()
+  //   now prunes stale keys opportunistically after refreshing the current key, so the
+  //   Map is bounded by the count of distinct alert keys seen within one window. Bugfix
+  //   only — manifest surface unchanged bar version.
+  // 0.11.3 = post-merge sign-off no longer false-alarms (GOL-781). handleReviewSignoff
+  //   posted a green `agent-review/*` check-run on the reviewed head SHA even after the
+  //   PR merged; GitHub's Checks API rejects a completion on a merged/superseded head
+  //   ("No commit found for SHA"), firing a false `🔥 sign-off check-run failed` alert on
+  //   every post-merge sign-off (grove-odoo-modules#44/47/48). postSignoffCheck now
+  //   short-circuits merged/closed PRs before the doomed post and re-derives PR state on
+  //   failure to mute the alert when the PR is no longer an open merge gate. Bugfix only —
+  //   manifest surface unchanged bar version.
+  // 0.11.5 = stranded `agent-review/*` sign-off checks now complete (green) instead of
+  //   hanging `in_progress` forever on merged/closed heads (GOL-798). postSignoffCheck
+  //   always attempts the completion post; GitHub records a completed check-run on the
+  //   merged head. Bugfix only — manifest surface unchanged bar version.
+  // 0.11.6 = sign-off check-runs no longer fail with 401 "Bad credentials" (GOL-799).
+  //   The broker keeps its own disk cache and serves a token with as little as 5 min of
+  //   life left, but the client cached every token for a flat 50 min — so a token could be
+  //   held ~44 min PAST its real expiry, and every check-run write with it got GitHub's
+  //   401 (stranded `agent-review/*` checks). The broker now returns `expires_at` and the
+  //   client caches until that real expiry minus a 2-min skew, capped at the 50-min TTL.
+  //   Bugfix only — manifest surface unchanged bar version.
+  // 0.11.7 = sign-off failure observability + transient-blip muting (GOL-802). A ~4-min
+  //   broker-token 401 window fired 59 `🔥 sign-off check-run failed` pings across 5 open
+  //   PRs (each retry re-alerted) yet logged an EMPTY error — the HTTP status was dropped:
+  //   github-client `request()` awaited `res.json()` before the `res.ok` check, so a
+  //   bodyless/non-JSON 4xx/5xx threw and lost the status. Root causes (1) broker lacks
+  //   checks:write and (2) a payload bug were both RULED OUT (seeds + an out-of-band
+  //   completion POST via the broker token both 201). `request()` now reads text-first
+  //   (always keeps status + a non-empty error), and postSignoffCheck classifies transient
+  //   failures (401/408/429/5xx/no-status) as retryable — warn + NO 🔥, since the
+  //   event-driven retry self-heals — while a 403 (checks:write revoked) or unexpected 422
+  //   on a live open PR still fires 🔥 with the status + GitHub errors[]. Bugfix only —
+  //   manifest surface unchanged bar version.
+  // 0.12.0 = mirror reconcile sweep + plugin-operational-issue guard. The outbound
+  //   mirror was purely event-driven, so issues created BEFORE a bridge was applied
+  //   (or during a drop window) never got a GitHub twin (~78 active issues across the
+  //   three bridged projects). A new hourly `mirror-reconcile` job (jobs.schedule +
+  //   jobs[] — manifest surface CHANGED) sweeps bridged projects and mirrors active
+  //   unmapped issues through the idempotent handleIssueCreated path, capped per run.
+  //   Also fixes mirror NOISE: handleIssueCreated now skips the plugin's own
+  //   operational issues (pr-review/ci-fix markers) — 202 "Review PR …" junk twins
+  //   had accumulated in bridged repos (existing ones need one-time GitHub cleanup).
+  // 0.12.1 = ops-channel noise policy (the "4 pings per PR" complaint, 2026-08-01).
+  //   New `opsPingMode` config ("outcomes" default | "verbose" | "errors"): the
+  //   default drops 🔍 review-created / 🔁 re-review lifecycle chatter and routine
+  //   assigned-mirror pings, keeping ✅/❌/CI-fix/🧹 outcomes; error-class pings
+  //   (🔥/🚨/unassigned-mirror) pass EVERY mode. Sign-off ✅ collapsed to ONE ping
+  //   per green event listing all checks (was one per reviewer). Manifest surface
+  //   changed: +opsPingMode config field.
+  // 0.13.0 = Layer 1 merge automation: `synchronize` deliveries whose new head is
+  //   a GitHub-generated base-sync merge ("Update branch") short-circuit before the
+  //   review pipeline runs, instead of reopening the review issue and re-pinging for
+  //   unchanged code (the ~202 junk "Review PR" twins). One `getCommit` fetch +
+  //   `classifyHeadChange` decide it; manifest surface unchanged bar version.
+  // 0.13.1 = sign-off reconcile sweep (GOL-1160). handleReviewSignoff mutes a transient
+  //   check-run completion failure (broker 401 / timeout / 5xx) expecting "the next
+  //   issue.updated re-fires the retry" — but a `done` sign-off is TERMINAL, so a blip at
+  //   that instant strands the REQUIRED `agent-review/*` check `in_progress` forever and
+  //   the Phase-3 gate blocks the merge until an admin bypass (observed 2026-08-03 on
+  //   grove-sites#407 / odoocker#387 / grove-odoo-modules#68 — all signed off `done`, checks
+  //   stuck pending; a manual App-token check POST returned 201, ruling out permissions).
+  //   New hourly `signoff-reconcile` job (jobs.schedule + jobs[] — manifest surface CHANGED,
+  //   fires at :38) re-drives handleReviewSignoff for any signed-off review issue whose check
+  //   is not yet green, bounded to a 3-day window + 200 rows, one check-run read per head.
+  // 0.13.2 = mirror-reconcile survives scope expiry (GOL-1163). A scheduled job has
+  //   NO ambient invocation scope to inherit — unlike a webhook delivery or event
+  //   dispatch — so the sweep's `ctx.issues.list` is the most scope-fragile call in
+  //   the plugin. Bare, it threw "referenced a missing, expired, or unknown
+  //   invocation scope" (2026-08-03 21:23Z) and the twin backfill stopped dead with
+  //   38 issues still unmapped. The read now goes through the same withRestFallback
+  //   the inbound mirror path uses (GOL-323); PaperclipRestClient gains listIssues,
+  //   its first READ mirror. Worker-code + REST-client only — manifest surface
+  //   unchanged bar version (bumped so the dev-watcher actually hot-reloads it:
+  //   it only fires on dist/manifest.js changes, so a worker-only fix would
+  //   otherwise sit on disk unused).
+  // 0.14.0 = inbound-close reconcile sweep (GOL-1206 / GOL-289). Closure propagation
+  //   (GitHub close → Paperclip mirror `done`) works event-driven on AgenticOS, where
+  //   the GitHub App delivers the `issues` `closed`/`reopened` event. But the App is
+  //   installed ONLY on AgenticOS, so the Goldberry-Playground bridged repos
+  //   (grove-sites, odoocker-goldberrygrove, grove-odoo-modules) receive NO such event —
+  //   a merged `Closes #N` PR closes the twin, but nothing brings that close back into
+  //   Paperclip (mirror-reconcile is outbound-only, skips terminal issues). CEO chose
+  //   the polling fix (Option B) over installing the App org-wide. New hourly
+  //   `inbound-close-reconcile` job (jobs.schedule + jobs[] — manifest surface CHANGED,
+  //   fires at :51) lists each bridged repo's recently-updated issues and re-drives the
+  //   SAME handleAppClosure code path per issue: identical mapping lookup, the existing
+  //   resolveMirrorClosureStatus matrix, the identical loop guard, and the scope-safe
+  //   REST-fallback write — so the polling leg can never diverge from the event leg.
+  //   AgenticOS stays a no-op (its closes reach the mirror before the sweep → loop-guard
+  //   skip). Bounded to a 14-day window + 5 pages/repo; idempotent, safe every cycle.
+  // 0.14.1 = mirror-reconcile actually REACHES the backlog (follow-up to 0.13.2).
+  //   With the scope crash fixed the sweep ran clean but created ~nothing: the
+  //   host serves ONE 100-row page per query (a second page is empty regardless
+  //   of offset), so an unfiltered scan saw 300 of 733 issues — 273 already
+  //   done — and never reached the 36 lacking a twin. It now queries each ACTIVE
+  //   status separately (backlog/todo/in_progress/in_review/blocked), giving the
+  //   backlog its own window per status instead of competing with closed work.
+  //   isTerminalStatus still guards each row, so a host ignoring the filter
+  //   cannot make us mirror closed issues. Worker-code only — surface unchanged
+  //   bar version (bumped so the dev-watcher reloads it; see 0.13.2).
+  // 0.14.2 = inbound-close-reconcile self-heals orphaned mappings (GOL-1274, follow-up
+  //   to GOL-1273). When a Paperclip issue with a GitHub twin is hard-deleted, its
+  //   github_sync_mapping row is orphaned: every hourly sweep re-found the closed twin,
+  //   read the mirror as not-found, counted it `failed`, and paged ops Discord FOREVER
+  //   (the false alarm behind GOL-1273, failed:2). handleAppClosure now distinguishes a
+  //   PERMANENT delete (withRestFallback returns null only on a positive 404 — a
+  //   5xx/timeout throws and is still tallied `failed`) from a transient blip: it prunes
+  //   the orphaned row (new mapping.deleteByPaperclipIssueId) and returns a new `pruned`
+  //   outcome. The sweep counts it in a `pruned` bucket (observable, one-time) instead of
+  //   `failed`, so the next sweep sees the twin as `unmapped` and stops paging. `failed`
+  //   is now purely actionable. Worker-code + mapping helper (reuses the existing table,
+  //   no migration) — manifest surface unchanged bar version.
+  // 0.16.0 = inbound-CREATE reconcile sweep (GOL-1413). The inbound mirror-CREATE was
+  //   event-driven only: a GitHub-native issue got a Paperclip twin solely if its
+  //   webhook was delivered AND its handler survived — no feedback loop revisited one
+  //   born during an inbound-webhook outage (mirror-reconcile is outbound-only;
+  //   inbound-close-reconcile acts only on already-mapped issues). New hourly
+  //   `inbound-create-reconcile` job (jobs.schedule + jobs[] — manifest surface CHANGED,
+  //   MINOR bump) lists each bridged repo's recently-OPEN issues and re-drives the SAME
+  //   createMirrorIssue path the webhook uses for any open, non-Paperclip-origin,
+  //   unmapped issue — so a deliberately-induced inbound-webhook outage self-heals
+  //   within an hour (the DoD self-heal net; absorbs grove-sites#473 / GOL-1300).
+  //   Idempotent (pre-checks the mapping), capped per run (20 attempts), 14-day/5-page
+  //   window. Reuses issues.create + jobs.schedule — no new capability, no migration.
+  // 0.15.1 = token-layer hardening (GOL-1425, folds #457). A cached installation token
+  //   can be revoked BEFORE its `expires_at` (App suspended, key rotated, install/perm
+  //   change), and the stacked caches (broker disk cache → client in-memory cache) then
+  //   keep serving the dead token for the rest of its TTL — every write 401s "Bad
+  //   credentials" through a ~45-min self-healing window. Three defences, all fail-open:
+  //   (1) MINT-TIME VALIDATION — the broker probes each token against `/rate_limit` (free,
+  //   no quota) before serving/caching; a rejected fresh mint means the App itself is
+  //   broken and throws instead of caching a dead credential (folds #457). (2) 401
+  //   CACHE-EVICTION — TokenProvider gains an optional `invalidate(repo)`; GitHubClient
+  //   evicts and re-mints ONCE on a 401 so a token revoked mid-TTL self-corrects on first
+  //   use instead of stranding the whole window. (3) BROKER CANARY — optional periodic
+  //   mint+validate (GH_BROKER_CANARY_OWNER) surfaced on /health + ops Discord, plus a
+  //   one-shot `canary` CLI mode for CI/cron, flagging a dead App key BEFORE a real write.
+  //   Broker-script + worker-code (broker.ts/github-client.ts bundled) — manifest surface
+  //   unchanged bar version.
+  // 0.16.1 = receiver honesty (GOL-1411 / W2). Before this, the webhook receiver
+  //   returned HTTP 200 {status:"success"} for EVERY delivery — including unsigned
+  //   garbage and deliveries whose downstream write failed — so GitHub's delivery
+  //   log showed green checkmarks while inbound mirroring was dead, which is why the
+  //   2026-08-12 outage stayed invisible for ~20h. Every inbound handler now VERIFIES
+  //   the HMAC BEFORE any enqueue/write and THROWS a WebhookRejection on a missing
+  //   secret / bad signature / (custom-endpoint) bad payload; onWebhook records a
+  //   per-delivery outcome to the new github_sync_delivery table (migration 006),
+  //   fires the Discord ops alert ONLY on a genuine failed_processing (not on an
+  //   unauthenticated probe), and RE-THROWS so the host returns a non-2xx and GitHub's
+  //   delivery turns red. Retries stay safe: inbound create still dedupes on
+  //   repo+number before writing (getByRepoNumber), preserving the GOL-352/GOL-323
+  //   REST fallback. Adds migration 006 (new table) — surface otherwise unchanged.
+  // 0.16.2 = status-write flap fix (GOL-1419 / W5). The inbound-close-reconcile sweep
+  //   derived its action from an issue's CURRENT GitHub state (`open → "reopened"`),
+  //   so a steadily-open twin whose mirror an agent had deliberately closed was
+  //   dragged back to `todo` every hourly tick — the agent re-closed it next
+  //   heartbeat, an unbounded done↔todo flap (grove-sites#486 / GOL-1308 bounced
+  //   hourly for 6h). The sweep now propagates CLOSURES ONLY; an open twin is
+  //   skipped (`skippedOpen`), never re-driven as a reopen. Genuine reopens still
+  //   flow through the real `reopened` App-webhook event (handleAppClosure,
+  //   untouched). No migration, no capability change — pure sweep-logic narrowing.
+  // 0.16.3 = REST-fallback FAILURE alert (GOL-1485). When the GOL-323 scope-expiry
+  //   fallback FIRES but the Paperclip REST retry ITSELF fails (e.g. the fallback key
+  //   silently dies — #457: NULL responsible_user_id → 403), the only prior signal was a
+  //   `logger.error` on host stderr, which is NOT observable, so a dead fallback key went
+  //   unseen until inbound mirrors visibly stopped. withRestFallback now fires an optional
+  //   onFallbackFailure hook on that path; the worker wires it (once, at restFallbackDeps,
+  //   covering every fallback site) to a durable `github_sync_error` row + a THROTTLED
+  //   error-class ⛔ Discord ops alert carrying site + HTTP status (one per site+status per
+  //   window; error-class passes every opsPingMode). The scope-expiry SUCCESS path is
+  //   unchanged — no new pings on the healthy path. No new capability, no migration.
+  // 0.16.4 = PR review-twin reconcile sweep (GOL-2344). The agent PR-review pipeline
+  //   was event-driven only: a PR got its Ada/Iris review twin + seeded `agent-review/*`
+  //   check solely if its `pull_request` webhook landed AND handlePrInbound survived; a
+  //   dropped delivery (webhook disabled / mis-delivered / a worker-crash or scope-expiry
+  //   window) left the PR review-less forever — signoff-reconcile only re-drives PRs that
+  //   ALREADY have a `github_pr_review` row, it never CREATES a missing twin. So a
+  //   maintainer PR on a GOL-1406 protected path (auto-approve withholds, the sole
+  //   maintainer can't self-approve) sat unmergeable with no avenue to Ada's sign-off —
+  //   grove-sites#775 (opened + 3 synchronize deliveries all lost). New hourly
+  //   `pr-review-reconcile` job (jobs.schedule + jobs[] — manifest surface CHANGED, no new
+  //   capability, no migration) lists each bridged repo's open non-draft PRs via a new
+  //   GitHubClient.listPulls and re-drives the SAME processReviewer pipeline for any PR
+  //   whose current head lacks a current Ada twin — Ada always, Iris on a frontend-glob
+  //   match, pending check seed — through the GOL-323 REST fallback (cron ticks have no
+  //   ambient scope). Idempotent (a settled PR is a cheap `skipped-current`); capped per
+  //   run so a first sweep over a backlog trickles out.
+  // 0.16.7 = pr-review-reconcile mixed-case repo key fix (GOL-2395). The 0.16.4 sweep
+  //   keyed its DB idempotency pre-check + synthetic review event on the lowercased
+  //   `clientsBySlug` slug, while the webhook stores twins under the case-sensitive
+  //   `repository.full_name`. On a mixed-case repo (Goldberry-Playground/AgenticOS the
+  //   headline case) the lowercase lookup never matched the webhook row, so every sweep
+  //   re-drove and double-created a second Ada review twin + a divergent lowercase
+  //   `github_pr_review` row. `listPulls` now surfaces each PR's `base.repo.full_name`,
+  //   threaded through `InboundPrRef.fullName`; `driveSweepReview` keys the pre-check and
+  //   `ev.repo` on it (matchBridge/client lookup stay case-insensitive). Bugfix only —
+  //   manifest surface unchanged bar version. (Version jumps 0.16.4→0.16.7: 0.16.5/#687,
+  //   0.16.6/#688 are the in-flight dead-man / watchdog PRs on their own branches.)
+  // 0.16.8 = inbound dead-man tripwire (GOL-2370 / GOL-2344 D2). The reconcile sweeps
+  //   self-heal a dropped delivery SILENTLY, so a fleet-wide inbound outage (worker down /
+  //   webhook mis-routed / host not dispatching) backfills unseen for days — the 09-21
+  //   grove-sites#775 and 09-14 GOL-2279 outages, both with the same `github_sync_delivery`
+  //   cliff (no delivery row for days while GitHub kept showing PR/issue activity). A new
+  //   hourly `inbound-dead-man` job (jobs.schedule + jobs[] — manifest surface CHANGED, no
+  //   new capability, no migration) reads the delivery counter and, only when ZERO
+  //   deliveries landed in the 3h window AND GitHub's REST shows a PR/issue updated in the
+  //   same window in a bridged repo, fires a THROTTLED ⛔ error-class ops alert. A quiet
+  //   fleet (no GitHub activity) pages nothing. Read-only (no companyId/scope). Reuses the
+  //   existing broker token (issues:read); MUST deploy after 0.16.7 (monotonic hot-reload).
+  //   (Was 0.16.5 on its branch; bumped past main's 0.16.7 on the conflict merge — GOL-2447.)
+  // 0.16.9 = worker-respawn watchdog: boot resilience + liveness heartbeat (GOL-2371,
+  //   D3 of GOL-2344; follow-up to GOL-2279). On 2026-09-09 a boot-time execSync crash
+  //   in the worker supervisor left this plugin dead ~5 days — every inbound webhook
+  //   502'd — with no auto-respawn and no alert, because nothing external could tell a
+  //   dead worker from a quiet one (github_sync_delivery only advances on a real
+  //   webhook). Two changes, neither adds a capability. (1) BOOT RESILIENCE: setup()
+  //   now runs init inside bootWithRetry — try/catch + bounded exponential backoff —
+  //   so a transient boot failure self-heals and a fatal one leaves the worker UP and
+  //   degraded (onWebhook still answers) + pages ops ⛔, instead of a bare throw out of
+  //   setup (the GOL-2279 silent-death path). (2) LIVENESS SIGNAL: a new frequent
+  //   `worker-heartbeat` job stamps a single-row github_sync_heartbeat table (migration
+  //   007) every 5 min (and once at boot); a dead worker stops refreshing it, so an
+  //   external watchdog polling over DATABASE_URL (or the host supervisor) detects
+  //   staleness and respawns/pages within MINUTES, not days. onHealth now exposes the
+  //   heartbeat (last-alive, this process's boot time, stale flag). Detection/respawn at
+  //   the host boundary is DevOps (Terra) — GOL-2287 Part A/B. Reuses jobs.schedule +
+  //   database.namespace.*; adds migration 007 under the existing `database` block.
+  version: "0.16.9",
+  displayName: "GitHub Sync",
+  description: "Bidirectional issue sync between Paperclip and GitHub. Paperclip \u2192 GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub \u2192 Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo\u2194project bridges across orgs.",
+  author: "AgenticOS",
+  categories: ["connector"],
+  // events.subscribe: the worker subscribes to core "issue.created" / "issue.updated".
+  // http.outbound: the github-client writes issues to the GitHub REST API.
+  // database.namespace.{read,write,migrate}: a "github_sync_mapping" table in the
+  //   plugin DB namespace links paperclip_issue_id <-> github repo#number and records
+  //   sync origin for loop prevention. The table is created by migrations/001_init.sql
+  //   (runtime DDL via ctx.db.execute is forbidden), and runtime reads/writes are
+  //   namespace-qualified via ctx.db.namespace (gated behind these capabilities).
+  // issues.read: REQUIRED and added beyond the original spec list. The plugin event
+  //   payload for issue.created/issue.updated is delta-based (the activity-log
+  //   `details` blob — title/identifier/changed-fields), NOT the full Issue object,
+  //   and notably does NOT carry the description on create. To build the GitHub
+  //   issue body (title + description + status) the handler reads the full issue
+  //   back via ctx.issues.get(event.entityId, event.companyId), which the host
+  //   gates behind issues.read. See vendor/paperclip/server/src/services/activity-log.ts.
+  // issues.create + webhooks.receive: the inbound leg. The host exposes a public
+  //   (board-auth-free) endpoint POST /api/plugins/:id/webhooks/github-issue for the
+  //   GitHub Actions workflow; onWebhook verifies the HMAC and creates the mirror
+  //   issue directly via ctx.issues.create. Routines can't do this — every routine
+  //   run requires an agent ("Default agent required"), so they dispatch work rather
+  //   than mirror. The plugin webhook auth-route mode is disabled on this host, but
+  //   manifest-declared webhooks (webhooks.receive) are the supported public path.
+  // issues.update + issue.comments.create: the PR review pipeline (GOL-158) reopens
+  //   (`todo`) an existing review issue on `synchronize` and posts a "new commits"
+  //   note comment. Both are gated behind these capabilities.
+  capabilities: [
+    "events.subscribe",
+    "http.outbound",
+    "issues.read",
+    "issues.create",
+    "issues.update",
+    "issue.comments.create",
+    "webhooks.receive",
+    "database.namespace.read",
+    "database.namespace.write",
+    "database.namespace.migrate",
+    // jobs.schedule (0.12.0): the hourly mirror-reconcile sweep — the event-driven
+    // mirror's missing feedback loop for pre-bridge / dropped-event issues.
+    "jobs.schedule"
+  ],
+  jobs: [
+    {
+      jobKey: "mirror-reconcile",
+      displayName: "Mirror reconcile",
+      description: "Hourly sweep of bridged projects: mirrors active Paperclip issues that have no GitHub twin (created before the bridge existed, or whose issue.created event dropped). Idempotent, capped per run.",
+      // Minute 23 — offset from the top of the hour so it never stacks on other
+      // hourly jobs (openviking vault-ingest runs at :00).
+      schedule: "23 * * * *"
+    },
+    {
+      jobKey: "signoff-reconcile",
+      displayName: "Sign-off reconcile",
+      description: "Hourly sweep that re-drives stranded agent-review sign-off check-runs: a signed-off (`done`) review issue whose required `agent-review/*` check never completed to success \u2014 e.g. a transient broker-token blip at the terminal sign-off left the event-driven retry with no event to re-fire (GOL-1160). Idempotent; bounded per run.",
+      // Minute 38 — offset from mirror-reconcile (:23) and the top of the hour so the
+      // two sweeps never stack.
+      schedule: "38 * * * *"
+    },
+    {
+      jobKey: "inbound-close-reconcile",
+      displayName: "Inbound-close reconcile",
+      description: "Hourly sweep that mirrors GitHub-side issue closes back onto their Paperclip twins for org bridges the GitHub App does not deliver `issues` events to (Goldberry-Playground). Lists each bridged repo's recently-updated issues and re-drives the event-path closure handler \u2014 same mapping lookup, status matrix, and loop guard \u2014 so a merged `Closes #N` PR reaches the mirror without an App installation (GOL-1206). Idempotent; bounded per run.",
+      // Minute 51 — offset from mirror-reconcile (:23) and signoff-reconcile (:38) and
+      // the top of the hour so no two hourly sweeps ever stack.
+      schedule: "51 * * * *"
+    },
+    {
+      jobKey: "inbound-create-reconcile",
+      displayName: "Inbound-create reconcile",
+      description: "Hourly sweep that creates missing Paperclip twins for GitHub issues whose inbound webhook never landed (disabled / mis-delivered / dropped handler). Lists each bridged repo's recently-open issues and re-drives the event-path mirror-create handler \u2014 same dedupe, label routing, and REST-fallback write \u2014 so a GitHub issue born during an inbound-webhook outage self-heals within an hour (GOL-1413). Idempotent; capped per run.",
+      // Minute 9 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
+      // inbound-close-reconcile (:51) and the top of the hour so no two sweeps stack.
+      schedule: "9 * * * *"
+    },
+    {
+      jobKey: "pr-review-reconcile",
+      displayName: "PR review-twin reconcile",
+      description: "Hourly sweep that creates missing agent-review twins for open PRs whose `pull_request` webhook never landed (webhook disabled / mis-delivered / a worker-crash or scope-expiry window). Lists each bridged repo's open non-draft PRs and, for any PR whose current head has no current Ada twin, re-drives the event-path review pipeline \u2014 Ada always, Iris on a frontend-glob match, plus the pending `agent-review/*` check seed \u2014 so a maintainer PR on a protected path always reaches Ada's sign-off avenue without an empty-commit nudge (GOL-2344; stranded grove-sites#775). Idempotent; capped per run.",
+      // Minute 30 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
+      // inbound-close-reconcile (:51), inbound-create-reconcile (:9) and the top of the
+      // hour so no two hourly sweeps ever stack.
+      schedule: "30 * * * *"
+    },
+    {
+      jobKey: "inbound-dead-man",
+      displayName: "Inbound dead-man tripwire",
+      description: "Hourly liveness check that PAGES \u26D4 when the inbound webhook ingress is dead: no `github_sync_delivery` row landed in the last 3h AND GitHub's REST API shows a PR/issue updated in the same window in a bridged repo (the exact signature of the 09-21/09-14 outages). A genuinely quiet fleet \u2014 no GitHub activity \u2014 pages nothing, and any delivery at all short-circuits the check. Read-only; throttled error-class alert (GOL-2370).",
+      // Minute 45 — offset from mirror-reconcile (:23), signoff-reconcile (:38),
+      // inbound-close-reconcile (:51), inbound-create-reconcile (:9) and the top of the
+      // hour so no two hourly jobs ever stack.
+      schedule: "45 * * * *"
+    },
+    {
+      jobKey: "worker-heartbeat",
+      displayName: "Worker liveness heartbeat",
+      description: "Every 5 minutes (and once at boot) stamps the single-row github_sync_heartbeat table with the current time, this worker process's boot time, and the plugin version. A dead worker stops refreshing the row, so an external watchdog polling over DATABASE_URL \u2014 or the host supervisor \u2014 detects staleness and respawns or pages within minutes, instead of the ~5-day silent inbound outage of GOL-2279. Unlike github_sync_delivery (which only advances on a real webhook), this heartbeat is unconditional, so a quiet inbound window is never mistaken for a crash (GOL-2371).",
+      // Frequent, not hourly — detection must be MINUTES, not the coarse hourly grid
+      // the reconcile sweeps use; the read side flags stale after ~3 missed ticks.
+      schedule: "*/5 * * * *"
+    }
+  ],
+  // Inbound endpoint. The workflow POSTs the GitHub issue-opened payload here;
+  // signature verification is the plugin's responsibility (see onWebhook).
+  webhooks: [
+    {
+      endpointKey: "github-issue",
+      displayName: "GitHub issue opened \u2192 Paperclip mirror (custom Actions workflow)",
+      description: "Receives a GitHub issue-opened payload {repo,number,title,body,url} (HMAC-signed with inboundWebhookSecret) and creates the mirror Paperclip issue in the matching bridge's project. Requires a per-repo Actions workflow + repo secret."
+    },
+    {
+      endpointKey: "github-app",
+      displayName: "GitHub App issues / pull_request / check_suite / workflow_run \u2192 Paperclip (no per-repo setup)",
+      description: "Point the AgenticOS Developer GitHub App's single webhook here. Subscribe it to `issues` (mirror opened issues + closure propagation), `pull_request` (agent review pipeline, GOL-158), and \u2014 for the CI\u2192Paperclip fix loop (GOL-305) \u2014 `check_suite`/`workflow_run`. All arrive on this one URL and are fanned out by X-GitHub-Event. On a failing CI check on an agent-authored PR the plugin opens/updates a fix issue assigned to the code owner, and auto-closes it when the suite goes green. Verified with appWebhookSecret; the CI loop needs the App granted `checks:read` (+ the two event subscriptions, GOL-304). No per-repo Actions workflow or repo secret needed."
+    },
+    {
+      endpointKey: "github-pr",
+      displayName: "GitHub App pull_request event \u2192 agent review pipeline (GOL-158)",
+      description: "Subscribe the AgenticOS Developer GitHub App to `pull_request` events and point them here. For each non-draft PR (opened/reopened/ready_for_review/synchronize) the plugin creates review issue(s) in the matching bridge's project \u2014 Ada always, Iris when a changed path matches `prReviewFrontendPaths` \u2014 and seeds a pending `agent-review/*` check-run on the head SHA. Verified with appWebhookSecret (same as `github-app`). Needs the App's `checks:write` permission for check-runs."
+    }
+  ],
+  // Declaring `database` is REQUIRED for the host to provision + activate the
+  // plugin's Postgres namespace (without it, ensureNamespace returns null and the
+  // worker fails with "namespace is not active"). migrationsDir → migrations/001_init.sql
+  // creates the github_sync_mapping table (runtime DDL via ctx.db.execute is
+  // forbidden by the host contract, so the table MUST come from a migration).
+  database: {
+    namespaceSlug: "github_sync",
+    migrationsDir: "migrations"
+  },
+  instanceConfigSchema: {
+    type: "object",
+    properties: {
+      bridges: {
+        type: "array",
+        title: "Repo \u2194 Project bridges",
+        description: "Each entry mirrors one GitHub repo to one Paperclip project. ONLY issues in a bridge's project are mirrored to its repo \u2014 the worker refuses to subscribe company-wide, so unrelated work (e.g. QA-triage issues in other projects) is never mirrored. Add one entry per repo you want synced; they may span multiple orgs (the gh-token-broker mints a token per repo).",
+        items: {
+          type: "object",
+          properties: {
+            githubOrg: {
+              type: "string",
+              title: "GitHub Org/Owner",
+              description: "Owner of the target repository.",
+              default: "EngineeringMoonBear"
+            },
+            githubRepo: {
+              type: "string",
+              title: "GitHub Repo (no owner)",
+              description: "Target repository name. Native Paperclip issues are mirrored here."
+            },
+            paperclipProjectId: {
+              type: "string",
+              title: "Paperclip Project ID",
+              description: "The project that bridges to githubRepo. Must equal the inbound routine's projectId."
+            },
+            syncLabelPaperclip: {
+              type: "string",
+              title: "Paperclip \u2192 GitHub label",
+              description: "Label applied to GitHub issues created from Paperclip issues.",
+              default: "synced-from-paperclip"
+            },
+            syncMarkerGithub: {
+              type: "string",
+              title: "GitHub \u2192 Paperclip marker label",
+              description: "Label marking issues that originated in GitHub (set by the inbound routine).",
+              default: "synced-from-github"
+            },
+            defaultAssigneeAgentId: {
+              type: "string",
+              title: "Default assignee agent ID (inbound routing)",
+              description: "Agent UUID that inbound mirror issues from this repo are assigned to. Backward-compatible last resort: used only when no labelRouting label matches AND no fallbackAssigneeAgentId is set. Paperclip agents never pick up unassigned work, so leaving all three empty means mirrors sit unowned forever."
+            },
+            labelRouting: {
+              type: "object",
+              title: "Discipline label routing (v0.6.0)",
+              description: 'Map of GitHub label name \u2192 assignee agent UUID. An inbound issue is assigned to the owner of its highest-precedence matching label. Fixed precedence: infra = bug = alert > frontend > feature (first match by precedence wins). Example: {"frontend":"<Iris>","feature":"<Ada>","bug":"<Terra>","infra":"<Terra>","alert":"<Terra>"}. No match \u2192 fallbackAssigneeAgentId \u2192 defaultAssigneeAgentId.',
+              additionalProperties: { type: "string" }
+            },
+            fallbackAssigneeAgentId: {
+              type: "string",
+              title: "Fallback assignee agent ID (unlabeled triage)",
+              description: "Agent UUID assigned when no labelRouting label matches \u2014 the triage owner (e.g. the CEO). Takes precedence over defaultAssigneeAgentId for the no-label case so unlabeled GitHub issues still enter a heartbeat instead of piling up unowned."
+            },
+            defaultPriority: {
+              type: "string",
+              title: "Default mirror priority",
+              description: 'Priority for mirror issues created from this repo. Defaults to "medium" if unset or invalid.',
+              enum: ["critical", "high", "medium", "low"]
+            }
+          },
+          required: ["githubOrg", "githubRepo", "paperclipProjectId"]
+        }
+      },
+      tokenBrokerUrl: {
+        type: "string",
+        title: "Token Broker URL",
+        description: "gh-token-broker endpoint that mints repo-scoped GitHub App installation tokens. Defaults to the GH_TOKEN_BROKER_URL env var; set to http://gh-token-broker:9099 if the env is not passed to plugin workers."
+      },
+      tokenBrokerApiKey: {
+        type: "string",
+        // NOT format:"secret-ref" — same reasoning as paperclipApiToken below
+        // (this host strips secret-ref fields from saved config, so marking it
+        // would leave the worker with NO bearer and every broker mint would 401).
+        // Since M3 (PR #356) the broker REQUIRES this bearer; plugin workers are
+        // sandboxed away from GH_BROKER_API_KEY(_FILE), so it MUST arrive here.
+        title: "Token Broker API key (bearer, M3/GOL-666)",
+        description: "Bearer presented to gh-token-broker (matches GH_BROKER_API_KEY on the broker side). REQUIRED whenever the broker is used \u2014 since PR #356 the broker rejects unauthenticated mints with HTTP 401, which surfaces as the PR-review pipeline 'failed to fetch PR changed files'. Set to the same value as /opt/agenticos/secrets/gh-broker-client.key."
+      },
+      githubToken: {
+        type: "string",
+        // format: "secret-ref" marks this as the (only) secret-bearing field.
+        // Beyond its semantic meaning, it's load-bearing: the host's config
+        // secret-ref extractor falls back to flagging ANY UUID-looking string as a
+        // secret reference when NO field declares format:"secret-ref". Our
+        // bridges[].paperclipProjectId values ARE UUIDs, so without this the whole
+        // config is rejected ("secret references are disabled"). Declaring one
+        // secret-ref field scopes the extractor to this path only.
+        format: "secret-ref",
+        title: "GitHub Token (fallback)",
+        description: "Optional static PAT used only when no token broker is configured. Normally unset \u2014 auth uses the GitHub App via the broker, which works across orgs and needs no stored secret."
+      },
+      companyId: {
+        type: "string",
+        title: "Company ID (inbound)",
+        description: "UUID of the company owning the synced projects. Required for the inbound leg \u2014 the public webhook has no actor, so ctx.issues.create needs the company explicitly."
+      },
+      inboundWebhookSecret: {
+        type: "string",
+        // Deliberately NOT format:"secret-ref": this host strips secret-ref
+        // fields from saved config (ref resolution is disabled until
+        // company-scoped plugin config lands), so marking it meant the worker
+        // saw NO secret and rejected every inbound delivery (verified live
+        // 2026-07-08). The raw hex value is not UUID-shaped, so it passes the
+        // extractor as long as one field (githubToken) stays secret-ref.
+        title: "Inbound webhook HMAC secret (custom workflow path)",
+        description: "Shared secret the GitHub Actions workflow signs the inbound payload with (X-Hub-Signature-256). onWebhook verifies it before creating a mirror issue. Set the SAME value as the workflow's PAPERCLIP_ISSUE_SYNC_SECRET repo secret. Only needed for the `github-issue` endpoint; the `github-app` endpoint uses appWebhookSecret instead."
+      },
+      appWebhookSecret: {
+        type: "string",
+        // NOT format:"secret-ref" — same reason as inboundWebhookSecret above.
+        title: "GitHub App webhook secret (native issues path)",
+        description: "The webhook secret configured on the AgenticOS Developer GitHub App. Verifies X-Hub-Signature-256 on native `issues` events delivered to the `github-app` endpoint. Set this to the SAME value as the App's webhook secret. Preferred over per-repo inboundWebhookSecret \u2014 one secret covers every installed repo."
+      },
+      opsWebhookUrl: {
+        type: "string",
+        title: "Ops webhook URL (Discord)",
+        description: "Optional Discord (or Discord-compatible) webhook URL. When set, the plugin posts a best-effort `{content}` ping on every inbound mirror creation so triage is never silent \u2014 including a loud warning when the mirror landed unassigned. A failed ping never blocks mirror creation. Also carries the PR-review state-change pings (System 3): review-issues-created, re-review-on-new-commits, and pipeline errors \u2014 and \u{1F6A8} swallowed-failure alerts (GOL-296) when a caught exception in onWebhook or an event dispatch would otherwise vanish into server.log."
+      },
+      opsPingMode: {
+        type: "string",
+        enum: ["outcomes", "verbose", "errors"],
+        title: "Ops ping noise policy (0.12.1)",
+        description: "What the ops webhook receives. 'outcomes' (default when unset): sign-off \u2705 / changes-requested \u274C / CI-fix / reconcile \u{1F9F9} plus every error-class ping; drops \u{1F50D} review-created and \u{1F501} re-review lifecycle chatter and routine assigned-mirror pings. 'verbose': everything (pre-0.12.1 behaviour). 'errors': only error-class pings (\u{1F525} pipeline errors, \u{1F6A8} swallowed failures, unassigned-mirror warnings \u2014 these pass every mode; an alert channel must never silently drop alerts)."
+      },
+      prReviewAliceAgentId: {
+        type: "string",
+        title: "PR review \u2014 lead reviewer (Ada) agent ID (GOL-158/GOL-713)",
+        description: "Agent UUID that ALWAYS reviews every non-draft PR (spec System 2). Leave empty to disable the PR review pipeline (the `github-pr` webhook then no-ops). Company-global \u2014 the review issue is created in the matched bridge's project. Emits the `agent-review/ada` check (the Phase-3 required gate). Key id keeps its legacy `Alice` name for deployed-config compatibility; the reviewer slug was renamed alice\u2192ada in GOL-713."
+      },
+      prReviewIrisAgentId: {
+        type: "string",
+        title: "PR review \u2014 Iris agent ID (frontend, GOL-158)",
+        description: "Agent UUID that ADDITIONALLY reviews a PR when any changed path matches prReviewFrontendPaths. Leave empty to skip frontend review even when frontend paths change."
+      },
+      prReviewFrontendPaths: {
+        type: "array",
+        title: "PR review \u2014 frontend path globs (GOL-158)",
+        description: 'Changed-file globs that trigger a second (Iris) frontend review. Supports `*` (within a segment) and `**` (across segments). Defaults to ["apps/dashboard/**", "**/*.tsx", "**/*.css"] when empty.',
+        items: { type: "string" }
+      },
+      ciAgentPrAuthor: {
+        type: "string",
+        title: "CI-fix \u2014 agent PR author login (GOL-305)",
+        description: `GitHub login that authors agent PRs. The CI\u2192Paperclip fix loop only opens a fix issue when a failing PR's author matches this. Defaults to "agenticos-developer[bot]" (the shared Developer App identity). The fix loop reuses prReviewAliceAgentId/prReviewIrisAgentId for owner routing and is off when prReviewAliceAgentId is unset.`
+      },
+      paperclipApiBaseUrl: {
+        type: "string",
+        title: "Paperclip API base URL (inbound scope-expiry REST fallback, GOL-323)",
+        description: "Base URL of the Paperclip REST API, e.g. https://paperclip.gatheringatthegrove.com (no trailing slash needed). When set together with paperclipApiToken, an inbound ctx.issues.* write that fails with a host scope-expiry error is retried via the REST API \u2014 the board-authorized interim mitigation for the ~230 dropped inbound writes/day (GOL-295/GOL-300) until the upstream host scope-lifetime fix ships. Leave unset to disable the fallback (behaviour unchanged)."
+      },
+      paperclipApiToken: {
+        type: "string",
+        // NOT format:"secret-ref" — deliberately mirrors appWebhookSecret /
+        // inboundWebhookSecret above (this host strips secret-ref fields from saved
+        // config, so marking it would leave the worker with NO token and the
+        // fallback permanently disabled). It must ALSO not be the single secret-ref
+        // field: keeping githubToken as the sole format:"secret-ref" preserves the
+        // extractor invariant (it flags UUID-shaped strings — our paperclipProjectId
+        // values — only when NO field declares secret-ref). A raw bearer token is
+        // not UUID-shaped, so it passes the extractor unflagged.
+        title: "Paperclip API bearer token (scope-expiry REST fallback, GOL-323)",
+        description: "Bearer token used to authenticate the Paperclip REST fallback (GOL-323). Only used on the already-failing inbound path \u2014 a scope-expiry retry. Required (with paperclipApiBaseUrl) to enable the fallback."
+      },
+      paperclipCfAccessClientId: {
+        type: "string",
+        // NOT format:"secret-ref" — same reasoning as paperclipApiToken above.
+        title: "Paperclip CF Access service-token client id (REST fallback, GOL-323)",
+        description: "Cloudflare Access service-token CLIENT ID for the REST fallback. REQUIRED when paperclipApiBaseUrl is the CF-Access-gated public host (paperclip.gatheringatthegrove.com) \u2014 which is the ONLY reachable target, because the host's plugin http.outbound SSRF filter blocks the internal loopback (127.0.0.1). Without it CF Access 302-redirects the fallback request to the login page and the write is lost. Sent as the CF-Access-Client-Id header. Pair with paperclipCfAccessClientSecret."
+      },
+      paperclipCfAccessClientSecret: {
+        type: "string",
+        // NOT format:"secret-ref" — same reasoning as paperclipApiToken above.
+        title: "Paperclip CF Access service-token client secret (REST fallback, GOL-323)",
+        description: "Cloudflare Access service-token CLIENT SECRET for the REST fallback. Sent as the CF-Access-Client-Secret header alongside paperclipCfAccessClientId so CF's non_identity service-token policy admits the request to the gated public host. Required (with the client id) whenever paperclipApiBaseUrl is CF-Access-gated."
+      }
+    },
+    required: ["bridges"]
+  },
+  // Event-driven + inbound webhook + the hourly mirror-reconcile job (0.12.0).
+  entrypoints: {
+    worker: "./dist/worker.js"
+  }
+};
+var manifest_default = manifest;
+
 // src/pr-review-create-reconcile.ts
 var DEFAULT_MAX_DRIVES = 20;
 async function runPrReviewReconcile(input2) {
@@ -31621,7 +38825,7 @@ function buildPrReviewReconcilePing(s) {
 
 // src/error-log.ts
 var ERROR_TABLE = "github_sync_error";
-function qualifiedTable2(db) {
+function qualifiedTable3(db) {
   return `${db.namespace}.${ERROR_TABLE}`;
 }
 function buildSwallowedFailurePing(scope, detail) {
@@ -31634,7 +38838,7 @@ function buildFallbackFailurePing(site, status) {
 }
 async function recordError(db, row) {
   await db.execute(
-    `INSERT INTO ${qualifiedTable2(db)} (occurred_at, scope, detail, context)
+    `INSERT INTO ${qualifiedTable3(db)} (occurred_at, scope, detail, context)
        VALUES ($1, $2, $3, $4)`,
     [
       row.occurredAt,
@@ -31683,7 +38887,7 @@ function withSuppressionNote(content, suppressed) {
 
 // src/delivery-log.ts
 var DELIVERY_TABLE = "github_sync_delivery";
-function qualifiedTable3(db) {
+function qualifiedTable4(db) {
   return `${db.namespace}.${DELIVERY_TABLE}`;
 }
 function trimDetail(detail) {
@@ -31692,7 +38896,7 @@ function trimDetail(detail) {
 }
 async function recordDelivery(db, row) {
   await db.execute(
-    `INSERT INTO ${qualifiedTable3(db)}
+    `INSERT INTO ${qualifiedTable4(db)}
        (request_id, endpoint_key, event, delivery_guid, outcome, detail, occurred_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
@@ -31708,7 +38912,7 @@ async function recordDelivery(db, row) {
 }
 async function deliveryCountSince(db, sinceIso) {
   const rows = await db.query(
-    `SELECT count(*) AS n FROM ${qualifiedTable3(db)} WHERE occurred_at >= $1`,
+    `SELECT count(*) AS n FROM ${qualifiedTable4(db)} WHERE occurred_at >= $1`,
     [sinceIso]
   );
   const first = rows[0];
@@ -32155,6 +39359,7 @@ var INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
 var PR_REVIEW_RECONCILE_MAX_PAGES = 3;
 var INBOUND_DEADMAN_WINDOW_MS = 3 * 60 * 60 * 1e3;
 var currentContext = null;
+var WORKER_BOOTED_AT = (/* @__PURE__ */ new Date()).toISOString();
 function safeJson(raw) {
   try {
     return JSON.parse(raw);
@@ -33083,338 +40288,384 @@ async function processCiPr(ctx, cfg, bridge, github, ev, prNumber, runInScope) {
 }
 var plugin = definePlugin({
   async setup(ctx) {
-    ctx.logger.info("GitHub Sync plugin starting");
     currentContext = ctx;
-    const cfg = readConfig(await ctx.config.get());
-    if (cfg.bridges.length === 0) {
-      ctx.logger.warn(
-        "no bridges configured \u2014 GitHub Sync is INACTIVE. Set config.bridges = [{ githubOrg, githubRepo, paperclipProjectId }]. The plugin refuses to mirror company-wide."
-      );
-      return;
-    }
-    const brokerUrl = cfg.tokenBrokerUrl || process.env.GH_TOKEN_BROKER_URL || "";
-    const depsByProject = /* @__PURE__ */ new Map();
-    const clientsBySlug = /* @__PURE__ */ new Map();
-    const bridgeSlugsByProject = /* @__PURE__ */ new Map();
-    const resolveRepoClient = (repoSlug) => clientsBySlug.get(repoSlug.toLowerCase()) ?? null;
-    for (const bridge of cfg.bridges) {
-      let getToken;
-      if (brokerUrl) {
-        getToken = makeBrokerTokenProvider(brokerUrl, bridge.githubOrg, { apiKey: cfg.tokenBrokerApiKey });
-      } else if (cfg.githubToken) {
-        getToken = staticTokenProvider(cfg.githubToken);
-      } else {
-        ctx.logger.warn(
-          `bridge ${bridge.githubOrg}/${bridge.githubRepo} has no auth (no GH_TOKEN_BROKER_URL / tokenBrokerUrl and no githubToken) \u2014 skipping`
-        );
-        continue;
-      }
-      const github = new GitHubClient({ org: bridge.githubOrg, getToken });
-      const slug = `${bridge.githubOrg}/${bridge.githubRepo}`;
-      clientsBySlug.set(slug.toLowerCase(), { github, repo: bridge.githubRepo });
-      bridgeSlugsByProject.set(bridge.paperclipProjectId, [
-        ...bridgeSlugsByProject.get(bridge.paperclipProjectId) ?? [],
-        slug
-      ]);
-      depsByProject.set(bridge.paperclipProjectId, {
-        db: ctx.db,
-        github,
-        config: {
-          githubRepo: bridge.githubRepo,
-          syncLabelPaperclip: bridge.syncLabelPaperclip,
-          syncMarkerGithub: bridge.syncMarkerGithub
-        },
-        logger: ctx.logger,
-        getIssue: (issueId, companyId) => withRestFallback(
-          restFallbackDeps(ctx, cfg),
-          "sync.get",
-          () => ctx.issues.get(issueId, companyId),
-          async (rest) => await rest.getIssue(issueId)
-        ),
-        postOpsPing: async (content, kind = "outcome") => {
-          if (wantPing(cfg, kind)) await postOpsPing(ctx, cfg.opsWebhookUrl, content);
-        },
-        resolveRepoClient
-      });
-      ctx.logger.info("bridge active", {
-        repo: `${bridge.githubOrg}/${bridge.githubRepo}`,
-        projectId: bridge.paperclipProjectId,
-        auth: brokerUrl ? "gh-token-broker" : "static token"
-      });
-    }
-    if (depsByProject.size === 0) {
-      ctx.logger.warn("no usable bridges (all missing auth) \u2014 GitHub Sync is INACTIVE.");
-      return;
-    }
-    for (const [projectId, slugs] of bridgeSlugsByProject) {
-      if (slugs.length > 1) {
-        ctx.logger.warn(
-          "multiple bridges share one paperclipProjectId \u2014 issue-event dispatch uses only the LAST bridge's config",
-          { projectId, bridges: slugs }
-        );
-      }
-    }
-    ctx.events.on("issue.created", makeDispatch(ctx, cfg, depsByProject, handleIssueCreated, "issue.created"));
-    ctx.events.on("issue.updated", makeDispatch(ctx, cfg, depsByProject, handleIssueUpdated, "issue.updated"));
-    ctx.events.on("issue.updated", makeDispatch(ctx, cfg, depsByProject, handleReviewSignoff, "issue.updated:signoff"));
-    ctx.jobs.register("mirror-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("mirror-reconcile: companyId not configured; skipping sweep");
+    await bootWithRetry(
+      async () => {
+        ctx.logger.info("GitHub Sync plugin starting");
+        currentContext = ctx;
+        const cfg = readConfig(await ctx.config.get());
+        if (cfg.bridges.length === 0) {
+          ctx.logger.warn(
+            "no bridges configured \u2014 GitHub Sync is INACTIVE. Set config.bridges = [{ githubOrg, githubRepo, paperclipProjectId }]. The plugin refuses to mirror company-wide."
+          );
           return;
         }
-        const summary = await runMirrorReconcile({
-          companyId: cfg.companyId,
-          projectIds: Array.from(depsByProject.keys()),
-          // REST fallback is NOT optional here (GOL-1163). A scheduled job has no
-          // ambient invocation scope — there is no webhook delivery or event
-          // dispatch to inherit one from — so this privileged read is the single
-          // most scope-fragile call in the plugin. Bare, it threw "referenced a
-          // missing, expired, or unknown invocation scope" on 2026-08-03 21:23Z
-          // and the sweep has not created a twin since (38 issues left unmapped).
-          // Same withRestFallback the inbound mirror path uses (GOL-323).
-          listIssues: (projectId, status, offset, limit) => withRestFallback(
-            restFallbackDeps(ctx, cfg),
-            "reconcile.list",
-            () => ctx.issues.list({
-              companyId: cfg.companyId,
-              projectId,
-              status,
-              offset,
-              limit
-            }),
-            async (rest) => await rest.listIssues(cfg.companyId, {
-              projectId,
-              status,
-              offset,
-              limit
-            })
-          ),
-          depsForProject: (projectId) => depsByProject.get(projectId),
-          logger: ctx.logger
-        });
-        ctx.logger.info("mirror-reconcile complete", summary);
-        if (summary.created > 0 || summary.failed > 0) {
-          if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildReconcilePing(summary));
-        }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "mirror-reconcile job failed", err, {});
-      }
-    });
-    const signoffDeps = depsByProject.values().next().value;
-    ctx.jobs.register("signoff-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("signoff-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        const companyId = cfg.companyId;
-        const sinceIso = new Date(Date.now() - SIGNOFF_RECONCILE_WINDOW_MS).toISOString();
-        const summary = await runSignoffReconcile({
-          companyId,
-          sinceIso,
-          limit: SIGNOFF_RECONCILE_ROW_CAP,
-          listRows: (since, limit) => listReviewRecordsUpdatedSince(ctx.db, since, limit),
-          getIssueStatus: async (issueId, cId) => (await signoffDeps.getIssue(issueId, cId))?.status ?? null,
-          resolveRepoClient,
-          driveSignoff: (issueId) => handleReviewSignoff(signoffDeps, { issueId, companyId }),
-          logger: ctx.logger
-        });
-        ctx.logger.info("signoff-reconcile complete", summary);
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "signoff-reconcile job failed", err, {});
-      }
-    });
-    ctx.jobs.register("inbound-close-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("inbound-close-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        const sinceIso = new Date(Date.now() - INBOUND_CLOSE_RECONCILE_WINDOW_MS).toISOString();
-        const summary = await runInboundCloseReconcile({
-          repoSlugs: Array.from(clientsBySlug.keys()),
-          listIssues: async (repoSlug) => {
-            const entry = clientsBySlug.get(repoSlug);
-            if (!entry) return { ok: false, error: "no client for repo" };
-            const res = await entry.github.listIssues(entry.repo, {
-              state: "all",
-              since: sinceIso,
-              maxPages: INBOUND_CLOSE_RECONCILE_MAX_PAGES
-            });
-            if (!res.ok) return { ok: false, error: res.error };
-            return {
-              ok: true,
-              issues: res.data.issues.map((i) => ({ number: i.number, state: i.state })),
-              truncated: res.data.truncated
-            };
-          },
-          // Re-drive the event handler with NO ambient scope ((fn) => fn()); its
-          // ctx.issues.get/update go through withRestFallback, so a cron-tick scope
-          // expiry falls back to the Paperclip REST API (GOL-323/GOL-1163).
-          driveClosure: ({ action, repoSlug, number: number4 }) => handleAppClosure(
-            ctx,
-            cfg,
-            { action, payload: { repo: repoSlug, number: number4, title: "", body: "", url: "" } },
-            (fn) => fn()
-          ),
-          logger: ctx.logger
-        });
-        ctx.logger.info("inbound-close-reconcile complete", summary);
-        if (summary.propagated > 0 || summary.failed > 0 || summary.pruned > 0) {
-          if (wantPing(cfg, "outcome"))
-            await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCloseReconcilePing(summary));
-        }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "inbound-close-reconcile job failed", err, {});
-      }
-    });
-    ctx.jobs.register("inbound-create-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("inbound-create-reconcile: companyId not configured; skipping sweep");
-          return;
-        }
-        const sinceIso = new Date(Date.now() - INBOUND_CREATE_RECONCILE_WINDOW_MS).toISOString();
-        const summary = await runInboundCreateReconcile({
-          repoSlugs: Array.from(clientsBySlug.keys()),
-          // state:"open" — never create a pre-closed mirror (the close leg is
-          // inbound-close-reconcile's job); `since` bounds the scan to the window.
-          listIssues: async (repoSlug) => {
-            const entry = clientsBySlug.get(repoSlug);
-            if (!entry) return { ok: false, error: "no client for repo" };
-            const res = await entry.github.listIssues(entry.repo, {
-              state: "open",
-              since: sinceIso,
-              maxPages: INBOUND_CREATE_RECONCILE_MAX_PAGES
-            });
-            if (!res.ok) return { ok: false, error: res.error };
-            return {
-              ok: true,
-              issues: res.data.issues.map((i) => ({
-                number: i.number,
-                state: i.state,
-                title: i.title,
-                body: i.body,
-                url: i.htmlUrl,
-                labels: i.labels
-              })),
-              truncated: res.data.truncated
-            };
-          },
-          // Re-drive the SAME inbound mirror-create the webhook uses. Owns the guards
-          // (bridge / closed / Paperclip-origin label / already-mapped) so the sweep
-          // tallies without duplicating createMirrorIssue's internals. No ambient
-          // scope ((fn) => fn()); createMirrorIssue's writes go through withRestFallback,
-          // so a cron-tick scope expiry falls back to the Paperclip REST API (GOL-323).
-          driveCreate: async ({ repoSlug, issue: issue2 }) => {
-            const bridge = matchBridge(cfg, repoSlug);
-            if (!bridge) return "no-bridge";
-            if (issue2.state === "closed") return "skipped-closed";
-            if (issue2.labels.some((l) => l.toLowerCase() === bridge.syncLabelPaperclip.toLowerCase())) {
-              return "skipped-paperclip-origin";
-            }
-            if (await getByRepoNumber(ctx.db, repoSlug, issue2.number)) return "skipped-mapped";
-            await createMirrorIssue(
-              ctx,
-              cfg,
-              bridge,
-              { repo: repoSlug, number: issue2.number, title: issue2.title, body: issue2.body, url: issue2.url },
-              issue2.labels,
-              (fn) => fn()
+        const brokerUrl = cfg.tokenBrokerUrl || process.env.GH_TOKEN_BROKER_URL || "";
+        const depsByProject = /* @__PURE__ */ new Map();
+        const clientsBySlug = /* @__PURE__ */ new Map();
+        const bridgeSlugsByProject = /* @__PURE__ */ new Map();
+        const resolveRepoClient = (repoSlug) => clientsBySlug.get(repoSlug.toLowerCase()) ?? null;
+        for (const bridge of cfg.bridges) {
+          let getToken;
+          if (brokerUrl) {
+            getToken = makeBrokerTokenProvider(brokerUrl, bridge.githubOrg, { apiKey: cfg.tokenBrokerApiKey });
+          } else if (cfg.githubToken) {
+            getToken = staticTokenProvider(cfg.githubToken);
+          } else {
+            ctx.logger.warn(
+              `bridge ${bridge.githubOrg}/${bridge.githubRepo} has no auth (no GH_TOKEN_BROKER_URL / tokenBrokerUrl and no githubToken) \u2014 skipping`
             );
-            return await getByRepoNumber(ctx.db, repoSlug, issue2.number) ? "created" : "failed";
-          },
-          logger: ctx.logger
-        });
-        ctx.logger.info("inbound-create-reconcile complete", summary);
-        if (summary.created > 0 || summary.failed > 0) {
-          if (wantPing(cfg, "outcome"))
-            await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCreateReconcilePing(summary));
+            continue;
+          }
+          const github = new GitHubClient({ org: bridge.githubOrg, getToken });
+          const slug = `${bridge.githubOrg}/${bridge.githubRepo}`;
+          clientsBySlug.set(slug.toLowerCase(), { github, repo: bridge.githubRepo });
+          bridgeSlugsByProject.set(bridge.paperclipProjectId, [
+            ...bridgeSlugsByProject.get(bridge.paperclipProjectId) ?? [],
+            slug
+          ]);
+          depsByProject.set(bridge.paperclipProjectId, {
+            db: ctx.db,
+            github,
+            config: {
+              githubRepo: bridge.githubRepo,
+              syncLabelPaperclip: bridge.syncLabelPaperclip,
+              syncMarkerGithub: bridge.syncMarkerGithub
+            },
+            logger: ctx.logger,
+            getIssue: (issueId, companyId) => withRestFallback(
+              restFallbackDeps(ctx, cfg),
+              "sync.get",
+              () => ctx.issues.get(issueId, companyId),
+              async (rest) => await rest.getIssue(issueId)
+            ),
+            postOpsPing: async (content, kind = "outcome") => {
+              if (wantPing(cfg, kind)) await postOpsPing(ctx, cfg.opsWebhookUrl, content);
+            },
+            resolveRepoClient
+          });
+          ctx.logger.info("bridge active", {
+            repo: `${bridge.githubOrg}/${bridge.githubRepo}`,
+            projectId: bridge.paperclipProjectId,
+            auth: brokerUrl ? "gh-token-broker" : "static token"
+          });
         }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "inbound-create-reconcile job failed", err, {});
-      }
-    });
-    ctx.jobs.register("pr-review-reconcile", async () => {
-      try {
-        if (!cfg.companyId) {
-          ctx.logger.warn("pr-review-reconcile: companyId not configured; skipping sweep");
+        if (depsByProject.size === 0) {
+          ctx.logger.warn("no usable bridges (all missing auth) \u2014 GitHub Sync is INACTIVE.");
           return;
         }
-        if (!cfg.prReviewAliceAgentId) {
-          ctx.logger.info("pr-review-reconcile: PR review pipeline disabled (no prReviewAliceAgentId); skipping sweep");
-          return;
+        for (const [projectId, slugs] of bridgeSlugsByProject) {
+          if (slugs.length > 1) {
+            ctx.logger.warn(
+              "multiple bridges share one paperclipProjectId \u2014 issue-event dispatch uses only the LAST bridge's config",
+              { projectId, bridges: slugs }
+            );
+          }
         }
-        const summary = await runPrReviewReconcile({
-          repoSlugs: Array.from(clientsBySlug.keys()),
-          listPrs: async (repoSlug) => {
-            const entry = clientsBySlug.get(repoSlug);
-            if (!entry) return { ok: false, error: "no client for repo" };
-            const res = await entry.github.listPulls(entry.repo, {
-              maxPages: PR_REVIEW_RECONCILE_MAX_PAGES
+        ctx.events.on("issue.created", makeDispatch(ctx, cfg, depsByProject, handleIssueCreated, "issue.created"));
+        ctx.events.on("issue.updated", makeDispatch(ctx, cfg, depsByProject, handleIssueUpdated, "issue.updated"));
+        ctx.events.on("issue.updated", makeDispatch(ctx, cfg, depsByProject, handleReviewSignoff, "issue.updated:signoff"));
+        ctx.jobs.register("mirror-reconcile", async () => {
+          try {
+            if (!cfg.companyId) {
+              ctx.logger.warn("mirror-reconcile: companyId not configured; skipping sweep");
+              return;
+            }
+            const summary = await runMirrorReconcile({
+              companyId: cfg.companyId,
+              projectIds: Array.from(depsByProject.keys()),
+              // REST fallback is NOT optional here (GOL-1163). A scheduled job has no
+              // ambient invocation scope — there is no webhook delivery or event
+              // dispatch to inherit one from — so this privileged read is the single
+              // most scope-fragile call in the plugin. Bare, it threw "referenced a
+              // missing, expired, or unknown invocation scope" on 2026-08-03 21:23Z
+              // and the sweep has not created a twin since (38 issues left unmapped).
+              // Same withRestFallback the inbound mirror path uses (GOL-323).
+              listIssues: (projectId, status, offset, limit) => withRestFallback(
+                restFallbackDeps(ctx, cfg),
+                "reconcile.list",
+                () => ctx.issues.list({
+                  companyId: cfg.companyId,
+                  projectId,
+                  status,
+                  offset,
+                  limit
+                }),
+                async (rest) => await rest.listIssues(cfg.companyId, {
+                  projectId,
+                  status,
+                  offset,
+                  limit
+                })
+              ),
+              depsForProject: (projectId) => depsByProject.get(projectId),
+              logger: ctx.logger
             });
-            if (!res.ok) return { ok: false, error: res.error };
-            return {
-              ok: true,
-              prs: res.data.prs.map((p) => ({
-                number: p.number,
-                headSha: p.headSha,
-                title: p.title,
-                url: p.htmlUrl,
-                draft: p.draft,
-                fullName: p.fullName
-              })),
-              truncated: res.data.truncated
-            };
-          },
-          // Re-drive the SAME review pipeline the inbound webhook uses. Owns the guards
-          // (bridge / draft / Ada-current idempotency) so the sweep tallies without
-          // duplicating processReviewer's internals. Extracted to `driveSweepReview` so
-          // the mixed-case-repo key wiring (GOL-2395) is unit-testable.
-          driveReview: ({ repoSlug, pr }) => driveSweepReview(ctx, cfg, repoSlug, pr),
-          logger: ctx.logger
+            ctx.logger.info("mirror-reconcile complete", summary);
+            if (summary.created > 0 || summary.failed > 0) {
+              if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildReconcilePing(summary));
+            }
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "mirror-reconcile job failed", err, {});
+          }
         });
-        ctx.logger.info("pr-review-reconcile complete", summary);
-        if (summary.twinned > 0 || summary.failed > 0) {
-          if (wantPing(cfg, "outcome"))
-            await postOpsPing(ctx, cfg.opsWebhookUrl, buildPrReviewReconcilePing(summary));
-        }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "pr-review-reconcile job failed", err, {});
-      }
-    });
-    ctx.jobs.register("inbound-dead-man", async () => {
-      try {
-        const sinceIso = new Date(Date.now() - INBOUND_DEADMAN_WINDOW_MS).toISOString();
-        const windowHours = Math.round(INBOUND_DEADMAN_WINDOW_MS / 36e5);
-        const summary = await runInboundDeadMan({
-          repoSlugs: Array.from(clientsBySlug.keys()),
-          // Any delivery outcome — even a rejected probe — proves the ingress is alive.
-          countDeliveries: () => deliveryCountSince(ctx.db, sinceIso),
-          // Probe GitHub for a PR OR issue updated in the same window. Uses the same
-          // per-repo client/token the sweeps use; a read failure is transient (retried
-          // next run), never counted as activity, so a flaky probe can't manufacture a page.
-          checkActivity: async (repoSlug) => {
-            const entry = clientsBySlug.get(repoSlug);
-            if (!entry) return { ok: false, error: "no client for repo" };
-            const res = await entry.github.recentActivitySince(entry.repo, sinceIso);
-            if (!res.ok) return { ok: false, error: res.error };
-            return { ok: true, active: res.data.active, latestUpdatedAt: res.data.latestUpdatedAt };
-          },
-          logger: ctx.logger
+        const signoffDeps = depsByProject.values().next().value;
+        ctx.jobs.register("signoff-reconcile", async () => {
+          try {
+            if (!cfg.companyId) {
+              ctx.logger.warn("signoff-reconcile: companyId not configured; skipping sweep");
+              return;
+            }
+            const companyId = cfg.companyId;
+            const sinceIso = new Date(Date.now() - SIGNOFF_RECONCILE_WINDOW_MS).toISOString();
+            const summary = await runSignoffReconcile({
+              companyId,
+              sinceIso,
+              limit: SIGNOFF_RECONCILE_ROW_CAP,
+              listRows: (since, limit) => listReviewRecordsUpdatedSince(ctx.db, since, limit),
+              getIssueStatus: async (issueId, cId) => (await signoffDeps.getIssue(issueId, cId))?.status ?? null,
+              resolveRepoClient,
+              driveSignoff: (issueId) => handleReviewSignoff(signoffDeps, { issueId, companyId }),
+              logger: ctx.logger
+            });
+            ctx.logger.info("signoff-reconcile complete", summary);
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "signoff-reconcile job failed", err, {});
+          }
         });
-        ctx.logger.info("inbound-dead-man complete", summary);
-        if (summary.page) {
-          await postThrottledOpsAlert(ctx, cfg, buildInboundDeadManPing(summary, windowHours));
+        ctx.jobs.register("inbound-close-reconcile", async () => {
+          try {
+            if (!cfg.companyId) {
+              ctx.logger.warn("inbound-close-reconcile: companyId not configured; skipping sweep");
+              return;
+            }
+            const sinceIso = new Date(Date.now() - INBOUND_CLOSE_RECONCILE_WINDOW_MS).toISOString();
+            const summary = await runInboundCloseReconcile({
+              repoSlugs: Array.from(clientsBySlug.keys()),
+              listIssues: async (repoSlug) => {
+                const entry = clientsBySlug.get(repoSlug);
+                if (!entry) return { ok: false, error: "no client for repo" };
+                const res = await entry.github.listIssues(entry.repo, {
+                  state: "all",
+                  since: sinceIso,
+                  maxPages: INBOUND_CLOSE_RECONCILE_MAX_PAGES
+                });
+                if (!res.ok) return { ok: false, error: res.error };
+                return {
+                  ok: true,
+                  issues: res.data.issues.map((i) => ({ number: i.number, state: i.state })),
+                  truncated: res.data.truncated
+                };
+              },
+              // Re-drive the event handler with NO ambient scope ((fn) => fn()); its
+              // ctx.issues.get/update go through withRestFallback, so a cron-tick scope
+              // expiry falls back to the Paperclip REST API (GOL-323/GOL-1163).
+              driveClosure: ({ action, repoSlug, number: number4 }) => handleAppClosure(
+                ctx,
+                cfg,
+                { action, payload: { repo: repoSlug, number: number4, title: "", body: "", url: "" } },
+                (fn) => fn()
+              ),
+              logger: ctx.logger
+            });
+            ctx.logger.info("inbound-close-reconcile complete", summary);
+            if (summary.propagated > 0 || summary.failed > 0 || summary.pruned > 0) {
+              if (wantPing(cfg, "outcome"))
+                await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCloseReconcilePing(summary));
+            }
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "inbound-close-reconcile job failed", err, {});
+          }
+        });
+        ctx.jobs.register("inbound-create-reconcile", async () => {
+          try {
+            if (!cfg.companyId) {
+              ctx.logger.warn("inbound-create-reconcile: companyId not configured; skipping sweep");
+              return;
+            }
+            const sinceIso = new Date(Date.now() - INBOUND_CREATE_RECONCILE_WINDOW_MS).toISOString();
+            const summary = await runInboundCreateReconcile({
+              repoSlugs: Array.from(clientsBySlug.keys()),
+              // state:"open" — never create a pre-closed mirror (the close leg is
+              // inbound-close-reconcile's job); `since` bounds the scan to the window.
+              listIssues: async (repoSlug) => {
+                const entry = clientsBySlug.get(repoSlug);
+                if (!entry) return { ok: false, error: "no client for repo" };
+                const res = await entry.github.listIssues(entry.repo, {
+                  state: "open",
+                  since: sinceIso,
+                  maxPages: INBOUND_CREATE_RECONCILE_MAX_PAGES
+                });
+                if (!res.ok) return { ok: false, error: res.error };
+                return {
+                  ok: true,
+                  issues: res.data.issues.map((i) => ({
+                    number: i.number,
+                    state: i.state,
+                    title: i.title,
+                    body: i.body,
+                    url: i.htmlUrl,
+                    labels: i.labels
+                  })),
+                  truncated: res.data.truncated
+                };
+              },
+              // Re-drive the SAME inbound mirror-create the webhook uses. Owns the guards
+              // (bridge / closed / Paperclip-origin label / already-mapped) so the sweep
+              // tallies without duplicating createMirrorIssue's internals. No ambient
+              // scope ((fn) => fn()); createMirrorIssue's writes go through withRestFallback,
+              // so a cron-tick scope expiry falls back to the Paperclip REST API (GOL-323).
+              driveCreate: async ({ repoSlug, issue: issue2 }) => {
+                const bridge = matchBridge(cfg, repoSlug);
+                if (!bridge) return "no-bridge";
+                if (issue2.state === "closed") return "skipped-closed";
+                if (issue2.labels.some((l) => l.toLowerCase() === bridge.syncLabelPaperclip.toLowerCase())) {
+                  return "skipped-paperclip-origin";
+                }
+                if (await getByRepoNumber(ctx.db, repoSlug, issue2.number)) return "skipped-mapped";
+                await createMirrorIssue(
+                  ctx,
+                  cfg,
+                  bridge,
+                  { repo: repoSlug, number: issue2.number, title: issue2.title, body: issue2.body, url: issue2.url },
+                  issue2.labels,
+                  (fn) => fn()
+                );
+                return await getByRepoNumber(ctx.db, repoSlug, issue2.number) ? "created" : "failed";
+              },
+              logger: ctx.logger
+            });
+            ctx.logger.info("inbound-create-reconcile complete", summary);
+            if (summary.created > 0 || summary.failed > 0) {
+              if (wantPing(cfg, "outcome"))
+                await postOpsPing(ctx, cfg.opsWebhookUrl, buildInboundCreateReconcilePing(summary));
+            }
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "inbound-create-reconcile job failed", err, {});
+          }
+        });
+        ctx.jobs.register("worker-heartbeat", async () => {
+          try {
+            await recordHeartbeat(ctx.db, {
+              updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+              workerBootedAt: WORKER_BOOTED_AT,
+              workerVersion: manifest_default.version
+            });
+          } catch (err) {
+            ctx.logger.warn("worker-heartbeat write failed", {
+              error: err instanceof Error ? err.message : String(err)
+            });
+          }
+        });
+        try {
+          await recordHeartbeat(ctx.db, {
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            workerBootedAt: WORKER_BOOTED_AT,
+            workerVersion: manifest_default.version
+          });
+        } catch (err) {
+          ctx.logger.warn("failed to write boot heartbeat", {
+            error: err instanceof Error ? err.message : String(err)
+          });
         }
-      } catch (err) {
-        await recordSwallowedFailure(ctx, cfg, "inbound-dead-man job failed", err, {});
+        ctx.jobs.register("pr-review-reconcile", async () => {
+          try {
+            if (!cfg.companyId) {
+              ctx.logger.warn("pr-review-reconcile: companyId not configured; skipping sweep");
+              return;
+            }
+            if (!cfg.prReviewAliceAgentId) {
+              ctx.logger.info("pr-review-reconcile: PR review pipeline disabled (no prReviewAliceAgentId); skipping sweep");
+              return;
+            }
+            const summary = await runPrReviewReconcile({
+              repoSlugs: Array.from(clientsBySlug.keys()),
+              listPrs: async (repoSlug) => {
+                const entry = clientsBySlug.get(repoSlug);
+                if (!entry) return { ok: false, error: "no client for repo" };
+                const res = await entry.github.listPulls(entry.repo, {
+                  maxPages: PR_REVIEW_RECONCILE_MAX_PAGES
+                });
+                if (!res.ok) return { ok: false, error: res.error };
+                return {
+                  ok: true,
+                  prs: res.data.prs.map((p) => ({
+                    number: p.number,
+                    headSha: p.headSha,
+                    title: p.title,
+                    url: p.htmlUrl,
+                    draft: p.draft,
+                    fullName: p.fullName
+                  })),
+                  truncated: res.data.truncated
+                };
+              },
+              // Re-drive the SAME review pipeline the inbound webhook uses. Owns the guards
+              // (bridge / draft / Ada-current idempotency) so the sweep tallies without
+              // duplicating processReviewer's internals. Extracted to `driveSweepReview` so
+              // the mixed-case-repo key wiring (GOL-2395) is unit-testable.
+              driveReview: ({ repoSlug, pr }) => driveSweepReview(ctx, cfg, repoSlug, pr),
+              logger: ctx.logger
+            });
+            ctx.logger.info("pr-review-reconcile complete", summary);
+            if (summary.twinned > 0 || summary.failed > 0) {
+              if (wantPing(cfg, "outcome"))
+                await postOpsPing(ctx, cfg.opsWebhookUrl, buildPrReviewReconcilePing(summary));
+            }
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "pr-review-reconcile job failed", err, {});
+          }
+        });
+        ctx.jobs.register("inbound-dead-man", async () => {
+          try {
+            const sinceIso = new Date(Date.now() - INBOUND_DEADMAN_WINDOW_MS).toISOString();
+            const windowHours = Math.round(INBOUND_DEADMAN_WINDOW_MS / 36e5);
+            const summary = await runInboundDeadMan({
+              repoSlugs: Array.from(clientsBySlug.keys()),
+              // Any delivery outcome — even a rejected probe — proves the ingress is alive.
+              countDeliveries: () => deliveryCountSince(ctx.db, sinceIso),
+              // Probe GitHub for a PR OR issue updated in the same window. Uses the same
+              // per-repo client/token the sweeps use; a read failure is transient (retried
+              // next run), never counted as activity, so a flaky probe can't manufacture a page.
+              checkActivity: async (repoSlug) => {
+                const entry = clientsBySlug.get(repoSlug);
+                if (!entry) return { ok: false, error: "no client for repo" };
+                const res = await entry.github.recentActivitySince(entry.repo, sinceIso);
+                if (!res.ok) return { ok: false, error: res.error };
+                return { ok: true, active: res.data.active, latestUpdatedAt: res.data.latestUpdatedAt };
+              },
+              logger: ctx.logger
+            });
+            ctx.logger.info("inbound-dead-man complete", summary);
+            if (summary.page) {
+              await postThrottledOpsAlert(ctx, cfg, buildInboundDeadManPing(summary, windowHours));
+            }
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "inbound-dead-man job failed", err, {});
+          }
+        });
+        ctx.logger.info("github sync listening", {
+          projects: Array.from(depsByProject.keys())
+        });
+      },
+      {
+        logger: ctx.logger,
+        // Fatal boot: page ops ⛔ so a dead inbound path is loud, not silent for days.
+        // Config may itself be the failing read, so guard it; unthrottled by design.
+        onExhausted: async (err) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          try {
+            const cfg = readConfig(await ctx.config.get());
+            await postOpsPing(
+              ctx,
+              cfg.opsWebhookUrl,
+              `\u26D4 github-sync worker init FAILED after retries \u2014 inbound sync is DOWN until respawn. Last error: ${detail}`
+            );
+          } catch {
+          }
+        }
       }
-    });
-    ctx.logger.info("github sync listening", {
-      projects: Array.from(depsByProject.keys())
-    });
+    );
   },
   /**
    * Inbound leg (GitHub → Paperclip). The host routes three public endpoints here:
@@ -33476,7 +40727,39 @@ var plugin = definePlugin({
     }
   },
   async onHealth() {
-    return { status: "ok" };
+    const ctx = currentContext;
+    if (!ctx) {
+      return {
+        status: "ok",
+        message: "worker context not initialised yet",
+        details: { liveness: "unknown", heartbeat: null }
+      };
+    }
+    try {
+      const hb = await getHeartbeat(ctx.db);
+      const ageMs = heartbeatAgeMs(hb, Date.now());
+      const stale = ageMs !== null && ageMs > HEARTBEAT_STALE_MS;
+      const liveness = hb ? stale ? "stale" : "ok" : "unknown";
+      return {
+        status: stale ? "degraded" : "ok",
+        ...stale ? { message: "worker heartbeat is stale" } : {},
+        details: {
+          liveness,
+          heartbeat: hb ? {
+            lastHeartbeatAt: hb.updatedAt,
+            ageSeconds: ageMs !== null ? Math.round(ageMs / 1e3) : null,
+            workerBootedAt: hb.workerBootedAt,
+            workerVersion: hb.workerVersion,
+            staleThresholdSeconds: Math.round(HEARTBEAT_STALE_MS / 1e3)
+          } : null
+        }
+      };
+    } catch (err) {
+      ctx.logger.warn("onHealth heartbeat read failed", {
+        error: err instanceof Error ? err.message : String(err)
+      });
+      return { status: "ok", details: { liveness: "unknown", heartbeat: null } };
+    }
   }
 });
 var worker_default = plugin;

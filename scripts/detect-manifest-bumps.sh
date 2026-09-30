@@ -15,7 +15,12 @@ set -euo pipefail
 OLD="${1:?usage: detect-manifest-bumps.sh OLD_REF NEW_REF}"
 NEW="${2:?usage: detect-manifest-bumps.sh OLD_REF NEW_REF}"
 
-for p in vault-plugin openviking-plugin github-plugin github-sync-plugin; do
+# Keep this list in lockstep with the build/dist loop in
+# .github/workflows/deploy-droplet-plugins.yml and with VALID in
+# scripts/assert-plugin-versions.sh. discord-plugin was in the workflow's
+# build loop but missing here, so a discord manifest bump never reached the
+# auto-/upgrade finish step (the exact stale-registry trap GOL-733 closed).
+for p in vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin grove-content-drafter-plugin; do
   if ! git diff --quiet "$OLD" "$NEW" -- "packages/${p}/src/manifest.ts"; then
     echo "MANIFEST_BUMP: ${p}"
   fi

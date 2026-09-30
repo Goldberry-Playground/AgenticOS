@@ -38,6 +38,7 @@ on:
       - 'packages/github-plugin/**'
       - 'packages/github-sync-plugin/**'
       - 'packages/discord-plugin/**'
+      - 'packages/grove-content-drafter-plugin/**'
       - '.github/workflows/deploy-droplet-plugins.yml'
   workflow_dispatch:
 
@@ -93,15 +94,17 @@ jobs:
               --filter @agenticos/openviking-plugin \
               --filter @agenticos/github-plugin \
               --filter @agenticos/github-sync-plugin \
-              --filter @agenticos/discord-plugin
+              --filter @agenticos/discord-plugin \
+              --filter @agenticos/grove-content-drafter-plugin
             pnpm --filter @agenticos/vault-plugin \
                  --filter @agenticos/openviking-plugin \
                  --filter @agenticos/github-plugin \
                  --filter @agenticos/github-sync-plugin \
-                 --filter @agenticos/discord-plugin build
+                 --filter @agenticos/discord-plugin \
+                 --filter @agenticos/grove-content-drafter-plugin build
 
             # Fail the deploy if any dist is incomplete (worker + manifest).
-            for p in vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin; do
+            for p in vault-plugin openviking-plugin github-plugin github-sync-plugin discord-plugin grove-content-drafter-plugin; do
               for f in dist/worker.js dist/manifest.js; do
                 test -s "packages/$p/$f" || { echo "MISSING packages/$p/$f"; exit 1; }
               done
@@ -111,6 +114,45 @@ jobs:
             echo "=== manifest bump detection ==="
             bash scripts/detect-manifest-bumps.sh "$OLD" HEAD
           '"'"'' | tee deploy.log
+
+      - name: Ensure plugin bind mounts are live (GOL-2585)
+        # `shell: bash` is LOAD-BEARING for the same reason as the GOL-804 assert
+        # step below: it runs `bash --noprofile --norc -eo pipefail {0}`, whereas
+        # GitHub's default for `run:` is `bash -e {0}` WITHOUT pipefail — which
+        # would let `| tee mounts.log` mask a nonzero exit from the guard and
+        # report a green deploy over an unrepaired mount.
+        shell: bash
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          # MUST run AFTER the step above (which replaces package-directory
+          # inodes via the `packages` symlink self-heal and `git reset --hard`)
+          # and BEFORE anything that talks to the plugin registry.
+          #
+          # A bind mount pins to the host directory's INODE, so replacing those
+          # directories under a live paperclip-server leaves /paperclip/plugins/*
+          # reading EMPTY inside the container. The worker keeps serving `ready`
+          # from memory, then dies and can never respawn, and every reconcile
+          # cron dies with it. That is GOL-2585: run 35939085377 orphaned all
+          # five mounts, /upgrade returned `400 Missing package.json at
+          # /paperclip/plugins/github-sync-plugin`, the GOL-804 assert below went
+          # RED — and github-sync stayed dead for five days because a red deploy
+          # detected the damage but nothing repaired it. This step repairs it.
+          #
+          # No-op on a healthy box (one `test -s` per plugin, no mutation). It
+          # force-recreates ONLY when a mount is already broken, i.e. when the
+          # plugin host is already down. Shares the `deploy-droplet` concurrency
+          # group above, so the recreate cannot race a vault deploy or reclaim.
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "bash -lc 'set -euo pipefail; cd /opt/agenticos/repo && bash scripts/ensure-plugin-mounts.sh'" \
+            | tee mounts.log
+          {
+            echo "### 🔗 Plugin bind-mount liveness (GOL-2585)"
+            echo '```'
+            grep -E '^ok: |re-resolved|still missing|//deleted' mounts.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Detect manifest changes
         if: always()
