@@ -18,7 +18,9 @@
 #     lookback and auto-close all follow PR #N across its requeues; the issue
 #     closes as soon as a batch for that PR goes green or the PR merges/closes.
 #     Attribution requires the `merge_group` EVENT, not just the branch shape, so
-#     a queue-shaped push branch cannot hijack an unrelated PR (GOL-2688).
+#     a queue-shaped push branch cannot hijack an unrelated PR (GOL-2688). Because
+#     a batch stacks PRs, the report also names the PR the batch was stacked ON
+#     when that differs — usually the actual owner of the red (GOL-2687).
 #   - SUCCESS of a watched workflow on a PR branch → resolves (updates) any
 #     lingering sticky failure comment for that workflow to ✅.
 #
@@ -115,7 +117,7 @@ jobs:
             //
             // Collapse the whole family onto a stable per-PR key and, while we're here,
             // stop calling it "ownerless": `pr-<N>` names the owner explicitly.
-            const MQ_BRANCH_RE = /^gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]{40}$/;
+            const MQ_BRANCH_RE = /^gh-readonly-queue\/.+\/pr-(\d+)-([0-9a-f]{40})$/;
             function normalizeBranch(branch) {
               const m = MQ_BRANCH_RE.exec(branch ?? "");
               return m ? { branch: `merge-queue/pr-${m[1]}`, prNumber: Number(m[1]) } : { branch, prNumber: null };
@@ -132,6 +134,10 @@ jobs:
               RUN_EVENT === "merge_group"
                 ? normalizeBranch(HEAD_BRANCH)
                 : { branch: HEAD_BRANCH, prNumber: null };
+            // The sha in the branch name is the commit the BATCH was stacked on, which
+            // is not HEAD_SHA (the queue commit itself). Used only for the batch note.
+            const MQ_BASE_SHA =
+              MQ_PR !== null ? MQ_BRANCH_RE.exec(HEAD_BRANCH)[2] : null;
 
             // Resolve the owning PR by head branch (workflow_run.pull_requests is
             // unreliable across event types). Used by both the success + failure paths.
@@ -242,12 +248,40 @@ jobs:
                   : `3 consecutive failures of this workflow on \`${HEAD_BRANCH}\` — the owner appears stuck.`)
               : `deterministic check (lint/type/format) failed — always agent-fixable, escalated on first failure.`;
 
+            // A merge queue builds PRs stacked on each other, so a batch for PR #N can
+            // go red because of the PR BENEATH it, not #N. That is the bulk of the
+            // noise: of the 14 issues the 2026-09-30 storm produced, 13 were other
+            // PRs stacked behind one bad one (GOL-2691). We still route to #N — it is
+            // the only PR whose author can re-enqueue — but name the likely real owner
+            // so the first triage step is not re-deriving it by hand (GOL-2687).
+            let batchNote = "";
+            if (MQ_BASE_SHA) {
+              try {
+                const { data: baseCommit } = await github.rest.repos.getCommit({
+                  owner, repo, ref: MQ_BASE_SHA,
+                });
+                const subject = (baseCommit.commit.message ?? "").split("\n")[0];
+                // Squash-merge subjects end in `(#M)`; that is the PR under this batch.
+                const m = /\(#(\d+)\)\s*$/.exec(subject);
+                if (m && Number(m[1]) !== MQ_PR) {
+                  batchNote =
+                    `**Batch base:** this queue commit is stacked on \`${MQ_BASE_SHA.slice(0, 7)}\`` +
+                    ` = PR #${m[1]} (${subject}). The failure may be owned by #${m[1]},` +
+                    ` not #${MQ_PR} — check that PR's diff first.`;
+                }
+              } catch (e) {
+                // A dequeued batch's base can be GC'd; a missing note is not an error.
+                core.info(`Could not read queue base ${MQ_BASE_SHA}: ${e.message}`);
+              }
+            }
+
             const summary = [
               `**Workflow:** ${WF_NAME} (attempt ${RUN_ATTEMPT})`,
               MQ_PR !== null
                 ? `**Branch:** \`${HEAD_BRANCH}\` @ \`${shortSha}\` (event: ${RUN_EVENT}, filed under \`${DEDUP_BRANCH}\`)`
                 : `**Branch:** \`${HEAD_BRANCH}\` @ \`${shortSha}\` (event: ${RUN_EVENT})`,
               `**Run:** ${RUN_URL}`,
+              ...(batchNote ? [batchNote] : []),
               `**Failed jobs:**`,
               jobLines,
             ].join("\n");
@@ -487,7 +521,7 @@ jobs:
             // That includes the route job's `merge_group` event gate (GOL-2688): if this
             // job normalized on branch shape alone it would key differently from route
             // for a queue-SHAPED push branch, and resolve an issue route never filed.
-            const MQ_BRANCH_RE = /^gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]{40}$/;
+            const MQ_BRANCH_RE = /^gh-readonly-queue\/.+\/pr-(\d+)-([0-9a-f]{40})$/;
             const mq = RUN_EVENT === "merge_group" ? MQ_BRANCH_RE.exec(HEAD_BRANCH ?? "") : null;
             const DEDUP_BRANCH = mq ? `merge-queue/pr-${mq[1]}` : HEAD_BRANCH;
             const marker = `<!-- d3-ci-failure:${WF_NAME}:${DEDUP_BRANCH} -->`;

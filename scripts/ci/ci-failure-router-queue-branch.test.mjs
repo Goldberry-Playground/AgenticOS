@@ -141,6 +141,47 @@ for (const b of ['main', 'gol2677-drafter-retry']) {
   assert.deepEqual(normalizeBranch(b), { branch: b, prNumber: null }, `${b} must pass through`);
 }
 
+// ── 2c. The batch-base note names the PR the batch was stacked ON ─────────────
+// A queue batch for PR #N can go red because of the PR beneath it. The router
+// still routes to #N (only its author can re-enqueue) but must surface the likely
+// real owner, or triage starts by re-deriving it by hand every time.
+assert.match(
+  wf,
+  /const MQ_BASE_SHA =\s*\n\s*MQ_PR !== null \? MQ_BRANCH_RE\.exec\(HEAD_BRANCH\)\[2\] : null;/,
+  'the route job must recover the batch base sha from group 2 of MQ_BRANCH_RE'
+);
+assert.match(
+  wf,
+  /\.\.\.\(batchNote \? \[batchNote\] : \[\]\),/,
+  'the batch-base note must be spliced into the failure summary'
+);
+// Group 1 must stay the PR number — every other consumer indexes it, so adding the
+// sha capture in front of it would silently reroute every queue failure.
+assert.equal(
+  parse('gh-readonly-queue/main/pr-733-8724accacef2d9bf80b8efa56e5a4341619c6bcd'),
+  733,
+  'MQ_BRANCH_RE group 1 must remain the PR number after the base-sha capture was added'
+);
+// The subject parse: squash merges end in `(#M)`, and a note is only warranted when
+// M differs from the PR being queued.
+const SUBJECT_RE = new RegExp(
+  /const m = (\/\\\(#.*?\/)\.exec\(subject\);/.exec(wf)?.[1]?.slice(1, -1) ??
+    assert.fail('the route job no longer parses the batch base commit subject')
+);
+for (const [subject, want] of [
+  ['fix(content-drafter): make the write-error retry real (GOL-2677) (#733)', '733'],
+  ['chore(deps): bump the production-dependencies group with 12 updates (#713)', '713'],
+  // A trailing newline/space must not defeat the anchor.
+  ['feat: something (#41) ', '41'],
+  // No PR reference at all (e.g. a direct push to main) → no note.
+  ['GOL-2686: wait for the board API to serve', null],
+  // A `#nnn` that is not the trailing merge marker must not be mistaken for one.
+  ['fix: address review on #712 properly', null],
+]) {
+  const m = SUBJECT_RE.exec(subject);
+  assert.equal(m?.[1] ?? null, want, `batch-base subject parse of ${JSON.stringify(subject)}`);
+}
+
 // ── 3. Failure IDENTITY is keyed on the normalized branch, not the raw one ────
 // If the marker ever reverts to HEAD_BRANCH, the per-attempt orphan-issue bug
 // comes straight back, silently. Both the minting job (route) and the resolving
