@@ -9,6 +9,10 @@
 #     Security-sensitive failures (gitleaks/CodeQL) are excluded from (b).
 #   - Ownerless failure (main, cron, manual dispatch) → mint/update a deduped
 #     GitHub issue immediately.
+#   - Merge-queue failure (`gh-readonly-queue/<base>/pr-<N>-<sha>`) → routed to
+#     PR <N>, NOT filed as ownerless (GOL-2688). See findOpenPr below for why a
+#     `head:` lookup can never resolve a queue branch, and why the failure's
+#     identity has to be the PR's own head ref rather than the queue branch.
 #   - SUCCESS of a watched workflow on a PR branch → resolves (updates) any
 #     lingering sticky failure comment for that workflow to ✅.
 #
@@ -93,9 +97,47 @@ jobs:
             const runId = Number(RUN_ID);
             const shortSha = HEAD_SHA.slice(0, 7);
 
+            // A merge-queue run's head branch is
+            // `gh-readonly-queue/<base>/pr-<N>-<sha>`. NO pull request ever has
+            // that branch as its head, so the `head:` lookup below returns
+            // nothing and the failure used to be filed as "ownerless" — even
+            // though the branch name literally carries the owning PR number.
+            // That mis-triage is not cosmetic: the author is never told (no
+            // sticky comment), the 3-strike lookback sees a single run on a
+            // branch that exists for one attempt, and because the `<sha>`
+            // suffix differs per attempt the minted issue can never dedupe
+            // against the next one nor be resolved by `close-on-success`. Only
+            // the daily sweep ever reaped them. GOL-2688 was one such orphan
+            // for PR #733. Resolve the number instead of guessing.
+            // Gated on RUN_EVENT too, not the branch shape alone: anyone with
+            // push access could create an ordinary branch literally named
+            // `gh-readonly-queue/main/pr-<N>-<sha>` and have its failures
+            // comment on an unrelated PR #N. Only GitHub's own merge queue
+            // produces `merge_group` runs, so requiring both closes that off.
+            const QUEUE_BRANCH = /^gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]{40}$/;
+            const queuedPrNumber = (() => {
+              if (RUN_EVENT !== "merge_group") return null;
+              const m = HEAD_BRANCH.match(QUEUE_BRANCH);
+              return m ? Number(m[1]) : null;
+            })();
+
             // Resolve the owning PR by head branch (workflow_run.pull_requests is
             // unreliable across event types). Used by both the success + failure paths.
             async function findOpenPr() {
+              if (queuedPrNumber !== null) {
+                try {
+                  const { data: pr } = await github.rest.pulls.get({
+                    owner, repo, pull_number: queuedPrNumber,
+                  });
+                  // A failure on a queue attempt for an already-merged/closed PR
+                  // is moot; `pr` staying null makes the caller drop it rather
+                  // than mint an orphan issue nobody can action.
+                  return pr.state === "open" ? pr : null;
+                } catch (e) {
+                  if (e.status !== 404) throw e;
+                  return null;
+                }
+              }
               const { data: prs } = await github.rest.pulls.list({
                 owner, repo, state: "open", head: `${owner}:${HEAD_BRANCH}`, per_page: 1,
               });
@@ -134,10 +176,27 @@ jobs:
             // ── Find the owning PR, if any (resolved by head branch) ───────
             const pr = await findOpenPr();
 
+            // A merge-queue attempt whose PR is gone: the queue branch is already
+            // deleted and the PR is settled, so there is nothing left to own or
+            // fix. Drop it instead of minting an un-actionable orphan issue.
+            if (queuedPrNumber !== null && !pr) {
+              core.info(
+                `Dropping merge-queue failure on ${HEAD_BRANCH}: PR #${queuedPrNumber} is no longer open.`,
+              );
+              return;
+            }
+
+            // Failure IDENTITY is the PR's own head ref, never the per-attempt
+            // queue branch: the queue branch carries a fresh `<sha>` suffix on
+            // every attempt, so keying dedup/close on it guarantees a new issue
+            // per attempt that nothing can ever resolve. The raw queue branch
+            // still appears in the summary below for traceability.
+            const BRANCH = pr && queuedPrNumber !== null ? pr.head.ref : HEAD_BRANCH;
+
             // ── 3-strike lookback: last 3 completed runs of this workflow on
             //    this branch all failed? ───────────────────────────────────
             const { data: history } = await github.rest.actions.listWorkflowRunsForRepo({
-              owner, repo, branch: HEAD_BRANCH, status: "completed", per_page: 20,
+              owner, repo, branch: BRANCH, status: "completed", per_page: 20,
             });
             const sameWf = history.workflow_runs
               .filter((r) => r.name === WF_NAME)
@@ -159,12 +218,14 @@ jobs:
               !failedJobs.some((j) => SECURITY.test(j.name));
             const escalate = threeStrikes || deterministicOnly;
             const escalateReason = threeStrikes
-              ? `3 consecutive failures of this workflow on \`${HEAD_BRANCH}\` — the owner appears stuck.`
+              ? `3 consecutive failures of this workflow on \`${BRANCH}\` — the owner appears stuck.`
               : `deterministic check (lint/type/format) failed — always agent-fixable, escalated on first failure.`;
 
             const summary = [
               `**Workflow:** ${WF_NAME} (attempt ${RUN_ATTEMPT})`,
-              `**Branch:** \`${HEAD_BRANCH}\` @ \`${shortSha}\` (event: ${RUN_EVENT})`,
+              queuedPrNumber !== null
+                ? `**Branch:** \`${BRANCH}\` @ \`${shortSha}\` (event: ${RUN_EVENT}, merge-queue attempt \`${HEAD_BRANCH}\`)`
+                : `**Branch:** \`${BRANCH}\` @ \`${shortSha}\` (event: ${RUN_EVENT})`,
               `**Run:** ${RUN_URL}`,
               `**Failed jobs:**`,
               jobLines,
@@ -172,8 +233,8 @@ jobs:
 
             // ── Deduped issue mint/update (ownerless + escalation path) ────
             async function mintOrUpdateIssue(reason) {
-              const marker = `<!-- d3-ci-failure:${WF_NAME}:${HEAD_BRANCH} -->`;
-              const title = `CI failure: ${WF_NAME} on ${HEAD_BRANCH}`;
+              const marker = `<!-- d3-ci-failure:${WF_NAME}:${BRANCH} -->`;
+              const title = `CI failure: ${WF_NAME} on ${BRANCH}`;
               const openIssues = await github.paginate(github.rest.issues.listForRepo, {
                 owner, repo, state: "open", labels: "ci-failure", per_page: 100,
               });
@@ -212,7 +273,7 @@ jobs:
             if (!pr) {
               // Ownerless: main, cron, dispatch, or a branch with no open PR.
               await mintOrUpdateIssue(
-                `Ownerless failure — no open PR for \`${HEAD_BRANCH}\`.`,
+                `Ownerless failure — no open PR for \`${BRANCH}\`.`,
               );
               return;
             }
@@ -391,23 +452,43 @@ jobs:
           WF_NAME: ${{ github.event.workflow_run.name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
         with:
           script: |
-            const { WF_NAME, HEAD_BRANCH, RUN_URL } = process.env;
+            const { WF_NAME, HEAD_BRANCH, RUN_URL, RUN_EVENT } = process.env;
             const { owner, repo } = context.repo;
-            const marker = `<!-- d3-ci-failure:${WF_NAME}:${HEAD_BRANCH} -->`;
+            // Must use the SAME identity the `route` job mints under, or a green
+            // merge-queue run can never resolve the issue its own failed attempt
+            // filed: routing keys on the PR's head ref, while this run's branch
+            // is the throwaway `gh-readonly-queue/<base>/pr-<N>-<sha>`.
+            const queued =
+              RUN_EVENT === "merge_group"
+                ? HEAD_BRANCH.match(/^gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]{40}$/)
+                : null;
+            let BRANCH = HEAD_BRANCH;
+            if (queued) {
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner, repo, pull_number: Number(queued[1]),
+                });
+                BRANCH = pr.head.ref;
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+            }
+            const marker = `<!-- d3-ci-failure:${WF_NAME}:${BRANCH} -->`;
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner, repo, state: "open", labels: "ci-failure", per_page: 100,
             });
             const match = openIssues.find((i) => (i.body ?? "").includes(marker));
             if (!match) {
-              core.info(`No open ci-failure issue for ${WF_NAME} on ${HEAD_BRANCH}.`);
+              core.info(`No open ci-failure issue for ${WF_NAME} on ${BRANCH}.`);
               return;
             }
             await github.rest.issues.createComment({
               owner, repo, issue_number: match.number,
               body: [
-                `✅ Resolved — a later run of **${WF_NAME}** on \`${HEAD_BRANCH}\` succeeded.`,
+                `✅ Resolved — a later run of **${WF_NAME}** on \`${BRANCH}\` succeeded.`,
                 "",
                 RUN_URL,
                 "",
