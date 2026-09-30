@@ -268,6 +268,53 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # paperclip-backup-offsite (GOL-2769): the volume guard above watches whether
+  # dumps are being WRITTEN; this ships them OFF the box. Every retained
+  # Paperclip dump otherwise lives only inside the paperclip-data volume — not
+  # /opt/backups, so not in the Syncthing off-site leg either — and dies with
+  # the droplet. Uploads only complete dumps (gzip CRC + trailing COMMIT;) to
+  # the bucket-scoped `agenticos-backups` Space; retention off-box is enforced
+  # by the bucket's lifecycle rules (infra/terraform/backup-bucket/), never by
+  # the script, which issues no DELETE of any kind.
+  - path: /etc/systemd/system/agenticos-paperclip-backup-offsite.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS Paperclip DB dumps -> DO Spaces off-box copy (GOL-2769)
+      After=network-online.target docker.service
+      Wants=network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py'
+      StandardOutput=append:/var/log/agenticos/paperclip-backup-offsite.log
+      StandardError=append:/var/log/agenticos/paperclip-backup-offsite.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-paperclip-backup-offsite.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Ship completed Paperclip DB dumps off-box every 30m (GOL-2769)
+
+      [Timer]
+      # Every 30 minutes: the server dumps roughly every 4h, so this bounds the
+      # window in which a fresh restore point exists ONLY on this droplet to
+      # about half an hour. Runs with nothing new to ship are a no-op (one
+      # ListObjectsV2 + a HEAD per dump) and cost nothing.
+      OnCalendar=*-*-* *:05,35:00
+      Persistent=true
+      RandomizedDelaySec=120
+      Unit=agenticos-paperclip-backup-offsite.service
+
+      [Install]
+      WantedBy=timers.target
+
   # worktree reaper (GOL-1632 / #765): agents create a per-issue
   # .wt-<issue>-<repo> worktree inside the shared project checkouts, each with
   # its own ~1GB node_modules, and nothing ever reclaimed them — 31 abandoned
@@ -608,6 +655,38 @@ runcmd:
         echo "FATAL: AGENTICOS_DB_PASSWORD missing in /opt/agenticos/.env; refusing to start (set TF_VAR_agenticos_db_password)" >&2
         exit 1
       fi
+      # Off-box Paperclip backup shipper credentials (GOL-2769) — a
+      # BUCKET-SCOPED Spaces key, readwrite on `agenticos-backups` and nothing
+      # else. Created by infra/terraform/backup-bucket/ and kept in 1Password
+      # (AgenticOS Infra/backups_spaces_*); Terraform passes it in here so the
+      # droplet's shipper and the bucket module never diverge.
+      #
+      # Both template vars default to "" (variables.tf), and an EMPTY value
+      # means LEAVE .env UNTOUCHED — deliberately unlike the DB password above,
+      # which is required and so fails loud when absent. An operator who has
+      # not exported TF_VAR_backups_spaces_* must not have a working shipper
+      # silently de-provisioned by an unrelated apply; that would convert a
+      # missing export into a backup outage. When the key really is absent the
+      # shipper itself pages Discord on its next run, so the gap is loud
+      # without being self-inflicted here.
+      #
+      # Delete-then-append rather than `sed s|..|..|` (the DB-password form):
+      # a Spaces secret is base64, so it can contain `/` and would otherwise
+      # have to be trusted against sed's replacement parser. This form never
+      # feeds the secret to a pattern engine at all.
+      #
+      # The value written must be the LITERAL key. /opt/agenticos/.env is read
+      # raw by the shipper and by `docker compose --env-file` — nothing runs
+      # `op inject` over it — so an `op://...` reference here provisions
+      # nothing. See docs/runbooks/backup-and-recovery.md.
+      if [ -n "${backups_spaces_access_key_id}" ] && [ -n "${backups_spaces_secret_key}" ]; then
+        sed -i '/^SPACES_BACKUP_ACCESS_KEY_ID=/d;/^SPACES_BACKUP_SECRET_KEY=/d' /opt/agenticos/.env
+        printf 'SPACES_BACKUP_ACCESS_KEY_ID=%s\n' "${backups_spaces_access_key_id}" >> /opt/agenticos/.env
+        printf 'SPACES_BACKUP_SECRET_KEY=%s\n' "${backups_spaces_secret_key}" >> /opt/agenticos/.env
+        echo "INFO: SPACES_BACKUP_* written to /opt/agenticos/.env (off-box backup shipper)"
+      else
+        echo "INFO: TF_VAR_backups_spaces_* not set — leaving SPACES_BACKUP_* in /opt/agenticos/.env untouched" >&2
+      fi
       # OpenViking root API key — single source of truth is 1Password, passed
       # in by Terraform as the openviking_root_api_key template var (rendered
       # below as a literal). We UPSERT it: set on a fresh Droplet, and CORRECT
@@ -756,13 +835,15 @@ runcmd:
   # --- Disk hygiene (GOL-131): weekly docker reclaim + daily disk-guard ---
   # Ensure the reclaim scripts are executable, apply the journald cap now
   # (config alone only bounds FUTURE growth), then enable the timers.
-  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/worktree-reaper.sh /opt/agenticos/repo/scripts/ops/reap-stale-worktrees.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py /opt/agenticos/repo/infra/scripts/worktree-reaper.sh /opt/agenticos/repo/scripts/ops/reap-stale-worktrees.sh
   - systemctl restart systemd-journald
   - journalctl --vacuum-size=200M || true
   - systemctl enable --now agenticos-docker-prune.timer
   - systemctl enable --now agenticos-disk-guard.timer
   # paperclip-data volume headroom + backup-freshness watch (GOL-1632)
   - systemctl enable --now agenticos-paperclip-volume-guard.timer
+  # off-box copies of every completed Paperclip dump (GOL-2769)
+  - systemctl enable --now agenticos-paperclip-backup-offsite.timer
   # nightly abandoned-worktree reclaim (GOL-1632 / #765)
   - systemctl enable --now agenticos-worktree-reaper.timer
 

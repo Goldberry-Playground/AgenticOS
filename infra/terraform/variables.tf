@@ -97,6 +97,20 @@ variable "agenticos_db_password" {
   sensitive   = true
 }
 
+variable "backups_spaces_access_key_id" {
+  description = "Access key id of the BUCKET-SCOPED Spaces key for the off-box Paperclip backup bucket (GOL-2769). Created by infra/terraform/backup-bucket/, stored in 1Password (AgenticOS Infra/backups_spaces_access_key_id). Injected into /opt/agenticos/.env as SPACES_BACKUP_ACCESS_KEY_ID. Empty string = leave .env untouched (the shipper then pages Discord instead of failing silently)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "backups_spaces_secret_key" {
+  description = "Companion secret to backups_spaces_access_key_id. Sourced from 1Password (AgenticOS Infra/backups_spaces_secret_key). Injected into /opt/agenticos/.env as SPACES_BACKUP_SECRET_KEY. Empty string = leave .env untouched."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "openviking_root_api_key" {
   description = "OpenViking root API key. Must match OPENVIKING_ROOT_API_KEY in /opt/agenticos/.env on the Droplet. Used as OPENVIKING_API_KEY on App Platform (the name the Hermes plugin + dashboard client both expect)."
   type        = string

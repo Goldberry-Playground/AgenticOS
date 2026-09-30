@@ -14,6 +14,7 @@ brain; the recovery story differs for each.
 | **Vault** | Human knowledge — Obsidian markdown (`wiki/`, `+inbox/`, `+sources/`) | `/opt/vault` | Syncthing → Mac (replica) | It *is* the source of truth |
 | **Postgres** (`agenticos-db`) | Cost ledger, task/session ledger, `vault_ingest_state` dedup hashes | `agenticos-db-data` volume | `pg-backup.sh` → `/opt/backups` daily | No — only copy of cost/run history |
 | **OpenViking** (`openviking-data`) | Agent memory: embeddings + LLM-extracted memories, sessions, relation graph | `openviking-data` volume | `viking-backup.sh` → `/opt/backups` daily | **No — see below** |
+| **Paperclip** (`paperclip-data`) | The board — every issue, comment, document, run | `paperclip-data` volume | Paperclip server, ~4-hourly, → off-box to Spaces by `paperclip-backup-offsite.py` | No — only copy of the board's history |
 
 ### Why OpenViking is NOT just a rebuildable cache
 
@@ -41,9 +42,12 @@ services):
 1. **Live volumes** on the Droplet (copy 1).
 2. **`/opt/backups`** on the Droplet — `pg-backup` + (pending) `viking-backup`
    dumps (copy 2, same box).
-3. **Off-box** — `/opt/backups` replicated to the Mac via Syncthing (copy 3,
-   different failure domain). **This is the highest-value gap today:** the pg
-   dumps currently die with the Droplet because nothing ships `/opt/backups` off-box.
+3. **Off-box** — two legs, one per artifact class (see §D):
+   `/opt/backups` → the Mac via Syncthing, and the Paperclip DB dumps → the
+   `agenticos-backups` Spaces bucket. The Paperclip leg was the long-standing
+   gap: those dumps live inside the `paperclip-data` docker volume, never in
+   `/opt/backups`, so Syncthing never saw them and every restore point of the
+   board was single-copy on one droplet (GOL-2769).
 
 > **Replication is not backup.** Syncthing propagates a bad delete or corruption
 > to the Mac just as faithfully as a good change. Pair it with **file
@@ -119,15 +123,186 @@ curl -fsS -X POST http://10.116.16.2:1933/api/v1/pack/restore \
   Syncthing GUI (Droplet GUI is on `tailscale0:8384`) so deletes/overwrites are
   recoverable — replication alone is not. *(Operator step — interactive.)*
 
-### D. Get `/opt/backups` off-box — the priority gap
+### D. Off-box copies — what is covered, and how
+
+There are **two** independent off-box stories here, because there are two
+different places dumps land. Getting them confused is how the Paperclip dumps
+went uncovered for months.
+
+| Artifact | Lives in | Off-box mechanism |
+|---|---|---|
+| `agenticos-*.sql.gz` (cost/task ledger), `openviking-*.ovpack` | `/opt/backups` | **Syncthing → Mac** (see D1) |
+| `paperclip-*.sql.gz` (**the board: every issue, comment, run**) | inside the `agenticos_paperclip-data` docker volume, at `<volume>/instances/*/data/backups/` | **DO Spaces `agenticos-backups`** (see D2) |
+
+The Paperclip dumps are **not** in `/opt/backups`, so they were never in the
+Syncthing path either. That was the priority gap; D2 closes it.
+
+#### D1. `/opt/backups` → the Mac, via Syncthing
 
 Add `/opt/backups` as a Syncthing folder shared to the Mac (send-only from the
-Droplet is fine). Then every `pg-backup` (and future `viking-backup`) artifact
-lands on the Mac automatically — the off-site leg of 3-2-1, at $0.
+Droplet is fine). Every `pg-backup` / `viking-backup` artifact then lands on the
+Mac automatically — the off-site leg of 3-2-1, at $0.
 
-*Operator step:* in the Droplet Syncthing GUI, **Add Folder** → path
-`/opt/backups`, share with the Mac device; accept on the Mac. (Folder-add is
-interactive; the classifier blocks agent-driven Syncthing reconfig.)
+*Operator step:* in the Droplet Syncthing GUI (`tailscale0:8384`), **Add
+Folder** → path `/opt/backups`, share with the Mac device; accept on the Mac.
+(Folder-add is interactive; the classifier blocks agent-driven Syncthing
+reconfig.)
+
+> **Replication is not backup.** Syncthing propagates a bad delete or corruption
+> to the Mac just as faithfully as a good change. Pair it with **Staggered File
+> Versioning** (§C) so there is a point-in-time undo.
+
+#### D2. Paperclip DB dumps → DO Spaces `agenticos-backups` (GOL-2769)
+
+**Where the copies live**
+
+```
+s3://agenticos-backups/            region nyc3, private, no CDN
+  paperclip/daily/<dump>              every completed dump      expire   7d
+  paperclip/weekly/<ISOYEAR>W<WW>/    first dump of each week   expire  60d
+  paperclip/monthly/<YYYY-MM>/        first dump of each month  expire 400d
+```
+
+Endpoint: `https://agenticos-backups.nyc3.digitaloceanspaces.com`.
+
+Retention off-box is enforced **only** by the bucket's lifecycle rules. The
+shipper never issues a DELETE — of a local dump or a remote object. It also
+never touches local retention, which remains the Paperclip server's job
+(`instance_settings.general.backupRetention`, currently `{dailyDays:3,
+weeklyWeeks:4, monthlyMonths:1}`). The monthly tier is deliberately ~13× the
+local monthly window so at least one monthly restore point always outlives
+anything the droplet still holds.
+
+**What ships, and what does not**
+
+`infra/scripts/paperclip-backup-offsite.py`, systemd timer
+`agenticos-paperclip-backup-offsite.timer`, every 30 minutes. A dump is
+uploaded only if **both** halves of one decompression pass succeed:
+
+1. `gzip -dc` exits 0 — the gzip CRC and length trailer are intact.
+2. the last **statement** in the decompressed stream is `COMMIT;`.
+
+Note "statement", not "line": Paperclip's dumper appends a
+`-- paperclip statement breakpoint <uuid>` separator after every statement, so a
+finished dump's last *line* is a comment. Matching the last line literally
+rejects 100% of real dumps — which is exactly what the first live run did before
+the gate learned to look past trailing comments.
+
+Bare `*.sql` files are never candidates at all: a dump that has not reached the
+gzip step is still being written (these are the multi-GB orphans from GOL-1632).
+
+**Idempotency.** Upload state is the bucket, never a local marker file — a
+marker would lie after a droplet rebuild, which is the exact scenario this job
+exists for. Each object is HEADed before upload and skipped when already present
+at the same byte length; week/month coverage is resolved with one
+`ListObjectsV2` per tier per run. Re-running is free.
+
+**Alerting.** Any upload failure, missing credential, or unexpected error pages
+`DISCORD_OPS_WEBHOOK_URL` — the same channel as the GOL-1632 backup-failure
+alert — throttled per reason (`REPAGE_MIN`, default 360m), and exits non-zero so
+systemd records it. A credential-less shipper pages rather than sitting quietly
+doing nothing.
+
+**Credentials.** `/opt/agenticos/.env`:
+
+```
+SPACES_BACKUP_ACCESS_KEY_ID=DO00…
+SPACES_BACKUP_SECRET_KEY=…
+```
+
+> **These must be the literal keys, not `op://` references.** `/opt/agenticos/.env`
+> is read raw — by the shipper, and by `docker compose --env-file`. Nothing runs
+> `op inject` over it. A line like
+> `SPACES_BACKUP_SECRET_KEY=op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key`
+> looks provisioned and provisions nothing: the shipper would sign with the
+> reference string and DigitalOcean would answer `403 SignatureDoesNotMatch`,
+> which reads like a revoked key. The shipper now rejects that shape by name and
+> pages Discord saying so, but the fix is to write real values. (Caught by Josh,
+> 2026-09-30, on the first draft of the snippet below.)
+
+Normally Terraform writes both lines for you — export
+`TF_VAR_backups_spaces_access_key_id` / `TF_VAR_backups_spaces_secret_key` and
+apply; cloud-init upserts them into `.env` on the next provision. Empty vars
+leave an existing `.env` untouched, so an apply without those exports can never
+de-provision a working shipper.
+
+To set them by hand on a live droplet without the secret ever reaching a
+terminal, a shell history, or a process argument list:
+
+```bash
+# On the droplet, as a user who can write /opt/agenticos/.env.
+# op read prints to stdout only; the values go straight into the file.
+sudo sed -i '/^SPACES_BACKUP_ACCESS_KEY_ID=/d;/^SPACES_BACKUP_SECRET_KEY=/d' /opt/agenticos/.env
+{
+  printf 'SPACES_BACKUP_ACCESS_KEY_ID=%s\n' \
+    "$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_access_key_id')"
+  printf 'SPACES_BACKUP_SECRET_KEY=%s\n' \
+    "$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key')"
+} | sudo tee -a /opt/agenticos/.env >/dev/null
+sudo chmod 600 /opt/agenticos/.env
+
+# Confirm without printing the secret: expect two lines, neither an op:// ref.
+grep -c '^SPACES_BACKUP_' /opt/agenticos/.env          # -> 2
+grep -c '^SPACES_BACKUP_.*op://' /opt/agenticos/.env   # -> 0
+sudo systemctl start paperclip-backup-offsite.service
+journalctl -u paperclip-backup-offsite.service -n 30 --no-pager
+```
+
+This is a DO **bucket-scoped** Spaces key (`agenticos-backups-rw`), `readwrite`
+on `agenticos-backups` and **nothing else** — it cannot reach
+`agenticos-tfstate`, `grove-tf-state`, `grove-odoo-backups`, or any Grove
+bucket. That scoping is the point: this credential sits on the box with the
+largest attack surface in the estate. Canonical copy in 1Password
+(`Goldberry Grove - Admin` / `AgenticOS Infra` / `backups_spaces_*`); also
+recoverable from Terraform state with
+`terraform -chdir=infra/terraform/backup-bucket output -raw backups_spaces_secret_key`.
+
+**The bucket and key are Terraform, not click-ops:** `infra/terraform/backup-bucket/`.
+
+```bash
+cd infra/terraform/backup-bucket
+op run --env-file=.env.op -- terraform plan     # expect: no changes
+```
+
+#### Restoring from an off-box copy
+
+```bash
+# 0. Credentials (operator machine):
+export AWS_ACCESS_KEY_ID="$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_access_key_id')"
+export AWS_SECRET_ACCESS_KEY="$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key')"
+
+# 1. Find the restore point you want.
+aws --endpoint-url https://nyc3.digitaloceanspaces.com \
+    s3 ls --recursive s3://agenticos-backups/paperclip/
+
+# 2. Pull it down.
+aws --endpoint-url https://nyc3.digitaloceanspaces.com \
+    s3 cp s3://agenticos-backups/paperclip/monthly/2026-09/paperclip-20260930-073020.sql.gz .
+
+# 3. Prove it before you trust it (gzip CRC + trailing COMMIT; + statement parse):
+infra/scripts/paperclip-backup-offsite.py --verify-restore --scratch-dir /tmp/restore
+
+# 4. Restore into the Paperclip database.
+gunzip < paperclip-<UTC>.sql.gz | \
+  ssh deploy@$DROPLET 'docker exec -i paperclip-db psql -U paperclip paperclip'
+```
+
+No `aws` CLI on hand? The shipper needs none — it signs SigV4 with the Python
+standard library, so `--verify-restore` alone will fetch and validate the newest
+off-box dump with no extra tooling.
+
+> **Restoring is destructive.** Restore into a scratch database first and
+> compare row counts before pointing the live server at anything.
+
+#### Where this does NOT help
+
+- It is a copy of the **dumps**, not of the running database. RPO is the
+  server's dump cadence (~4h) plus up to 30 minutes of shipper lag.
+- It does not cover `agenticos-db-data` or `openviking-data` — those are D1's
+  job via `/opt/backups`.
+- DO Droplet backups (`backups = true` on `agenticos_droplet`) are a separate,
+  weekly, whole-image safety net. Useful for total droplet loss, far too coarse
+  to be the restore point for the board.
 
 ## Restore drills — an untested backup is not a backup
 
@@ -147,6 +322,7 @@ Record the date + result here:
 | Date | Postgres | OpenViking | Vault | Notes |
 |------|----------|------------|-------|-------|
 | 2026-06-06 | ✅ restored to scratch pgvector (119 tasks, 2 calls, 2 sessions) | ✅ `unzip -t` OK; `files/user/deploy/memories/*` + manifest present | — | Drilled the **Mac off-site replica** (`~/AgenticOS-Backups`); both artifacts were the **unattended 04:00/04:30 timer runs** — so this also proved timer → dump → Syncthing off-site → restore end-to-end |
+| 2026-09-30 | ✅ **off-box Spaces copy** drilled end-to-end: uploaded `paperclip-20260930-073020.sql.gz` (310,145,905 B) to all three tiers, downloaded it back from `s3://agenticos-backups/paperclip/daily/`, gzip CRC ok, trailing `COMMIT;` present, statement parse 123 CREATE TABLE / 76 COPY / 312 CREATE INDEX / 366 ALTER TABLE | — | — | GOL-2769. This is the **Paperclip** DB, a different store from the 2026-06-06 row's `agenticos` DB. Reproduce with `infra/scripts/paperclip-backup-offsite.py --verify-restore` |
 
 ## Rotating `AGENTICOS_DB_PASSWORD` on an existing Droplet
 

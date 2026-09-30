@@ -4,6 +4,8 @@
 #   - agenticos-disk-guard.service/.timer     (daily df check + Discord + reclaim)
 #   - agenticos-paperclip-volume-guard.*      (hourly paperclip-data headroom +
 #                                              backup-freshness check → Discord; GOL-1632)
+#   - agenticos-paperclip-backup-offsite.*    (every 30m: ship completed Paperclip
+#                                              DB dumps to DO Spaces; GOL-2769)
 #   - agenticos-worktree-reaper.service/.timer (nightly reap of abandoned agent
 #                                              worktrees; GOL-1632 / #765)
 #   - journald cap                            (SystemMaxUse=200M drop-in + vacuum)
@@ -36,6 +38,7 @@ mkdir -p "${LOG_DIR}"
 # Make sure the reclaim scripts are executable (they ship from the repo clone).
 chmod +x "${REPO}/infra/scripts/docker-prune.sh" "${REPO}/infra/scripts/disk-guard.sh" \
          "${REPO}/infra/scripts/paperclip-volume-guard.sh" \
+         "${REPO}/infra/scripts/paperclip-backup-offsite.py" \
          "${REPO}/infra/scripts/worktree-reaper.sh" \
          "${REPO}/scripts/ops/reap-stale-worktrees.sh" 2>/dev/null || true
 
@@ -134,6 +137,53 @@ OnCalendar=*-*-* *:20:00
 Persistent=true
 RandomizedDelaySec=120
 Unit=agenticos-paperclip-volume-guard.service
+[Install]
+WantedBy=timers.target
+UNIT
+
+# --- paperclip off-box backup shipper: every 30 minutes (GOL-2769) ---
+# The volume guard above only notices that dumps are being WRITTEN. This ships
+# them OFF the droplet. Without it every retained Paperclip dump is single-copy
+# inside the paperclip-data volume — not in /opt/backups, therefore not in the
+# Syncthing off-site leg either — and a volume or droplet loss takes every
+# restore point of the board with it.
+#
+# Runs as root only because resolving the docker volume mountpoint needs docker
+# access, exactly like the volume guard. It never deletes anything: off-box
+# retention is enforced by the bucket's lifecycle rules
+# (infra/terraform/backup-bucket/).
+#
+# Credentials come from /opt/agenticos/.env:
+#   SPACES_BACKUP_ACCESS_KEY_ID / SPACES_BACKUP_SECRET_KEY
+# a DO Spaces key scoped readwrite to `agenticos-backups` and nothing else. If
+# they are absent the shipper exits 2 and pages the Discord ops webhook rather
+# than sitting quietly doing nothing — see the credential check at the bottom
+# of this script.
+write_file /etc/systemd/system/agenticos-paperclip-backup-offsite.service <<UNIT
+[Unit]
+Description=AgenticOS Paperclip DB dumps -> DO Spaces off-box copy (GOL-2769)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=${REPO}
+ExecStart=/bin/bash -lc '${REPO}/infra/scripts/paperclip-backup-offsite.py'
+StandardOutput=append:${LOG_DIR}/paperclip-backup-offsite.log
+StandardError=append:${LOG_DIR}/paperclip-backup-offsite.log
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+write_file /etc/systemd/system/agenticos-paperclip-backup-offsite.timer <<UNIT
+[Unit]
+Description=Ship completed Paperclip DB dumps off-box every 30m (GOL-2769)
+[Timer]
+OnCalendar=*-*-* *:05,35:00
+Persistent=true
+RandomizedDelaySec=120
+Unit=agenticos-paperclip-backup-offsite.service
 [Install]
 WantedBy=timers.target
 UNIT
@@ -243,6 +293,7 @@ echo "Reloading systemd + journald…"
 systemctl daemon-reload
 systemctl enable --now agenticos-docker-prune.timer agenticos-disk-guard.timer \
                        agenticos-paperclip-volume-guard.timer \
+                       agenticos-paperclip-backup-offsite.timer \
                        agenticos-worktree-reaper.timer
 
 # Apply the journald cap immediately (config alone only bounds future growth).
@@ -253,7 +304,36 @@ echo
 echo "Enabled. Scheduled runs:"
 systemctl list-timers 'agenticos-docker-prune.timer' 'agenticos-disk-guard.timer' \
                       'agenticos-paperclip-volume-guard.timer' \
+                      'agenticos-paperclip-backup-offsite.timer' \
                       'agenticos-worktree-reaper.timer' --no-pager || true
+
+# The off-box shipper is inert without its bucket-scoped Spaces key, and an
+# inert backup job is the exact failure mode this whole line of work exists to
+# end. Say so here, at install time, rather than letting the first page arrive
+# six hours later from a timer nobody is watching.
+#
+# Terraform normally writes these two lines itself (cloud-init upserts them from
+# TF_VAR_backups_spaces_*). This is the break-glass path for a live box.
+if ! grep -q '^SPACES_BACKUP_ACCESS_KEY_ID=' /opt/agenticos/.env 2>/dev/null; then
+  echo
+  echo "WARNING: SPACES_BACKUP_ACCESS_KEY_ID is not in /opt/agenticos/.env."
+  echo "  The off-box backup shipper will exit 2 and page Discord until it is."
+  echo "  Add the bucket-scoped key. It must be the LITERAL key: .env is read raw"
+  echo "  (by the shipper and by 'docker compose --env-file'), never through"
+  echo "  'op inject', so an op:// reference provisions nothing. Pipe it in:"
+  echo
+  echo "    {"
+  echo "      printf 'SPACES_BACKUP_ACCESS_KEY_ID=%s\\n' \\"
+  echo "        \"\$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_access_key_id')\""
+  echo "      printf 'SPACES_BACKUP_SECRET_KEY=%s\\n' \\"
+  echo "        \"\$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key')\""
+  echo "    } | sudo tee -a /opt/agenticos/.env >/dev/null"
+  echo
+  echo "  Confirm without printing the secret:"
+  echo "    grep -c '^SPACES_BACKUP_' /opt/agenticos/.env          # -> 2"
+  echo "    grep -c '^SPACES_BACKUP_.*op://' /opt/agenticos/.env   # -> 0"
+  echo "  Then smoke-test:  ${REPO}/infra/scripts/paperclip-backup-offsite.py --dry-run"
+fi
 echo
 echo "Smoke-test the reclaim now (root):"
 echo "  ${REPO}/infra/scripts/docker-prune.sh   # reclaims + prints df before/after"
