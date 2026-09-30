@@ -206,8 +206,46 @@ doing nothing.
 **Credentials.** `/opt/agenticos/.env`:
 
 ```
-SPACES_BACKUP_ACCESS_KEY_ID=…
+SPACES_BACKUP_ACCESS_KEY_ID=DO00…
 SPACES_BACKUP_SECRET_KEY=…
+```
+
+> **These must be the literal keys, not `op://` references.** `/opt/agenticos/.env`
+> is read raw — by the shipper, and by `docker compose --env-file`. Nothing runs
+> `op inject` over it. A line like
+> `SPACES_BACKUP_SECRET_KEY=op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key`
+> looks provisioned and provisions nothing: the shipper would sign with the
+> reference string and DigitalOcean would answer `403 SignatureDoesNotMatch`,
+> which reads like a revoked key. The shipper now rejects that shape by name and
+> pages Discord saying so, but the fix is to write real values. (Caught by Josh,
+> 2026-09-30, on the first draft of the snippet below.)
+
+Normally Terraform writes both lines for you — export
+`TF_VAR_backups_spaces_access_key_id` / `TF_VAR_backups_spaces_secret_key` and
+apply; cloud-init upserts them into `.env` on the next provision. Empty vars
+leave an existing `.env` untouched, so an apply without those exports can never
+de-provision a working shipper.
+
+To set them by hand on a live droplet without the secret ever reaching a
+terminal, a shell history, or a process argument list:
+
+```bash
+# On the droplet, as a user who can write /opt/agenticos/.env.
+# op read prints to stdout only; the values go straight into the file.
+sudo sed -i '/^SPACES_BACKUP_ACCESS_KEY_ID=/d;/^SPACES_BACKUP_SECRET_KEY=/d' /opt/agenticos/.env
+{
+  printf 'SPACES_BACKUP_ACCESS_KEY_ID=%s\n' \
+    "$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_access_key_id')"
+  printf 'SPACES_BACKUP_SECRET_KEY=%s\n' \
+    "$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key')"
+} | sudo tee -a /opt/agenticos/.env >/dev/null
+sudo chmod 600 /opt/agenticos/.env
+
+# Confirm without printing the secret: expect two lines, neither an op:// ref.
+grep -c '^SPACES_BACKUP_' /opt/agenticos/.env          # -> 2
+grep -c '^SPACES_BACKUP_.*op://' /opt/agenticos/.env   # -> 0
+sudo systemctl start paperclip-backup-offsite.service
+journalctl -u paperclip-backup-offsite.service -n 30 --no-pager
 ```
 
 This is a DO **bucket-scoped** Spaces key (`agenticos-backups-rw`), `readwrite`

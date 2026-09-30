@@ -58,6 +58,12 @@ the process environment, which wins. The key is a DO **bucket-scoped**
 ``agenticos-tfstate``, not any Grove bucket. See the GOL-2769 credential
 decision.
 
+``.env`` must hold the literal key. It is consumed raw -- by this script and by
+``docker compose --env-file`` -- and is never piped through ``op inject``, so a
+``SPACES_BACKUP_SECRET_KEY=op://Vault/Item/field`` line provisions nothing. The
+credential check below rejects that shape by name rather than letting it become
+a 403 that reads like a revoked key.
+
 FAILURE IS LOUD
 ---------------
 Any upload failure, credential problem, or integrity rejection pages the same
@@ -155,6 +161,25 @@ def resolve_credentials(env_file_vals: dict) -> tuple:
         "SPACES_BACKUP_SECRET_KEY", ""
     )
     return access.strip(), secret.strip()
+
+
+def is_unresolved_reference(value: str) -> bool:
+    """True when the value is 1Password reference TEXT rather than a secret.
+
+    `/opt/agenticos/.env` is consumed raw — by this script, and by
+    `docker compose --env-file` — so it must hold literal values. Write
+    `SPACES_BACKUP_SECRET_KEY=op://Vault/Item/field` into it (the natural thing
+    to do from a provisioning heredoc) and nothing resolves it: the shipper
+    would sign every request with the reference string and DigitalOcean would
+    answer 403 SignatureDoesNotMatch, which reads like a revoked key rather
+    than an unprovisioned one. Catch it at the credential boundary and say the
+    true thing instead. `op://` cannot occur inside a real key: Spaces ids are
+    alphanumeric and secrets are base64, and `:` is in neither alphabet.
+
+    See docs/runbooks/backup-and-recovery.md for the `op read` provisioning
+    form that pipes resolved values in without ever printing them.
+    """
+    return "op://" in value
 
 
 # --- Discord alerting (mirrors paperclip-volume-guard.sh) --------------------
@@ -716,6 +741,22 @@ def main() -> int:
 
     env_vals = load_env_file(ENV_FILE)
     access_key, secret_key = resolve_credentials(env_vals)
+    if is_unresolved_reference(access_key) or is_unresolved_reference(secret_key):
+        # Provisioned, but with reference text instead of a secret. Distinct
+        # message from "missing" because the fix is different: the operator
+        # thinks this is configured.
+        alert(
+            env_vals,
+            "offsite-credentials",
+            ":rotating_light: **agenticos-droplet** Paperclip off-box backup is NOT running: "
+            f"`SPACES_BACKUP_*` in `{ENV_FILE}` holds an unresolved 1Password reference "
+            "(`op://...`) rather than the key itself. `.env` is read raw — it is never piped "
+            "through `op inject`. Re-provision with the `op read` form in "
+            "docs/runbooks/backup-and-recovery.md. Every DB dump is single-copy on this "
+            "droplet until this is fixed (GOL-2769).",
+        )
+        log(f"ERROR: SPACES_BACKUP_* in {ENV_FILE} is an op:// reference, not a secret")
+        return 2
     if not access_key or not secret_key:
         # Fail loudly. A silently credential-less backup shipper is precisely the
         # "it looked fine for months" failure this job exists to prevent.

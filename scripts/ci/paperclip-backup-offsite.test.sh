@@ -414,6 +414,73 @@ OUT="$(env -u SPACES_BACKUP_ACCESS_KEY_ID -u SPACES_BACKUP_SECRET_KEY \
 check "no-credentials run exits 2" "$?" "2"
 contains "no-credentials run says why" "${OUT}" "credentials not found"
 
+# An `op://` reference in .env is PROVISIONED-LOOKING but worthless: nothing
+# runs `op inject` over /opt/agenticos/.env, so the shipper would sign with the
+# reference text and get a 403 that reads like a revoked key. It must name the
+# real problem instead.
+echo "== an unresolved 1Password reference is not a credential =="
+OUT="$(SPACES_BACKUP_ACCESS_KEY_ID='op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_access_key_id' \
+       SPACES_BACKUP_SECRET_KEY='op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key' \
+       python3 "${SHIPPER}" 2>&1)"
+check "op:// reference run exits 2" "$?" "2"
+contains "op:// reference run says it is a reference" "${OUT}" "op:// reference, not a secret"
+not_contains "op:// reference run did not try to upload" "${OUT}" "uploaded"
+
+echo "== cloud-init provisions SPACES_BACKUP_* into .env =="
+# The Terraform vars are threaded into templatefile(); prove the TEMPLATE
+# actually writes them, and honours the "empty = leave untouched" contract
+# documented in infra/terraform/variables.tf. Extracted from the real template
+# and executed, so it cannot drift from what boots the droplet.
+TPL="${REPO_ROOT}/infra/cloud-init/droplet-bootstrap.yaml.tpl"
+ENVF="${WORK}/agenticos.env"
+render_env_block() { # $1 = access key id, $2 = secret key
+  sed -n '/^ *# Off-box Paperclip backup shipper credentials/,/^ *fi$/p' "${TPL}" \
+    | sed -e "s|\${backups_spaces_access_key_id}|$1|g" \
+          -e "s|\${backups_spaces_secret_key}|$2|g" \
+          -e "s|/opt/agenticos/.env|${ENVF}|g"
+}
+check "the env block was found in the template" \
+  "$(render_env_block a b | grep -c 'SPACES_BACKUP_ACCESS_KEY_ID=')" "2"
+
+# Fresh droplet: both values present -> both lines written, literally.
+printf 'AGENTICOS_DB_PASSWORD=pw\n' >"${ENVF}"
+# A base64 secret can contain '/' and '+'; the writer must not mangle it.
+bash -c "$(render_env_block 'DO00EXAMPLEKEYID' 'b/a+se64==secret')" >/dev/null 2>&1
+check "access key id written verbatim" \
+  "$(grep -c '^SPACES_BACKUP_ACCESS_KEY_ID=DO00EXAMPLEKEYID$' "${ENVF}")" "1"
+check "base64 secret written verbatim (slashes and plusses survive)" \
+  "$(grep -c '^SPACES_BACKUP_SECRET_KEY=b/a+se64==secret$' "${ENVF}")" "1"
+check "unrelated .env lines untouched" \
+  "$(grep -c '^AGENTICOS_DB_PASSWORD=pw$' "${ENVF}")" "1"
+
+# Re-provision with a rotated key: correct in place, never duplicate.
+bash -c "$(render_env_block 'DO00ROTATED' 'rotated-secret')" >/dev/null 2>&1
+check "re-provision leaves exactly one access-key line" \
+  "$(grep -c '^SPACES_BACKUP_ACCESS_KEY_ID=' "${ENVF}")" "1"
+check "re-provision corrects the value" \
+  "$(grep -c '^SPACES_BACKUP_ACCESS_KEY_ID=DO00ROTATED$' "${ENVF}")" "1"
+check "re-provision leaves exactly one secret line" \
+  "$(grep -c '^SPACES_BACKUP_SECRET_KEY=' "${ENVF}")" "1"
+
+# Operator has not exported TF_VAR_backups_spaces_* -> an unrelated apply must
+# NOT de-provision a working shipper. This is the whole reason the block is
+# conditional instead of an unconditional upsert like the DB password.
+BEFORE_ENV="$(cat "${ENVF}")"
+bash -c "$(render_env_block '' '')" >/dev/null 2>&1
+check "empty vars leave a provisioned .env untouched" "$(cat "${ENVF}")" "${BEFORE_ENV}"
+
+# And an empty apply against a never-provisioned box writes nothing (rather
+# than writing empty values, which would defeat the shipper's own guard).
+printf 'AGENTICOS_DB_PASSWORD=pw\n' >"${ENVF}"
+bash -c "$(render_env_block '' '')" >/dev/null 2>&1
+check "empty vars write no empty SPACES_BACKUP_ lines" \
+  "$(grep -c '^SPACES_BACKUP_' "${ENVF}" || true)" "0"
+
+# The whole point of Josh's 2026-09-30 catch: the template must never hand the
+# shipper reference text. Belt-and-braces against a future edit.
+not_contains "the template writes literals, never op:// references" \
+  "$(render_env_block 'DO00K' 'sEcret')" "SPACES_BACKUP_ACCESS_KEY_ID=op://"
+
 echo "== MAX_UPLOADS caps a run =="
 rm -rf "${WORK}/bucket"; mkdir -p "${WORK}/bucket"
 kill "${SERVER_PID}" 2>/dev/null; wait "${SERVER_PID}" 2>/dev/null
