@@ -13,7 +13,8 @@
  * This guard closes that hole. It collects every custom property *defined*
  * anywhere under apps/dashboard (CSS declarations and inline style objects)
  * and every fallback-less `var(--name)` *reference*, then fails on references
- * with no definition.
+ * with no definition. Comments are blanked out first, so a commented-out
+ * declaration cannot pass itself off as a definition.
  *
  * A `var(--name, fallback)` reference is exempt by design: the fallback is the
  * author declaring the name may be absent (e.g. `var(--font-jetbrains-mono,
@@ -28,6 +29,28 @@ const EXTENSIONS = [".css", ".ts", ".tsx"];
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "build", ".turbo"]);
 
 /**
+ * Blank out comments, preserving every byte offset and newline so reported line
+ * numbers stay accurate.
+ *
+ * Why this is not optional: a commented-out declaration used to register as a
+ * *definition*, which silently switched the guard off for exactly the token it
+ * was written to protect. `/* --border: #2e2925; retired *\/` left every
+ * `var(--border)` in the tree unflagged — GOL-2650 all over again, now with a
+ * green check over it. Retiring a token by commenting it out is the single most
+ * likely way this guard gets defeated, so it has to see through comments.
+ *
+ * Block comments are comments in both CSS and TS/TSX. Line comments are TS/TSX
+ * only; the `[^:"'\\]` lookbehind keeps `https://…` and `"//cdn/x.png"` intact
+ * (CSS has no `//` comment, so stripping one there would be a false positive).
+ */
+export function stripComments(source) {
+  const blank = (text) => text.replace(/[^\n]/g, " ");
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/(^|[^:"'\\])\/\/[^\n]*/g, (m, lead) => lead + blank(m.slice(lead.length)));
+}
+
+/**
  * Every custom property this source *defines*:
  *   - CSS declarations           `--surface: #1a1714;`
  *   - inline style objects       `{ "--normal-bg": "var(--surface)" }`
@@ -38,7 +61,8 @@ const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "build", ".turbo"]);
  * correct. Recognising the declaration keeps the guard honest without an
  * allowlist — a hole that only ever grows.
  */
-export function collectDefinitions(source) {
+export function collectDefinitions(rawSource) {
+  const source = stripComments(rawSource);
   const names = new Set();
   for (const m of source.matchAll(/(?:^|[\s;{(])(--[A-Za-z0-9_-]+)\s*:/g)) names.add(m[1]);
   for (const m of source.matchAll(/["'](--[A-Za-z0-9_-]+)["']\s*:/g)) names.add(m[1]);
@@ -50,7 +74,8 @@ export function collectDefinitions(source) {
  * Every fallback-less `var(--name)` reference, with its 1-indexed line.
  * `var(--name, fallback)` is intentionally skipped.
  */
-export function collectReferences(source) {
+export function collectReferences(rawSource) {
+  const source = stripComments(rawSource);
   const refs = [];
   for (const m of source.matchAll(/var\(\s*(--[A-Za-z0-9_-]+)\s*\)/g)) {
     refs.push({ name: m[1], line: source.slice(0, m.index).split("\n").length });

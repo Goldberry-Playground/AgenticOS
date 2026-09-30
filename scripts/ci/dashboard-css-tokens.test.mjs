@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { auditDirectory, collectDefinitions, collectReferences } from "./dashboard-css-tokens.mjs";
+import { auditDirectory, collectDefinitions, collectReferences, stripComments } from "./dashboard-css-tokens.mjs";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DASHBOARD = join(REPO_ROOT, "apps", "dashboard");
@@ -27,6 +27,31 @@ function test(name, fn) {
     console.error(`  FAIL ${name}\n       ${err.message}`);
   }
 }
+
+console.log("stripComments");
+
+test("a commented-out declaration is NOT a definition", () => {
+  // The blind spot this closes: retiring a token by commenting it out used to
+  // register --border as defined, so every live var(--border) went unflagged.
+  assert.equal(collectDefinitions("/* --border: #2e2925; retired */").has("--border"), false);
+  assert.equal(collectDefinitions("// borderColor: \"var(--border)\",").has("--border"), false);
+});
+
+test("a commented-out reference is NOT a live reference", () => {
+  assert.deepEqual(collectReferences("/* borderColor: var(--border) */"), []);
+});
+
+test("keeps line numbers stable while blanking comments", () => {
+  const src = '/* line one\n   line two */\n.x { color: var(--nope); }';
+  assert.deepEqual(collectReferences(src), [{ name: "--nope", line: 3 }]);
+});
+
+test("does not mistake a URL or a quoted path for a line comment", () => {
+  // CSS has no `//` comment; eating one would blank real declarations and red
+  // CI on a false positive, which is worse than the hole it closes.
+  assert.ok(stripComments("background: url(https://cdn/x.png); --a: 1;").includes("--a: 1"));
+  assert.ok(collectDefinitions('a { background: url("//cdn/x.png"); --b: 2; }').has("--b"));
+});
 
 console.log("collectDefinitions");
 
