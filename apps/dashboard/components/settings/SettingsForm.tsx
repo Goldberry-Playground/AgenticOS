@@ -210,7 +210,7 @@ export function SettingsForm({ initialConfig }: Props) {
       </section>
 
       {/* ── Save ─────────────────────────────────────────────── */}
-      <div className="flex gap-3 pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="flex gap-3 pt-2 border-t" style={{ borderColor: "var(--border-subtle)" }}>
         <Button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
         </Button>
@@ -247,7 +247,7 @@ function FolderPickerButton() {
       title="Native folder picker — available in Phase 6"
       className="inline-flex items-center justify-center size-8 rounded-md border transition-colors"
       style={{
-        borderColor: "var(--border)",
+        borderColor: "var(--border-brand)",
         color: "var(--text-muted)",
         backgroundColor: "transparent",
       }}
@@ -272,7 +272,7 @@ function ProjectRootRow({ root, index, onUpdate, onRemove, error }: ProjectRootR
   return (
     <div
       className="flex flex-col gap-2 p-3 rounded-lg border"
-      style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}
+      style={{ borderColor: "var(--border-brand)", backgroundColor: "var(--surface)" }}
     >
       <div className="flex gap-2 items-center">
         <Input
@@ -343,7 +343,7 @@ function ModelRow({
         className="flex-1 h-8 rounded-md border px-2.5 text-sm font-mono transition-colors outline-none"
         style={{
           backgroundColor: "var(--surface-muted)",
-          borderColor: "var(--border)",
+          borderColor: "var(--border-brand)",
           color: "var(--text)",
         }}
       >
