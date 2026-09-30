@@ -6,9 +6,36 @@
 # for the full rationale, the `pull_request` (not `workflow_run`) security
 # reasoning, and the GITHUB_TOKEN re-trigger limitation (identical here).
 #
-# Guardrails: same-repo agent-authored PRs only; one autofix commit per push
-# (skips if the head commit is already a "[ci-autofix]" commit); no-op if the
-# fixers leave no diff. Node steps no-op until the monorepo is bootstrapped.
+# GOL-2694 extends this to Dependabot PRs with ONE extra fixer: regenerate the
+# committed `packages/*/dist/**` plugin bundles. Those bundles are the deployed
+# artifact (docker-compose bind-mounts `packages/<p>`, GOL-2585/GOL-2591), so
+# the GOL-2612 stale-dist guard (#717) reds any PR whose committed dist does not
+# match a fresh build — and a dependency bump that moves a BUNDLED dep moves the
+# dist. Until GOL-2694's normalizer landed that was true of every bump; now it is
+# only true of bumps that genuinely change code, which is the residual this step
+# covers. The guard is NOT touched: this makes the artifact correct, it never
+# silences the check.
+#
+# Guardrails: same-repo agent- or Dependabot-authored PRs only; one autofix
+# commit per push (skips if the head commit is already a "[ci-autofix]" commit);
+# no-op if the fixers leave no diff. Node steps no-op until the monorepo is
+# bootstrapped. Dependabot PRs get ONLY the dist rebuild — never `eslint --fix`
+# or `vitest -u`, which on a dependency bump would quietly rewrite source and
+# snapshots that nobody asked to change.
+#
+# TWO KNOWN LIMITATIONS, both logged loudly at runtime rather than hidden:
+#
+#  1. GITHUB_TOKEN pushes do not re-trigger `pull_request` checks. The fix
+#     commit lands but `Build` stays red until a maintainer hits "Re-run" (or
+#     Dependabot pushes again). This turns "rebuild by hand" into "click
+#     Re-run" — better, not solved. Solving it needs a GitHub App token in
+#     repo secrets, which is a credential change for the board to approve.
+#  2. GitHub may hand Dependabot-triggered workflows a READ-ONLY GITHUB_TOKEN
+#     regardless of the `permissions:` block above. If that is what this repo
+#     does, the push below 403s. The step treats that as a warning with
+#     instructions, not a job failure, so the first real Dependabot bundled-dep
+#     bump tells us definitively which world we are in without also burying the
+#     PR under a red check that is not about the dependency.
 name: CI autofix
 
 on:
@@ -36,16 +63,22 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 2
 
-      - name: Gate (agent author + loop guard)
+      - name: Gate (bot author + loop guard)
         id: gate
         env:
           AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
+          # `mode` decides WHICH fixers run. Keep these disjoint: a dependency
+          # bump must not smuggle in lint/snapshot rewrites, and an agent PR
+          # does not need a full `pnpm -w build`.
           case "$AUTHOR" in
-            agenticos-developer|agenticos-developer[bot]|app/agenticos-developer) ;;
+            agenticos-developer|'agenticos-developer[bot]'|app/agenticos-developer)
+              echo "mode=agent" >> "$GITHUB_OUTPUT" ;;
+            dependabot|'dependabot[bot]'|app/dependabot)
+              echo "mode=deps" >> "$GITHUB_OUTPUT" ;;
             *)
-              echo "PR author '$AUTHOR' is not the agent App bot; skipping."
+              echo "PR author '$AUTHOR' is neither the agent App bot nor Dependabot; skipping."
               echo "proceed=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
           esac
           LAST_MSG=$(git log -1 --pretty=%s)
@@ -67,7 +100,7 @@ jobs:
           cache: pnpm
 
       - name: Apply mechanical fixes (eslint --fix + vitest snapshot update)
-        if: steps.gate.outputs.proceed == 'true'
+        if: steps.gate.outputs.proceed == 'true' && steps.gate.outputs.mode == 'agent'
         run: |
           if [ ! -f package.json ]; then
             echo "No package.json yet (Phase 0) — nothing to autofix."
@@ -77,22 +110,59 @@ jobs:
           pnpm -w lint -- --fix || true
           pnpm -w test -- -u || true
 
+      - name: Rebuild committed plugin dist/ (dependency bumps only)
+        if: steps.gate.outputs.proceed == 'true' && steps.gate.outputs.mode == 'deps'
+        run: |
+          set -euo pipefail
+          if [ ! -f package.json ]; then
+            echo "No package.json yet (Phase 0) — nothing to rebuild."
+            exit 0
+          fi
+          # Exactly what the `Build` job runs, so what lands here is exactly what
+          # the guard will next compare against. `--prod=false` because the
+          # plugins' `build` shells straight out to esbuild, which is a
+          # devDependency: under NODE_ENV=production the install silently omits
+          # it and the build dies `127: esbuild: command not found` (GOL-2694).
+          pnpm install --frozen-lockfile --prod=false
+          pnpm -w build
+
       - name: Commit & push one fix commit (or skip if clean)
         if: steps.gate.outputs.proceed == 'true'
         env:
           HEAD_REF: ${{ github.head_ref }}
+          MODE: ${{ steps.gate.outputs.mode }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          if [ "$MODE" = "deps" ]; then
+            # Stage ONLY the built artifact. A dependency bump has no business
+            # rewriting anything else, and `git add -A` here would sweep in any
+            # stray build output. The `:(glob)` magic prefix is REQUIRED — a
+            # bare 'packages/*/dist' pathspec matches nothing (git does not
+            # expand `*` across `/` for a bare directory pathspec), which would
+            # silently stage zero files and make this a no-op.
+            git add -- ':(glob)packages/*/dist/**'
+            SUBJECT="chore(deps): rebuild committed plugin dist for the bumped dependency [ci-autofix]"
+            BODY="The plugin dist/ bundles are the deployed artifact, so a bundled-dependency bump must ship a matching rebuild or the GOL-2612 stale-dist guard reds the PR (GOL-2694)."
+          else
+            git add -A
+            SUBJECT="chore(ci): apply mechanical lint/format/snapshot fixes [ci-autofix]"
+            BODY="Automated bounded self-heal for an agent PR. One commit per push (GOL-308)."
+          fi
           if git diff --cached --quiet; then
             echo "No mechanical fixes to apply — non-mechanical failure, leaving for the CI failure router (E1)."
             exit 0
           fi
           git commit \
-            -m "chore(ci): apply mechanical lint/format/snapshot fixes [ci-autofix]" \
-            -m "Automated bounded self-heal for an agent PR. One commit per push (GOL-308)." \
+            -m "$SUBJECT" \
+            -m "$BODY" \
             -m "Co-authored-by: Paperclip <noreply@paperclip.ing>"
-          git push origin "HEAD:$HEAD_REF"
-          echo "::notice::Pushed one [ci-autofix] commit to $HEAD_REF. NOTE: GITHUB_TOKEN pushes do not re-trigger pull_request checks — the next agent push or a maintainer 'Re-run' will re-validate."
+          # Limitation 2: Dependabot-triggered workflows can be handed a
+          # read-only GITHUB_TOKEN. Say so and stop; do not red the PR with a
+          # failure that is not about the dependency.
+          if ! git push origin "HEAD:$HEAD_REF"; then
+            echo "::warning::Could not push the [ci-autofix] commit to $HEAD_REF — the GITHUB_TOKEN for this run is most likely read-only (GitHub restricts it for Dependabot-triggered workflows). Rebuild by hand: 'pnpm install --frozen-lockfile --prod=false && pnpm -w build', then commit packages/*/dist. Tracked on GOL-2694."
+            exit 0
+          fi
+          echo "::notice::Pushed one [ci-autofix] commit to $HEAD_REF. NOTE (limitation 1): GITHUB_TOKEN pushes do not re-trigger pull_request checks — a maintainer 'Re-run' (or the next push) is needed to turn Build green."

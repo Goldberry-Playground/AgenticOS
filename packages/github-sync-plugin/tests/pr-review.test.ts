@@ -6,18 +6,24 @@ import {
   buildReReviewPing,
   buildReviewIssueBody,
   buildReviewIssuesCreatedPing,
+  buildSelfReviewSkipPing,
   buildSignoffPing,
   CHECK_CONTEXT,
   classifyHeadChange,
+  collectAuthorSignals,
   decideReviewAction,
   DEFAULT_FRONTEND_PATHS,
+  filterSelfAuthoredReviewers,
   globToRegExp,
   isActionablePrAction,
   isNullBodyStatusError,
+  isSelfAuthored,
   parseGithubPrEvent,
   prReviewMarker,
+  REQUIRED_REVIEWER,
   shortSha,
   type GithubPrEvent,
+  type ReviewerAssignment,
 } from "../src/pr-review.js";
 import { verifyGithubSignature } from "../src/inbound.js";
 
@@ -272,5 +278,94 @@ describe("classifyHeadChange", () => {
         head: { parents: ["beforesha", "b", "c"], committerLogin: "web-flow" },
       }),
     ).toBe("author-work");
+  });
+});
+
+describe("self-review guard (GOL-2720)", () => {
+  const ADA = "ada-agent-uuid";
+  const IRIS = "iris-agent-uuid";
+  const bothReviewers: ReviewerAssignment[] = [
+    { reviewer: "ada", agentId: ADA },
+    { reviewer: "iris", agentId: IRIS },
+  ];
+  const identities = {
+    ada: ["ada@goldberrygrove.farm"],
+    iris: ["iris@goldberrygrove.farm", "Frontend - Iris"],
+  };
+
+  describe("collectAuthorSignals", () => {
+    it("collects + normalizes emails, names and logins across commits, plus the opener login", () => {
+      const signals = collectAuthorSignals(
+        [
+          { email: "Iris@GoldberryGrove.Farm", name: "Frontend - Iris", login: "agenticos-developer[bot]" },
+          { email: "", name: "  ", login: "" },
+        ],
+        "AgenticOS-Developer[bot]",
+      );
+      expect(signals.has("iris@goldberrygrove.farm")).toBe(true);
+      expect(signals.has("frontend - iris")).toBe(true);
+      expect(signals.has("agenticos-developer[bot]")).toBe(true);
+      // empty facets dropped, not added as ""
+      expect(signals.has("")).toBe(false);
+    });
+  });
+
+  describe("isSelfAuthored", () => {
+    const signals = collectAuthorSignals([
+      { email: "iris@goldberrygrove.farm", name: "Frontend - Iris", login: "" },
+    ]);
+    it("is true when a configured identity matches (case-insensitive)", () => {
+      expect(isSelfAuthored("iris", identities, signals)).toBe(true);
+    });
+    it("is false for a reviewer who did not author", () => {
+      expect(isSelfAuthored("ada", identities, signals)).toBe(false);
+    });
+    it("is false when no identities are configured (guard inert)", () => {
+      expect(isSelfAuthored("iris", undefined, signals)).toBe(false);
+      expect(isSelfAuthored("iris", {}, signals)).toBe(false);
+    });
+  });
+
+  describe("filterSelfAuthoredReviewers", () => {
+    it("skips a supplementary self-author (Iris) when the required reviewer is independent", () => {
+      const { toReview, skipped } = filterSelfAuthoredReviewers(bothReviewers, (r) => r === "iris");
+      expect(toReview.map((r) => r.reviewer)).toEqual(["ada"]);
+      expect(skipped).toEqual([{ reviewer: "iris", coveredBy: REQUIRED_REVIEWER }]);
+    });
+
+    it("never skips the required reviewer, even when Ada authored (single-lead model)", () => {
+      const { toReview, skipped } = filterSelfAuthoredReviewers(bothReviewers, (r) => r === "ada");
+      // Ada (required) is kept; Iris is not an author, so kept too.
+      expect(toReview.map((r) => r.reviewer)).toEqual(["ada", "iris"]);
+      expect(skipped).toEqual([]);
+    });
+
+    it("does NOT skip Iris when the required reviewer is ALSO an author (no independent coverage)", () => {
+      const { toReview, skipped } = filterSelfAuthoredReviewers(bothReviewers, () => true);
+      expect(toReview.map((r) => r.reviewer)).toEqual(["ada", "iris"]);
+      expect(skipped).toEqual([]);
+    });
+
+    it("keeps everyone when nobody authored the PR", () => {
+      const { toReview, skipped } = filterSelfAuthoredReviewers(bothReviewers, () => false);
+      expect(toReview).toEqual(bothReviewers);
+      expect(skipped).toEqual([]);
+    });
+
+    it("keeps a lone required reviewer even if flagged as author (never wedge the required check)", () => {
+      const only: ReviewerAssignment[] = [{ reviewer: "ada", agentId: ADA }];
+      const { toReview, skipped } = filterSelfAuthoredReviewers(only, () => true);
+      expect(toReview).toEqual(only);
+      expect(skipped).toEqual([]);
+    });
+  });
+
+  describe("buildSelfReviewSkipPing", () => {
+    it("names the skipped reviewer, its author status, and the covering reviewer", () => {
+      const ev = parseGithubPrEvent(prEvent()) as GithubPrEvent;
+      const ping = buildSelfReviewSkipPing(ev, [{ reviewer: "iris", coveredBy: "ada" }]);
+      expect(ping).toContain("self-review skipped");
+      expect(ping).toContain("iris (author) → covered by ada");
+    });
   });
 });

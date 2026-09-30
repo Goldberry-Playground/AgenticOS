@@ -286,7 +286,27 @@ const manifest: PaperclipPluginManifestV1 = {
   //   heartbeat (last-alive, this process's boot time, stale flag). Detection/respawn at
   //   the host boundary is DevOps (Terra) — GOL-2287 Part A/B. Reuses jobs.schedule +
   //   database.namespace.*; adds migration 007 under the existing `database` block.
-  version: "0.16.9",
+  // 0.17.0 = self-review guard (GOL-2720). The reviewer set was decided purely by
+  //   changed-file type (Ada always; Iris on a frontend glob) and never checked WHO
+  //   wrote the PR, so an agent who is the sole reviewer for a file type they also
+  //   write was handed a review twin for their own commits — Iris, Grove's only
+  //   frontend engineer, minted an `agent-review/iris` self-review on every frontend
+  //   PR she authored, and the coupled ada+iris gate forced a choice between a false
+  //   green and a wedged PR (grove-sites#875 / GOL-2718). All agent PRs share one App
+  //   opener login, so the git commit author (name/email) is the discriminating
+  //   signal, read via a new GitHubClient.listPullCommitAuthors (`pulls/{n}/commits`,
+  //   reuses pull_requests:read). A new OPTIONAL config field prReviewAuthorIdentities
+  //   maps reviewer slug → author identities; when a SUPPLEMENTARY reviewer (Iris)
+  //   authored the PR and the required reviewer (Ada) is independent, Iris's twin is
+  //   skipped — Ada reviews independently and the gate greens on Ada alone (no Iris
+  //   twin ⇒ irisPresent=false ⇒ nothing wedges, no self-signed check). The required
+  //   reviewer is never skipped (dropping it strands the required check); a
+  //   required-reviewer self-review is the single-lead model, out of scope. Applied
+  //   identically on the webhook path AND the reconcile sweep. Fails SAFE: a
+  //   commit-fetch failure/truncation leaves every reviewer in place. Unset config ⇒
+  //   guard inert (behaviour unchanged). No new capability, no migration; manifest
+  //   surface adds one optional config field.
+  version: "0.17.0",
   displayName: "GitHub Sync",
   description:
     "Bidirectional issue sync between Paperclip and GitHub. Paperclip → GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub → Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo↔project bridges across orgs.",
@@ -584,6 +604,16 @@ const manifest: PaperclipPluginManifestV1 = {
         description:
           "Changed-file globs that trigger a second (Iris) frontend review. Supports `*` (within a segment) and `**` (across segments). Defaults to [\"apps/dashboard/**\", \"**/*.tsx\", \"**/*.css\"] when empty.",
         items: { type: "string" },
+      },
+      prReviewAuthorIdentities: {
+        type: "object",
+        title: "PR review — per-reviewer author identities (self-review guard, GOL-2720)",
+        description:
+          "Maps a reviewer slug to the git commit author names/emails (and optional PR-opener logins) that mark a PR as authored by that reviewer's agent. When a SUPPLEMENTARY reviewer (Iris) authored the PR and the required reviewer (Ada) is independent, Iris's self-review twin is skipped — Ada reviews independently and the coupled gate greens on Ada alone, so no self-signed `agent-review/iris` = success is ever posted. All agent PRs share one App opener login, so the git commit author is the discriminating signal. The required reviewer (Ada) is never skipped. Matched case-insensitively. Leave empty to disable the guard (behaviour unchanged). Example: {\"iris\":[\"iris@goldberrygrove.farm\",\"Frontend - Iris\"],\"ada\":[\"ada@goldberrygrove.farm\"]}.",
+        properties: {
+          ada: { type: "array", items: { type: "string" } },
+          iris: { type: "array", items: { type: "string" } },
+        },
       },
       ciAgentPrAuthor: {
         type: "string",

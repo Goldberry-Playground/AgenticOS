@@ -101,10 +101,25 @@ test.describe("settings model-tier selects", () => {
       // getBoundingClientRect rather than locator.boundingBox(): Playwright
       // returns null for a <select> here, and the viewport-relative rect is
       // exactly what "is the right edge on screen" needs anyway.
-      const box = await select.evaluate((el) => {
-        const r = el.getBoundingClientRect();
-        return { right: Math.round(r.right), height: Math.round(r.height) };
-      });
+      //
+      // Poll for a laid-out box first. `/settings` still throws a hydration
+      // error in CI (GOL-2653, a live clock in the KPI banner), and React
+      // regenerates the tree when it recovers — measure inside that window and
+      // every rect reads 0. A zero height is never a real 2.5.8 violation, but
+      // it failed as one, with a message that sent you hunting a CSS bug that
+      // was not there. Assert on a box that exists, so the failure means what
+      // it says.
+      const measure = () =>
+        select.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return { right: Math.round(r.right), height: Math.round(r.height) };
+        });
+      await expect
+        .poll(async () => (await measure()).height, {
+          message: `select ${i} never laid out (height stayed 0)`,
+        })
+        .toBeGreaterThan(0);
+      const box = await measure();
       expect(
         box.right,
         `select ${i} right edge is off-screen`,
@@ -128,5 +143,132 @@ test.describe("settings model-tier selects", () => {
       ring.boxShadow !== "none" || ring.outline !== "none",
       `focused select has no visible ring: ${JSON.stringify(ring)}`,
     ).toBe(true);
+  });
+});
+
+/**
+ * GOL-2707 — the Phase-6 folder picker must stay inert.
+ *
+ * It regressed twice from the same root cause: it is an icon-only `<button>`
+ * with no `onClick`, so it looked like a control and behaved like nothing. As
+ * long as it was *enabled* it took a keyboard tab stop that led nowhere, and
+ * WCAG 1.4.11 applied to its boundary — which it failed in both themes, at
+ * 1.76:1 dark / 1.44:1 light on `--border-brand`. There is no border token to
+ * re-point it to: `--border-strong`, the strongest in the palette, only reaches
+ * 2.81:1 on the dark page and 2.25:1 on a card (that gap is GOL-2673).
+ *
+ * So the contract this test pins is *inertness*, not a contrast number:
+ * disabled controls are exempt from 1.4.11, and the exemption is only honest
+ * while the control really is disabled. If someone re-enables the button when
+ * Phase 6 lands, this fails and forces the boundary question to be answered.
+ *
+ * It also pins the rank of the two icon buttons in a project-root row. The live
+ * ✕ must not sit on `--text-muted` — the palette's own "placeholders, disabled"
+ * step, and what the inert picker uses — or the two read as peers.
+ */
+test.describe("settings folder picker (Phase 6 placeholder)", () => {
+  test.slow();
+
+  const relLuminance = ([r, g, b]: number[]) => {
+    const f = (v: number) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const contrast = (a: number[], b: number[]) => {
+    const [hi, lo] = [relLuminance(a), relLuminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  const rgb = (s: string) => (s.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+
+  test("is disabled, out of the tab order, and outranked by the live ✕", async ({
+    page,
+  }) => {
+    await page.goto("/settings", { waitUntil: "load" });
+    await page.evaluate(() => document.fonts.ready);
+
+    // A project-root row renders the picker next to the live ✕; the Vault Path
+    // row renders it alone. Both must be inert.
+    const addRoot = page.getByRole("button", { name: /Add project root/i });
+    const pickers = page.locator('button[aria-label^="Pick folder"]');
+
+    // GOL-2791: `/settings` still throws a hydration error in CI (GOL-2653, a
+    // live clock in the KPI banner), and React regenerates the tree when it
+    // recovers. Until the button is hydrated it is inert server HTML with no
+    // click handler, so a click dispatched inside that window is dropped — no
+    // row is appended and the count stays at 1 (the lone Vault Path picker).
+    // `toHaveCount(2)` retries the assertion but cannot recover a lost click,
+    // which is why this flaked red on PR #768. Retry the click itself until the
+    // project-root row materialises; the `< 2` guard reads the committed count
+    // at the top of each attempt, so a click that lands post-hydration can
+    // never append a duplicate row.
+    await expect(async () => {
+      if ((await pickers.count()) < 2) await addRoot.click();
+      expect(await pickers.count()).toBe(2);
+    }).toPass({ timeout: 15000 });
+
+    for (let i = 0; i < 2; i++) {
+      const picker = pickers.nth(i);
+      await expect(picker).toBeDisabled();
+      // No boundary at all beats a boundary under the 1.4.11 floor.
+      const border = await picker.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { style: cs.borderTopStyle, width: parseFloat(cs.borderTopWidth) };
+      });
+      expect(
+        border.style === "none" || border.width === 0,
+        `picker ${i} draws a boundary (${JSON.stringify(border)}); ` +
+          "no border token clears 3:1 in dark — see GOL-2673",
+      ).toBe(true);
+    }
+
+    // Tabbing forward out of the path field must land on the ✕, not the picker
+    // that sits between them in the DOM.
+    await page.locator('[aria-label="Project root 1 path"]').focus();
+    await page.keyboard.press("Tab");
+    await expect(
+      page.locator('button[aria-label="Remove project root"]'),
+    ).toBeFocused();
+
+    // Rank: the live control must be the higher-contrast of the two.
+    const weights = await page.evaluate(() => {
+      const behind = (el: Element) => {
+        let n = el.parentElement;
+        while (n) {
+          const b = getComputedStyle(n).backgroundColor;
+          if (b && !/rgba\(0, 0, 0, 0\)|transparent/.test(b)) return b;
+          n = n.parentElement;
+        }
+        return getComputedStyle(document.body).backgroundColor;
+      };
+      const read = (sel: string) => {
+        const el = document.querySelector(sel)!;
+        const cs = getComputedStyle(el);
+        return { color: cs.color, opacity: parseFloat(cs.opacity), bg: behind(el) };
+      };
+      return {
+        picker: read('button[aria-label^="Pick folder"]'),
+        remove: read('button[aria-label="Remove project root"]'),
+      };
+    });
+    const ratioOf = (w: { color: string; opacity: number; bg: string }) => {
+      const bg = rgb(w.bg);
+      const painted = rgb(w.color).map((v, i) => v * w.opacity + bg[i] * (1 - w.opacity));
+      return contrast(painted, bg);
+    };
+    const pickerRatio = ratioOf(weights.picker);
+    const removeRatio = ratioOf(weights.remove);
+
+    // The ✕ is a live icon-only control, so 1.4.11 does apply to it.
+    expect(
+      removeRatio,
+      `live ✕ glyph is ${removeRatio.toFixed(2)}:1 against ${weights.remove.bg}`,
+    ).toBeGreaterThanOrEqual(3);
+    expect(
+      removeRatio,
+      `live ✕ (${removeRatio.toFixed(2)}:1) must outrank the inert picker ` +
+        `(${pickerRatio.toFixed(2)}:1) — see GOL-2707`,
+    ).toBeGreaterThan(pickerRatio * 1.5);
   });
 });

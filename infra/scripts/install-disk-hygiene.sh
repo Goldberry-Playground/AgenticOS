@@ -6,6 +6,8 @@
 #                                              backup-freshness check → Discord; GOL-1632)
 #   - agenticos-paperclip-backup-offsite.*    (every 30m: ship completed Paperclip
 #                                              DB dumps to DO Spaces; GOL-2769)
+#   - agenticos-worktree-reaper.service/.timer (nightly reap of abandoned agent
+#                                              worktrees; GOL-1632 / #765)
 #   - journald cap                            (SystemMaxUse=200M drop-in + vacuum)
 #   - logrotate                               (container + /var/log/agenticos logs
 #                                              + paperclip server.log; GOL-1632)
@@ -36,7 +38,9 @@ mkdir -p "${LOG_DIR}"
 # Make sure the reclaim scripts are executable (they ship from the repo clone).
 chmod +x "${REPO}/infra/scripts/docker-prune.sh" "${REPO}/infra/scripts/disk-guard.sh" \
          "${REPO}/infra/scripts/paperclip-volume-guard.sh" \
-         "${REPO}/infra/scripts/paperclip-backup-offsite.py" 2>/dev/null || true
+         "${REPO}/infra/scripts/paperclip-backup-offsite.py" \
+         "${REPO}/infra/scripts/worktree-reaper.sh" \
+         "${REPO}/scripts/ops/reap-stale-worktrees.sh" 2>/dev/null || true
 
 write_file() { # $1 = dest path; body on stdin
   cat >"$1"
@@ -184,6 +188,44 @@ Unit=agenticos-paperclip-backup-offsite.service
 WantedBy=timers.target
 UNIT
 
+# --- worktree reaper: nightly (GOL-1632 / #765) ---
+# Agents create a per-issue .wt-<issue>-<repo> worktree inside the shared project
+# checkouts; each carries its own ~1GB node_modules and nothing ever reclaimed
+# them. Thirty-one abandoned worktrees held 3.4G on 2026-09-30 and were a third
+# of that day's disk pressure. The reaper runs INSIDE paperclip-server (its
+# live-process guard needs the container's PID+mount namespace) — see the header
+# of worktree-reaper.sh for why a host-side run would silently no-op.
+write_file /etc/systemd/system/agenticos-worktree-reaper.service <<UNIT
+[Unit]
+Description=AgenticOS nightly reap of abandoned agent git worktrees
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=${REPO}
+ExecStart=/bin/bash -lc '${REPO}/infra/scripts/worktree-reaper.sh'
+StandardOutput=append:${LOG_DIR}/worktree-reaper.log
+StandardError=append:${LOG_DIR}/worktree-reaper.log
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+write_file /etc/systemd/system/agenticos-worktree-reaper.timer <<UNIT
+[Unit]
+Description=Run AgenticOS worktree reaper nightly (03:40 local)
+[Timer]
+# 03:40: after the 02:30 Sunday docker prune, before the 05:00 disk-guard, so a
+# night's reclaim is already reflected in the morning headroom check.
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=agenticos-worktree-reaper.service
+[Install]
+WantedBy=timers.target
+UNIT
+
 # --- journald cap: 200M ---
 mkdir -p /etc/systemd/journald.conf.d
 write_file /etc/systemd/journald.conf.d/10-agenticos-cap.conf <<'CONF'
@@ -251,7 +293,8 @@ echo "Reloading systemd + journald…"
 systemctl daemon-reload
 systemctl enable --now agenticos-docker-prune.timer agenticos-disk-guard.timer \
                        agenticos-paperclip-volume-guard.timer \
-                       agenticos-paperclip-backup-offsite.timer
+                       agenticos-paperclip-backup-offsite.timer \
+                       agenticos-worktree-reaper.timer
 
 # Apply the journald cap immediately (config alone only bounds future growth).
 systemctl restart systemd-journald
@@ -261,21 +304,34 @@ echo
 echo "Enabled. Scheduled runs:"
 systemctl list-timers 'agenticos-docker-prune.timer' 'agenticos-disk-guard.timer' \
                       'agenticos-paperclip-volume-guard.timer' \
-                      'agenticos-paperclip-backup-offsite.timer' --no-pager || true
+                      'agenticos-paperclip-backup-offsite.timer' \
+                      'agenticos-worktree-reaper.timer' --no-pager || true
 
 # The off-box shipper is inert without its bucket-scoped Spaces key, and an
 # inert backup job is the exact failure mode this whole line of work exists to
 # end. Say so here, at install time, rather than letting the first page arrive
 # six hours later from a timer nobody is watching.
+#
+# Terraform normally writes these two lines itself (cloud-init upserts them from
+# TF_VAR_backups_spaces_*). This is the break-glass path for a live box.
 if ! grep -q '^SPACES_BACKUP_ACCESS_KEY_ID=' /opt/agenticos/.env 2>/dev/null; then
   echo
   echo "WARNING: SPACES_BACKUP_ACCESS_KEY_ID is not in /opt/agenticos/.env."
   echo "  The off-box backup shipper will exit 2 and page Discord until it is."
-  echo "  Add the bucket-scoped key (1Password: AgenticOS Infra/backups_spaces_*):"
-  echo "    sudo -u deploy tee -a /opt/agenticos/.env >/dev/null <<'ENVEOF'"
-  echo "    SPACES_BACKUP_ACCESS_KEY_ID=<access key id>"
-  echo "    SPACES_BACKUP_SECRET_KEY=<secret>"
-  echo "    ENVEOF"
+  echo "  Add the bucket-scoped key. It must be the LITERAL key: .env is read raw"
+  echo "  (by the shipper and by 'docker compose --env-file'), never through"
+  echo "  'op inject', so an op:// reference provisions nothing. Pipe it in:"
+  echo
+  echo "    {"
+  echo "      printf 'SPACES_BACKUP_ACCESS_KEY_ID=%s\\n' \\"
+  echo "        \"\$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_access_key_id')\""
+  echo "      printf 'SPACES_BACKUP_SECRET_KEY=%s\\n' \\"
+  echo "        \"\$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key')\""
+  echo "    } | sudo tee -a /opt/agenticos/.env >/dev/null"
+  echo
+  echo "  Confirm without printing the secret:"
+  echo "    grep -c '^SPACES_BACKUP_' /opt/agenticos/.env          # -> 2"
+  echo "    grep -c '^SPACES_BACKUP_.*op://' /opt/agenticos/.env   # -> 0"
   echo "  Then smoke-test:  ${REPO}/infra/scripts/paperclip-backup-offsite.py --dry-run"
 fi
 echo
@@ -283,4 +339,6 @@ echo "Smoke-test the reclaim now (root):"
 echo "  ${REPO}/infra/scripts/docker-prune.sh   # reclaims + prints df before/after"
 echo "  WARN_PCT=0 ${REPO}/infra/scripts/disk-guard.sh   # force the alert path once"
 echo "  WARN_PCT=0 STALE_MIN=0 REPAGE_MIN=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # force both alert paths"
+echo "  DRY_RUN=1 RECLAIM_PCT=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # show what the reclaim WOULD delete (deletes nothing)"
+echo "  DRY_RUN=1 ${REPO}/infra/scripts/worktree-reaper.sh   # list reapable worktrees (deletes nothing)"
 echo "  df -h /                                  # confirm root FS under ~70%"

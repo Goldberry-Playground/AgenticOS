@@ -187,6 +187,151 @@ export function anyFrontendMatch(files: readonly string[], globs: readonly strin
   return files.some((f) => res.some((r) => r.test(f)));
 }
 
+// --- Self-review guard (GOL-2720) -----------------------------------------------
+//
+// The reviewer set is decided purely by CHANGED-FILE TYPE (Ada always; Iris on a
+// frontend glob) — it never looked at WHO wrote the PR. So an agent who is the sole
+// reviewer for a file type they also write is handed a review twin for their own
+// commits. Iris is Grove's only frontend engineer, so every frontend PR Iris
+// authors mints an `agent-review/iris` self-review twin; closing it `done` posts
+// that check = success, which on a shared CI surface falsely asserts an INDEPENDENT
+// frontend reviewer approved the PR — and because the ada+iris checks are coupled
+// (a single unsigned slot blocks the merge), the author is forced to choose between
+// a false green and a wedged PR (grove-sites#875 / GOL-2718).
+//
+// All agent PRs share ONE GitHub App login (`agenticos-developer[bot]`), so the PR
+// opener never discriminates Ada from Iris. The distinguishing signal is the git
+// COMMIT author (name/email), which the plugin can read from `pulls/{n}/commits`.
+
+/**
+ * The always-on, merge-REQUIRED reviewer (spec System 2 / Phase 3): Ada emits the
+ * single required `agent-review/ada` check that the coupled gate greens. This
+ * reviewer is never skipped as a self-review — dropping it would strand the
+ * required check and wedge every PR. A required-reviewer self-review (Ada authoring
+ * a PR only she can review) is the single-lead operating model, a governance
+ * question out of this guard's scope; this guard only removes SUPPLEMENTARY
+ * self-reviews (Iris) that an independent required reviewer already covers.
+ */
+export const REQUIRED_REVIEWER: Reviewer = "ada";
+
+/** A reviewer slot: the reviewer identity + the Paperclip agent UUID it assigns to. */
+export interface ReviewerAssignment {
+  reviewer: Reviewer;
+  agentId: string;
+}
+
+/**
+ * Per-reviewer author identities (config `prReviewAuthorIdentities`): the commit
+ * author names/emails (and optional PR-opener logins) that mark a PR as authored
+ * by that reviewer's agent. Values are compared case-insensitively; callers
+ * normalize both sides with {@link normalizeAuthorSignal}.
+ */
+export type ReviewerAuthorIdentities = Partial<Record<Reviewer, readonly string[]>>;
+
+/** Lowercase + trim an author signal so config values and commit data compare 1:1. */
+export function normalizeAuthorSignal(s: string): string {
+  return s.trim().toLowerCase();
+}
+
+/** One PR commit's author facets (any may be empty). */
+export interface CommitAuthor {
+  email: string;
+  name: string;
+  login: string;
+}
+
+/**
+ * Collect the normalized set of author signals for a PR: every commit's author
+ * email + name + login, plus the PR opener login. Empty facets are dropped. The
+ * set is matched against each reviewer's configured identities.
+ */
+export function collectAuthorSignals(
+  commits: readonly CommitAuthor[],
+  prAuthorLogin?: string,
+): Set<string> {
+  const out = new Set<string>();
+  const add = (s: string | undefined) => {
+    if (s) {
+      const n = normalizeAuthorSignal(s);
+      if (n) out.add(n);
+    }
+  };
+  for (const c of commits) {
+    add(c.email);
+    add(c.name);
+    add(c.login);
+  }
+  add(prAuthorLogin);
+  return out;
+}
+
+/**
+ * True when the reviewer's configured identities intersect the PR's author signals
+ * — i.e. this reviewer authored (part of) the PR. Unconfigured reviewer → false
+ * (behaviour unchanged: no identities means no self-review is ever detected).
+ */
+export function isSelfAuthored(
+  reviewer: Reviewer,
+  identities: ReviewerAuthorIdentities | undefined,
+  authorSignals: ReadonlySet<string>,
+): boolean {
+  const ids = identities?.[reviewer];
+  if (!ids || ids.length === 0) return false;
+  return ids.some((id) => authorSignals.has(normalizeAuthorSignal(id)));
+}
+
+/** A reviewer removed from the set because it authored the PR, with the reason. */
+export interface SkippedSelfReview {
+  reviewer: Reviewer;
+  /** The independent reviewer that still covers the PR (why skipping is safe). */
+  coveredBy: Reviewer;
+}
+
+export interface SelfReviewDecision {
+  /** Reviewers to actually mint/drive twins for. */
+  toReview: ReviewerAssignment[];
+  /** Supplementary reviewers dropped as self-reviews (covered by the required one). */
+  skipped: SkippedSelfReview[];
+}
+
+/**
+ * Remove SUPPLEMENTARY self-reviews from the reviewer set (GOL-2720).
+ *
+ * A non-required reviewer (Iris) who authored the PR is dropped ONLY when the
+ * required reviewer (Ada) is present AND is NOT an author — so an independent
+ * reviewer still covers the whole PR and the coupled gate greens on Ada alone
+ * (with no Iris twin, the gate's `irisPresent` is false; nothing wedges, and no
+ * self-signed `agent-review/iris` = success is ever posted). The required reviewer
+ * is never dropped; if the required reviewer is itself the author, nothing is
+ * skipped (single-lead self-review, out of scope — see {@link REQUIRED_REVIEWER}).
+ */
+export function filterSelfAuthoredReviewers(
+  reviewers: readonly ReviewerAssignment[],
+  isAuthor: (reviewer: Reviewer) => boolean,
+): SelfReviewDecision {
+  const requiredPresent = reviewers.some((r) => r.reviewer === REQUIRED_REVIEWER);
+  const requiredIndependent = requiredPresent && !isAuthor(REQUIRED_REVIEWER);
+  const toReview: ReviewerAssignment[] = [];
+  const skipped: SkippedSelfReview[] = [];
+  for (const r of reviewers) {
+    if (r.reviewer !== REQUIRED_REVIEWER && requiredIndependent && isAuthor(r.reviewer)) {
+      skipped.push({ reviewer: r.reviewer, coveredBy: REQUIRED_REVIEWER });
+    } else {
+      toReview.push(r);
+    }
+  }
+  return { toReview, skipped };
+}
+
+/** Ops/log line for a supplementary review slot skipped because its assignee authored the PR. */
+export function buildSelfReviewSkipPing(
+  ev: GithubPrEvent,
+  skipped: readonly SkippedSelfReview[],
+): string {
+  const who = skipped.map((s) => `${s.reviewer} (author) → covered by ${s.coveredBy}`).join(", ");
+  return `🙈 PR ${ev.repo}#${ev.number} self-review skipped: ${who} — <${ev.url || ev.repo}>`;
+}
+
 /**
  * Loop-prevention / idempotency marker embedded in the review-issue body
  * (spec System 2). MUST stay stable — the worker also derives idempotency from

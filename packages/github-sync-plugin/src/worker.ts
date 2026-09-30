@@ -28,16 +28,24 @@ import {
   buildReviewIssueBody,
   buildReviewIssueTitle,
   buildReviewIssuesCreatedPing,
+  buildSelfReviewSkipPing,
   CHECK_CONTEXT,
   classifyHeadChange,
+  collectAuthorSignals,
   decideReviewAction,
   DEFAULT_FRONTEND_PATHS,
+  filterSelfAuthoredReviewers,
   isActionablePrAction,
   isNullBodyStatusError,
+  isSelfAuthored,
   parseGithubPrEvent,
+  REQUIRED_REVIEWER,
   shortSha,
   type GithubPrEvent,
+  type ReviewerAssignment,
+  type ReviewerAuthorIdentities,
   type Reviewer,
+  type SelfReviewDecision,
 } from "./pr-review.js";
 import { getReviewRecord, upsertReviewRecord, listReviewRecordsUpdatedSince } from "./pr-review-store.js";
 import { handleReviewSignoff } from "./pr-signoff.js";
@@ -230,6 +238,16 @@ interface GithubSyncConfig {
   /** Changed-file globs that trigger the frontend (Iris) review. Defaults applied at use. */
   prReviewFrontendPaths?: string[];
   /**
+   * Per-reviewer author identities (GOL-2720 self-review guard). Maps a reviewer
+   * slug (`ada` / `iris`) → the commit author names/emails (and optional PR-opener
+   * logins) that mark a PR as authored by that reviewer's agent. When a
+   * SUPPLEMENTARY reviewer (Iris) authored the PR and the required reviewer (Ada)
+   * is independent, Iris's self-review twin is skipped instead of handing Iris a
+   * review of her own commits. Unset → no self-review is ever detected (behaviour
+   * unchanged). The required reviewer is never skipped.
+   */
+  prReviewAuthorIdentities?: ReviewerAuthorIdentities;
+  /**
    * GitHub login that authors agent PRs (GOL-305 CI-fix loop). A failing CI check
    * only opens a fix issue when the PR's author matches this. Defaults to
    * "agenticos-developer[bot]" (the shared Developer App identity).
@@ -314,6 +332,7 @@ function readConfig(raw: Record<string, unknown>): GithubSyncConfig {
     prReviewFrontendPaths: Array.isArray(raw.prReviewFrontendPaths)
       ? raw.prReviewFrontendPaths.filter((p): p is string => typeof p === "string" && p.length > 0)
       : undefined,
+    prReviewAuthorIdentities: readAuthorIdentities(raw.prReviewAuthorIdentities),
     ciAgentPrAuthor: raw.ciAgentPrAuthor ? String(raw.ciAgentPrAuthor) : undefined,
     paperclipApiBaseUrl: raw.paperclipApiBaseUrl ? String(raw.paperclipApiBaseUrl) : undefined,
     paperclipApiToken: raw.paperclipApiToken ? String(raw.paperclipApiToken) : undefined,
@@ -322,6 +341,76 @@ function readConfig(raw: Record<string, unknown>): GithubSyncConfig {
       ? String(raw.paperclipCfAccessClientSecret)
       : undefined,
   };
+}
+
+/** Reviewer slugs valid as `prReviewAuthorIdentities` keys (GOL-2720). */
+const REVIEWER_SLUGS: readonly Reviewer[] = ["ada", "iris"];
+
+/**
+ * Parse `prReviewAuthorIdentities` (GOL-2720): an object of reviewer slug →
+ * string[] of author identities. Keeps only the known reviewer slugs and
+ * non-empty string identities; drops empties and anything malformed. Returns
+ * undefined when nothing valid remains, so the self-review guard stays inert
+ * (behaviour unchanged) unless deliberately configured.
+ */
+function readAuthorIdentities(raw: unknown): ReviewerAuthorIdentities | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: Partial<Record<Reviewer, string[]>> = {};
+  for (const slug of REVIEWER_SLUGS) {
+    const v = src[slug];
+    if (!Array.isArray(v)) continue;
+    const ids = v.filter((s): s is string => typeof s === "string" && s.trim().length > 0);
+    if (ids.length > 0) out[slug] = ids;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Decide, for one PR, which review slots to actually mint vs. skip as self-reviews
+ * (GOL-2720). Shared by the webhook (`handlePrInbound`) and the reconcile sweep so
+ * both apply the identical guard. The PR-commit fetch happens ONLY when it could
+ * change the outcome — identities configured AND a supplementary (non-required)
+ * reviewer is present — otherwise it returns the reviewer set untouched with no
+ * network call. Fails SAFE: a commit-fetch error leaves every reviewer in place
+ * (an extra twin is harmless; a false skip is not).
+ */
+async function resolveSelfReviewDecision(
+  ctx: PluginContext,
+  cfg: GithubSyncConfig,
+  bridge: BridgeConfig,
+  github: GitHubClient,
+  ev: GithubPrEvent,
+  reviewers: readonly ReviewerAssignment[],
+): Promise<SelfReviewDecision> {
+  const identities = cfg.prReviewAuthorIdentities;
+  const supplementaryConfigured = reviewers.some(
+    (r) => r.reviewer !== REQUIRED_REVIEWER && (identities?.[r.reviewer]?.length ?? 0) > 0,
+  );
+  // Nothing to gain from the fetch: no identities, or only the never-skipped
+  // required reviewer is present. Behaviour unchanged.
+  if (!identities || !supplementaryConfigured) {
+    return { toReview: [...reviewers], skipped: [] };
+  }
+  const commitsRes = await github.listPullCommitAuthors(bridge.githubRepo, ev.number);
+  if (!commitsRes.ok) {
+    // Fail safe: without author data we cannot prove a self-review, so mint all
+    // reviewers (a spurious twin, never a silent false skip).
+    ctx.logger.warn("pr webhook: PR commit-author fetch failed — self-review guard off for this PR", {
+      repo: ev.repo,
+      number: ev.number,
+      error: commitsRes.error,
+    });
+    return { toReview: [...reviewers], skipped: [] };
+  }
+  if (commitsRes.data.truncated) {
+    ctx.logger.warn("pr webhook: PR commit list truncated — a self-review may go undetected", {
+      repo: ev.repo,
+      number: ev.number,
+    });
+  }
+  const signals = collectAuthorSignals(commitsRes.data.authors);
+  return filterSelfAuthoredReviewers(reviewers, (r) => isSelfAuthored(r, identities, signals));
 }
 
 /**
@@ -1125,16 +1214,32 @@ async function handlePrInbound(
   // (→ `agent-review/ada`, GOL-713).
   const frontendPaths = cfg.prReviewFrontendPaths?.length ? cfg.prReviewFrontendPaths : DEFAULT_FRONTEND_PATHS;
   const isFrontend = anyFrontendMatch(files, frontendPaths);
-  const reviewers: Array<{ reviewer: Reviewer; agentId: string }> = [
+  const reviewers: ReviewerAssignment[] = [
     { reviewer: "ada", agentId: cfg.prReviewAliceAgentId },
   ];
   if (isFrontend && cfg.prReviewIrisAgentId) {
     reviewers.push({ reviewer: "iris", agentId: cfg.prReviewIrisAgentId });
   }
 
+  // GOL-2720: drop a supplementary reviewer (Iris) who authored the PR — Ada
+  // reviews independently, so no self-signed `agent-review/iris` twin is minted and
+  // the coupled gate greens on Ada alone.
+  const { toReview, skipped } = await resolveSelfReviewDecision(ctx, cfg, bridge, github, ev, reviewers);
+  for (const s of skipped) {
+    ctx.logger.info("pr webhook: skipping self-authored review slot", {
+      repo: ev.repo,
+      number: ev.number,
+      reviewer: s.reviewer,
+      coveredBy: s.coveredBy,
+    });
+  }
+  if (skipped.length && wantPing(cfg, "lifecycle")) {
+    await postOpsPing(ctx, cfg.opsWebhookUrl, buildSelfReviewSkipPing(ev, skipped));
+  }
+
   const created: Reviewer[] = [];
   const reopened: Reviewer[] = [];
-  for (const { reviewer, agentId } of reviewers) {
+  for (const { reviewer, agentId } of toReview) {
     try {
       const outcome = await processReviewer(ctx, cfg, bridge, github, ev, files, reviewer, agentId, runInScope);
       if (outcome === "created") created.push(reviewer);
@@ -1343,14 +1448,25 @@ export async function driveSweepReview(
   const frontendPaths = cfg.prReviewFrontendPaths?.length
     ? cfg.prReviewFrontendPaths
     : DEFAULT_FRONTEND_PATHS;
-  const reviewers: Array<{ reviewer: Reviewer; agentId: string }> = [
+  const reviewers: ReviewerAssignment[] = [
     { reviewer: "ada", agentId: cfg.prReviewAliceAgentId! },
   ];
   if (anyFrontendMatch(files, frontendPaths) && cfg.prReviewIrisAgentId) {
     reviewers.push({ reviewer: "iris", agentId: cfg.prReviewIrisAgentId });
   }
+  // GOL-2720: apply the SAME self-review guard the webhook uses so the sweep never
+  // re-mints a self-review twin the webhook path would have skipped.
+  const { toReview, skipped } = await resolveSelfReviewDecision(ctx, cfg, bridge, github, ev, reviewers);
+  for (const s of skipped) {
+    ctx.logger.info("pr-review-reconcile: skipping self-authored review slot", {
+      repo: canonicalRepo,
+      number: pr.number,
+      reviewer: s.reviewer,
+      coveredBy: s.coveredBy,
+    });
+  }
   let landed = false;
-  for (const { reviewer, agentId } of reviewers) {
+  for (const { reviewer, agentId } of toReview) {
     const outcome = await processReviewer(
       ctx,
       cfg,
@@ -1364,8 +1480,8 @@ export async function driveSweepReview(
     );
     if (outcome === "created" || outcome === "reopened") landed = true;
   }
-  // Ada (always required) was missing/stale by the pre-check, so a run that lands nothing
-  // means every write failed — report `failed` to retry.
+  // Ada (always required, never skipped) was missing/stale by the pre-check, so a run
+  // that lands nothing means every write failed — report `failed` to retry.
   return landed ? "twinned" : "failed";
 }
 
