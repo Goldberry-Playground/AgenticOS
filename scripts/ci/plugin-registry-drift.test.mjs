@@ -47,6 +47,8 @@ console.log(`PLUGIN_DIRS = ${PLUGINS.join(" ")}\n`);
 
 const pendingLine = /^PLUGIN_PENDING_INSTALL="([^"]*)"/m.exec(registry);
 const PENDING = (pendingLine?.[1] || "").trim().split(/\s+/).filter(Boolean);
+const externalLine = /^PLUGIN_CONFIG_EXTERNAL="([^"]*)"/m.exec(registry);
+const EXTERNAL = (externalLine?.[1] || "").trim().split(/\s+/).filter(Boolean);
 
 // --- docker-compose.yml bind mounts -----------------------------------------
 // Every plugin needs `./packages/<p>:/paperclip/plugins/<p>:ro` or the container
@@ -89,6 +91,22 @@ check(
   PLUGINS,
 );
 
+// --- infra/cloud-init/droplet-bootstrap.yaml.tpl -----------------------------
+// The FRESH-BOX build list. Unlike every other consumer this one runs exactly
+// once, before the first `docker compose up`, so a plugin missing here comes up
+// with no dist/ at all on a newly-provisioned droplet. It HAD drifted: the list
+// was still the original three (vault/openviking/github) while PLUGIN_DIRS grew
+// to six, so a fresh box booted without github-sync, discord or
+// grove-content-drafter dists. Committed dist/ masked that for the five plugins
+// carrying one in git; discord-plugin (no committed dist, by design) did not
+// come up at all. Reproducibility means a fresh environment builds from code
+// alone, so assert the fresh-box list too.
+const bootstrap = read("infra/cloud-init/droplet-bootstrap.yaml.tpl");
+const bootstrapFilters = [...bootstrap.matchAll(/--filter @agenticos\/([a-z0-9-]+)/g)].map(
+  (m) => m[1],
+);
+check("droplet-bootstrap.yaml.tpl pnpm --filter lists", bootstrapFilters, [...PLUGINS, ...PLUGINS]);
+
 // --- detect-manifest-bumps.sh -----------------------------------------------
 const detect = read("scripts/detect-manifest-bumps.sh");
 const detectLoop = /^for p in ([a-z0-9 -]+); do$/m.exec(detect);
@@ -122,6 +140,18 @@ for (const p of PENDING) {
   else {
     failures += 1;
     console.error(`  FAIL PLUGIN_PENDING_INSTALL entry '${p}' is not in PLUGIN_DIRS`);
+  }
+}
+
+// --- external-config entries must be real plugins ---------------------------
+// A typo here silently un-protects the plugin it was meant to protect: the name
+// never matches, sync-paperclip-secrets.sh deletes it, and its out-of-band
+// config is gone. Fail the PR instead.
+for (const p of EXTERNAL) {
+  if (PLUGINS.includes(p)) console.log(`  ok  PLUGIN_CONFIG_EXTERNAL entry ${p} is in PLUGIN_DIRS`);
+  else {
+    failures += 1;
+    console.error(`  FAIL PLUGIN_CONFIG_EXTERNAL entry '${p}' is not in PLUGIN_DIRS`);
   }
 }
 

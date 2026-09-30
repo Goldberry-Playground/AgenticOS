@@ -102,6 +102,27 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm -w build
+      # GOL-2585: the Paperclip plugins' built `dist/` IS committed (see .gitignore)
+      # and the droplet deploys that artifact — `git reset --hard origin/main` on the
+      # box restores exactly these bytes. So a PR that edits `src/` without rebuilding
+      # ships a STALE WORKER: on 2026-09-24 #688 bumped src/manifest.ts to 0.16.9
+      # (adding the `worker-heartbeat` liveness job + migration 007) while dist stayed
+      # 0.16.8, so the heartbeat job silently never deployed — and when the box was
+      # reset to the committed dist the host PAUSED the now-orphaned job, killing the
+      # very tripwire that exists to catch a dead worker. `pnpm -w build` above
+      # regenerates every dist; if that output differs from what the PR committed,
+      # the committed artifact is stale. Fail loudly instead of shipping the drift.
+      - name: Assert committed plugin dist/ matches the build (GOL-2585)
+        run: |
+          # NOTE: the `:(glob)` magic prefix is REQUIRED. A bare 'packages/*/dist'
+          # pathspec matches NOTHING here (git does not expand `*` across `/` for a
+          # bare dir pathspec), so the guard would silently pass on every PR.
+          if ! git diff --exit-code --stat -- ':(glob)packages/*/dist/**'; then
+            echo "::error::Committed plugin dist/ is STALE — it does not match a fresh 'pnpm -w build'."
+            echo "::error::The droplet deploys the COMMITTED dist, so this would ship a stale worker."
+            echo "::error::Fix: run 'pnpm -w build' and commit the resulting packages/*/dist changes."
+            exit 1
+          fi
 
   deploy-guardrails:
     # Regression gate for the deploy-plugin.sh lifecycle guardrails (GOL-1429):
@@ -114,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Parse-check deploy scripts
-        run: bash -n scripts/deploy-plugin.sh scripts/paperclip-lib.sh scripts/detect-manifest-bumps.sh
+        run: bash -n scripts/deploy-plugin.sh scripts/paperclip-lib.sh scripts/detect-manifest-bumps.sh scripts/ensure-plugin-mounts.sh
       - name: deploy-plugin.sh guardrail self-test
         run: bash scripts/deploy-plugin.sh --selftest
 

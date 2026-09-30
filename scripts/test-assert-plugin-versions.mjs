@@ -253,9 +253,14 @@ await withServer(REG, async (base) => {
   await new Promise((r) => srv.listen(0, "127.0.0.1", r));
   const base = "http://127.0.0.1:" + srv.address().port;
   try {
+    // 1000/50, not 150/10. With a 150 ms deadline the FIRST fetch alone can eat
+    // the whole budget on the 2-vCPU droplet, so `reads > 1` failed ~75% of runs
+    // (reads=1) — a load-sensitive flake, not a regression. A 1 s deadline at a
+    // 50 ms poll leaves room for many polls while still capping the count well
+    // under 100, so both bounds stay meaningful.
     const r = await run(base, "agenticos.github-sync-plugin=0.16.8", {
-      ASSERT_TIMEOUT_MS: "150",
-      ASSERT_POLL_MS: "10",
+      ASSERT_TIMEOUT_MS: "1000",
+      ASSERT_POLL_MS: "50",
     });
     check("permanent drift still fails RED after the deadline", r.code !== 0, "code=" + r.code);
     check("permanent drift is reported as STALE", /registry 0\.16\.7 != built 0\.16\.8/.test(r.err), r.err.trim());
