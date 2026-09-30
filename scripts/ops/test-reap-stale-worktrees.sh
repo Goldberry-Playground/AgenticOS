@@ -36,6 +36,16 @@ out2=$("$SCRIPT" --root="$TMP/co" 2>&1) || true
 check "recently-modified worktree is skipped" "SKIP  .wt-clean-repo" "$out2"
 touch -d '3 days ago' "$CK/.wt-clean-repo"
 
+# live-process guard: a process whose cwd is the worktree *root* (no trailing
+# path) must still be detected, or --apply would stomp a running agent.
+( cd "$CK/.wt-clean-repo" && exec sleep 30 ) &
+livepid=$!
+sleep 0.3
+out_live=$("$SCRIPT" --root="$TMP/co" 2>&1) || true
+check "live process at worktree root is skipped" "live process holds a path" "$out_live"
+kill "$livepid" 2>/dev/null || true
+wait "$livepid" 2>/dev/null || true
+
 # dry-run must not delete
 [ -d "$CK/.wt-clean-repo" ] && echo "  PASS  dry-run left worktree in place" || { echo "  FAIL  dry-run deleted"; fail=1; }
 

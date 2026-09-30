@@ -57,8 +57,11 @@ while IFS= read -r wt; do
     log "SKIP  $name (${size_mb}MB): modified < ${MIN_AGE_HOURS}h ago"; skipped=$((skipped+1)); continue
   fi
 
-  # 2. a live process is using it -> deleting would corrupt that run
-  if printf '%s\n' "$LIVE" | grep -qF -- "$wt/"; then
+  # 2. a live process is using it -> deleting would corrupt that run.
+  #    Match a path *inside* it ("$wt/") OR a cwd/fd sitting exactly at the
+  #    worktree root ("$wt"); grep -x keeps the exact match from also hitting a
+  #    sibling whose name has this one as a prefix (.wt-foo vs .wt-foobar).
+  if printf '%s\n' "$LIVE" | grep -qF -- "$wt/" || printf '%s\n' "$LIVE" | grep -qxF -- "$wt"; then
     log "SKIP  $name (${size_mb}MB): live process holds a path inside it"; skipped=$((skipped+1)); continue
   fi
 
