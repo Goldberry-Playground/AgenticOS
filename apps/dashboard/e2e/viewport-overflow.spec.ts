@@ -101,10 +101,25 @@ test.describe("settings model-tier selects", () => {
       // getBoundingClientRect rather than locator.boundingBox(): Playwright
       // returns null for a <select> here, and the viewport-relative rect is
       // exactly what "is the right edge on screen" needs anyway.
-      const box = await select.evaluate((el) => {
-        const r = el.getBoundingClientRect();
-        return { right: Math.round(r.right), height: Math.round(r.height) };
-      });
+      //
+      // Poll for a laid-out box first. `/settings` still throws a hydration
+      // error in CI (GOL-2653, a live clock in the KPI banner), and React
+      // regenerates the tree when it recovers — measure inside that window and
+      // every rect reads 0. A zero height is never a real 2.5.8 violation, but
+      // it failed as one, with a message that sent you hunting a CSS bug that
+      // was not there. Assert on a box that exists, so the failure means what
+      // it says.
+      const measure = () =>
+        select.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return { right: Math.round(r.right), height: Math.round(r.height) };
+        });
+      await expect
+        .poll(async () => (await measure()).height, {
+          message: `select ${i} never laid out (height stayed 0)`,
+        })
+        .toBeGreaterThan(0);
+      const box = await measure();
       expect(
         box.right,
         `select ${i} right edge is off-screen`,
