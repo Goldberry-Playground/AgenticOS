@@ -284,6 +284,7 @@ Record the date + result here:
 | Date | Postgres | OpenViking | Vault | Notes |
 |------|----------|------------|-------|-------|
 | 2026-06-06 | ✅ restored to scratch pgvector (119 tasks, 2 calls, 2 sessions) | ✅ `unzip -t` OK; `files/user/deploy/memories/*` + manifest present | — | Drilled the **Mac off-site replica** (`~/AgenticOS-Backups`); both artifacts were the **unattended 04:00/04:30 timer runs** — so this also proved timer → dump → Syncthing off-site → restore end-to-end |
+| 2026-09-30 | ✅ **off-box Spaces copy** drilled end-to-end: uploaded `paperclip-20260930-073020.sql.gz` (310,145,905 B) to all three tiers, downloaded it back from `s3://agenticos-backups/paperclip/daily/`, gzip CRC ok, trailing `COMMIT;` present, statement parse 123 CREATE TABLE / 76 COPY / 312 CREATE INDEX / 366 ALTER TABLE | — | — | GOL-2769. This is the **Paperclip** DB, a different store from the 2026-06-06 row's `agenticos` DB. Reproduce with `infra/scripts/paperclip-backup-offsite.py --verify-restore` |
 
 ## Rotating `AGENTICOS_DB_PASSWORD` on an existing Droplet
 
