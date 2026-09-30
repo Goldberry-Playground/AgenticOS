@@ -7,7 +7,7 @@ var __export = (target, all) => {
 // src/worker.ts
 import { AsyncResource } from "node:async_hooks";
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/define-plugin.js
 function definePlugin(definition) {
   return Object.freeze({ definition });
 }
@@ -19680,7 +19680,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/constants.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/constants.js
 var COMPANY_STATUSES = ["active", "paused", "archived"];
 var DEPLOYMENT_MODES = ["local_trusted", "authenticated"];
 var DEPLOYMENT_EXPOSURES = ["private", "public"];
@@ -20527,11 +20527,11 @@ var PLUGIN_STATE_SCOPE_KINDS = [
   "run"
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/adapter-type.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/adapter-type.js
 var agentAdapterTypeSchema = external_exports.string().trim().min(1).default("process").describe(`Known built-in adapters: ${AGENT_ADAPTER_TYPES.join(", ")}. External adapters may register additional non-empty string types at runtime.`);
 var optionalAgentAdapterTypeSchema = external_exports.string().trim().min(1).optional();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/runner-goal.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/runner-goal.js
 var RUNNER_GOAL_MAX_OBJECTIVE_CHARS = 4e3;
 var runnerGoalAvailabilitySchema = external_exports.enum([
   "available",
@@ -20599,7 +20599,7 @@ var runnerGoalActionRequestSchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/connection-intent-guidance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/connection-intent-guidance.js
 var CONNECTION_INTENT_AGENT_GUIDANCE = [
   "Connection tools:",
   "- When work requires a known external service and usable access is uncertain, call `connections_search` with the service name or capability.",
@@ -20624,10 +20624,10 @@ var CONNECTION_REQUEST_TOOL_DESCRIPTION = [
   "Call it only with the service identifier returned as available or needs_user_action by connections_search; if user action is needed, finish independent work, then yield without retrying or asking for credentials in comments."
 ].join(" ");
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/native-finalization.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/native-finalization.js
 var NATIVE_FINALIZATION_SCHEMA = "paperclip.native-finalization.v1";
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/native-finalization.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/native-finalization.js
 var nativeFinalizationResultV1Schema = external_exports.object({
   schema: external_exports.literal(NATIVE_FINALIZATION_SCHEMA),
   runtimeMode: external_exports.literal("native"),
@@ -20658,7 +20658,7 @@ var nativeReportedWorkDispositionSchema = external_exports.enum([
   "yielded"
 ]);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/decision.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/decision.js
 var decisionEffectStalenessSchema = external_exports.enum(["strict", "lenient"]);
 var decisionOptionStyleSchema = external_exports.enum(["default", "primary", "destructive"]);
 var decisionEffectBaseShape = {
@@ -20787,7 +20787,7 @@ var decisionSpecSchema = external_exports.object({
   inputs: decisionInputsSchema.nullable().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/connection-intent.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/connection-intent.js
 var connectionsSearchInputSchema = external_exports.object({
   query: external_exports.string().trim().max(200).default("")
 }).strict();
@@ -20801,7 +20801,7 @@ var declineConnectionIntentSchema = external_exports.object({
   reason: external_exports.string().trim().max(4e3).optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/workspace-file-resource.js
 var workspaceFileListSearchMaxBytes = 128;
 function utf8ByteLength(value) {
   return new TextEncoder().encode(value).length;
@@ -20906,7 +20906,7 @@ var workspaceFileContentSchema = external_exports.object({
   })
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/partial.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/partial.js
 function fieldWithoutDefault(field2) {
   if (field2 instanceof external_exports.ZodDefault) {
     return fieldWithoutDefault(field2.unwrap());
@@ -20929,7 +20929,7 @@ function objectWithoutDefaults(schema) {
   return external_exports.object(shapeWithoutDefaults(schema.shape));
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/work-product.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/work-product.js
 function attachmentContentPath(attachmentId) {
   return `/api/attachments/${attachmentId}/content`;
 }
@@ -21013,7 +21013,7 @@ var createIssueWorkProductSchema = external_exports.object({
 });
 var updateIssueWorkProductSchema = objectWithoutDefaults(createIssueWorkProductSchema).partial();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/markdown-work-products.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/markdown-work-products.js
 var MARKDOWN_ATTACHMENT_CONTENT_TYPES = [
   "text/markdown",
   "text/x-markdown",
@@ -21023,7 +21023,7 @@ var MARKDOWN_ATTACHMENT_CONTENT_TYPES = [
 var MARKDOWN_ATTACHMENT_CONTENT_TYPE_SET = new Set(MARKDOWN_ATTACHMENT_CONTENT_TYPES);
 var MARKDOWN_REVIEW_DOCUMENT_MAX_BYTES = 512 * 1024;
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/attention.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/attention.js
 var ATTENTION_SOURCE_KINDS = [
   "approval",
   "decision",
@@ -21039,7 +21039,7 @@ var ATTENTION_SOURCE_KINDS = [
   "agent_error_alert"
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/decision-queue.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/decision-queue.js
 var decisionAttentionSourceKindSchema = external_exports.enum(ATTENTION_SOURCE_KINDS);
 var decisionQueueKeySchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Queue key must be URL-safe lowercase kebab-case");
 var createDecisionQueueSchema = external_exports.object({
@@ -21094,7 +21094,7 @@ var createDecisionArchiveProposalSchema = external_exports.object({
   });
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/frontmatter.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/frontmatter.js
 var SKILL_FRONTMATTER_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 var skillMetadataValueSchema = external_exports.lazy(() => external_exports.union([
   external_exports.string(),
@@ -21111,13 +21111,13 @@ var skillFrontmatterSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), skillMetadataValueSchema).optional()
 }).passthrough();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/trust-policy.js
 var TRUST_PRESETS = ["standard", "low_trust_review"];
 var LOW_TRUST_REVIEW_PRESET = "low_trust_review";
 var LOW_TRUST_REVIEW_PRESET_VERSION = 1;
 var LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION = "quarantine";
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/agentmail.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/agentmail.json
 var agentmail_default = {
   schemaVersion: 1,
   slug: "agentmail",
@@ -21168,7 +21168,7 @@ var agentmail_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/zapier.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/zapier.json
 var zapier_default = {
   schemaVersion: 1,
   slug: "zapier",
@@ -21202,7 +21202,7 @@ var zapier_default = {
   docsUrl: "https://docs.zapier.com/mcp/quickstart"
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/github.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/github.json
 var github_default = {
   schemaVersion: 1,
   slug: "github",
@@ -21328,7 +21328,7 @@ var github_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/slack.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/slack.json
 var slack_default = {
   schemaVersion: 1,
   slug: "slack",
@@ -21416,7 +21416,7 @@ var slack_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/microsoft-teams.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/microsoft-teams.json
 var microsoft_teams_default = {
   schemaVersion: 1,
   slug: "microsoft-teams",
@@ -21485,7 +21485,7 @@ var microsoft_teams_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/imessage-photon.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/imessage-photon.json
 var imessage_photon_default = {
   schemaVersion: 1,
   slug: "imessage-photon",
@@ -21537,7 +21537,7 @@ var imessage_photon_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/telegram.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/telegram.json
 var telegram_default = {
   schemaVersion: 1,
   slug: "telegram",
@@ -21592,7 +21592,7 @@ var telegram_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/discord.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/discord.json
 var discord_default = {
   schemaVersion: 1,
   slug: "discord",
@@ -21660,7 +21660,7 @@ var discord_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/notion.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/notion.json
 var notion_default = {
   schemaVersion: 1,
   slug: "notion",
@@ -21719,7 +21719,7 @@ var notion_default = {
   docsUrl: "https://developers.notion.com/guides/mcp/build-mcp-client"
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/posthog.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/posthog.json
 var posthog_default = {
   schemaVersion: 1,
   slug: "posthog",
@@ -21999,7 +21999,7 @@ var posthog_default = {
   redirectConstraints: "https-or-loopback-http"
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/linear.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/linear.json
 var linear_default = {
   schemaVersion: 1,
   slug: "linear",
@@ -22063,7 +22063,7 @@ var linear_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/context7.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/context7.json
 var context7_default = {
   schemaVersion: 1,
   slug: "context7",
@@ -22098,7 +22098,7 @@ var context7_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/shopify.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/shopify.json
 var shopify_default = {
   schemaVersion: 1,
   slug: "shopify",
@@ -22217,7 +22217,7 @@ var shopify_default = {
   }
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/composio.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/composio.json
 var composio_default = {
   schemaVersion: 1,
   slug: "composio",
@@ -22271,7 +22271,7 @@ var composio_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/oauth-generic.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/oauth-generic.json
 var oauth_generic_default = {
   schemaVersion: 1,
   slug: "oauth-generic",
@@ -22320,7 +22320,7 @@ var oauth_generic_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/api-key-generic.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/api-key-generic.json
 var api_key_generic_default = {
   schemaVersion: 1,
   slug: "api-key-generic",
@@ -22365,7 +22365,7 @@ var api_key_generic_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/sentry.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/sentry.json
 var sentry_default = {
   schemaVersion: 1,
   slug: "sentry",
@@ -22409,7 +22409,7 @@ var sentry_default = {
   redirectConstraints: "https-or-loopback-http"
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/vercel.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/vercel.json
 var vercel_default = {
   schemaVersion: 1,
   slug: "vercel",
@@ -22454,7 +22454,7 @@ var vercel_default = {
   }
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/anthropic.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/anthropic.json
 var anthropic_default = {
   schemaVersion: 1,
   slug: "anthropic",
@@ -22531,7 +22531,7 @@ var anthropic_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/jira.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/jira.json
 var jira_default = {
   schemaVersion: 1,
   slug: "jira",
@@ -22598,7 +22598,7 @@ var jira_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/airtable.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/airtable.json
 var airtable_default = {
   schemaVersion: 1,
   slug: "airtable",
@@ -22641,7 +22641,7 @@ var airtable_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/beehiiv.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/beehiiv.json
 var beehiiv_default = {
   schemaVersion: 1,
   slug: "beehiiv",
@@ -22684,7 +22684,7 @@ var beehiiv_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/bitly.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/bitly.json
 var bitly_default = {
   schemaVersion: 1,
   slug: "bitly",
@@ -22764,7 +22764,7 @@ var bitly_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/candid.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/candid.json
 var candid_default = {
   schemaVersion: 1,
   slug: "candid",
@@ -22807,7 +22807,7 @@ var candid_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/cloudflare.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/cloudflare.json
 var cloudflare_default = {
   schemaVersion: 1,
   slug: "cloudflare",
@@ -22887,7 +22887,7 @@ var cloudflare_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/cloudinary.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/cloudinary.json
 var cloudinary_default = {
   schemaVersion: 1,
   slug: "cloudinary",
@@ -22931,7 +22931,7 @@ var cloudinary_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/coda.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/coda.json
 var coda_default = {
   schemaVersion: 1,
   slug: "coda",
@@ -23013,7 +23013,7 @@ var coda_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/hugging-face.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/hugging-face.json
 var hugging_face_default = {
   schemaVersion: 1,
   slug: "hugging-face",
@@ -23059,7 +23059,7 @@ var hugging_face_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/kernel.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/kernel.json
 var kernel_default = {
   schemaVersion: 1,
   slug: "kernel",
@@ -23139,7 +23139,7 @@ var kernel_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/local-falcon.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/local-falcon.json
 var local_falcon_default = {
   schemaVersion: 1,
   slug: "local-falcon",
@@ -23182,7 +23182,7 @@ var local_falcon_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/make.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/make.json
 var make_default = {
   schemaVersion: 1,
   slug: "make",
@@ -23226,7 +23226,7 @@ var make_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/manufact.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/manufact.json
 var manufact_default = {
   schemaVersion: 1,
   slug: "manufact",
@@ -23270,7 +23270,7 @@ var manufact_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/miro.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/miro.json
 var miro_default = {
   schemaVersion: 1,
   slug: "miro",
@@ -23313,7 +23313,7 @@ var miro_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/netlify.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/netlify.json
 var netlify_default = {
   schemaVersion: 1,
   slug: "netlify",
@@ -23357,7 +23357,7 @@ var netlify_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/oreilly.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/oreilly.json
 var oreilly_default = {
   schemaVersion: 1,
   slug: "oreilly",
@@ -23437,7 +23437,7 @@ var oreilly_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/planetscale.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/planetscale.json
 var planetscale_default = {
   schemaVersion: 1,
   slug: "planetscale",
@@ -23530,7 +23530,7 @@ var planetscale_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/resend.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/resend.json
 var resend_default = {
   schemaVersion: 1,
   slug: "resend",
@@ -23574,7 +23574,7 @@ var resend_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/ticktick.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/ticktick.json
 var ticktick_default = {
   schemaVersion: 1,
   slug: "ticktick",
@@ -23617,7 +23617,7 @@ var ticktick_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/todoist.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/todoist.json
 var todoist_default = {
   schemaVersion: 1,
   slug: "todoist",
@@ -23660,7 +23660,7 @@ var todoist_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/webflow.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/webflow.json
 var webflow_default = {
   schemaVersion: 1,
   slug: "webflow",
@@ -23703,7 +23703,7 @@ var webflow_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/wix.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/wix.json
 var wix_default = {
   schemaVersion: 1,
   slug: "wix",
@@ -23747,7 +23747,7 @@ var wix_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/brex.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/brex.json
 var brex_default = {
   schemaVersion: 1,
   slug: "brex",
@@ -23792,7 +23792,7 @@ var brex_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/clickhouse.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/clickhouse.json
 var clickhouse_default = {
   schemaVersion: 1,
   slug: "clickhouse",
@@ -23853,7 +23853,7 @@ var clickhouse_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/egnyte.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/egnyte.json
 var egnyte_default = {
   schemaVersion: 1,
   slug: "egnyte",
@@ -23896,7 +23896,7 @@ var egnyte_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/embat.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/embat.json
 var embat_default = {
   schemaVersion: 1,
   slug: "embat",
@@ -23939,7 +23939,7 @@ var embat_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/mixpanel.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/mixpanel.json
 var mixpanel_default = {
   schemaVersion: 1,
   slug: "mixpanel",
@@ -23984,7 +23984,7 @@ var mixpanel_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/postman.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/postman.json
 var postman_default = {
   schemaVersion: 1,
   slug: "postman",
@@ -24210,7 +24210,7 @@ var postman_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/razorpay.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/razorpay.json
 var razorpay_default = {
   schemaVersion: 1,
   slug: "razorpay",
@@ -24293,7 +24293,7 @@ var razorpay_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/sanity.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/sanity.json
 var sanity_default = {
   schemaVersion: 1,
   slug: "sanity",
@@ -24374,7 +24374,7 @@ var sanity_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/stripe.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/stripe.json
 var stripe_default = {
   schemaVersion: 1,
   slug: "stripe",
@@ -24456,7 +24456,7 @@ var stripe_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/supabase.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/supabase.json
 var supabase_default = {
   schemaVersion: 1,
   slug: "supabase",
@@ -24622,7 +24622,7 @@ var supabase_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/ticket-tailor.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/ticket-tailor.json
 var ticket_tailor_default = {
   schemaVersion: 1,
   slug: "ticket-tailor",
@@ -24666,7 +24666,7 @@ var ticket_tailor_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/asana.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/asana.json
 var asana_default = {
   schemaVersion: 1,
   slug: "asana",
@@ -24710,7 +24710,7 @@ var asana_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/box.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/box.json
 var box_default = {
   schemaVersion: 1,
   slug: "box",
@@ -24754,7 +24754,7 @@ var box_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/mem0.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/mem0.json
 var mem0_default = {
   schemaVersion: 1,
   slug: "mem0",
@@ -24812,7 +24812,7 @@ var mem0_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/pagerduty.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/pagerduty.json
 var pagerduty_default = {
   schemaVersion: 1,
   slug: "pagerduty",
@@ -24907,7 +24907,7 @@ var pagerduty_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/similarweb.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/similarweb.json
 var similarweb_default = {
   schemaVersion: 1,
   slug: "similarweb",
@@ -24966,7 +24966,7 @@ var similarweb_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/xero.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/xero.json
 var xero_default = {
   schemaVersion: 1,
   slug: "xero",
@@ -25021,7 +25021,7 @@ var xero_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/gmail.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/gmail.json
 var gmail_default = {
   schemaVersion: 1,
   slug: "gmail",
@@ -25205,7 +25205,7 @@ var gmail_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-drive.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-drive.json
 var google_drive_default = {
   schemaVersion: 1,
   slug: "google-drive",
@@ -25390,7 +25390,7 @@ var google_drive_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-docs.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-docs.json
 var google_docs_default = {
   schemaVersion: 1,
   slug: "google-docs",
@@ -25579,7 +25579,7 @@ var google_docs_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-sheets.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-sheets.json
 var google_sheets_default = {
   schemaVersion: 1,
   slug: "google-sheets",
@@ -25792,7 +25792,7 @@ var google_sheets_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-slides.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-slides.json
 var google_slides_default = {
   schemaVersion: 1,
   slug: "google-slides",
@@ -25981,7 +25981,7 @@ var google_slides_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-calendar.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-calendar.json
 var google_calendar_default = {
   schemaVersion: 1,
   slug: "google-calendar",
@@ -26171,7 +26171,7 @@ var google_calendar_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-chat.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-chat.json
 var google_chat_default = {
   schemaVersion: 1,
   slug: "google-chat",
@@ -26370,7 +26370,7 @@ var google_chat_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-people.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-people.json
 var google_people_default = {
   schemaVersion: 1,
   slug: "google-people",
@@ -26482,7 +26482,7 @@ var google_people_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/google-workspace-search.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/google-workspace-search.json
 var google_workspace_search_default = {
   schemaVersion: 1,
   slug: "google-workspace-search",
@@ -26597,7 +26597,7 @@ var google_workspace_search_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/openai.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/openai.json
 var openai_default = {
   schemaVersion: 1,
   slug: "openai",
@@ -26673,7 +26673,7 @@ var openai_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/openrouter.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/openrouter.json
 var openrouter_default = {
   schemaVersion: 1,
   slug: "openrouter",
@@ -26728,7 +26728,7 @@ var openrouter_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions/xai.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions/xai.json
 var xai_default = {
   schemaVersion: 1,
   slug: "xai",
@@ -26804,10 +26804,10 @@ var xai_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions.generated.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions.generated.js
 var APP_DEFINITIONS = [agentmail_default, zapier_default, github_default, slack_default, microsoft_teams_default, imessage_photon_default, telegram_default, discord_default, notion_default, posthog_default, linear_default, context7_default, shopify_default, composio_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default, jira_default, airtable_default, beehiiv_default, bitly_default, candid_default, cloudflare_default, cloudinary_default, coda_default, hugging_face_default, kernel_default, local_falcon_default, make_default, manufact_default, miro_default, netlify_default, oreilly_default, planetscale_default, resend_default, ticktick_default, todoist_default, webflow_default, wix_default, brex_default, clickhouse_default, egnyte_default, embat_default, mixpanel_default, postman_default, razorpay_default, sanity_default, stripe_default, supabase_default, ticket_tailor_default, asana_default, box_default, mem0_default, pagerduty_default, similarweb_default, xero_default, gmail_default, google_drive_default, google_docs_default, google_sheets_default, google_slides_default, google_calendar_default, google_chat_default, google_people_default, google_workspace_search_default, openai_default, openrouter_default, xai_default];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/self-serve-mcp-research.json
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/self-serve-mcp-research.json
 var self_serve_mcp_research_default = {
   schemaVersion: 1,
   verifiedAt: "2026-08-26",
@@ -26861,12 +26861,12 @@ var self_serve_mcp_research_default = {
   ]
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/self-serve-mcp-research.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/self-serve-mcp-research.js
 var SELF_SERVE_MCP_RESEARCH = self_serve_mcp_research_default;
 var SELF_SERVE_MCP_CANDIDATES = SELF_SERVE_MCP_RESEARCH.entries.filter((entry) => entry.status === "self_serve");
 var BLOCKED_MCP_PROVIDERS = SELF_SERVE_MCP_RESEARCH.entries.filter((entry) => entry.status === "blocked");
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/app-definitions.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/app-definitions.js
 var CONNECTABLE_APP_SLUGS = /* @__PURE__ */ new Set([
   "anthropic",
   "openai",
@@ -26923,7 +26923,7 @@ var APP_STORE_HIDDEN_SLUGS = /* @__PURE__ */ new Set([
 ]);
 var APP_STORE_DEFINITIONS = CONNECTABLE_APP_DEFINITIONS.filter((app) => !APP_STORE_HIDDEN_SLUGS.has(app.slug));
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/google-workspace-connectors.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/google-workspace-connectors.js
 var auth = (scope) => `https://www.googleapis.com/auth/${scope}`;
 var GOOGLE_WORKSPACE_CONNECTOR_PROFILES = {
   "gmail.read": def("gmail", "https://gmailmcp.googleapis.com/mcp/v1", [auth("gmail.readonly")]),
@@ -26947,7 +26947,7 @@ function def(appSlug, serverUrl, scopes, writeTools = []) {
   return { appSlug, serverUrl, scopes, writeTools };
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/agent-url-key.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/agent-url-key.js
 var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function isUuidLike(value) {
   if (typeof value !== "string")
@@ -26955,13 +26955,13 @@ function isUuidLike(value) {
   return UUID_RE.test(value.trim());
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/search.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/search.js
 var COMPANY_SEARCH_SCOPES = ["all", "issues", "comments", "documents", "artifacts", "agents", "projects"];
 var COMPANY_SEARCH_SORTS = ["relevance", "updated", "created", "priority"];
 var COMPANY_SEARCH_EXTRACT_SCOPES = ["all", "issues", "comments", "documents"];
 var COMPANY_SEARCH_EXTRACT_KINDS = ["literal", "url"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/search.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/search.js
 var COMPANY_SEARCH_MAX_QUERY_LENGTH = 200;
 var COMPANY_SEARCH_DEFAULT_LIMIT = 20;
 var COMPANY_SEARCH_MAX_LIMIT = 50;
@@ -27148,7 +27148,7 @@ var companySearchExtractQuerySchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/status-card.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/status-card.js
 function isValidTimeZone(timezone) {
   try {
     new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
@@ -27304,7 +27304,7 @@ var writeStatusCardSummarySchema = external_exports.object({
   model: external_exports.string().trim().min(1).max(200).optional().nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/ai-connections.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/ai-connections.js
 var connectionPurposeTransportSchema = external_exports.discriminatedUnion("connectionPurpose", [
   external_exports.object({
     connectionPurpose: external_exports.literal("tool"),
@@ -27417,7 +27417,7 @@ var localAiConnectionSchema = aiConnectionLoginIntentSchema.extend({
 });
 var localAiLoginStartSchema = aiConnectionLoginIntentSchema.extend({ restart: external_exports.boolean().optional() });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/mcp-remote-headers.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/mcp-remote-headers.js
 var HTTP_TOKEN_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 var MAX_HEADER_NAME_LENGTH = 128;
 var MAX_HEADER_VALUE_LENGTH = 8192;
@@ -27489,13 +27489,13 @@ function mcpRemoteHeaderNameFromConfigPath(configPath) {
   return name.length > 0 ? name : null;
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/text.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/text.js
 function normalizeEscapedLineBreaks(value) {
   return value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
 }
 var multilineTextSchema = external_exports.string().transform(normalizeEscapedLineBreaks);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/trust-policy.js
 var trustPresetSchema = external_exports.enum(TRUST_PRESETS);
 var lowTrustOutputPromotionTargetSchema = external_exports.object({
   type: external_exports.literal("issue"),
@@ -27553,7 +27553,7 @@ var sourceTrustMetadataSchema = external_exports.object({
   promotedAt: external_exports.string().datetime({ offset: true }).nullable().optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/issue.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/issue.js
 var issueBlockedInboxStateSchema = external_exports.enum([
   "needs_attention",
   "awaiting_decision",
@@ -28973,7 +28973,7 @@ var upsertIssueDocumentSchema = external_exports.object({
 });
 var restoreIssueDocumentRevisionSchema = external_exports.object({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/secret.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/secret.js
 var secretKeySchema = external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/);
 var secretVersionSelectorSchema = external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]);
 var creatableSecretStatusSchema = external_exports.enum(["active", "disabled", "archived"]);
@@ -29306,7 +29306,7 @@ var remoteSecretImportSchema = external_exports.object({
   secrets: external_exports.array(remoteSecretImportSelectionSchema).min(1).max(100)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/routine-variables.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/routine-variables.js
 var HUMAN_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "long",
@@ -29344,7 +29344,7 @@ function isValidRoutineDateString(value) {
   return day >= 1 && day <= daysInMonth;
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/routine.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/routine.js
 var routineVariableValueSchema = external_exports.union([external_exports.string(), external_exports.number().finite(), external_exports.boolean()]);
 var routineVariableSchema = external_exports.object({
   name: external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/),
@@ -29485,7 +29485,7 @@ var runRoutineSchema = external_exports.object({
 });
 var rotateRoutineTriggerSecretSchema = external_exports.object({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/external-object.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/external-object.js
 var externalObjectStatusCategorySchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_CATEGORIES);
 var externalObjectStatusToneSchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_TONES);
 var externalObjectLivenessStateSchema = external_exports.enum(EXTERNAL_OBJECT_LIVENESS_STATES);
@@ -29505,7 +29505,7 @@ var externalObjectMentionSourceSchema = external_exports.object({
   propertyKey: external_exports.string().trim().min(1).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/plugin.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/plugin.js
 var jsonSchemaSchema = external_exports.record(external_exports.string(), external_exports.unknown()).refine((val) => {
   if (Object.keys(val).length === 0)
     return true;
@@ -30356,7 +30356,7 @@ var listPluginStateSchema = external_exports.object({
   namespace: external_exports.string().min(1).optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/tool-access.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/tool-access.js
 var toolApplicationTypeSchema = external_exports.enum(TOOL_APPLICATION_TYPES);
 var toolApplicationStatusSchema = external_exports.enum(TOOL_APPLICATION_STATUSES);
 var toolConnectionTransportSchema = external_exports.enum(["mcp_remote", "rest_api", "local_stdio", "chat_sdk"]);
@@ -31122,7 +31122,7 @@ var toolPolicyTestRequestSchema = external_exports.object({
   writeAuditEvent: external_exports.boolean().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/app-definition.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/app-definition.js
 var appBrandAssetUrlSchema = external_exports.string().refine((value) => {
   if (/^\/brands\/apps\/[a-z0-9][a-z0-9._-]*\.(?:svg|png)$/i.test(value))
     return true;
@@ -31186,7 +31186,7 @@ var appDefinitionsSchema = external_exports.array(appDefinitionSchema).superRefi
   });
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/chat-channels.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/chat-channels.js
 var CHAT_PROVIDERS = [
   "slack",
   "github",
@@ -31278,7 +31278,7 @@ var CHAT_RESOURCE_AVAILABILITIES = [
   "removed"
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/chat-channels.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/chat-channels.js
 var chatProviderSchema = external_exports.enum(CHAT_PROVIDERS);
 var chatEndpointStatusSchema = external_exports.enum(CHAT_ENDPOINT_STATUSES);
 var chatConcurrencyPolicySchema = external_exports.enum(CHAT_CONCURRENCY_POLICIES);
@@ -31397,7 +31397,7 @@ var confirmChatIdentityLinkSchema = external_exports.object({
 var replayChatDeliverySchema = external_exports.object({}).strict();
 var chatPublicEndpointIdSchema = external_exports.string().regex(/^[a-zA-Z0-9_-]{32,128}$/);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/summary-slot.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/summary-slot.js
 var optionalScopeIdSchema = external_exports.string().guid().optional().nullable();
 var summarySlotScopeKindSchema = external_exports.enum(SUMMARY_SLOT_SCOPE_KINDS);
 var summarySlotKeySchema = external_exports.enum(SUMMARY_SLOT_KEYS);
@@ -31439,7 +31439,7 @@ var writeSummarySlotSchema = external_exports.object({
   model: external_exports.string().trim().min(1).max(200).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/network-bind.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/network-bind.js
 function normalizeHost(host) {
   const trimmed = host?.trim();
   return trimmed ? trimmed : void 0;
@@ -31482,13 +31482,13 @@ function validateConfiguredBindMode(input2) {
   return errors;
 }
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/smoke-lab.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/smoke-lab.js
 var SMOKE_RUN_TRIGGERS = ["manual", "routine", "ci"];
 var SMOKE_RUN_STATUSES = ["running", "passed", "failed", "cancelled"];
 var SMOKE_RUN_STEP_PATHS = ["P1", "P2", "P3", "P4", "P5", "P6", "P7"];
 var SMOKE_RUN_STEP_STATUSES = ["pass", "fail", "skipped"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/instance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/instance.js
 var DAILY_RETENTION_PRESETS = [3, 7, 14];
 var WEEKLY_RETENTION_PRESETS = [1, 2, 4];
 var MONTHLY_RETENTION_PRESETS = [1, 3, 6];
@@ -31498,7 +31498,7 @@ var DEFAULT_BACKUP_RETENTION = {
   monthlyMonths: 1
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/agent.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/agent.js
 var ADAPTER_AUTH_SESSION_STATUSES = [
   "starting",
   "waiting_for_user",
@@ -31518,10 +31518,10 @@ var ADAPTER_AUTH_PANEL_MODES = [
 ];
 var SETUP_TOKEN_TRANSPORT_ADVISORY_CODE = "insecure_transport";
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/resource-memberships.js
 var RESOURCE_MEMBERSHIP_STATES = ["joined", "left"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/adapter-auth-session.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/adapter-auth-session.js
 var ADAPTER_AUTH_SESSION_ACTIVE_STATUSES = [
   "starting",
   "waiting_for_user",
@@ -31529,7 +31529,7 @@ var ADAPTER_AUTH_SESSION_ACTIVE_STATUSES = [
 ];
 var ACTIVE_STATUS_SET = new Set(ADAPTER_AUTH_SESSION_ACTIVE_STATUSES);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/adapter-auth-session.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/adapter-auth-session.js
 var isoDateTime = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
 var adapterAuthSessionStatusSchema = external_exports.enum(ADAPTER_AUTH_SESSION_STATUSES);
 var adapterAuthSessionFailureSchema = external_exports.object({
@@ -31558,7 +31558,7 @@ var startAdapterAuthSessionRequestSchema = external_exports.object({
   ttlSeconds: external_exports.number().int().min(60).max(24 * 60 * 60).optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/claude-setup-token-session.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/claude-setup-token-session.js
 var isoDateTime2 = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
 var setupTokenTransportAdvisorySchema = external_exports.object({
   code: external_exports.literal(SETUP_TOKEN_TRANSPORT_ADVISORY_CODE)
@@ -31610,7 +31610,7 @@ var claudeOAuthTokenStatusResponseSchema = external_exports.object({
   latestVersion: external_exports.number().int().min(1)
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/sidebar-preferences.js
 var sidebarOrderedIdSchema = external_exports.string().guid();
 var sidebarOrderPreferenceSchema = external_exports.object({
   orderedIds: external_exports.array(sidebarOrderedIdSchema),
@@ -31620,7 +31620,7 @@ var upsertSidebarOrderPreferenceSchema = external_exports.object({
   orderedIds: external_exports.array(sidebarOrderedIdSchema)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/resource-memberships.js
 var resourceMembershipStateSchema = external_exports.enum(RESOURCE_MEMBERSHIP_STATES);
 var updateResourceMembershipSchema = external_exports.object({
   state: resourceMembershipStateSchema.optional(),
@@ -31635,7 +31635,7 @@ var updateDocumentResourceMembershipSchema = external_exports.object({
   starred: external_exports.boolean()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/inbox-agent-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/inbox-agent-policy.js
 var inboxAgentPolicyModeSchema = external_exports.enum(["open", "allowlist", "disabled"]);
 var updateInboxAgentPolicySchema = external_exports.object({
   mode: inboxAgentPolicyModeSchema,
@@ -31650,7 +31650,7 @@ var updateInboxAgentPolicySchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/execution-workspace.js
 var executionWorkspaceStatusSchema = external_exports.enum([
   "active",
   "idle",
@@ -31810,14 +31810,14 @@ var reconcileExecutionWorkspaceBranchSchema = external_exports.discriminatedUnio
   }).strict()
 ]);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/types/feedback.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/types/feedback.js
 var FEEDBACK_TARGET_TYPES = ["issue_comment", "issue_document_revision"];
 var FEEDBACK_VOTE_VALUES = ["up", "down"];
 var FEEDBACK_DATA_SHARING_PREFERENCES = ["allowed", "not_allowed", "prompt"];
 var DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE = "prompt";
 var FEEDBACK_TRACE_STATUSES = ["local_only", "pending", "sent", "failed"];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/feedback.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/feedback.js
 var feedbackTargetTypeSchema = external_exports.enum(FEEDBACK_TARGET_TYPES);
 var feedbackTraceStatusSchema = external_exports.enum(FEEDBACK_TRACE_STATUSES);
 var feedbackVoteValueSchema = external_exports.enum(FEEDBACK_VOTE_VALUES);
@@ -31830,7 +31830,7 @@ var upsertIssueFeedbackVoteSchema = external_exports.object({
   allowSharing: external_exports.boolean().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/instance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/instance.js
 function presetSchema(presets, label2) {
   return external_exports.number().refine((v) => presets.includes(v), { message: `${label2} must be one of: ${presets.join(", ")}` });
 }
@@ -31923,7 +31923,7 @@ var instanceSettingsSchema = external_exports.object({
   updatedAt: external_exports.union([external_exports.date(), external_exports.string().datetime()])
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/budget.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/budget.js
 var upsertBudgetPolicySchema = external_exports.object({
   scopeType: external_exports.enum(BUDGET_SCOPE_TYPES),
   scopeId: external_exports.string().guid(),
@@ -31949,7 +31949,7 @@ var resolveBudgetIncidentSchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/smoke-lab.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/smoke-lab.js
 var smokeRunTriggerSchema = external_exports.enum(SMOKE_RUN_TRIGGERS);
 var smokeRunStatusSchema = external_exports.enum(SMOKE_RUN_STATUSES);
 var smokeRunStepPathSchema = external_exports.enum(SMOKE_RUN_STEP_PATHS);
@@ -31971,7 +31971,7 @@ var recordSmokeRunStepSchema = external_exports.object({
   durationMs: external_exports.number().int().min(0).max(24 * 60 * 60 * 1e3).nullable().optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/company.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/company.js
 var logoAssetIdSchema = external_exports.string().guid().nullable().optional();
 var feedbackDataSharingTermsVersionSchema = external_exports.string().min(1).nullable().optional();
 var interactionResolverKindGovernanceSchema = external_exports.object({
@@ -32008,7 +32008,7 @@ var updateCompanyBrandingSchema = external_exports.object({
   logoAssetId: logoAssetIdSchema
 }).strict().refine((value) => value.name !== void 0 || value.description !== void 0 || value.logoAssetId !== void 0, "At least one branding field must be provided");
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/environment.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/environment.js
 var environmentDriverSchema = external_exports.enum(ENVIRONMENT_DRIVERS);
 var environmentStatusSchema = external_exports.enum(ENVIRONMENT_STATUSES);
 var environmentLeaseStatusSchema = external_exports.enum(ENVIRONMENT_LEASE_STATUSES);
@@ -32041,7 +32041,7 @@ var probeEnvironmentConfigSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/environment-custom-images.js
 var isoDateTime3 = external_exports.union([external_exports.date(), external_exports.string().datetime()]);
 var providerKeySchema = external_exports.string().min(1).max(200);
 var optionalRecordSchema = external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable();
@@ -32120,7 +32120,7 @@ var environmentCustomImageTerminalSessionTokenSchema = external_exports.object({
   websocketPath: external_exports.string().min(1)
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/company-skill.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/company-skill.js
 var companySkillSourceTypeSchema = external_exports.enum(["local_path", "github", "url", "catalog", "skills_sh"]);
 var companySkillTrustLevelSchema = external_exports.enum(["markdown_only", "assets", "scripts_executables"]);
 var companySkillCompatibilitySchema = external_exports.enum(["compatible", "unknown", "invalid"]);
@@ -32638,7 +32638,7 @@ var companySkillInstallCatalogResultSchema = external_exports.object({
   warnings: external_exports.array(external_exports.string())
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/folder.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/folder.js
 var folderKindSchema = external_exports.enum(["routine", "skill"]);
 var folderSlugSchema = external_exports.string().trim().min(1).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Folder slug must contain only lowercase letters, numbers, and single hyphens");
 var folderSchema = external_exports.object({
@@ -32694,7 +32694,7 @@ var moveFolderItemSchema = external_exports.object({
   folderId: external_exports.string().guid().optional().nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/company-portability.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/company-portability.js
 var portabilityIncludeSchema = external_exports.object({
   company: external_exports.boolean().optional(),
   agents: external_exports.boolean().optional(),
@@ -32982,7 +32982,7 @@ var companyPortabilityImportSchema = companyPortabilityPreviewSchema.extend({
   pauseAutomations: external_exports.boolean().optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/teams-catalog.js
 var catalogTeamKindSchema = external_exports.enum(["bundled", "optional"]);
 var catalogTeamTrustLevelSchema = external_exports.enum([
   "markdown_only",
@@ -33128,7 +33128,7 @@ var catalogTeamSkillPreparationSchema = external_exports.object({
   reason: external_exports.string().min(1).nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
 var agentSkillStateSchema = external_exports.enum([
   "available",
   "configured",
@@ -33190,7 +33190,7 @@ var agentSkillSyncSchema = external_exports.object({
   desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/agent.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/agent.js
 var agentPermissionsSchema = external_exports.object({
   // No schema default: the server derives the default (enabled unless the
   // permissions record marks the agent low-trust) when the field is omitted.
@@ -33390,7 +33390,7 @@ var updateAgentPermissionsSchema = external_exports.object({
   authorizationPolicy: trustAuthorizationPolicySchema.optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/project.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/project.js
 var executionWorkspaceStrategySchema2 = external_exports.object({
   type: external_exports.enum(["project_primary", "git_worktree", "adapter_managed", "cloud_sandbox"]).optional(),
   baseRef: external_exports.string().optional().nullable(),
@@ -33493,7 +33493,7 @@ var createProjectSchema = external_exports.object({
 });
 var updateProjectSchema = objectWithoutDefaults(external_exports.object(projectFields)).partial();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/document-annotation.js
 var documentAnnotationThreadStatusSchema = external_exports.enum(DOCUMENT_ANNOTATION_THREAD_STATUSES);
 var documentAnnotationAnchorStateSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_STATES);
 var documentAnnotationAnchorConfidenceSchema = external_exports.enum(DOCUMENT_ANNOTATION_ANCHOR_CONFIDENCES);
@@ -33544,7 +33544,7 @@ var updateDocumentAnnotationThreadSchema = external_exports.object({
   message: "At least one field must be provided"
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/issue-tree-control.js
 var issueTreeControlModeSchema = external_exports.enum(ISSUE_TREE_CONTROL_MODES);
 var issueTreeHoldReleasePolicySchema = external_exports.object({
   strategy: external_exports.enum(ISSUE_TREE_HOLD_RELEASE_POLICY_STRATEGIES).default("manual"),
@@ -33566,7 +33566,7 @@ var releaseIssueTreeHoldSchema = external_exports.object({
   metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/artifact.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/artifact.js
 var COMPANY_ARTIFACTS_DEFAULT_LIMIT = 30;
 var COMPANY_ARTIFACTS_MAX_LIMIT = 100;
 var COMPANY_ARTIFACTS_MAX_QUERY_LENGTH = 160;
@@ -33631,7 +33631,7 @@ var companyArtifactsResponseSchema = external_exports.object({
   nextCursor: external_exports.string().nullable()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/goal.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/goal.js
 var createGoalSchema = external_exports.object({
   title: external_exports.string().min(1),
   description: external_exports.string().optional().nullable(),
@@ -33642,7 +33642,7 @@ var createGoalSchema = external_exports.object({
 });
 var updateGoalSchema = objectWithoutDefaults(createGoalSchema).partial();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/onboarding-seed.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/onboarding-seed.js
 var MISSION_MAX_LENGTH = 2e3;
 var AGENT_NAME_MAX_LENGTH = 80;
 var AGENT_ROLE_MAX_LENGTH = 120;
@@ -33661,7 +33661,7 @@ var applyOnboardingSeedSchema = external_exports.object({
   }).optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/approval.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/approval.js
 var createApprovalSchema = external_exports.object({
   type: external_exports.enum(APPROVAL_TYPES),
   requestedByAgentId: external_exports.string().guid().optional().nullable(),
@@ -33681,7 +33681,7 @@ var addApprovalCommentSchema = external_exports.object({
   body: multilineTextSchema.pipe(external_exports.string().min(1))
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/cost.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/cost.js
 var createCostEventSchema = external_exports.object({
   agentId: external_exports.string().guid(),
   issueId: external_exports.string().guid().optional().nullable(),
@@ -33707,7 +33707,7 @@ var updateBudgetSchema = external_exports.object({
   budgetMonthlyCents: external_exports.number().int().nonnegative()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/finance.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/finance.js
 var createFinanceEventSchema = external_exports.object({
   agentId: external_exports.string().guid().optional().nullable(),
   issueId: external_exports.string().guid().optional().nullable(),
@@ -33738,7 +33738,7 @@ var createFinanceEventSchema = external_exports.object({
   currency: value.currency.toUpperCase()
 }));
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/asset.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/asset.js
 var ASSET_NAMESPACE_MAX_LENGTH = 120;
 var ASSET_NAMESPACE_PATTERN = /^[a-zA-Z0-9/_.:@|-]+$/;
 var ASSET_NAMESPACE_RULE = `"namespace" must be 1-${ASSET_NAMESPACE_MAX_LENGTH} characters of letters, numbers, or / _ - . : @ |, and cannot contain "." or ".." path segments`;
@@ -33752,7 +33752,7 @@ var createAssetImageMetadataSchema = external_exports.object({
   namespace: external_exports.string().trim().min(1).max(ASSET_NAMESPACE_MAX_LENGTH).regex(ASSET_NAMESPACE_PATTERN, ASSET_NAMESPACE_RULE).refine(hasNoDotSegments, { message: ASSET_NAMESPACE_RULE }).optional()
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/pipeline.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/pipeline.js
 var routineVariableLikeNameSchema = external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/);
 var pipelineStageKindSchema = external_exports.enum(["working", "review", "done", "cancelled"]);
 var legacyPipelineStageKindSchema = external_exports.enum(["open", "working", "review", "done", "cancelled"]);
@@ -33884,7 +33884,7 @@ var pipelineAutomationRetryRequestSchema = external_exports.object({
   })
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/access.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/access.js
 var createCompanyInviteSchema = external_exports.object({
   allowedJoinTypes: external_exports.enum(INVITE_JOIN_TYPES).default("both"),
   humanRole: external_exports.enum(HUMAN_COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
@@ -34014,7 +34014,7 @@ var updateCurrentUserProfileSchema = external_exports.object({
   image: external_exports.union([profileImageSchema, external_exports.literal(""), external_exports.null()]).optional().transform((value) => value === "" ? null : value)
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/skill-policy.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/skill-policy.js
 var SKILL_POLICY_ACTIONS = [
   "skills.create",
   "skills.import",
@@ -34116,7 +34116,7 @@ var evaluateSkillPolicySchema = external_exports.object({
   principal: external_exports.object({ agentId: external_exports.string().guid() }).strict().optional()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/provider-trace.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/provider-trace.js
 var providerTraceDirectionSchema = external_exports.enum([
   "client_to_provider",
   "provider_to_client",
@@ -34214,7 +34214,7 @@ var runPresentationDecisionSchema = external_exports.object({
   reasonCodes: external_exports.array(external_exports.string())
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/email.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/email.js
 var address = external_exports.string().trim().email().max(320);
 var addresses = external_exports.array(address).max(50);
 var emailEndpointSetupSchema = external_exports.object({
@@ -34265,7 +34265,7 @@ var emailConnectionSchema = external_exports.object({
   idempotencyKey: external_exports.string().uuid()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/api.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/api.js
 var API_PREFIX = "/api";
 var API = {
   health: `${API_PREFIX}/health`,
@@ -34335,7 +34335,7 @@ var API = {
   admin: `${API_PREFIX}/admin`
 };
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/config-schema.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/config-schema.js
 var configMetaSchema = external_exports.object({
   version: external_exports.literal(1),
   updatedAt: external_exports.string(),
@@ -34495,7 +34495,7 @@ var paperclipConfigSchema = external_exports.object({
   }
 });
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/adapter-registry.js
 var adapterRegistryEntrySchema = external_exports.object({
   adapterType: external_exports.string().min(1),
   enabled: external_exports.boolean().default(true),
@@ -34507,7 +34507,7 @@ var adapterRegistryEntrySchema = external_exports.object({
 }).strict();
 var adapterRegistrySchema = external_exports.array(adapterRegistryEntrySchema);
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/feature-catalog.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/feature-catalog.js
 var FEATURE_TIERS = ["preference", "managed", "floor"];
 var INSTANCE_FEATURE_CATALOG = {
   enableEnvironments: {
@@ -34765,7 +34765,7 @@ var featureCatalogArtifactSchema = external_exports.object({
   features: external_exports.record(external_exports.string().min(1), external_exports.object({ tier: external_exports.enum(FEATURE_TIERS) }).strict())
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/settings-visibility.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/settings-visibility.js
 var HIDEABLE_INSTANCE_PAGES = [
   "instance.profile",
   "instance.environments",
@@ -34804,14 +34804,14 @@ var HIDEABLE_SETTING_KEYS = [
   ...INSTANCE_FEATURE_KEYS.map(experimentalSettingKey)
 ];
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/setting-defaults.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/setting-defaults.js
 var DEFAULTABLE_GENERAL_SETTINGS = [
   "feedbackDataSharingPreference"
 ];
 var defaultableFieldsSchema = instanceGeneralSettingsSchema.pick(Object.fromEntries(DEFAULTABLE_GENERAL_SETTINGS.map((key) => [key, true]))).partial();
 var schemaDefaults = instanceGeneralSettingsSchema.parse({});
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/validators/runtime-exposure.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/validators/runtime-exposure.js
 var runtimeExposureProviderSchema = external_exports.literal("tailscale_https");
 var runtimeExposureFailurePolicySchema = external_exports.literal("fail_closed");
 var runtimeExposureConfigSchema = external_exports.object({
@@ -34848,14 +34848,14 @@ var runtimeExposureStatusSchema = external_exports.object({
   updatedAt: external_exports.string().nullable()
 }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/runtime-exposure/ports.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/runtime-exposure/ports.js
 var RUNTIME_EXPOSURE_APP_PORT_MIN = 42e3;
 var RUNTIME_EXPOSURE_APP_PORT_MAX = 42999;
 var RUNTIME_EXPOSURE_HMR_PORT_OFFSET = 1e4;
 var RUNTIME_EXPOSURE_HMR_PORT_MIN = RUNTIME_EXPOSURE_APP_PORT_MIN + RUNTIME_EXPOSURE_HMR_PORT_OFFSET;
 var RUNTIME_EXPOSURE_HMR_PORT_MAX = RUNTIME_EXPOSURE_APP_PORT_MAX + RUNTIME_EXPOSURE_HMR_PORT_OFFSET;
 
-// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.0/node_modules/@paperclipai/shared/dist/announcements.js
+// ../../node_modules/.pnpm/@paperclipai+shared@2026.916.1/node_modules/@paperclipai/shared/dist/announcements.js
 var ANNOUNCEMENT_MANIFEST_MAX_BYTES = 64 * 1024;
 var ANNOUNCEMENT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 var ANNOUNCEMENT_ANIMATION_MAX_BYTES = 128 * 1024;
@@ -34912,14 +34912,14 @@ var announcementManifestSchema = external_exports.object({
 }).strict();
 var dismissAnnouncementSchema = external_exports.object({ companyId: external_exports.string().uuid() }).strict();
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 import fs from "node:fs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/protocol.js
 var JSONRPC_VERSION = "2.0";
 var JSONRPC_ERROR_CODES = {
   /** Invalid JSON was received by the server. */
@@ -35066,7 +35066,7 @@ var JsonRpcCallError = class extends Error {
   }
 };
 
-// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.0_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
+// ../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.916.1_react@19.3.0/node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 var DEFAULT_RPC_TIMEOUT_MS = 3e4;
 function realpathOrResolvedPath(filePath) {
   const resolvedPath = path.resolve(filePath);
