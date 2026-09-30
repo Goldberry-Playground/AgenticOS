@@ -444,8 +444,30 @@ template, mirrored by `infra/scripts/install-disk-hygiene.sh` for running boxes
   compensating control for silent backup failure until the server-side
   loud-failure + retention fix ships (in `/opt/paperclip`, out of this repo's
   write boundary). Alerts are throttled per reason (~6h) so a sustained
-  condition doesn't spam. It never auto-deletes dumps — that volume holds live
-  state; pruning is the Paperclip server's retention job.
+  condition doesn't spam.
+
+  Since 2026-09-30 it also carries a **bounded reclaim** — alerting alone was
+  not enough. The volume hit 90% again with 8.4G of dumps, 2.9G of which was two
+  *orphaned partial* dumps from the earlier ENOSPC deaths (2026-09-10,
+  2026-09-18): the Paperclip server's own retention globs `*.sql.gz` only, so a
+  `.sql` killed mid-write is pruned by nothing, ever. Two tiers:
+  - **Tier A** (any usage) removes an orphaned `*.sql` only when it is older
+    than `PARTIAL_AGE_MIN` (2× the backup interval, floor 180m — a dump in
+    flight is never touched) **and** provably dead: its `.sql.gz` already
+    exists, or the file does not end in the dump's closing `COMMIT;`. A plain
+    `.sql` that *does* end in `COMMIT;` is logged and left for a human.
+  - **Tier B** (only at ≥`RECLAIM_PCT`, default 85 — i.e. strictly *after* the
+    80% page) thins intra-day dumps: keep the newest `KEEP_NEWEST` (2) plus the
+    newest dump of each calendar day, floor `MIN_KEEP` (3). Days are bucketed
+    from the server's own filename stamp, not mtime, because the stamp is local
+    time and mtime reads back as UTC.
+
+  Any reclaim posts to Discord unthrottled. Tier B is a **fallback, not the
+  fix**: the fix is a tighter `backupRetention` in the Paperclip instance
+  settings (`dailyDays` keeps *every* dump inside its window — 3 days × 6
+  dumps/day ≈ 5.4G). `RECLAIM=0` restores alert-only behaviour; `DRY_RUN=1`
+  logs what it would remove and posts nothing. Covered by
+  `scripts/ci/paperclip-volume-guard-reclaim.test.sh`.
 - **journald cap** — `/etc/systemd/journald.conf.d/10-agenticos-cap.conf` sets
   `SystemMaxUse=200M` (+ per-file / retention ceilings); cloud-init also runs
   `journalctl --vacuum-size=200M` once to apply it immediately.

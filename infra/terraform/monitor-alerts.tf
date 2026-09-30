@@ -55,6 +55,32 @@ resource "digitalocean_monitor_alert" "mem_critical" {
   description = "[AgenticOS] Droplet memory > 90% for 5m (critical — OOM imminent)"
 }
 
+# Disk has two rungs, same shape as memory above. 80% is the EARLY rung: it is
+# the point where the paperclip-volume-guard's bounded reclaim has not engaged
+# yet (RECLAIM_PCT=85) and a human still has days, not hours, to act. The
+# 2026-09-30 alert only fired at 91% off the 85% rung below, by which time the
+# volume had ~8G free and a week of headroom — too late to be comfortable
+# ahead of a launch. GOL-1632.
+resource "digitalocean_monitor_alert" "disk_warning" {
+  alerts {
+    email = var.alert_emails
+    dynamic "slack" {
+      for_each = local.alert_slack
+      content {
+        url     = slack.value.url
+        channel = slack.value.channel
+      }
+    }
+  }
+  window      = "5m"
+  type        = "v1/insights/droplet/disk_utilization_percent"
+  compare     = "GreaterThan"
+  value       = 80
+  enabled     = true
+  entities    = [digitalocean_droplet.agenticos_droplet.id]
+  description = "[AgenticOS] Droplet disk > 80% for 5m (warning — reclaim engages at 85%)"
+}
+
 resource "digitalocean_monitor_alert" "disk" {
   alerts {
     email = var.alert_emails
