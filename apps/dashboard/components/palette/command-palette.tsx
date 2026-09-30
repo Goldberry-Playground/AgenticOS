@@ -251,7 +251,7 @@ export function CommandPalette() {
             className="rounded-sm border px-1 py-0.5 text-[10px] font-medium"
             style={{
               backgroundColor: "var(--surface-muted)",
-              borderColor: "var(--border)",
+              borderColor: "var(--border-brand)",
               fontFamily: "var(--font-jetbrains-mono, monospace)",
             }}
           >
@@ -264,7 +264,7 @@ export function CommandPalette() {
             className="rounded-sm border px-1 py-0.5 text-[10px] font-medium"
             style={{
               backgroundColor: "var(--surface-muted)",
-              borderColor: "var(--border)",
+              borderColor: "var(--border-brand)",
               fontFamily: "var(--font-jetbrains-mono, monospace)",
             }}
           >
@@ -277,7 +277,7 @@ export function CommandPalette() {
             className="rounded-sm border px-1 py-0.5 text-[10px] font-medium"
             style={{
               backgroundColor: "var(--surface-muted)",
-              borderColor: "var(--border)",
+              borderColor: "var(--border-brand)",
               fontFamily: "var(--font-jetbrains-mono, monospace)",
             }}
           >

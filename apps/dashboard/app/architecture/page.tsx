@@ -85,7 +85,7 @@ export default function ArchitecturePage() {
           className="flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
           style={{
             backgroundColor: "var(--surface-muted)",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--border-brand)",
             color: "var(--text-secondary)",
           }}
           onMouseEnter={(e) => {
@@ -95,7 +95,7 @@ export default function ArchitecturePage() {
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "var(--border)";
+              "var(--border-brand)";
             (e.currentTarget as HTMLButtonElement).style.color =
               "var(--text-secondary)";
           }}

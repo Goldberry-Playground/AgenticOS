@@ -97,7 +97,7 @@ export function InboxQueue() {
               key={note.path}
               className="rounded-lg border p-3 flex flex-col gap-2"
               style={{
-                backgroundColor: "var(--surface-raised)",
+                backgroundColor: "var(--surface-elevated)",
                 borderColor: "var(--border-subtle)",
               }}
             >
@@ -105,7 +105,7 @@ export function InboxQueue() {
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <span
                     className="text-sm font-medium truncate"
-                    style={{ color: "var(--text-primary)" }}
+                    style={{ color: "var(--text)" }}
                     title={note.title}
                   >
                     {note.title}
