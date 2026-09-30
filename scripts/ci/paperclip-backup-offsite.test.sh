@@ -216,7 +216,27 @@ from urllib.parse import urlsplit, parse_qs, unquote
 
 ROOT = sys.argv[1]
 JOURNAL = sys.argv[2]
-OBJECTS = {}
+
+
+# One store, on disk, so what a test reads or edits in ${WORK}/bucket is exactly
+# what the next request sees. Keys flatten "/" -> "__"; the replace round-trips
+# for every key shape this shipper writes ("paperclip/_status/x" flattens to
+# "paperclip___status__x" and back, because a left-to-right replace consumes the
+# leading "__" of "___" first).
+def _path(key):
+    return os.path.join(ROOT, key.replace("/", "__"))
+
+
+def _keys():
+    return sorted(n.replace("__", "/") for n in os.listdir(ROOT))
+
+
+def _read(key):
+    try:
+        with open(_path(key), "rb") as fh:
+            return fh.read()
+    except FileNotFoundError:
+        return None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -252,9 +272,7 @@ class Handler(BaseHTTPRequestHandler):
                 break
             body += chunk
             remaining -= len(chunk)
-        OBJECTS[key] = body
-        dest = os.path.join(ROOT, key.replace("/", "__"))
-        with open(dest, "wb") as fh:
+        with open(_path(key), "wb") as fh:
             fh.write(body)
         self.send_response(200)
         self.send_header("ETag", '"x"')
@@ -265,12 +283,13 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authed():
             return
         key = unquote(urlsplit(self.path).path.lstrip("/"))
-        if key not in OBJECTS:
+        body = _read(key)
+        if body is None:
             self.send_response(404)
             self.end_headers()
             return
         self.send_response(200)
-        self.send_header("Content-Length", str(len(OBJECTS[key])))
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
 
     def do_GET(self):
@@ -281,14 +300,14 @@ class Handler(BaseHTTPRequestHandler):
         qs = parse_qs(parts.query)
         if qs.get("list-type") == ["2"]:
             prefix = qs.get("prefix", [""])[0]
-            hits = sorted(k for k in OBJECTS if k.startswith(prefix))
+            hits = [k for k in _keys() if k.startswith(prefix)]
             body = (
                 '<?xml version="1.0" encoding="UTF-8"?>'
                 '<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
                 "<IsTruncated>false</IsTruncated>"
                 + "".join(
                     f"<Contents><Key>{sx.escape(k)}</Key>"
-                    f"<Size>{len(OBJECTS[k])}</Size></Contents>"
+                    f"<Size>{len(_read(k) or b'')}</Size></Contents>"
                     for k in hits
                 )
                 + "</ListBucketResult>"
@@ -300,11 +319,11 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         key = unquote(parts.path.lstrip("/"))
-        if key not in OBJECTS:
+        body = _read(key)
+        if body is None:
             self.send_response(404)
             self.end_headers()
             return
-        body = OBJECTS[key]
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -398,8 +417,81 @@ OUT="$(run_shipper)"
 check "second run exits 0" "$?" "0"
 check "second run changed nothing" "$(objects)" "${BEFORE}"
 contains "second run reports skips" "${OUT}" "already off-box in every tier"
-not_contains "second run issued no PUT" "$(cat "${JOURNAL}")" "PUT "
+# The only PUT an idempotent re-run may issue is the liveness beacon. Asserting
+# "no PUT at all" would have been satisfied by a shipper that also stopped
+# reporting that it ran -- which is the state this job exists to make visible.
+check "second run re-uploaded no dump" \
+  "$(grep '^PUT ' "${JOURNAL}" | grep -c '\.sql\.gz' || true)" "0"
+check "second run's only PUT was the beacon" \
+  "$(grep -c '^PUT ' "${JOURNAL}")" "1"
+contains "second run's PUT was the beacon" "$(cat "${JOURNAL}")" \
+  "PUT /paperclip/_status/last-run.json"
 contains "second run shipped 0" "${OUT}" "0 dump(s) shipped"
+
+echo "== the liveness beacon makes a no-op run visible off-box =="
+BEACON="${WORK}/bucket/paperclip___status__last-run.json"
+check "beacon object exists" "$([ -f "${BEACON}" ] && echo yes || echo no)" "yes"
+BEACON_JSON="$(cat "${BEACON}")"
+contains "beacon reports success"        "${BEACON_JSON}" '"state": "ok"'
+contains "beacon reports 0 uploads"      "${BEACON_JSON}" '"uploaded": 0'
+contains "beacon names the newest dump"  "${BEACON_JSON}" 'paperclip-20260930-073020.sql.gz'
+contains "beacon carries local dump age" "${BEACON_JSON}" '"newest_local_dump_age_min"'
+contains "beacon carries a completion time" "${BEACON_JSON}" '"run_completed_at"'
+contains "beacon records the integrity rejections" "${BEACON_JSON}" '"rejected"'
+contains "beacon names the rejected dumps" "${BEACON_JSON}" 'paperclip-20260927-203249.sql.gz'
+
+echo "== --status answers 'is the timer running?' with bucket READ only =="
+OUT="$(run_shipper --status)"
+check "--status exits 0 on a fresh beacon" "$?" "0"
+contains "--status prints the beacon"  "${OUT}" '"state": "ok"'
+contains "--status says it is healthy" "${OUT}" "off-box shipper is running"
+check "--status wrote nothing" "$(objects)" "${BEFORE}"
+
+# A beacon the timer stopped refreshing: same shape, older timestamp. This is
+# the state that used to be indistinguishable from a healthy run.
+python3 - "${BEACON}" <<'STALE'
+import json, sys, datetime as dt
+p = sys.argv[1]
+d = json.load(open(p))
+old = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=9)).replace(microsecond=0)
+d["run_completed_at"] = old.isoformat()
+json.dump(d, open(p, "w"), indent=2, sort_keys=True)
+STALE
+OUT="$(run_shipper --status)"
+check "--status exits 1 when the beacon is stale" "$?" "1"
+contains "--status names the stale beacon" "${OUT}" "the timer is not firing"
+contains "--status reports the beacon age" "${OUT}" "540m ago"
+
+# A beacon from a run that threw must not read as healthy either.
+python3 - "${BEACON}" <<'ERRD'
+import json, sys, datetime as dt
+p = sys.argv[1]
+d = json.load(open(p))
+d["run_completed_at"] = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+d["state"] = "error"
+d["error"] = "SpacesError: PUT -> HTTP 403"
+json.dump(d, open(p, "w"), indent=2, sort_keys=True)
+ERRD
+OUT="$(run_shipper --status)"
+check "--status exits 1 on a fresh beacon from a failed run" "$?" "1"
+contains "--status surfaces the failure" "${OUT}" "HTTP 403"
+
+# A bucket that has never seen a completed run is its own distinct diagnosis.
+mv "${BEACON}" "${BEACON}.away"
+OUT="$(run_shipper --status)"
+check "--status exits 1 when no beacon exists" "$?" "1"
+contains "--status distinguishes 'never ran'" "${OUT}" "has never completed a run"
+mv "${BEACON}.away" "${BEACON}"
+
+# Put the bucket back the way the later assertions expect it.
+run_shipper >/dev/null
+
+echo "== a dry run must not forge a beacon =="
+: >"${JOURNAL}"
+OUT="$(run_shipper --dry-run)"
+check "dry-run exits 0 with a beacon present" "$?" "0"
+contains "dry-run says it withheld the beacon" "${OUT}" "not publishing the status beacon"
+not_contains "dry-run issued no PUT at all" "$(cat "${JOURNAL}")" "PUT "
 
 echo "== restore proof =="
 OUT="$(run_shipper --verify-restore --scratch-dir "${WORK}/scratch")"

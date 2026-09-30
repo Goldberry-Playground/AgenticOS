@@ -41,6 +41,23 @@ A dump is uploaded ONLY if it passes both halves of a single decompression pass:
 Bare ``*.sql`` files are never considered at all: a dump that has not reached
 the gzip step is by definition still being written.
 
+LIVENESS -- "it never ran" must not look like "it had nothing to do"
+------------------------------------------------------------------
+The steady state of this job is "every dump is already off-box": it uploads
+nothing and pages nobody. A stopped timer produces exactly the same silence, so
+for the first night after install there was no way to tell the two apart without
+a droplet shell. Every real run therefore overwrites one small JSON object:
+
+  paperclip/_status/last-run.json   run_completed_at, state, uploaded, rejected,
+                                    newest_local_dump + its age in minutes
+
+It sits OUTSIDE the tier prefixes, so no lifecycle rule expires it and the
+tier-membership listings cannot mistake it for a dump. ``--status`` reads it back
+and exits non-zero when it is missing, stale, or reports a failed run -- needing
+bucket READ and nothing else, so anyone (or any monitor) can answer "is the
+shipper alive?" from anywhere. ``--dry-run`` deliberately does NOT write it: the
+safe way to inspect this job must not also forge evidence that it ran.
+
 IDEMPOTENCY -- safe to run twice, safe to run every 30 minutes
 --------------------------------------------------------------
 Upload state is the BUCKET, never a local marker file: each object is HEADed
@@ -80,6 +97,10 @@ MODES
                      prove it restores: gzip CRC + trailing ``COMMIT;`` +
                      a statement-level parse (the plain-SQL equivalent of
                      ``pg_restore --list``). Used for the quarterly drill.
+  --status           read the liveness beacon back and exit non-zero if the
+                     shipper is absent, stale, or last failed. Read-only, needs
+                     bucket READ only -- runnable from anywhere, including
+                     after the droplet is gone.
 
 No external dependencies: Python 3 standard library only (the droplet has no
 boto3 and this must not acquire one).
@@ -96,6 +117,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -121,6 +143,19 @@ HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "300"))
 # Cap the work a single run will do so a cold start (or a long outage) uploads
 # steadily instead of saturating the droplet's uplink for an hour.
 MAX_UPLOADS = int(os.environ.get("MAX_UPLOADS", "4"))
+# Liveness beacon. A job whose only signal is a Discord alert on failure is
+# indistinguishable from a job that never ran: the steady state of this shipper
+# is "nothing new to upload", which writes nothing and pages nobody. So every
+# real run overwrites one small JSON object that anyone holding bucket READ can
+# fetch -- no droplet shell, and it survives the droplet loss this exists for.
+# It lives OUTSIDE the tier prefixes, so no lifecycle rule expires it and the
+# tier-membership listings can never mistake it for a dump.
+STATUS_KEY = (
+    os.environ.get("SPACES_BACKUP_STATUS_KEY", "").strip()
+    or f"{PREFIX}/_status/last-run.json"
+)
+# Timer is every 30 min; 90 tolerates one missed run plus a slow upload.
+STATUS_MAX_AGE_MIN = int(os.environ.get("STATUS_MAX_AGE_MIN", "90"))
 
 DUMP_RE = re.compile(r"^paperclip-(\d{8})-(\d{6})\.sql\.gz$")
 
@@ -422,6 +457,22 @@ def put_object(path: str, key: str, access_key: str, secret_key: str) -> None:
         )
 
 
+def put_bytes(body: bytes, key: str, content_type: str, access_key: str, secret_key: str) -> None:
+    spaces_request(
+        "PUT",
+        build_url(key),
+        access_key,
+        secret_key,
+        payload_sha256=hashlib.sha256(body).hexdigest(),
+        body=body,
+        extra_headers={
+            "content-length": str(len(body)),
+            "content-type": content_type,
+            "x-amz-acl": "private",
+        },
+    )
+
+
 def sha256_file(path: str) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -587,7 +638,7 @@ def tier_group_prefix(tier: str, name: str) -> str:
 # --- main modes --------------------------------------------------------------
 
 
-def run_upload(args, env_vals, access_key, secret_key) -> None:
+def _ship(args, env_vals, access_key, secret_key, status: dict) -> None:
     mount = resolve_mount()
     if not mount:
         log(
@@ -595,12 +646,22 @@ def run_upload(args, env_vals, access_key, secret_key) -> None:
             f"(volume={VOLUME}, PAPERCLIP_DATA_DIR={os.environ.get('PAPERCLIP_DATA_DIR', 'unset')})"
             " — nothing to ship"
         )
+        status["state"] = "no-mount"
         return
     log(f"paperclip-data mountpoint: {mount}")
+    status["mount"] = mount
 
     dumps = find_dumps(mount)
+    status["local_dumps"] = len(dumps)
+    if dumps:
+        newest = max(dumps, key=os.path.basename)
+        status["newest_local_dump"] = os.path.basename(newest)
+        status["newest_local_dump_age_min"] = int(
+            (time.time() - os.path.getmtime(newest)) // 60
+        )
     if not dumps:
         log("no completed dumps found — nothing to ship (fresh box?)")
+        status["state"] = "no-dumps"
         return
     log(f"{len(dumps)} completed dump(s) on the volume")
 
@@ -620,8 +681,11 @@ def run_upload(args, env_vals, access_key, secret_key) -> None:
         f"off-box coverage: {len(covered['weekly'])} week(s), "
         f"{len(covered['monthly'])} month(s)"
     )
+    status["offbox_weeks"] = len(covered["weekly"])
+    status["offbox_months"] = len(covered["monthly"])
 
     uploaded = 0
+    rejected: list = []
     for path in dumps:
         if uploaded >= MAX_UPLOADS:
             log(f"MAX_UPLOADS={MAX_UPLOADS} reached — remaining dumps ship next run")
@@ -648,6 +712,7 @@ def run_upload(args, env_vals, access_key, secret_key) -> None:
             # the timer fires. It becomes an alert only once it is older than the
             # backup cadence, which the volume guard already pages on. Log loudly.
             log(f"{name}: REJECTED, not shippable — {reason}")
+            rejected.append({"dump": name, "reason": reason})
             continue
 
         if args.dry_run:
@@ -670,6 +735,111 @@ def run_upload(args, env_vals, access_key, secret_key) -> None:
         uploaded += 1
 
     log(f"done — {uploaded} dump(s) shipped this run")
+    status["uploaded"] = uploaded
+    status["rejected"] = rejected
+    status["state"] = "ok"
+
+
+def run_upload(args, env_vals, access_key, secret_key) -> None:
+    """Ship, then always publish the liveness beacon -- including on the paths
+    that ship nothing and on the paths that throw.
+
+    The beacon is written in a ``finally`` on purpose: "no mount", "no dumps"
+    and "upload failed" are exactly the states an operator needs to see from
+    off-box, and they are the states that would otherwise write nothing at all.
+    """
+    status = {
+        "run_started_at": dt.datetime.now(dt.timezone.utc)
+        .replace(microsecond=0)
+        .isoformat(),
+        "host": socket.gethostname(),
+        "bucket": BUCKET,
+        "prefix": PREFIX,
+        "state": "incomplete",
+        "uploaded": 0,
+        "rejected": [],
+    }
+    try:
+        _ship(args, env_vals, access_key, secret_key, status)
+    except BaseException as exc:  # noqa: BLE001 -- recorded, then re-raised
+        status["state"] = "error"
+        status["error"] = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        if args.dry_run:
+            # A dry run must leave the bucket byte-for-byte untouched, beacon
+            # included -- otherwise the safe way to inspect this job is the one
+            # way that also forges evidence that it ran.
+            log("DRY-RUN: not publishing the status beacon")
+        else:
+            publish_status(status, access_key, secret_key)
+
+
+def publish_status(status: dict, access_key: str, secret_key: str) -> None:
+    """Best-effort. A beacon write must never turn a good backup run bad."""
+    status["run_completed_at"] = (
+        dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    )
+    try:
+        body = json.dumps(status, indent=2, sort_keys=True).encode() + b"\n"
+        put_bytes(body, STATUS_KEY, "application/json", access_key, secret_key)
+        log(f"status beacon published -> s3://{BUCKET}/{STATUS_KEY}")
+    except Exception as exc:  # noqa: BLE001
+        # Loud in journald, but not fatal and not a page: losing the beacon
+        # costs observability, not a restore point.
+        log(f"WARNING: could not publish status beacon to {STATUS_KEY}: {exc}")
+
+
+def run_status(args, access_key: str, secret_key: str) -> int:
+    """Read-only: answer "is the timer actually running?" from anywhere.
+
+    Needs bucket READ and nothing else -- no droplet shell, no systemd. Exits
+    non-zero when the beacon is missing, stale, or reports a failed run, so it
+    doubles as a check you can wire into any monitor.
+    """
+    try:
+        resp = spaces_request("GET", build_url(STATUS_KEY), access_key, secret_key)
+        status = json.loads(resp.read().decode("utf-8"))
+    except SpacesError as exc:
+        if "HTTP 404" in str(exc):
+            log(
+                f"NO STATUS: s3://{BUCKET}/{STATUS_KEY} does not exist — the shipper "
+                "has never completed a run against this bucket"
+            )
+            return 1
+        raise
+    print(json.dumps(status, indent=2, sort_keys=True))
+
+    completed = status.get("run_completed_at")
+    problems = []
+    if not completed:
+        problems.append("beacon has no run_completed_at")
+    else:
+        age_min = int(
+            (
+                dt.datetime.now(dt.timezone.utc)
+                - dt.datetime.fromisoformat(completed)
+            ).total_seconds()
+            // 60
+        )
+        log(f"last completed run: {completed} ({age_min}m ago)")
+        if age_min > args.max_age_minutes:
+            problems.append(
+                f"last run was {age_min}m ago, over the {args.max_age_minutes}m threshold"
+                " — the timer is not firing"
+            )
+    if status.get("state") != "ok":
+        problems.append(f"last run state={status.get('state')!r} {status.get('error', '')}".strip())
+    if status.get("rejected"):
+        # Not fatal: a dump can legitimately be mid-write when the timer fires.
+        log(f"note: {len(status['rejected'])} dump(s) failed the integrity gate last run")
+
+    for p in problems:
+        log(f"PROBLEM: {p}")
+    if problems:
+        return 1
+    log("OK — off-box shipper is running and its last run succeeded")
+    return 0
 
 
 def run_verify_restore(args, env_vals, access_key, secret_key) -> int:
@@ -737,6 +907,18 @@ def main() -> int:
     parser.add_argument(
         "--keep", action="store_true", help="keep the --verify-restore download"
     )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="read-only: print the off-box liveness beacon and exit non-zero "
+        "if the shipper is not running (needs bucket READ only)",
+    )
+    parser.add_argument(
+        "--max-age-minutes",
+        type=int,
+        default=STATUS_MAX_AGE_MIN,
+        help=f"--status staleness threshold (default {STATUS_MAX_AGE_MIN})",
+    )
     args = parser.parse_args()
 
     env_vals = load_env_file(ENV_FILE)
@@ -772,6 +954,8 @@ def main() -> int:
         return 2
 
     try:
+        if args.status:
+            return run_status(args, access_key, secret_key)
         if args.verify_restore:
             return run_verify_restore(args, env_vals, access_key, secret_key)
         run_upload(args, env_vals, access_key, secret_key)
