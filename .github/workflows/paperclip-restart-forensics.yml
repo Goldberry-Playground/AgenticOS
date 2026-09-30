@@ -98,6 +98,13 @@ jobs:
             echo
 
             echo "===== 3. live memory vs limit, and cgroup OOM counters ====="
+            # NOTE the two numbers disagree on purpose: `docker stats` reports the
+            # working set (it subtracts page cache), while cgroup memory.current
+            # includes it. On the first live run that was 1.485GiB (49.5%) vs
+            # 2.63GiB (88%) -- the gap is ~1.1GiB of reclaimable page cache from
+            # writing server.log, not demand on the limit. Read the docker stats
+            # figure when judging OOM risk.
+            #
             # memory.events oom_kill is the cgroup-level kill counter. It resets
             # when the container is RECREATED (not when it is merely restarted),
             # so read it together with .RestartCount above. A nonzero oom_kill
@@ -132,14 +139,29 @@ jobs:
             # probe that cannot run is not evidence of absence, so the two cases
             # are now labelled INCONCLUSIVE and CONCLUSIVE and never share
             # wording.
-            if ! command -v journalctl >/dev/null 2>&1; then
-              echo "INCONCLUSIVE: journalctl is not installed; kernel ring buffer unreadable"
-            elif ! sudo -n journalctl -k --since "-24h" --no-pager >/tmp/gol2864.kmsg 2>/tmp/gol2864.kerr; then
-              echo "INCONCLUSIVE: could not read the kernel journal: $(head -1 /tmp/gol2864.kerr)"
+            # The first live run returned "sudo: a password is required": the deploy
+            # user has no NOPASSWD entry. Try the unprivileged readers first, and
+            # require a NON-EMPTY result, because an unprivileged `journalctl -k`
+            # can exit 0 having read nothing -- which would look identical to a
+            # clean box.
+            KLOG=
+            for reader in "journalctl -k --since -24h --no-pager" \
+                          "sudo -n journalctl -k --since -24h --no-pager" \
+                          "dmesg -T"; do
+              if command -v ${reader%% *} >/dev/null 2>&1 \
+                 && $reader >/tmp/gol2864.kmsg 2>/tmp/gol2864.kerr \
+                 && [ -s /tmp/gol2864.kmsg ]; then
+                KLOG="$reader"; break
+              fi
+            done
+            if [ -z "$KLOG" ]; then
+              echo "INCONCLUSIVE: no readable kernel log. Last error: $(head -1 /tmp/gol2864.kerr 2>/dev/null)"
+              echo "  To make this probe conclusive, grant the deploy user NOPASSWD for"
+              echo "  /usr/bin/journalctl, or add it to the systemd-journal group."
             elif grep -iE "oom-kill|Out of memory|Killed process|oom_reaper" /tmp/gol2864.kmsg; then
-              echo "^^ CONCLUSIVE: kernel OOM-killer DID fire in the last 24h (lines above)"
+              echo "^^ CONCLUSIVE (via $KLOG): kernel OOM-killer DID fire (lines above)"
             else
-              echo "CONCLUSIVE: kernel journal read successfully; zero OOM-killer lines in the last 24h"
+              echo "CONCLUSIVE (via $KLOG): kernel log read; zero OOM-killer lines in range"
             fi
             rm -f /tmp/gol2864.kmsg /tmp/gol2864.kerr
             echo
@@ -155,13 +177,22 @@ jobs:
             if ! command -v docker >/dev/null 2>&1; then
               echo "INCONCLUSIVE: docker CLI unavailable"
             else
-              EVENTS=$(timeout 60 docker events --since 24h --until now \
-                --filter container=paperclip-server \
-                --format "{{.Time}} {{.Status}} exitCode={{index .Actor.Attributes \"exitCode\"}}" 2>&1)
-              if [ -n "$EVENTS" ]; then
+              # `.Action`, NOT `.Status`. The template is applied to
+              # *events.Message, which has no Status field; the first live run
+              # returned an "Error parsing format ... cannot evaluate field Status"
+              # -- and because that text is non-empty, the draft printed it and
+              # then declared the result CONCLUSIVE. An error is never data: any
+              # failure or template error is INCONCLUSIVE.
+              if ! EVENTS=$(timeout 60 docker events --since 24h --until now \
+                  --filter container=paperclip-server \
+                  --format "{{.Time}} {{.Action}} exitCode={{index .Actor.Attributes \"exitCode\"}}" 2>&1); then
+                echo "INCONCLUSIVE: docker events failed: $(printf %s "$EVENTS" | head -1)"
+              elif printf %s "$EVENTS" | grep -qiE "^Error|template:"; then
+                echo "INCONCLUSIVE: docker events returned an error: $(printf %s "$EVENTS" | head -1)"
+              elif [ -n "$EVENTS" ]; then
                 echo "$EVENTS"
-                echo "^^ CONCLUSIVE: an oom status here confirms an OOM-kill; a die/start pair"
-                echo "   with no preceding stop is a crash; create/destroy is a deploy recreate."
+                echo "^^ CONCLUSIVE: an oom action confirms an OOM-kill; a die/start pair with"
+                echo "   no preceding stop is a crash; create/destroy is a deploy recreate."
               else
                 echo "CONCLUSIVE: daemon reachable; zero lifecycle events for paperclip-server in 24h"
               fi
