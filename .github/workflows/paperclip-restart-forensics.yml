@@ -187,8 +187,18 @@ jobs:
               # `failed to parse value as time or duration: "now"`. It is still
               # required -- without any --until, `docker events --since` streams
               # live and never returns, hanging the step until the job timeout.
+              # Filter to LIFECYCLE events only. The compose healthcheck execs
+              # every 10s and each one emits exec_create + exec_start + exec_die,
+              # so an unfiltered 24h window is ~26k lines of healthcheck noise
+              # that buries the handful of die/start/create lines this probe
+              # exists to find -- and the daemon truncates to the most recent
+              # events, so the restarts scroll off entirely. Repeated
+              # --filter event= are OR-ed.
               if ! EVENTS=$(timeout 60 docker events --since 24h --until "$(date -u +%Y-%m-%dT%H:%M:%S)" \
                   --filter container=paperclip-server \
+                  --filter event=create --filter event=start --filter event=die \
+                  --filter event=stop --filter event=kill --filter event=restart \
+                  --filter event=oom --filter event=destroy \
                   --format "{{.Time}} {{.Action}} exitCode={{index .Actor.Attributes \"exitCode\"}}" 2>&1); then
                 echo "INCONCLUSIVE: docker events failed: $(printf %s "$EVENTS" | head -1)"
               elif printf %s "$EVENTS" | grep -qiE "^Error|template:"; then
