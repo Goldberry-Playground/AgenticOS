@@ -343,8 +343,10 @@ op run --env-file=.env.op -- terraform plan
 > ```bash
 > # Needs the account-wide plumbing key: a bucket-scoped key gets 403 on
 > # bucket-configuration reads, which is least privilege working as intended.
-> AK="$(op read 'op://Goldberry Grove - Admin/Grove Infra/spaces_bootstrap_access_key_id')" \
-> SK="$(op read 'op://Goldberry Grove - Admin/Grove Infra/spaces_bootstrap_secret_key')" \
+> # The secret's 1Password field label has a TRAILING SPACE, so it is read by
+> # field id — same reason .env.op references it that way.
+> export AWS_ACCESS_KEY_ID="$(op read 'op://Goldberry Grove - Admin/Grove Infra/spaces_bootstrap_access_key_id')"
+> export AWS_SECRET_ACCESS_KEY="$(op read 'op://Goldberry Grove - Admin/Grove Infra/f6upwbtfs7jo7f4avwe6kivcwu')"
 > aws --endpoint-url https://nyc3.digitaloceanspaces.com \
 >     s3api get-bucket-lifecycle-configuration --bucket agenticos-backups
 > ```
