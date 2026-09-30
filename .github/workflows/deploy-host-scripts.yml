@@ -22,10 +22,28 @@ name: Deploy Host Scripts
 #
 # This workflow closes that gap: on a push to main touching the host scripts, it
 # `git reset --hard origin/main` on /opt/agenticos/repo — the same proven step
-# deploy-droplet-plugins.yml already uses. No rebuild: these are plain bash
-# scripts, picked up on the timer's next fire. It also asserts the clone's origin
-# is the canonical Goldberry-Playground URL, repointing it if a future org
-# transfer leaves it resolving only through GitHub's redirect (GOL-1965 finding).
+# deploy-droplet-plugins.yml already uses. It also asserts the clone's origin is
+# the canonical Goldberry-Playground URL, repointing it if a future org transfer
+# leaves it resolving only through GitHub's redirect (GOL-1965 finding).
+#
+# GOL-2591 — "No rebuild: these are plain bash scripts" was true when this file was
+# written and is NOT true any more. docker-compose.yml bind-mounts `./packages/<p>`
+# (= /opt/agenticos/repo/packages/<p>) straight into paperclip-server, so THIS
+# clone's `dist/` is the live plugin artifact. A reset therefore replaces every
+# plugin bundle with whatever stale dist happens to be committed — no rebuild,
+# nothing red, no signal of any kind.
+#
+# That fired on 2026-09-29. AgenticOS #688 shipped github-sync 0.16.9 in
+# src/manifest.ts but never rebuilt the committed dist (still 0.16.8: no
+# `worker-heartbeat` job, no boot-retry code). The 20:50Z plugin deploy rebuilt it
+# on the box, so the GOL-2371 liveness heartbeat armed and migration 007 ran. The
+# 20:58Z run of THIS workflow (triggered by an unrelated scripts/** change) reset
+# the clone back to the committed 0.16.8 bundle; paperclip-server re-activated at
+# 0.16.8 and the `worker-heartbeat` job went `paused`, 14 minutes after arming.
+#
+# So the reset is now followed by scripts/rebuild-plugin-dists.sh plus a registry
+# convergence for exactly the plugins the reset moved. Both are no-ops on the
+# overwhelmingly common run that touched no packages/**.
 
 on:
   push:
@@ -64,6 +82,8 @@ jobs:
           host: ${{ secrets.DROPLET_HOST }}
 
       - name: Assert remote + pull /opt/agenticos/repo to origin/main
+        # `shell: bash` (-eo pipefail) so the `| tee` below cannot mask an ssh failure.
+        shell: bash
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
           USER: ${{ secrets.DROPLET_USER }}
@@ -99,4 +119,71 @@ jobs:
             else
               echo "advanced $OLD -> $NEW"
             fi
-          '"'"''
+          '"'"'' | tee reset.log
+
+      # The reset above may have replaced the bind-mounted plugin dists with the
+      # committed (possibly stale) artifacts — see the GOL-2591 note in the header.
+      # Rebuild them from the source just checked out, then converge the registry for
+      # exactly the plugins that moved.
+      #
+      # `shell: bash` is load-bearing on every step that pipes ssh into `tee`: the
+      # repo default is `bash -e` WITHOUT pipefail, so tee's 0 would mask a nonzero
+      # exit and this repair would report success while shipping a stale bundle —
+      # the GOL-804 / run 31039144506 trap, one layer down.
+      #
+      # OLD/NEW come from the reset step's own log rather than a second `git rev-parse
+      # HEAD@{1}` on the box: `git checkout main` writes its own reflog entry, so
+      # HEAD@{1} is not reliably the pre-reset commit. Reading the SHAs the reset
+      # actually printed cannot drift from what it actually did.
+      - name: Rebuild bind-mounted plugin dists if the reset moved them (GOL-2591)
+        id: rebuild
+        shell: bash
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          OLD="$(sed -n 's/^advanced \([0-9a-f]\{7,40\}\) -> [0-9a-f]\{7,40\}$/\1/p' reset.log | tail -n1)"
+          NEW="$(sed -n 's/^advanced [0-9a-f]\{7,40\} -> \([0-9a-f]\{7,40\}\)$/\1/p' reset.log | tail -n1)"
+          if [ -z "$OLD" ] || [ -z "$NEW" ]; then
+            echo "Clone was already current — the reset moved nothing, so no dist can have been reverted."
+            echo "No plugin dist could have moved (clone already current)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Both are validated hex SHAs from our own log, never free-form input, so
+          # they are safe to place in the ssh payload (GOL-2531 rule).
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "bash -lc 'set -euo pipefail; cd /opt/agenticos/repo && bash scripts/rebuild-plugin-dists.sh ${OLD} ${NEW}'" \
+            | tee rebuild.log
+          grep '^REBUILT: ' rebuild.log | awk '{print $2}' > rebuilt.txt || true
+          {
+            echo "### Plugin dist rebuild after reset (GOL-2591)"
+            echo '```'
+            grep -E '^(REBUILT|unchanged|REBUILT_COUNT|rebuild-plugin-dists)' rebuild.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Converge the STORED registry version for the rebuilt plugins only. Bounded on
+      # purpose: /upgrade-ing the whole fleet on a routine bash-script push would
+      # widen the blast radius of this workflow far past what it is for.
+      - name: Converge the registry for rebuilt plugins
+        shell: bash
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          if [ ! -s rebuilt.txt ]; then
+            echo "No plugin dist changed — registry convergence not needed."
+            exit 0
+          fi
+          plugins="$(tr '\n' ' ' < rebuilt.txt)"
+          echo "Converging: ${plugins}"
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "bash -lc 'set -euo pipefail; cd /opt/agenticos/repo && bash scripts/finish-plugin-upgrade.sh ${plugins} && bash scripts/assert-plugin-versions.sh ${plugins}'" \
+            | tee converge.log
+          {
+            echo "### Registry convergence"
+            echo '```'
+            grep -E '^  ok |converged|paperclip API:' converge.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
