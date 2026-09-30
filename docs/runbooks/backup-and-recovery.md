@@ -396,7 +396,6 @@ even when the shipper itself is perfectly healthy — the shipper can only ship
 what the server produces, and "shipped everything there was" is not the same
 claim as "the database is being backed up".
 
-
 No `aws` CLI on hand? The shipper needs none — it signs SigV4 with the Python
 standard library, so `--verify-restore` alone will fetch and validate the newest
 off-box dump with no extra tooling.
