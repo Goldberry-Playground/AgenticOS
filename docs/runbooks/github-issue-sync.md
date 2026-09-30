@@ -187,6 +187,70 @@ paperclip-server trust boundary. If Paperclip later ships a scoped
 company-wide-issue-write service token, mint one and repoint `paperclipApiToken`
 at it (tracked as the GOL-781 least-privilege follow-up).
 
+### 3b. Self-review guard — `prReviewAuthorIdentities` (GOL-2720 / GOL-2801)
+The `filterSelfAuthoredReviewers` guard (github-sync `0.17.0`) is **inert until this
+optional field is set**. Without it, a frontend PR that Iris authored still mints an
+`agent-review/iris` twin she then has to review herself — five of those shipped
+between GOL-2718 and GOL-2799, each costing a manual recuse-and-reassign.
+
+Reviewer slug → the git **commit author** names/emails that mark a PR as authored by
+that reviewer's agent. The commit author is the discriminating signal because every
+agent PR shares one App **opener** login (`agenticos-developer[bot]`); the guard does
+not pass the opener login into `collectAuthorSignals`, so only commit authors count.
+Matching is trim + lowercase, so the values must be the literal commit identities.
+
+Live values (applied 2026-09-30, derived from the commit authors of the last 60
+grove-sites PRs, not assumed):
+```jsonc
+"prReviewAuthorIdentities": {
+  "iris": ["iris@goldberrygrove.farm", "Frontend - Iris", "Iris (Frontend)"],
+  "ada":  ["ada@goldberrygrove.farm", "ada-engineer[bot]", "Engineering - Ada",
+           "Ada (Lead Engineer)", "Ada (Paperclip)", "Ada"]
+}
+```
+Add it to the §3 `configJson` POST (a full-document replace — GET the stored config
+first and re-POST it with this key added, so nothing is dropped).
+
+⚠️ **Agents do not use one stable commit identity — survey before you write config.**
+`git log --format='%an <%ae>'` over `main` is useless here: squash-merge rewrites every
+commit to the App identity. Read the PR branches instead
+(`GET /repos/{owner}/{repo}/pulls/{n}/commits`). On grove-sites, Iris commits under two
+names (`Frontend - Iris` and `Iris (Frontend)`) that happen to share one email, and Ada
+under five name/email pairs. Re-run the survey when adding a reviewer.
+
+⚠️ **Never list `noreply@paperclip.ing` or `josh@goldberrygrove.farm` as an identity.**
+Both are *shared*: Ada, Terra and Iris have all committed under `noreply@paperclip.ing`,
+and `josh@goldberrygrove.farm` appears on both Josh's and Ada's commits. Listing a
+shared email attributes another agent's commits to that reviewer. Only reviewer-unique
+emails and full commit *names* belong in these lists.
+
+Behaviour and boundaries:
+- Only the **supplementary** reviewer (Iris) is ever skipped, and only when the
+  required reviewer (Ada, `REQUIRED_REVIEWER`) is present **and** is not also an
+  author. With no Iris twin the coupled gate sees `irisPresent=false` and greens on
+  Ada alone — no self-signed `agent-review/iris` = success is posted.
+- `ada` is never skipped by design; dropping it would strand the required
+  `agent-review/ada` check. Its entry only makes `requiredIndependent` false on
+  Ada-authored PRs (so an Iris+Ada co-authored PR keeps both twins) — the
+  conservative direction.
+- Fails **safe**: a failed or truncated `pulls/{n}/commits` fetch mints every
+  reviewer, exactly as before. A PR committed under the shared
+  `agenticos-developer[bot]` identity is likewise undetectable and keeps both twins.
+- Prevents future mints only — twins already minted must still be resolved by hand.
+
+⚠️ **A config save alone is not enough — you must `disable` → `enable` the plugin.**
+`onWebhook` re-reads config on every delivery, so the webhook path picks the field up
+immediately; but `pr-review-reconcile` (the :30 sweep) closes over the `cfg` captured
+in `setup()`. Skip the bounce and the sweep re-mints, on stale config, the very twin
+the webhook just skipped. Before bouncing, check `/proc/self/mountinfo | grep plugins`
+for `//deleted` — an orphaned mount turns `enable` into a `400 "no longer exposes a
+Paperclip manifest"` and leaves the plugin down. Verify after: `status: ready`,
+`version` unchanged, and a fresh `worker_booted_at` in `github_sync_heartbeat`.
+
+Note the on-disk `packages/github-sync-plugin/package.json` version (`0.16.2`) is
+stale and unused — the registry version comes from `dist/manifest.js`. Do not read it
+as a failed deploy.
+
 ### 4. Inbound leg = the plugin's public webhook (NO routine)
 There is **no routine**. A routine run always dispatches an agent (`Default agent
 required`) — it can't just create a mirror issue, and on the Odoocker bridge it
