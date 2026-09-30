@@ -64,7 +64,10 @@ export async function processReply(deps: ReceiveDeps, issueId: string): Promise<
   if (!reply) return { status: "waiting" };
 
   // Mark this reply handled up front so a duplicate event / overlapping sweep
-  // doesn't double-process or double-post an error.
+  // doesn't double-process or double-post an error. Keep the prior watermark so
+  // the transient-write-error path can roll it back and genuinely retry this
+  // same reply on the next sweep (GOL-2677).
+  const priorLastReplyAt = req.lastReplyAt;
   req.lastReplyAt = reply.createdAt;
 
   // Read the product fresh: current empty-fillable set for validation, current
@@ -119,10 +122,21 @@ export async function processReply(deps: ReceiveDeps, issueId: string): Promise<
 
   const applied = await applyDraftToOdoo(odoo, req.productId, read.data.grove_facts_provenance, parsed.data, now);
   if (!applied.ok) {
-    await issues.postComment(issueId, `Draft validated but the Odoo write failed: ${applied.error}. Will retry.`);
-    await state.setRequest(issueId, req); // keep open; sweep/next event retries
+    // Roll the watermark back to before this reply so the next sweep re-selects
+    // and re-applies it — otherwise "Will retry." is a lie: the advanced
+    // watermark hides the reply forever and the request drifts to a timeout
+    // block with a good draft dropped (GOL-2677). Comment once per reply so a
+    // persistently failing write doesn't spam chatter every sweep.
+    req.lastReplyAt = priorLastReplyAt;
+    if (req.writeRetryReplyAt !== reply.createdAt) {
+      await issues.postComment(issueId, `Draft validated but the Odoo write failed: ${applied.error}. Will retry.`);
+      req.writeRetryReplyAt = reply.createdAt;
+    }
+    await state.setRequest(issueId, req); // keep open; sweep/next event retries this reply
     return { status: "error", error: applied.error };
   }
+  // Clear the retry marker on success so a later re-request starts clean.
+  req.writeRetryReplyAt = undefined;
 
   req.status = "drafted";
   await state.setDraftedVersion(productOriginId(req.productId), req.marker);
