@@ -183,7 +183,11 @@ jobs:
               # -- and because that text is non-empty, the draft printed it and
               # then declared the result CONCLUSIVE. An error is never data: any
               # failure or template error is INCONCLUSIVE.
-              if ! EVENTS=$(timeout 60 docker events --since 24h --until now \
+              # --until takes a timestamp, not the word "now": this daemon answered
+              # `failed to parse value as time or duration: "now"`. It is still
+              # required -- without any --until, `docker events --since` streams
+              # live and never returns, hanging the step until the job timeout.
+              if ! EVENTS=$(timeout 60 docker events --since 24h --until "$(date -u +%Y-%m-%dT%H:%M:%S)" \
                   --filter container=paperclip-server \
                   --format "{{.Time}} {{.Action}} exitCode={{index .Actor.Attributes \"exitCode\"}}" 2>&1); then
                 echo "INCONCLUSIVE: docker events failed: $(printf %s "$EVENTS" | head -1)"
