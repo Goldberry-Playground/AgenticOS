@@ -57,8 +57,36 @@ fi
   if plugin_is_pending_install vault-plugin; then exit 3; fi
   if plugin_is_valid not-a-plugin; then exit 4; fi
   plugin_is_valid vault-plugin || exit 5
-  plugin_is_pending_install grove-content-drafter-plugin || exit 6
-) && ok "plugin_is_valid / plugin_is_pending_install are set -e safe and correct" \
+
+  # Drive the TRUE branch off an INJECTED list, never off whatever
+  # PLUGIN_PENDING_INSTALL happens to hold right now. This used to assert
+  # `plugin_is_pending_install grove-content-drafter-plugin`, which broke the
+  # moment that plugin was installed and its name was correctly removed
+  # (GOL-2423) — the test was pinned to a transient rollout state. The steady
+  # state of PLUGIN_PENDING_INSTALL is EMPTY, so exercise both list shapes here.
+  PLUGIN_PENDING_INSTALL="pending-a pending-b"
+  plugin_is_pending_install pending-a || exit 6
+  plugin_is_pending_install pending-b || exit 7
+  if plugin_is_pending_install vault-plugin; then exit 8; fi
+
+  # Empty list — the normal case — must be a clean false, not a match.
+  PLUGIN_PENDING_INSTALL=""
+  if plugin_is_pending_install vault-plugin; then exit 9; fi
+  if plugin_is_pending_install ""; then exit 10; fi
+  if plugin_is_valid ""; then exit 11; fi
+
+  # plugin_config_is_external guards sync-paperclip-secrets.sh's DELETE, so the
+  # same three shapes matter: a hit, a miss, and the empty name/list that must
+  # NOT match (a false TRUE here would keep a plugin that should be refreshed;
+  # a false FALSE would delete a plugin whose config nothing can restore).
+  PLUGIN_CONFIG_EXTERNAL="ext-a ext-b"
+  plugin_config_is_external ext-a || exit 12
+  plugin_config_is_external ext-b || exit 13
+  if plugin_config_is_external vault-plugin; then exit 14; fi
+  PLUGIN_CONFIG_EXTERNAL=""
+  if plugin_config_is_external vault-plugin; then exit 15; fi
+  if plugin_config_is_external ""; then exit 16; fi
+) && ok "plugin_is_valid / plugin_is_pending_install / plugin_config_is_external are set -e safe and correct" \
   || bad "predicate self-check exited $?"
 
 if [ $fail -eq 0 ]; then echo "plugin-registry.test.sh: PASS"; else echo "plugin-registry.test.sh: FAIL" >&2; fi

@@ -47,6 +47,8 @@ console.log(`PLUGIN_DIRS = ${PLUGINS.join(" ")}\n`);
 
 const pendingLine = /^PLUGIN_PENDING_INSTALL="([^"]*)"/m.exec(registry);
 const PENDING = (pendingLine?.[1] || "").trim().split(/\s+/).filter(Boolean);
+const externalLine = /^PLUGIN_CONFIG_EXTERNAL="([^"]*)"/m.exec(registry);
+const EXTERNAL = (externalLine?.[1] || "").trim().split(/\s+/).filter(Boolean);
 
 // --- docker-compose.yml bind mounts -----------------------------------------
 // Every plugin needs `./packages/<p>:/paperclip/plugins/<p>:ro` or the container
@@ -138,6 +140,18 @@ for (const p of PENDING) {
   else {
     failures += 1;
     console.error(`  FAIL PLUGIN_PENDING_INSTALL entry '${p}' is not in PLUGIN_DIRS`);
+  }
+}
+
+// --- external-config entries must be real plugins ---------------------------
+// A typo here silently un-protects the plugin it was meant to protect: the name
+// never matches, sync-paperclip-secrets.sh deletes it, and its out-of-band
+// config is gone. Fail the PR instead.
+for (const p of EXTERNAL) {
+  if (PLUGINS.includes(p)) console.log(`  ok  PLUGIN_CONFIG_EXTERNAL entry ${p} is in PLUGIN_DIRS`);
+  else {
+    failures += 1;
+    console.error(`  FAIL PLUGIN_CONFIG_EXTERNAL entry '${p}' is not in PLUGIN_DIRS`);
   }
 }
 
