@@ -4,6 +4,8 @@
 #   - agenticos-disk-guard.service/.timer     (daily df check + Discord + reclaim)
 #   - agenticos-paperclip-volume-guard.*      (hourly paperclip-data headroom +
 #                                              backup-freshness check → Discord; GOL-1632)
+#   - agenticos-worktree-reaper.service/.timer (nightly reap of abandoned agent
+#                                              worktrees; GOL-1632 / #765)
 #   - journald cap                            (SystemMaxUse=200M drop-in + vacuum)
 #   - logrotate                               (container + /var/log/agenticos logs
 #                                              + paperclip server.log; GOL-1632)
@@ -33,7 +35,9 @@ mkdir -p "${LOG_DIR}"
 
 # Make sure the reclaim scripts are executable (they ship from the repo clone).
 chmod +x "${REPO}/infra/scripts/docker-prune.sh" "${REPO}/infra/scripts/disk-guard.sh" \
-         "${REPO}/infra/scripts/paperclip-volume-guard.sh" 2>/dev/null || true
+         "${REPO}/infra/scripts/paperclip-volume-guard.sh" \
+         "${REPO}/infra/scripts/worktree-reaper.sh" \
+         "${REPO}/scripts/ops/reap-stale-worktrees.sh" 2>/dev/null || true
 
 write_file() { # $1 = dest path; body on stdin
   cat >"$1"
@@ -134,6 +138,44 @@ Unit=agenticos-paperclip-volume-guard.service
 WantedBy=timers.target
 UNIT
 
+# --- worktree reaper: nightly (GOL-1632 / #765) ---
+# Agents create a per-issue .wt-<issue>-<repo> worktree inside the shared project
+# checkouts; each carries its own ~1GB node_modules and nothing ever reclaimed
+# them. Thirty-one abandoned worktrees held 3.4G on 2026-09-30 and were a third
+# of that day's disk pressure. The reaper runs INSIDE paperclip-server (its
+# live-process guard needs the container's PID+mount namespace) — see the header
+# of worktree-reaper.sh for why a host-side run would silently no-op.
+write_file /etc/systemd/system/agenticos-worktree-reaper.service <<UNIT
+[Unit]
+Description=AgenticOS nightly reap of abandoned agent git worktrees
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=${REPO}
+ExecStart=/bin/bash -lc '${REPO}/infra/scripts/worktree-reaper.sh'
+StandardOutput=append:${LOG_DIR}/worktree-reaper.log
+StandardError=append:${LOG_DIR}/worktree-reaper.log
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+write_file /etc/systemd/system/agenticos-worktree-reaper.timer <<UNIT
+[Unit]
+Description=Run AgenticOS worktree reaper nightly (03:40 local)
+[Timer]
+# 03:40: after the 02:30 Sunday docker prune, before the 05:00 disk-guard, so a
+# night's reclaim is already reflected in the morning headroom check.
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=agenticos-worktree-reaper.service
+[Install]
+WantedBy=timers.target
+UNIT
+
 # --- journald cap: 200M ---
 mkdir -p /etc/systemd/journald.conf.d
 write_file /etc/systemd/journald.conf.d/10-agenticos-cap.conf <<'CONF'
@@ -200,7 +242,8 @@ CONF
 echo "Reloading systemd + journald…"
 systemctl daemon-reload
 systemctl enable --now agenticos-docker-prune.timer agenticos-disk-guard.timer \
-                       agenticos-paperclip-volume-guard.timer
+                       agenticos-paperclip-volume-guard.timer \
+                       agenticos-worktree-reaper.timer
 
 # Apply the journald cap immediately (config alone only bounds future growth).
 systemctl restart systemd-journald
@@ -209,11 +252,13 @@ journalctl --vacuum-size=200M || true
 echo
 echo "Enabled. Scheduled runs:"
 systemctl list-timers 'agenticos-docker-prune.timer' 'agenticos-disk-guard.timer' \
-                      'agenticos-paperclip-volume-guard.timer' --no-pager || true
+                      'agenticos-paperclip-volume-guard.timer' \
+                      'agenticos-worktree-reaper.timer' --no-pager || true
 echo
 echo "Smoke-test the reclaim now (root):"
 echo "  ${REPO}/infra/scripts/docker-prune.sh   # reclaims + prints df before/after"
 echo "  WARN_PCT=0 ${REPO}/infra/scripts/disk-guard.sh   # force the alert path once"
 echo "  WARN_PCT=0 STALE_MIN=0 REPAGE_MIN=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # force both alert paths"
 echo "  DRY_RUN=1 RECLAIM_PCT=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # show what the reclaim WOULD delete (deletes nothing)"
+echo "  DRY_RUN=1 ${REPO}/infra/scripts/worktree-reaper.sh   # list reapable worktrees (deletes nothing)"
 echo "  df -h /                                  # confirm root FS under ~70%"
