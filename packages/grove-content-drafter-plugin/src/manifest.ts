@@ -8,7 +8,12 @@ const manifest: PaperclipPluginManifestV1 = {
   // The plugin now opens a request issue per product, receives the agent's fenced
   // JSON reply via the issue.comment.created event (+ a sweep backstop), and does
   // all Odoo writes itself. Bump on every manifest change (CI convergence).
-  version: "0.2.0",
+  // 0.2.1 — content-draft-request every 15 min instead of nightly: the Odoo form
+  // tells the requester "the drafter polls every 15 min; expect a draft within
+  // ~20 min", but a nightly 07:00 UTC run left requests waiting up to a day
+  // (2026-09-30, American Chestnut). The run is idempotent (one open request
+  // per product), so a tighter cadence only picks new requests up sooner.
+  version: "0.2.1",
   displayName: "Grove Content Drafter",
   description:
     "Drafts nursery listing content (storefront description + cited care guide) from recorded plant facts. " +
@@ -38,8 +43,8 @@ const manifest: PaperclipPluginManifestV1 = {
       jobKey: "content-draft-request",
       displayName: "Open draft requests",
       description:
-        "Nightly: for each product whose grove_draft_state is 'requested', open (up to maxDraftsPerRun) issues assigned to the drafting agent.",
-      schedule: "0 7 * * *",
+        "Every 15 min: for each product whose grove_draft_state is 'requested', open (up to maxDraftsPerRun) issues assigned to the drafting agent.",
+      schedule: "*/15 * * * *",
     },
     {
       jobKey: "content-draft-sweep",

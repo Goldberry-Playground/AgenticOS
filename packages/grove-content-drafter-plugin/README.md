@@ -9,7 +9,7 @@ Option A). The plugin owns Odoo and the coordination; the agent writes the copy.
 
 ## How it works
 
-**1. Request** (`content-draft-request`, nightly) — for each `product.template`
+**1. Request** (`content-draft-request`, every 15 min) — for each `product.template`
 in Odoo whose `grove_draft_state = 'requested'` (up to `maxDraftsPerRun`), the
 plugin opens one Paperclip issue assigned to the drafting agent. The issue body
 carries the system + product brief and a strict JSON output contract. Idempotency
