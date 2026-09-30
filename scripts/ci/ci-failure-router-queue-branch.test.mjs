@@ -82,25 +82,92 @@ for (const [branch, want] of cases) {
   assert.equal(parse(branch), want, `queue-branch parse of ${JSON.stringify(branch)}`);
 }
 
-// ── 3. Failure IDENTITY is keyed on the normalized branch, not the raw one ────
-// If the marker/title ever revert to HEAD_BRANCH, the per-attempt orphan-issue
-// bug comes straight back, silently.
-assert.match(
-  wf,
-  /const marker = `<!-- d3-ci-failure:\$\{WF_NAME\}:\$\{BRANCH\} -->`;/,
-  'the minted dedup marker must key on ${BRANCH} (the PR head ref for queue ' +
-    'runs), not ${HEAD_BRANCH} — see GOL-2688'
+// ── 2b. The SHIPPED normalizeBranch is what collapses the per-attempt storm ───
+// Section 2 above rebuilds only the RegExp. The dedup key itself is built by
+// `normalizeBranch`, and asserting that against a re-implementation here would be
+// a tautology: the key construction could regress to returning the raw branch and
+// a hand-written copy of the function would happily keep passing. So lift the real
+// function body out of the workflow and drive THAT.
+const fnSrc = /function normalizeBranch\(branch\) \{\n([\s\S]*?)\n\s*\}\n/.exec(wf);
+assert.ok(fnSrc, `${wfPath} no longer declares function normalizeBranch(branch)`);
+// Both the pattern and the function body are first-party source from a workflow in
+// this repo, not input; there is no other way to execute the shipped code.
+const normalizeBranch = new Function(
+  'branch',
+  `const MQ_BRANCH_RE = ${literals[0]};\n${fnSrc[1]}`
 );
-assert.match(
-  wf,
-  /const title = `CI failure: \$\{WF_NAME\} on \$\{BRANCH\}`;/,
-  'the minted issue title must key on ${BRANCH}, not ${HEAD_BRANCH} — see GOL-2688'
+
+// The whole point of the key: every attempt for one PR collapses to ONE value, so
+// dedup fires and close-on-success can resolve what a failed attempt filed.
+const attempts = [
+  'gh-readonly-queue/main/pr-733-8724accacef2d9bf80b8efa56e5a4341619c6bcd',
+  'gh-readonly-queue/main/pr-733-0000000000000000000000000000000000000000',
+  'gh-readonly-queue/main/pr-733-e5175fd98417afc66ae59009d3da9fa4acd0df71',
+];
+const keys = new Set(attempts.map((b) => normalizeBranch(b).branch));
+assert.equal(
+  keys.size,
+  1,
+  'the three real PR #733 queue attempts must collapse to ONE dedup key, else ' +
+    `every requeue mints a fresh issue nothing can close: got ${JSON.stringify([...keys])}`
+);
+const [key] = keys;
+assert.equal(
+  key,
+  'merge-queue/pr-733',
+  'the dedup key must be the stable synthetic `merge-queue/pr-<N>`, not the ' +
+    'per-attempt queue branch — see GOL-2691'
+);
+assert.notEqual(
+  key,
+  attempts[0],
+  'normalizeBranch returned the raw per-attempt branch — the dedup key is not stable'
+);
+// ...and the key it produces must be the one the sweep recognizes, or the issues
+// it mints become immortal: there is no such branch for getBranch to 404 on.
+const MQ_KEY_RE = new RegExp(
+  /const MQ_KEY_RE = (\/[^\n]+\/);/.exec(wf)?.[1]?.slice(1, -1) ??
+    assert.fail('the sweep no longer declares MQ_KEY_RE')
+);
+assert.equal(
+  MQ_KEY_RE.exec(key)?.[1],
+  '733',
+  `the sweep's MQ_KEY_RE cannot recover a PR number from the key route mints (${key}), ` +
+    'so a merge-queue failure issue could never be swept'
+);
+// Ordinary branches must pass through untouched, or a normal PR failure would be
+// filed under a bogus synthetic key.
+for (const b of ['main', 'gol2677-drafter-retry']) {
+  assert.deepEqual(normalizeBranch(b), { branch: b, prNumber: null }, `${b} must pass through`);
+}
+
+// ── 3. Failure IDENTITY is keyed on the normalized branch, not the raw one ────
+// If the marker ever reverts to HEAD_BRANCH, the per-attempt orphan-issue bug
+// comes straight back, silently. Both the minting job (route) and the resolving
+// job (close-on-success) must build the marker from the SAME normalized key, or
+// a green requeue can never close what its own failed attempt filed.
+const markers = [
+  ...wf.matchAll(/const marker = `<!-- d3-ci-failure:\$\{WF_NAME\}:\$\{(\w+)\} -->`;/g),
+].map((m) => m[1]);
+assert.deepEqual(
+  markers,
+  ['DEDUP_BRANCH', 'DEDUP_BRANCH'],
+  'both the route and close-on-success d3-ci-failure markers must key on ' +
+    '${DEDUP_BRANCH} (the stable `merge-queue/pr-<N>` key for queue runs) — ' +
+    `see GOL-2688/GOL-2691; found ${JSON.stringify(markers)}`
 );
 assert.equal(
   wf.includes('d3-ci-failure:${WF_NAME}:${HEAD_BRANCH}'),
   false,
   'a d3-ci-failure marker is still built from ${HEAD_BRANCH}; on a merge-queue ' +
     'run that is the throwaway queue branch, so the issue can never dedupe or close'
+);
+// The title must name the PR, not the synthetic key — `merge-queue/pr-733` is a
+// dedup key, not something a human should have to decode off a board card.
+assert.match(
+  wf,
+  /\? `CI failure: \$\{WF_NAME\} on the merge queue for PR #\$\{MQ_PR\}`/,
+  'a merge-queue failure issue must be TITLED with its PR number — see GOL-2688'
 );
 
 // ── 4. Queue attribution is gated on the merge_group EVENT, not branch shape ──
@@ -109,28 +176,49 @@ assert.equal(
 // unrelated PR. Only GitHub's merge queue emits `merge_group` runs.
 assert.match(
   wf,
-  /if \(RUN_EVENT !== "merge_group"\) return null;/,
-  'the route job must require RUN_EVENT === "merge_group" before parsing a PR ' +
-    'number out of a queue-shaped branch name'
+  /RUN_EVENT === "merge_group"\s*\n\s*\? normalizeBranch\(HEAD_BRANCH\)\s*\n\s*: \{ branch: HEAD_BRANCH, prNumber: null \};/,
+  'the route job must require RUN_EVENT === "merge_group" before normalizing a ' +
+    'queue-shaped branch name into a PR number'
 );
 assert.match(
   wf,
-  /RUN_EVENT === "merge_group"\s*\n\s*\? HEAD_BRANCH\.match\(/,
+  /const mq = RUN_EVENT === "merge_group" \? MQ_BRANCH_RE\.exec\(HEAD_BRANCH \?\? ""\) : null;/,
   'close-on-success must require RUN_EVENT === "merge_group" before normalizing ' +
-    'a queue-shaped branch name'
+    'a queue-shaped branch name — otherwise it keys differently from route'
+);
+// Both gating script bodies need the event in their env, or the gate above is
+// comparing against undefined and silently never attributes anything. Asserted
+// via each job's own destructure (job-specific) rather than by counting `env:`
+// keys, which `page-ops` also plumbs for its own unrelated use.
+assert.match(
+  wf,
+  /const \{ RUN_ID, WF_NAME, HEAD_BRANCH, HEAD_SHA, RUN_URL, RUN_EVENT, RUN_ATTEMPT, RUN_CONCLUSION \} = process\.env;/,
+  'the route job must destructure RUN_EVENT out of process.env'
 );
 assert.match(
   wf,
-  /RUN_EVENT: \$\{\{ github\.event\.workflow_run\.event \}\}/,
-  'close-on-success needs RUN_EVENT plumbed into its script env'
+  /const \{ WF_NAME, HEAD_BRANCH, RUN_URL, RUN_EVENT \} = process\.env;/,
+  'close-on-success must destructure RUN_EVENT out of process.env'
+);
+assert.ok(
+  (wf.match(/RUN_EVENT: \$\{\{ github\.event\.workflow_run\.event \}\}/g) ?? []).length >= 2,
+  'RUN_EVENT must be plumbed into at least the route and close-on-success envs'
 );
 
 // ── 5. A queue failure whose PR is already settled is DROPPED, not filed ─────
 assert.match(
   wf,
-  /if \(queuedPrNumber !== null && !pr\) \{/,
+  /if \(MQ_PR !== null && !pr\) \{/,
   'the router must drop a merge-queue failure whose PR is no longer open rather ' +
     'than mint an un-actionable orphan issue — see GOL-2688'
+);
+// ...and the ownerless path must therefore no longer claim a merge-queue failure
+// is ownerless: reaching it implies MQ_PR === null.
+assert.equal(
+  wf.includes('Merge-queue rejection for PR #${MQ_PR}'),
+  false,
+  'the ownerless mint still has a merge-queue arm, which is now unreachable ' +
+    'dead code behind the settled-PR drop — see GOL-2688'
 );
 
 console.log(
