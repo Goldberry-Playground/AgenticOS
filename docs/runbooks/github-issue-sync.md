@@ -233,9 +233,15 @@ Behaviour and boundaries:
   `agent-review/ada` check. Its entry only makes `requiredIndependent` false on
   Ada-authored PRs (so an Iris+Ada co-authored PR keeps both twins) — the
   conservative direction.
-- Fails **safe**: a failed or truncated `pulls/{n}/commits` fetch mints every
-  reviewer, exactly as before. A PR committed under the shared
-  `agenticos-developer[bot]` identity is likewise undetectable and keeps both twins.
+- Fails **open on fetch failure only**: if the `pulls/{n}/commits` request errors,
+  the guard mints every reviewer, exactly as before (a spurious twin, never a silent
+  false skip). **Truncation is not fail-open** — the fetch is a single `per_page=100`
+  page, so a PR of ≥100 commits yields a *partial* author list; the guard logs a
+  warning (`a self-review may go undetected`) but still filters on that partial list,
+  so a self-review could slip through unseen. That is a silent-skip window, not a
+  mint-everyone fallback — near-impossible here, as PRs rarely approach 100 commits.
+  A PR committed under the shared `agenticos-developer[bot]` identity is likewise
+  undetectable and keeps both twins.
 - Prevents future mints only — twins already minted must still be resolved by hand.
 
 ⚠️ **A config save alone is not enough — you must `disable` → `enable` the plugin.**
