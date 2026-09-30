@@ -241,20 +241,49 @@ function FieldError({ message }: { message: string }) {
   );
 }
 
+/**
+ * Placeholder for the native folder picker — inert until Phase 6 (GOL-2707).
+ *
+ * `disabled` is load-bearing, not cosmetic. It fixes two things at once:
+ *
+ *  1. The button has no `onClick`. While enabled it still took a tab stop, so
+ *     keyboard users landed on a control that could never do anything.
+ *  2. While enabled, WCAG 1.4.11 applied to its boundary and glyph — and the
+ *     old `--border-brand` outline measured 1.76:1 dark / 1.44:1 light against
+ *     the surfaces this button sits on, well under the 3:1 floor. No border
+ *     token in the dark palette clears 3:1 (`--border-strong`, the strongest,
+ *     tops out at 2.81:1), so there was nothing to re-point it to. Inactive
+ *     controls are exempt from 1.4.11, and disabling makes that exemption
+ *     legitimate instead of assumed.
+ *
+ * Do NOT re-enable this on a hairline border when Phase 6 lands: the dark
+ * border-token gap is tracked in GOL-2673 and has to close first.
+ *
+ * The outline is dropped rather than recoloured, so this now matches the
+ * sibling "Remove project root" icon button in the same row (Gestalt
+ * similarity) — before, the inert control carried the *stronger* affordance of
+ * the two. What separates them is weight: `--text-muted` is the palette's
+ * documented "placeholders, disabled" step and stays here, while the live ✕
+ * was moved up to `--text-secondary`. Measured, that is 3.27:1 vs 7.32:1 dark
+ * and 3.09:1 vs 7.70:1 light — both legible, unmistakably ranked.
+ *
+ * Deliberately NOT dimmed with `opacity`. `--text-muted` is already the low
+ * step, and 60% on top of it painted the glyph at 1.78:1 in light mode, which
+ * reads as a rendering artefact rather than a disabled control. State is
+ * carried by weight + `cursor-not-allowed` + the `disabled` attribute, never by
+ * hue, so it survives grayscale and all three dichromacies.
+ */
 function FolderPickerButton() {
   return (
     <button
       type="button"
+      disabled
       title="Native folder picker — available in Phase 6"
-      className="inline-flex items-center justify-center size-8 rounded-md border transition-colors"
-      style={{
-        borderColor: "var(--border-brand)",
-        color: "var(--text-muted)",
-        backgroundColor: "transparent",
-      }}
-      aria-label="Pick folder (available in Phase 6)"
+      className="inline-flex shrink-0 items-center justify-center size-8 rounded-md cursor-not-allowed"
+      style={{ color: "var(--text-muted)" }}
+      aria-label="Pick folder — available in Phase 6"
     >
-      <FolderIcon size={14} />
+      <FolderIcon size={14} aria-hidden="true" />
     </button>
   );
 }
@@ -284,14 +313,19 @@ function ProjectRootRow({ root, index, onUpdate, onRemove, error }: ProjectRootR
           aria-label={`Project root ${index + 1} path`}
         />
         <FolderPickerButton />
+        {/* --text-secondary, not --text-muted: --text-muted is the palette's
+            "placeholders, disabled" step and the inert FolderPickerButton beside
+            this one uses it. A live destructive control cannot share that step,
+            or the two icon buttons in this row rank equal (GOL-2707).
+            Measured 7.32:1 dark / 7.70:1 light. */}
         <button
           type="button"
           onClick={() => onRemove(index)}
-          className="inline-flex items-center justify-center size-8 rounded-md transition-colors"
-          style={{ color: "var(--text-muted)" }}
+          className="inline-flex shrink-0 items-center justify-center size-8 rounded-md transition-colors"
+          style={{ color: "var(--text-secondary)" }}
           aria-label="Remove project root"
         >
-          <XIcon size={14} />
+          <XIcon size={14} aria-hidden="true" />
         </button>
       </div>
       <div className="flex items-center gap-2">
