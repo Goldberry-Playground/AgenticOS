@@ -7,6 +7,12 @@
 #     failed jobs are all DETERMINISTIC checks (lint/type/format) — those never
 #     flake and are always agent-fixable, so escalate on the first failure.
 #     Security-sensitive failures (gitleaks/CodeQL) are excluded from (b).
+#   - Merge-queue failure (event: merge_group) → the owner is the `pr-<N>` in the
+#     ephemeral `gh-readonly-queue/<base>/pr-<N>-<baseSha>` branch, so it routes
+#     to PR #N through the same sticky-comment + escalate gates. If #N is no
+#     longer open the queue commit was superseded (it merged via a later, green
+#     requeue) and NOTHING is filed. Dedup drops the volatile <baseSha> so every
+#     requeue attempt of a PR collapses onto one issue. See GOL-2687.
 #   - Ownerless failure (main, cron, manual dispatch) → mint/update a deduped
 #     GitHub issue immediately.
 #   - SUCCESS of a watched workflow on a PR branch → resolves (updates) any
@@ -93,9 +99,50 @@ jobs:
             const runId = Number(RUN_ID);
             const shortSha = HEAD_SHA.slice(0, 7);
 
+            // ── Merge-queue provenance (GOL-2687) ────────────────────────────
+            // A merge_group run's head_branch is an EPHEMERAL queue branch,
+            // `gh-readonly-queue/<base>/pr-<N>-<baseSha>`, which is never any
+            // PR's head ref. findOpenPr() therefore returned null and EVERY
+            // merge-queue failure was routed as "ownerless" — and because the
+            // volatile <baseSha> is part of the dedup marker, each requeue
+            // attempt minted a BRAND-NEW issue. On 2026-09-30 that produced 15
+            // issues in 35 minutes (4 for PR #733 alone), each one spawning a
+            // Paperclip agent run on a 2-vCPU box.
+            //
+            // A merge_group failure is NEVER ownerless: PR <N> is in the branch
+            // name. So:
+            //   1. DEDUP_BRANCH drops <baseSha>, collapsing every queue attempt
+            //      for a PR onto ONE issue — and letting a later GREEN queue
+            //      attempt auto-close it (close-on-success uses the same key).
+            //   2. The failure routes to PR <N> through the normal sticky-comment
+            //      + escalate gates instead of minting unconditionally.
+            const queueMatch =
+              RUN_EVENT === "merge_group"
+                ? /^gh-readonly-queue\/(.+)\/pr-(\d+)-([0-9a-f]{7,40})$/.exec(HEAD_BRANCH)
+                : null;
+            const queueBaseRef = queueMatch ? queueMatch[1] : null;
+            const queuePrNumber = queueMatch ? Number(queueMatch[2]) : null;
+            const queueBaseSha = queueMatch ? queueMatch[3] : null;
+            // Dedup/close key: stable across requeue attempts of the same PR.
+            const DEDUP_BRANCH = queueMatch
+              ? `merge-queue/${queueBaseRef}/pr-${queuePrNumber}`
+              : HEAD_BRANCH;
+
             // Resolve the owning PR by head branch (workflow_run.pull_requests is
             // unreliable across event types). Used by both the success + failure paths.
             async function findOpenPr() {
+              // merge_group: the owner is the PR number in the queue branch.
+              if (queuePrNumber !== null) {
+                try {
+                  const { data } = await github.rest.pulls.get({
+                    owner, repo, pull_number: queuePrNumber,
+                  });
+                  return data.state === "open" ? data : null;
+                } catch (e) {
+                  if (e.status === 404) return null;
+                  throw e;
+                }
+              }
               const { data: prs } = await github.rest.pulls.list({
                 owner, repo, state: "open", head: `${owner}:${HEAD_BRANCH}`, per_page: 1,
               });
@@ -162,18 +209,47 @@ jobs:
               ? `3 consecutive failures of this workflow on \`${HEAD_BRANCH}\` — the owner appears stuck.`
               : `deterministic check (lint/type/format) failed — always agent-fixable, escalated on first failure.`;
 
+            // ── Batch-mate attribution (GOL-2687) ─────────────────────────
+            // In a MULTI-PR batch the merge queue stacks each candidate on the
+            // previous one, so `pr-<N>-<baseSha>` can fail on a defect the PR in
+            // <baseSha> introduced, not anything in #N. Real case: queue commit
+            // `pr-711-bb9bfed` (#711 = a codeql-action version bump, one line of
+            // YAML) failed the stale-plugin-dist Build guard with an 820-line
+            // dist diff — all of it owned by its batch base #713, the plugin-sdk
+            // bump. Name the base PR so nobody chases the innocent diff.
+            let batchNote = "";
+            if (queueBaseSha) {
+              try {
+                const { data: baseCommit } = await github.rest.repos.getCommit({
+                  owner, repo, ref: queueBaseSha,
+                });
+                const subject = (baseCommit.commit.message ?? "").split("\n")[0];
+                const m = /\(#(\d+)\)\s*$/.exec(subject);
+                if (m && Number(m[1]) !== queuePrNumber) {
+                  batchNote =
+                    `**Batch base:** this queue commit is stacked on \`${queueBaseSha.slice(0, 7)}\`` +
+                    ` = PR #${m[1]} (${subject}). A failure here may be owned by #${m[1]},` +
+                    ` not #${queuePrNumber} — check the base PR's diff first.`;
+                }
+              } catch (e) {
+                // Dropped batches get GC'd; an unreadable base is expected.
+                core.info(`Could not read queue base ${queueBaseSha}: ${e.message}`);
+              }
+            }
+
             const summary = [
               `**Workflow:** ${WF_NAME} (attempt ${RUN_ATTEMPT})`,
               `**Branch:** \`${HEAD_BRANCH}\` @ \`${shortSha}\` (event: ${RUN_EVENT})`,
               `**Run:** ${RUN_URL}`,
+              ...(batchNote ? [batchNote] : []),
               `**Failed jobs:**`,
               jobLines,
             ].join("\n");
 
             // ── Deduped issue mint/update (ownerless + escalation path) ────
             async function mintOrUpdateIssue(reason) {
-              const marker = `<!-- d3-ci-failure:${WF_NAME}:${HEAD_BRANCH} -->`;
-              const title = `CI failure: ${WF_NAME} on ${HEAD_BRANCH}`;
+              const marker = `<!-- d3-ci-failure:${WF_NAME}:${DEDUP_BRANCH} -->`;
+              const title = `CI failure: ${WF_NAME} on ${DEDUP_BRANCH}`;
               const openIssues = await github.paginate(github.rest.issues.listForRepo, {
                 owner, repo, state: "open", labels: "ci-failure", per_page: 100,
               });
@@ -210,6 +286,18 @@ jobs:
             }
 
             if (!pr) {
+              if (queuePrNumber !== null) {
+                // SUPERSEDED queue commit: PR #N is no longer open, so it either
+                // merged (a later queue attempt went green — this failure is
+                // history) or was closed. Either way there is no defect left to
+                // fix and no owner to page, so filing is pure churn. If the merge
+                // actually broke main, the `push` run on main fails and routes as
+                // genuinely ownerless — that path is unchanged, so no coverage gap.
+                core.info(
+                  `merge_group failure on a superseded queue commit for PR #${queuePrNumber} (not open) — not filing.`,
+                );
+                return;
+              }
               // Ownerless: main, cron, dispatch, or a branch with no open PR.
               await mintOrUpdateIssue(
                 `Ownerless failure — no open PR for \`${HEAD_BRANCH}\`.`,
@@ -390,18 +478,29 @@ jobs:
         env:
           WF_NAME: ${{ github.event.workflow_run.name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
         with:
           script: |
-            const { WF_NAME, HEAD_BRANCH, RUN_URL } = process.env;
+            const { WF_NAME, HEAD_BRANCH, RUN_EVENT, RUN_URL } = process.env;
             const { owner, repo } = context.repo;
-            const marker = `<!-- d3-ci-failure:${WF_NAME}:${HEAD_BRANCH} -->`;
+            // Same normalization as the route job (GOL-2687): a green queue
+            // attempt must close the issue minted by an earlier RED attempt of
+            // the same PR, whose queue branch carried a different base sha.
+            const queueMatch =
+              RUN_EVENT === "merge_group"
+                ? /^gh-readonly-queue\/(.+)\/pr-(\d+)-([0-9a-f]{7,40})$/.exec(HEAD_BRANCH)
+                : null;
+            const DEDUP_BRANCH = queueMatch
+              ? `merge-queue/${queueMatch[1]}/pr-${Number(queueMatch[2])}`
+              : HEAD_BRANCH;
+            const marker = `<!-- d3-ci-failure:${WF_NAME}:${DEDUP_BRANCH} -->`;
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner, repo, state: "open", labels: "ci-failure", per_page: 100,
             });
             const match = openIssues.find((i) => (i.body ?? "").includes(marker));
             if (!match) {
-              core.info(`No open ci-failure issue for ${WF_NAME} on ${HEAD_BRANCH}.`);
+              core.info(`No open ci-failure issue for ${WF_NAME} on ${DEDUP_BRANCH}.`);
               return;
             }
             await github.rest.issues.createComment({
@@ -485,6 +584,34 @@ jobs:
               const branch = m[2];
               // Long-lived branches always exist; their failures are real, never sweep.
               if (["main", "master", "develop"].includes(branch)) continue;
+              // merge-queue keys (GOL-2687) name no real branch — the queue branch
+              // is ephemeral and always 404s. Resolve them by the PR's state so the
+              // sweep stays honest instead of accidentally-right: an OPEN PR keeps
+              // its issue, a merged/closed one gets reaped.
+              const qm = /^merge-queue\/.+\/pr-(\d+)$/.exec(branch);
+              if (qm) {
+                let prState = null;
+                try {
+                  const { data } = await github.rest.pulls.get({
+                    owner, repo, pull_number: Number(qm[1]),
+                  });
+                  prState = data.state;
+                } catch (e) {
+                  if (e.status !== 404) throw e;
+                }
+                if (prState === "open") continue;
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body: `🧹 Auto-closed by sweep — merge-queue PR #${qm[1]} is no longer open.\n\n_Auto-closed by the D3 CI failure router._`,
+                });
+                await github.rest.issues.update({
+                  owner, repo, issue_number: issue.number,
+                  state: "closed", state_reason: "not_planned",
+                });
+                closed++;
+                core.info(`Swept #${issue.number} (merge-queue PR #${qm[1]} not open).`);
+                continue;
+              }
               let exists = true;
               try {
                 await github.rest.repos.getBranch({ owner, repo, branch });
