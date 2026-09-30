@@ -1,6 +1,8 @@
 {
   "$schema": "https://turborepo.org/schema.json",
   "ui": "tui",
+  "//": "GOL-2694: the plugin `build` scripts post-process their esbuild output with scripts/normalize-plugin-bundle.mjs, which lives outside every package. Declare it globally so editing the normalizer invalidates the build cache instead of serving a dist built by the old rules.",
+  "globalDependencies": ["scripts/normalize-plugin-bundle.mjs"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
