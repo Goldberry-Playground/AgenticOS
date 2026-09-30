@@ -1,0 +1,16 @@
+# This module keeps state REMOTELY (agenticos-tfstate). These entries exist for
+# the local artifacts an init/plan still writes.
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+terraform.tfstate
+terraform.tfstate.backup
+
+# Operator-specific tfvars (real values).
+terraform.tfvars
+*.auto.tfvars
+
+# Override the repo-level .env.* exclusion: this file holds op:// references,
+# not secrets, and every operator should share it.
+!.env.op

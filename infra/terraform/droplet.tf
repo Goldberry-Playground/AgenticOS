@@ -21,6 +21,16 @@ locals {
     # docs/runbooks/backup-and-recovery.md for the ALTER USER / volume-reset
     # rotation procedure.
     agenticos_db_password = var.agenticos_db_password
+    # Bucket-scoped Spaces key for the off-box Paperclip backup shipper
+    # (GOL-2769). Created by infra/terraform/backup-bucket/ and stored in
+    # 1Password (AgenticOS Infra/backups_spaces_*). Both default to "" so a
+    # plan/apply never hard-fails on an operator who has not exported them;
+    # cloud-init then leaves .env untouched and the shipper pages Discord
+    # rather than failing silently. Scope: readwrite on `agenticos-backups`
+    # and nothing else — see backup-bucket/main.tf for why it must not be a
+    # broader key.
+    backups_spaces_access_key_id = var.backups_spaces_access_key_id
+    backups_spaces_secret_key    = var.backups_spaces_secret_key
   })
 }
 

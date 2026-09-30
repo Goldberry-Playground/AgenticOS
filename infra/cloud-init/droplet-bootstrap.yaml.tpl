@@ -268,6 +268,53 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # paperclip-backup-offsite (GOL-2769): the volume guard above watches whether
+  # dumps are being WRITTEN; this ships them OFF the box. Every retained
+  # Paperclip dump otherwise lives only inside the paperclip-data volume — not
+  # /opt/backups, so not in the Syncthing off-site leg either — and dies with
+  # the droplet. Uploads only complete dumps (gzip CRC + trailing COMMIT;) to
+  # the bucket-scoped `agenticos-backups` Space; retention off-box is enforced
+  # by the bucket's lifecycle rules (infra/terraform/backup-bucket/), never by
+  # the script, which issues no DELETE of any kind.
+  - path: /etc/systemd/system/agenticos-paperclip-backup-offsite.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS Paperclip DB dumps -> DO Spaces off-box copy (GOL-2769)
+      After=network-online.target docker.service
+      Wants=network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py'
+      StandardOutput=append:/var/log/agenticos/paperclip-backup-offsite.log
+      StandardError=append:/var/log/agenticos/paperclip-backup-offsite.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-paperclip-backup-offsite.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Ship completed Paperclip DB dumps off-box every 30m (GOL-2769)
+
+      [Timer]
+      # Every 30 minutes: the server dumps roughly every 4h, so this bounds the
+      # window in which a fresh restore point exists ONLY on this droplet to
+      # about half an hour. Runs with nothing new to ship are a no-op (one
+      # ListObjectsV2 + a HEAD per dump) and cost nothing.
+      OnCalendar=*-*-* *:05,35:00
+      Persistent=true
+      RandomizedDelaySec=120
+      Unit=agenticos-paperclip-backup-offsite.service
+
+      [Install]
+      WantedBy=timers.target
+
   # host-clone drift-guard (GOL-1976): the host timers all run scripts out of the
   # /opt/agenticos/repo clone. GOL-1965/AgenticOS#650 fixed the PUSH path
   # (deploy-host-scripts.yml reset-hards the clone on infra/scripts or scripts
@@ -712,13 +759,14 @@ runcmd:
   # --- Disk hygiene (GOL-131): weekly docker reclaim + daily disk-guard ---
   # Ensure the reclaim scripts are executable, apply the journald cap now
   # (config alone only bounds FUTURE growth), then enable the timers.
-  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py
   - systemctl restart systemd-journald
   - journalctl --vacuum-size=200M || true
   - systemctl enable --now agenticos-docker-prune.timer
   - systemctl enable --now agenticos-disk-guard.timer
   # paperclip-data volume headroom + backup-freshness watch (GOL-1632)
   - systemctl enable --now agenticos-paperclip-volume-guard.timer
+  - systemctl enable --now agenticos-paperclip-backup-offsite.timer
 
   # --- Host-clone drift-guard (GOL-1976): read-only detection that the on-box
   # clone the host timers run from has drifted from origin/main. ---
