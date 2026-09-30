@@ -67,6 +67,83 @@ services):
       exec -T agenticos-db psql -U agenticos agenticos'
   ```
 
+### A2. Paperclip board DB — server dumps + catch-up timer ✅
+
+The board's own database (issues, comments, runs, agent config) is **not** the
+`agenticos` DB covered above. It is a separate database inside the same
+`agenticos-db` container, and its dumps are written by the Paperclip server
+itself — `PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES: "240"` in `docker-compose.yml` —
+to `<paperclip-data>/instances/*/data/backups/paperclip-<local-stamp>.sql.gz`,
+pruned by the instance's own `backupRetention` (GFS: 3 daily / 4 weekly / 1
+monthly) and shipped off-box by D2 below.
+
+**The flaw that makes a safety net necessary (GOL-2858).** That interval is
+in-process and armed at **process start**, re-armed from zero on every restart,
+with no catch-up for the run it missed. If restarts come closer together than the
+interval, the interval never matures and **the backup does not run at all** — not
+degraded, starved. Measured on 2026-09-30: seven paperclip-server restarts in
+11.3h (mean 1.6h apart) produced an **11h39m gap with no dump**, and nothing said
+so:
+
+- `GET /api/health` reported `databaseBackup: {status: "ok"}` throughout. It does
+  track dump age, but against its own `maxAgeHours: 26` — decoupled from the 240m
+  cadence, so it stays green for a whole day of starvation.
+- Nothing logs at ERROR. There is no failure to log: the job simply never fires,
+  so every failure-path alert stays quiet by construction.
+
+The scheduler lives in `/opt/paperclip` (the Paperclip platform), outside this
+repo's write boundary, so the correct fix — dump on boot when the newest dump is
+older than the interval — has to be made upstream. Until it is:
+
+- **`infra/scripts/paperclip-db-catchup.sh`** (systemd
+  `agenticos-paperclip-db-catchup.timer`, hourly at :50, `Persistent=true`) is
+  that same catch-up out of process. It is anchored to the wall clock, so a
+  paperclip-server restart cannot reset it, and a run missed while the box was
+  down fires on the next boot.
+- On every fire it compares the newest dump's age against
+  `PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES` (read from the running container) + 35m
+  slack. **Fresh → no-op**, so the server's own scheduler stays the primary path
+  and a healthy box pays one `stat` per hour. Stale → it takes the dump itself
+  with `pg_dump`, into the same directory with the same filename shape, so the
+  volume guard, the off-box shipper and the server's retention all pick it up
+  with no special casing. It prunes nothing.
+- Worst-case staleness therefore becomes `interval + 35m + 1h` (~5h20m at the
+  240m cadence) regardless of restart churn, instead of unbounded.
+
+**Format difference, and why it does not matter for restore.** A catch-up dump is
+plain `pg_dump` output (ends at `COMMIT;`); a server dump is hand-rolled
+schema+data SQL carrying `-- paperclip statement breakpoint <uuid>` markers and
+`SET LOCAL session_replication_role = replica`. Both restore with `psql`. The
+server's is written to apply **over** an existing database; the `pg_dump` one
+wants an **empty** target. Tell them apart without unpacking the whole file:
+
+```bash
+zcat paperclip-<stamp>.sql.gz | head -1
+# '-- Paperclip database backup'      → server dump  (applies over existing)
+# '-- PostgreSQL database dump'       → catch-up dump (restore into empty DB)
+```
+
+**Verifying the safety net (root, on the droplet):**
+
+```bash
+systemctl list-timers 'agenticos-paperclip-db-catchup.timer' --no-pager
+tail -20 /var/log/agenticos/paperclip-db-catchup.log
+# Force the decision without writing anything:
+DRY_RUN=1 STALE_MIN=0 /opt/agenticos/repo/infra/scripts/paperclip-db-catchup.sh
+```
+
+Knobs, all env-overridable: `STALE_MIN` (default interval + `SLACK_MIN`=35),
+`MAX_USE_PCT` (92 — refuses to add a dump above it, because a full volume is a
+worse outage than a stale dump), `HEADROOM_FACTOR` (2× the newest dump must be
+free), `MIN_DUMP_BYTES`. Offline harness:
+`bash scripts/ci/paperclip-db-catchup.test.sh` (gated by the CI "CI scripts"
+job).
+
+**Failure is already alerted.** The catch-up posts no webhook of its own: if it
+cannot produce a dump, the newest dump stays stale and
+`paperclip-volume-guard.sh` pages `backup-stale` to Discord within the hour. One
+voice per condition.
+
 ### B. OpenViking — pack API ⚠️ (automation pending one live check)
 
 OpenViking ships a native, app-consistent snapshot API:
@@ -283,8 +360,12 @@ aws --endpoint-url https://nyc3.digitaloceanspaces.com \
 infra/scripts/paperclip-backup-offsite.py --verify-restore --scratch-dir /tmp/restore
 
 # 4. Restore into the Paperclip database.
+# NB the coordinates: there is no `paperclip-db` container and no `paperclip`
+# role — the Paperclip database is a database INSIDE agenticos-db, owned by the
+# `agenticos` role (docker-compose.yml: DATABASE_URL=...@agenticos-db/paperclip).
 gunzip < paperclip-<UTC>.sql.gz | \
-  ssh deploy@$DROPLET 'docker exec -i paperclip-db psql -U paperclip paperclip'
+  ssh deploy@$DROPLET 'docker compose -f /opt/agenticos/docker-compose.yml \
+    exec -T agenticos-db psql -U agenticos paperclip'
 ```
 
 No `aws` CLI on hand? The shipper needs none — it signs SigV4 with the Python
