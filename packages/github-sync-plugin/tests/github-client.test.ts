@@ -607,3 +607,51 @@ describe("GitHubClient cache-invalidation on 401 (GOL-1425)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("GitHubClient.listPullCommitAuthors (GOL-2720 self-review guard)", () => {
+  it("GETs the PR commits endpoint and extracts author name/email/login per commit", async () => {
+    const fetchMock = mockFetch([
+      {
+        commit: { author: { name: "Frontend - Iris", email: "iris@goldberrygrove.farm" } },
+        author: { login: "agenticos-developer[bot]" },
+      },
+      {
+        commit: { author: { name: "Frontend - Iris", email: "iris@goldberrygrove.farm" } },
+        author: null,
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new GitHubClient({ token: "t", org: "o", timeoutMs: 5000 });
+    const res = await client.listPullCommitAuthors("r", 875);
+
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.data.truncated).toBe(false);
+      expect(res.data.authors).toEqual([
+        { name: "Frontend - Iris", email: "iris@goldberrygrove.farm", login: "agenticos-developer[bot]" },
+        { name: "Frontend - Iris", email: "iris@goldberrygrove.farm", login: "" },
+      ]);
+    }
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("https://api.github.com/repos/o/r/pulls/875/commits?per_page=100");
+  });
+
+  it("flags truncated when a full page comes back", async () => {
+    const full = Array.from({ length: 100 }, () => ({
+      commit: { author: { name: "x", email: "x@y" } },
+      author: { login: "" },
+    }));
+    vi.stubGlobal("fetch", mockFetch(full));
+    const client = new GitHubClient({ token: "t", org: "o", timeoutMs: 5000 });
+    const res = await client.listPullCommitAuthors("r", 1);
+    expect(res.ok && res.data.truncated).toBe(true);
+  });
+
+  it("returns an error Result on HTTP failure (caller fails safe)", async () => {
+    vi.stubGlobal("fetch", mockFetch({ message: "nope" }, false, 403));
+    const client = new GitHubClient({ token: "t", org: "o", timeoutMs: 5000 });
+    const res = await client.listPullCommitAuthors("r", 1);
+    expect(res.ok).toBe(false);
+  });
+});
