@@ -195,4 +195,36 @@ describe("processReply", () => {
     expect(out.status).toBe("waiting");
     expect(odoo.write).not.toHaveBeenCalled();
   });
+
+  it("rolls the watermark back on a write failure so the same reply retries (GOL-2677)", async () => {
+    const odoo = fakeOdoo({ write: vi.fn().mockResolvedValue({ ok: false, error: "html tracking blew up" }) });
+    const at = "2026-09-24T05:00:00.000Z";
+    const issues = fakeIssues([reply(at)]);
+    // Fresh request: no prior reply handled, so the watermark must return to undefined.
+    const { state, saved } = fakeState(openState());
+    const out = await processReply(deps(odoo, issues, state), ISSUE);
+
+    expect(out.status).toBe("error");
+    // The reply is NOT hidden behind an advanced watermark — the next sweep will
+    // re-select it (a comment createdAt > undefined is true).
+    expect(saved.at(-1)!.lastReplyAt).toBeUndefined();
+    expect(saved.at(-1)!.writeRetryReplyAt).toBe(at);
+    expect(saved.at(-1)!.status).toBe("open");
+    expect(issues.postComment).toHaveBeenCalledOnce();
+    expect(issues.postComment).toHaveBeenCalledWith(ISSUE, expect.stringContaining("Will retry."));
+  });
+
+  it("does not re-post the retry notice when the same reply fails to write again", async () => {
+    const odoo = fakeOdoo({ write: vi.fn().mockResolvedValue({ ok: false, error: "still failing" }) });
+    const at = "2026-09-24T05:00:00.000Z";
+    const issues = fakeIssues([reply(at)]);
+    // Second sweep over the same failing reply: retry notice already posted.
+    const { state, saved } = fakeState(openState({ writeRetryReplyAt: at }));
+    const out = await processReply(deps(odoo, issues, state), ISSUE);
+
+    expect(out.status).toBe("error");
+    expect(odoo.write).toHaveBeenCalledOnce(); // it DID retry the write
+    expect(issues.postComment).not.toHaveBeenCalled(); // but stayed quiet in chatter
+    expect(saved.at(-1)!.lastReplyAt).toBeUndefined();
+  });
 });

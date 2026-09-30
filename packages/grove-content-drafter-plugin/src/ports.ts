@@ -40,6 +40,12 @@ export interface RequestState {
   createdAt: string;
   /** createdAt of the newest drafter reply we have already acted on. */
   lastReplyAt?: string;
+  /**
+   * createdAt of the reply we've already posted a "write failed, will retry"
+   * notice for. Lets a persistently failing Odoo write retry each sweep without
+   * re-posting the same chatter comment every time (GOL-2677).
+   */
+  writeRetryReplyAt?: string;
 }
 
 /** A Paperclip issue as far as this plugin cares. */
