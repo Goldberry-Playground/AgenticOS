@@ -268,6 +268,50 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # worktree reaper (GOL-1632 / #765): agents create a per-issue
+  # .wt-<issue>-<repo> worktree inside the shared project checkouts, each with
+  # its own ~1GB node_modules, and nothing ever reclaimed them — 31 abandoned
+  # worktrees held 3.4G on 2026-09-30. The reaper runs INSIDE paperclip-server
+  # because its live-process guard compares worktree paths against
+  # /proc/<pid>/{cwd,fd}, which only resolve to matching paths in the
+  # container's own namespaces; see infra/scripts/worktree-reaper.sh.
+  - path: /etc/systemd/system/agenticos-worktree-reaper.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS nightly reap of abandoned agent git worktrees
+      After=network-online.target docker.service
+      Wants=network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/worktree-reaper.sh'
+      StandardOutput=append:/var/log/agenticos/worktree-reaper.log
+      StandardError=append:/var/log/agenticos/worktree-reaper.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-worktree-reaper.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run AgenticOS worktree reaper nightly (03:40 local)
+
+      [Timer]
+      # 03:40: after the 02:30 Sunday docker prune, before the 05:00 disk-guard,
+      # so a night's reclaim is already reflected in the morning headroom check.
+      OnCalendar=*-*-* 03:40:00
+      Persistent=true
+      RandomizedDelaySec=300
+      Unit=agenticos-worktree-reaper.service
+
+      [Install]
+      WantedBy=timers.target
+
   # host-clone drift-guard (GOL-1976): the host timers all run scripts out of the
   # /opt/agenticos/repo clone. GOL-1965/AgenticOS#650 fixed the PUSH path
   # (deploy-host-scripts.yml reset-hards the clone on infra/scripts or scripts
@@ -712,13 +756,15 @@ runcmd:
   # --- Disk hygiene (GOL-131): weekly docker reclaim + daily disk-guard ---
   # Ensure the reclaim scripts are executable, apply the journald cap now
   # (config alone only bounds FUTURE growth), then enable the timers.
-  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/worktree-reaper.sh /opt/agenticos/repo/scripts/ops/reap-stale-worktrees.sh
   - systemctl restart systemd-journald
   - journalctl --vacuum-size=200M || true
   - systemctl enable --now agenticos-docker-prune.timer
   - systemctl enable --now agenticos-disk-guard.timer
   # paperclip-data volume headroom + backup-freshness watch (GOL-1632)
   - systemctl enable --now agenticos-paperclip-volume-guard.timer
+  # nightly abandoned-worktree reclaim (GOL-1632 / #765)
+  - systemctl enable --now agenticos-worktree-reaper.timer
 
   # --- Host-clone drift-guard (GOL-1976): read-only detection that the on-box
   # clone the host timers run from has drifted from origin/main. ---

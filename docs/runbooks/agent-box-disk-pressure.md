@@ -46,6 +46,47 @@ Verify afterwards that the branches survived:
 git -C <parent-repo> rev-parse --verify refs/heads/<branch>
 ```
 
+### This now runs nightly — you should rarely need the manual command
+
+`agenticos-worktree-reaper.timer` fires at **03:40 local** and drives
+`infra/scripts/worktree-reaper.sh`, which logs a dry-run pass and then an
+`--apply` pass to `/var/log/agenticos/worktree-reaper.log` (rotated weekly by
+the existing `/var/log/agenticos/*.log` rule). The unattended run uses
+`MIN_AGE_HOURS=48` rather than the script's own 24h default, to give an
+idle-but-not-dead agent a second full day.
+
+```bash
+systemctl list-timers agenticos-worktree-reaper.timer --no-pager   # next fire
+journalctl -u agenticos-worktree-reaper.service -n 50 --no-pager   # last run
+tail -40 /var/log/agenticos/worktree-reaper.log                    # what it freed
+systemctl start agenticos-worktree-reaper.service                  # run it now
+DRY_RUN=1 /opt/agenticos/repo/infra/scripts/worktree-reaper.sh     # list only
+```
+
+**The reaper must run inside the `paperclip-server` container, and the wrapper
+is what guarantees that.** Its live-process guard compares each worktree path
+against `/proc/<pid>/{cwd,fd}`. Agent processes live in the container's PID and
+mount namespaces, so from the host their `cwd` symlinks resolve to *container*
+paths (`/paperclip/instances/...`), while the worktrees would have to be
+addressed by their *host* path (`/var/lib/docker/volumes/*paperclip-data/_data/...`).
+Those never compare equal — a host-side run would find no live process for any
+worktree and the guard would silently no-op. The wrapper also execs as
+`-u node`: a root exec trips git's dubious-ownership check on the uid-1000
+worktrees, every candidate SKIPs, and the run reports success while doing
+nothing. If you ever run the reaper by hand, run it in the container as `node`.
+
+**If the nightly run stops reclaiming,** check in this order: the timer is
+enabled; `paperclip-server` was running at 03:40 (the wrapper skips, by design,
+when it is not); the clone at `/opt/agenticos/repo` is current (`agenticos-host-clone-drift`
+pages on drift); and the log's dry-run pass — a run where everything SKIPs with
+"live process holds a path inside it" or "uncommitted change(s)" is the guard
+working, not a failure.
+
+**Scope:** the reaper only matches `.wt-*` directories. Ad-hoc worktrees under
+other names (`/paperclip/work/gol<N>-wt`, `<project>/_default/gol<N>-wt`) are
+deliberately out of scope and still need manual reclamation — widening the glob
+would put hand-made scratch checkouts inside an unattended delete path.
+
 ## 2. Workspace of a terminated agent
 
 Check the agent really is terminated and nothing live references the path:
