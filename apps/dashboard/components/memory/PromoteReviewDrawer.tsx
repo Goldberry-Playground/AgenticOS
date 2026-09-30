@@ -102,7 +102,7 @@ export function PromoteReviewDrawer({
         >
           <h2
             className="text-sm font-semibold"
-            style={{ color: "var(--text-primary)" }}
+            style={{ color: "var(--text)" }}
           >
             Promote to Obsidian
           </h2>
@@ -130,9 +130,9 @@ export function PromoteReviewDrawer({
               onChange={(e) => setCategory(e.target.value)}
               className="rounded border px-3 py-1.5 text-sm"
               style={{
-                backgroundColor: "var(--surface-raised)",
+                backgroundColor: "var(--surface-elevated)",
                 borderColor: "var(--border-subtle)",
-                color: "var(--text-primary)",
+                color: "var(--text)",
               }}
             >
               {categories.length === 0 && <option value="">(none)</option>}
@@ -157,9 +157,9 @@ export function PromoteReviewDrawer({
               onChange={(e) => setTitle(e.target.value)}
               className="rounded border px-3 py-1.5 text-sm"
               style={{
-                backgroundColor: "var(--surface-raised)",
+                backgroundColor: "var(--surface-elevated)",
                 borderColor: "var(--border-subtle)",
-                color: "var(--text-primary)",
+                color: "var(--text)",
               }}
               placeholder="Page title"
             />
@@ -178,9 +178,9 @@ export function PromoteReviewDrawer({
               onChange={(e) => setTagsRaw(e.target.value)}
               className="rounded border px-3 py-1.5 text-sm"
               style={{
-                backgroundColor: "var(--surface-raised)",
+                backgroundColor: "var(--surface-elevated)",
                 borderColor: "var(--border-subtle)",
-                color: "var(--text-primary)",
+                color: "var(--text)",
               }}
               placeholder="tag-one, tag-two"
             />
@@ -197,9 +197,9 @@ export function PromoteReviewDrawer({
             <pre
               className="rounded border px-3 py-2 text-xs font-mono whitespace-pre-wrap break-words"
               style={{
-                backgroundColor: "var(--surface-raised)",
+                backgroundColor: "var(--surface-elevated)",
                 borderColor: "var(--border-subtle)",
-                color: "var(--text-primary)",
+                color: "var(--text)",
               }}
             >
               {draft}
@@ -222,8 +222,8 @@ export function PromoteReviewDrawer({
             onClick={handleCopy}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-opacity hover:opacity-80"
             style={{
-              backgroundColor: "var(--surface-raised)",
-              color: "var(--text-primary)",
+              backgroundColor: "var(--surface-elevated)",
+              color: "var(--text)",
               border: "1px solid var(--border-subtle)",
             }}
           >
