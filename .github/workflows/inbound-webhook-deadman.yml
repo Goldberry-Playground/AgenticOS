@@ -27,14 +27,43 @@ name: Inbound webhook dead-man probe
 #   secret GITHUB_APP_WEBHOOK_SECRET  — the App webhook secret (== the plugin's
 #                                        appWebhookSecret). Signs the probe.
 #   secret DISCORD_WEBHOOK_URL        — Grove ops Discord webhook (already set).
+#
+# ── Second leg: worker liveness heartbeat (GOL-2591) ─────────────────────────
+# The probe above answers "can a delivery REACH the plugin". It cannot answer
+# "is the worker alive", and that is the gap that cost five days: on 2026-09-24
+# a plugin deploy orphaned the bind mounts, the worker died, and the inbound edge
+# kept answering — GOL-2585, github-sync dead 00:35Z → 2026-09-29 20:44Z with four
+# grove-odoo-modules PRs (including Stripe Tax) never reviewed.
+#
+# A red deploy is not a sufficient tripwire for that class either. It only fires
+# when a deploy happens (GOL-2279 killed the worker with no deploy at all), and
+# when it DOES fire, the failure router's only delivery is a GitHub issue — which
+# reaches the board only because the github-sync worker mirrors it. The deploy that
+# kills the worker therefore cannot report itself: run 35939085377 went red and
+# minted issue #710 within a minute, and nobody heard about it for five days.
+#
+# `github_sync_heartbeat` (migration 007, first row 2026-09-29T20:44:31Z) is the
+# signal that covers both: unconditional, so unlike `github_sync_delivery` a quiet
+# inbound window never looks like a crash. The heartbeat job below reads it over
+# SSH and pages Grove ops directly — a path that touches neither the router, nor a
+# GitHub issue, nor the worker it is watching.
 
 on:
   schedule:
-    - cron: "17 13 * * *"   # daily 13:17 UTC — off the top-of-hour reconcile
+    - cron: "17 13 * * *"   # daily 13:17 UTC — inbound edge probe (off the top-of-hour reconcile)
+    - cron: "47 * * * *"    # hourly :47 — worker heartbeat staleness (GOL-2591)
   workflow_dispatch:
     inputs:
       force_fail:
         description: "Force a synthetic failure to test the Discord alert path"
+        type: boolean
+        default: false
+      stale_threshold_minutes:
+        description: "Heartbeat staleness threshold in minutes (0 forces a stale verdict — use to prove the page end-to-end without causing an outage)"
+        type: string
+        default: ""
+      heartbeat_dry_run:
+        description: "Evaluate the heartbeat and print the page WITHOUT posting to Discord"
         type: boolean
         default: false
 
@@ -48,6 +77,9 @@ concurrency:
 jobs:
   probe:
     name: Probe inbound GitHub→Paperclip edge
+    # GitHub schedules a WORKFLOW, not a job, so the two legs share this file and
+    # select on which cron fired. Both legs run on a manual dispatch.
+    if: github.event.schedule != '47 * * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -59,3 +91,61 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           PROBE_FORCE_FAIL: ${{ inputs.force_fail && '1' || '' }}
         run: bash scripts/inbound-deadman-probe.sh
+
+  # ── Worker liveness heartbeat staleness (GOL-2591 item 3) ──────────────────
+  # Split across the boundary on purpose: the droplet-side script only READS and
+  # reports (the plugin DB is VPC-private), and the verdict + the page happen here
+  # on the runner, so the Grove ops webhook is never shipped over SSH onto the box
+  # and the whole decision stays unit-tested offline
+  # (scripts/ci/github-sync-heartbeat-probe.test.mjs).
+  heartbeat:
+    name: github-sync worker heartbeat staleness
+    if: github.event.schedule != '17 13 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure SSH
+        uses: ./.github/actions/configure-ssh
+        with:
+          deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
+          host: ${{ secrets.DROPLET_HOST }}
+
+      # One step, not two: the reading goes straight from ssh into the probe through
+      # the environment, so nothing is written to the runner's disk (CodeQL
+      # js/file-access-to-http flags a file→outbound-request flow, and a temp file
+      # bought nothing here). `shell: bash` gives -eo pipefail so a dead ssh fails
+      # loudly instead of handing the probe an empty string.
+      #
+      # rc is captured rather than piped: the probe exits non-zero on ANY bad verdict
+      # so the job is red even when Discord itself is unreachable — a page that
+      # silently failed to send would recreate the exact hole this issue closes — and
+      # the step summary must still record the reading on that path (a bare pipeline
+      # under -e aborts first, and `| tee` would hide the exit behind tee's 0, which
+      # is the GOL-804 / run 31039144506 trap).
+      - name: Read the heartbeat and page Grove ops if it is stale
+        shell: bash
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Empty on a scheduled run → the probe's 90-minute default applies.
+          HEARTBEAT_STALE_MINUTES: ${{ inputs.stale_threshold_minutes }}
+          HEARTBEAT_DRY_RUN: ${{ inputs.heartbeat_dry_run && '1' || '' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          reading="$(ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "bash -lc 'set -euo pipefail; cd /opt/agenticos/repo && bash scripts/github-sync-heartbeat-read.sh'")"
+          echo "reading: ${reading}"
+          rc=0
+          HEARTBEAT_READING="$reading" node scripts/ci/github-sync-heartbeat-probe.mjs > verdict.txt 2>&1 || rc=$?
+          cat verdict.txt
+          {
+            echo "### github-sync worker heartbeat"
+            echo '```'
+            echo "${reading}"
+            cat verdict.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"

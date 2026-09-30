@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { PlusIcon, XIcon, FolderIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type { AgenticOSConfig, ProjectRoot, ConnectorConfig } from "@/lib/config/schema";
 
 const MODEL_OPTIONS = [
@@ -329,23 +330,26 @@ function ModelRow({
   onChange: (val: string) => void;
 }) {
   const label = tier === "haiku" ? "Haiku tier (fast)" : tier === "sonnet" ? "Sonnet tier (balanced)" : "Opus tier (reasoning)";
+  const selectId = `model-default-${tier}`;
   return (
-    <div className="flex items-center gap-4">
+    // Single column below `sm` (GOL-2651): a 176px label plus a select whose
+    // widest option is ~246px of mono does not fit a 390px phone, and the row
+    // reads better stacked there anyway. The label now carries `htmlFor` — it
+    // previously sat next to the select with nothing associating the two.
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
       <label
-        className="text-sm w-44 shrink-0"
+        htmlFor={selectId}
+        className="text-sm w-full sm:w-44 sm:shrink-0"
         style={{ color: "var(--text-secondary)" }}
       >
         {label}
       </label>
-      <select
+      <Select
+        id={selectId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 h-8 rounded-md border px-2.5 text-sm font-mono transition-colors outline-none"
-        style={{
-          backgroundColor: "var(--surface-muted)",
-          borderColor: "var(--border-brand)",
-          color: "var(--text)",
-        }}
+        className="font-mono"
+        containerClassName="sm:flex-1"
       >
         {MODEL_OPTIONS.map((opt) =>
           opt.value === "divider" ? (
@@ -358,7 +362,7 @@ function ModelRow({
             </option>
           )
         )}
-      </select>
+      </Select>
     </div>
   );
 }
