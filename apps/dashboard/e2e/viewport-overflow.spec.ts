@@ -190,9 +190,23 @@ test.describe("settings folder picker (Phase 6 placeholder)", () => {
 
     // A project-root row renders the picker next to the live ✕; the Vault Path
     // row renders it alone. Both must be inert.
-    await page.getByRole("button", { name: /Add project root/i }).click();
+    const addRoot = page.getByRole("button", { name: /Add project root/i });
     const pickers = page.locator('button[aria-label^="Pick folder"]');
-    await expect(pickers).toHaveCount(2);
+
+    // GOL-2791: `/settings` still throws a hydration error in CI (GOL-2653, a
+    // live clock in the KPI banner), and React regenerates the tree when it
+    // recovers. Until the button is hydrated it is inert server HTML with no
+    // click handler, so a click dispatched inside that window is dropped — no
+    // row is appended and the count stays at 1 (the lone Vault Path picker).
+    // `toHaveCount(2)` retries the assertion but cannot recover a lost click,
+    // which is why this flaked red on PR #768. Retry the click itself until the
+    // project-root row materialises; the `< 2` guard reads the committed count
+    // at the top of each attempt, so a click that lands post-hydration can
+    // never append a duplicate row.
+    await expect(async () => {
+      if ((await pickers.count()) < 2) await addRoot.click();
+      expect(await pickers.count()).toBe(2);
+    }).toPass({ timeout: 15000 });
 
     for (let i = 0; i < 2; i++) {
       const picker = pickers.nth(i);
