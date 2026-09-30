@@ -37271,6 +37271,7 @@ async function processReply(deps, issueId) {
   const replies = comments.filter((c) => c.authorAgentId === cfg.drafterAgentId && c.createdAt > since).sort((a, b) => a.createdAt < b.createdAt ? 1 : -1);
   const reply = replies[0];
   if (!reply) return { status: "waiting" };
+  const priorLastReplyAt = req.lastReplyAt;
   req.lastReplyAt = reply.createdAt;
   const read = await odoo.read(req.productId, READ_FIELDS);
   if (!read.ok) {
@@ -37313,10 +37314,15 @@ async function processReply(deps, issueId) {
   }
   const applied = await applyDraftToOdoo(odoo, req.productId, read.data.grove_facts_provenance, parsed.data, now);
   if (!applied.ok) {
-    await issues.postComment(issueId, `Draft validated but the Odoo write failed: ${applied.error}. Will retry.`);
+    req.lastReplyAt = priorLastReplyAt;
+    if (req.writeRetryReplyAt !== reply.createdAt) {
+      await issues.postComment(issueId, `Draft validated but the Odoo write failed: ${applied.error}. Will retry.`);
+      req.writeRetryReplyAt = reply.createdAt;
+    }
     await state.setRequest(issueId, req);
     return { status: "error", error: applied.error };
   }
+  req.writeRetryReplyAt = void 0;
   req.status = "drafted";
   await state.setDraftedVersion(productOriginId(req.productId), req.marker);
   await state.setRequest(issueId, req);
