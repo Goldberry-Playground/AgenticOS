@@ -97,7 +97,22 @@ fi
 # --- behaviour --------------------------------------------------------------
 # Each scenario writes stubs into $BIN and runs the script with `env -i` so the
 # ONLY tools reachable are the ones the scenario provides.
-run_scenario() { env -i PATH="$BIN:/usr/bin:/bin" HOME="$WORK" bash "$REMOTE" 2>/dev/null; }
+# A curated sandbox PATH, NOT /usr/bin. Scenario A asserts that an absent tool
+# reads as INCONCLUSIVE, which only means anything if the tool is actually
+# absent -- and a GitHub runner ships real docker, sudo and journalctl in
+# /usr/bin, so the first CI run of this file found them and three scenario-A
+# assertions failed. SYSBIN therefore holds symlinks to ONLY the utilities the
+# remote script needs as plumbing; every tool a scenario is making claims about
+# (docker, journalctl, sudo, dmesg, free, uptime, git, stat) is deliberately
+# excluded, so it exists only when a stub provides it.
+SYSBIN="$WORK/sysbin"; mkdir -p "$SYSBIN"
+# bash/env/sh are plumbing: the stubs below use a `#!/usr/bin/env bash` shebang,
+# so `env` must be able to find `bash` on this very PATH.
+for u in bash sh env cat date grep head rm printf timeout sed sort; do
+  src="$(command -v "$u" || true)"
+  [ -n "$src" ] && ln -sf "$src" "$SYSBIN/$u"
+done
+run_scenario() { env -i PATH="$BIN:$SYSBIN" HOME="$WORK" "$(command -v bash)" "$REMOTE" 2>/dev/null; }
 
 reset_stubs() { rm -f "$BIN"/*; }
 
