@@ -208,7 +208,28 @@ jobs:
                 echo "^^ CONCLUSIVE: an oom action confirms an OOM-kill; a die/start pair with"
                 echo "   no preceding stop is a crash; create/destroy is a deploy recreate."
               else
-                echo "CONCLUSIVE: daemon reachable; zero lifecycle events for paperclip-server in 24h"
+                # An empty result here is usually a LIE, and the live run proved
+                # it: the daemon reported "zero lifecycle events in 24h" for a
+                # container it had itself created 1h42m earlier. The daemon keeps
+                # events in a bounded in-memory ring, the healthcheck floods it
+                # with ~26k exec_* events a day, and the --filter is applied at
+                # READ time, so filtering cannot recover what the ring already
+                # evicted. Cross-check against the container create time: if the
+                # container was created inside the window and no create event
+                # came back, the ring has rolled. That is INCONCLUSIVE, not
+                # "nothing happened".
+                CREATED=$(docker inspect paperclip-server --format "{{.Created}}" 2>/dev/null)
+                CREATED_TS=$(date -d "$CREATED" +%s 2>/dev/null || echo 0)
+                CUTOFF=$(( $(date +%s) - 86400 ))
+                if [ "$CREATED_TS" -gt "$CUTOFF" ] 2>/dev/null; then
+                  echo "INCONCLUSIVE: no lifecycle events returned, yet the container was created"
+                  echo "  at $CREATED -- inside the window. The daemon event ring has rolled"
+                  echo "  (healthcheck exec_* floods it), so this probe only sees the last few"
+                  echo "  hours on this box. Run it soon after an incident, not days later."
+                else
+                  echo "CONCLUSIVE: daemon reachable; zero lifecycle events for paperclip-server in 24h"
+                  echo "  (container predates the window, so an empty ring is consistent)"
+                fi
               fi
             fi
             echo
