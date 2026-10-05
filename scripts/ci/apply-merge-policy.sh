@@ -18,11 +18,30 @@
 #                        without executing them.
 #
 #   --repo <name>        Limit to a single repo (matches the "repo" field).
+#   --surface <name>     Limit to ONE managed surface: `protection` (branch
+#                        protection / required contexts / dormant ruleset) or
+#                        `merge-queue`. Default `all`.
+#                        REQUIRED to converge a merge-queue timeout on a repo whose
+#                        required_contexts promotion is still paused (GOL-1953 /
+#                        GOL-1958): a bare `--apply` there would ALSO promote that
+#                        repo's paused contexts, which is a separate board decision.
+#                        `--surface merge-queue --apply` touches nothing but the
+#                        merge-queue ruleset.
 #   --config <path>      Override the policy file (default: repo .github/merge-policy.json).
 #
-# WRITES ARE BOARD-GATED. The default GITHUB_TOKEN cannot write branch protection or
-# rulesets, and no admin token is provisioned in these repos. --apply must be run by
-# an operator (Josh) whose `gh` auth holds admin. See GOL-1819 / GOL-392 / GOL-1207.
+# WRITES ARE BOARD-GATED -- BY POLICY, NOT BY CAPABILITY (corrected GOL-3051).
+# This block used to say "no admin token is provisioned in these repos", which is
+# no longer true and was keeping routine convergence on Josh's plate for no
+# reason. Verified 2026-10-05: an installation token minted from the
+# `agenticos-developer` App (scripts/agent-git/github-app-token.mjs) DOES carry
+# ruleset write -- a same-value `PUT /repos/.../rulesets/{id}` returns 200. What
+# remains true is that an Actions-workflow `GITHUB_TOKEN` cannot.
+# So the gate is a deliberate policy choice about blast radius, not a missing
+# credential: branch protection and required-context promotion are board
+# decisions (GOL-1953 is paused pending GOL-1958). Treat --apply on the
+# `protection` surface as board-gated, and prefer
+# `--surface merge-queue` for the narrow, non-weakening queue settings.
+# See GOL-1819 / GOL-392 / GOL-1207 / GOL-3051.
 #
 # Auth: uses the ambient `gh` CLI credential (GH_TOKEN / gh auth login).
 # Deps: gh, jq.
@@ -35,6 +54,7 @@ CONFIG="${MERGE_POLICY_CONFIG:-$here/../../.github/merge-policy.json}"
 MODE="check"
 DRY=0
 ONLY_REPO=""
+SURFACE="all"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -42,12 +62,27 @@ while [ $# -gt 0 ]; do
     --apply)   MODE="apply" ;;
     --dry-run) DRY=1 ;;
     --repo)    ONLY_REPO="${2:?--repo needs a value}"; shift ;;
+    --surface) SURFACE="${2:?--surface needs a value}"; shift ;;
     --config)  CONFIG="${2:?--config needs a value}"; shift ;;
-    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
+    # Print the leading comment block by SHAPE, not by line number: the hardcoded
+    # range this replaces had already drifted into spilling `set -euo pipefail`
+    # and the first two assignments into the usage text, and every edit to the
+    # doc block re-broke it (GOL-3051).
+    -h|--help) awk 'NR>1 && /^#/ {print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
 done
+
+case "$SURFACE" in
+  all|protection|merge-queue) ;;
+  *) echo "error: --surface must be one of: all, protection, merge-queue (got '$SURFACE')" >&2; exit 2 ;;
+esac
+
+# Surface predicates. Kept as functions so both the display loop and summary()
+# gate on exactly the same condition and cannot drift apart.
+want_protection() { [ "$SURFACE" = all ] || [ "$SURFACE" = protection ]; }
+want_merge_queue() { [ "$SURFACE" = all ] || [ "$SURFACE" = merge-queue ]; }
 
 command -v gh >/dev/null || { echo "error: gh CLI not found" >&2; exit 3; }
 command -v jq >/dev/null || { echo "error: jq not found" >&2; exit 3; }
@@ -194,6 +229,7 @@ mq_target() { # <row-json> <parameter-name>
 
 process_merge_queue() { # <row-json>
   local row="$1" repo rs_name rs_id detail keys k tgt cur off_here=0
+  want_merge_queue || return 0
   # A row without `merge_queue_targets` is simply not managed on this surface.
   jq -e 'has("merge_queue_targets")' <<<"$row" >/dev/null || return 0
   repo=$(jq -r '.repo' <<<"$row")
@@ -480,12 +516,14 @@ jq -c '.repos[]' <<<"$CONFIG_JSON" | while IFS= read -r rowjson; do
   repo=$(jq -r '.repo' <<<"$rowjson")
   [ -n "$ONLY_REPO" ] && [ "$ONLY_REPO" != "$repo" ] && continue
   system=$(jq -r '.system' <<<"$rowjson")
-  case "$system" in
-    ruleset)      process_ruleset_repo "$rowjson" ;;
-    legacy)       process_legacy_repo "$rowjson" ;;
-    out-of-scope) process_out_of_scope "$rowjson" ;;
-    *) echo "  [$repo] unknown system: $system"; OFFTARGET=$((OFFTARGET+1)) ;;
-  esac
+  if want_protection; then
+    case "$system" in
+      ruleset)      process_ruleset_repo "$rowjson" ;;
+      legacy)       process_legacy_repo "$rowjson" ;;
+      out-of-scope) process_out_of_scope "$rowjson" ;;
+      *) echo "  [$repo] unknown system: $system"; OFFTARGET=$((OFFTARGET+1)) ;;
+    esac
+  fi
   # Merge-queue settings live in a separate ruleset, so this leg is deliberately
   # outside the `system` dispatch (GOL-3051).
   process_merge_queue "$rowjson"
@@ -504,7 +542,7 @@ summary() {
     # Merge-queue leg first: it is a different ruleset, so neither the
     # out-of-scope skip nor the legacy-404 `continue` below may mask its drift
     # (GOL-3051).
-    if jq -e 'has("merge_queue_targets")' <<<"$rowjson" >/dev/null; then
+    if want_merge_queue && jq -e 'has("merge_queue_targets")' <<<"$rowjson" >/dev/null; then
       local mq_name mq_id mq_detail mq_k
       mq_name=$(jq -r '.merge_queue_ruleset_name' <<<"$CONFIG_JSON")
       mq_id=$(ruleset_id_by_name "$repo" "$mq_name")
@@ -516,6 +554,12 @@ summary() {
         done
       fi
     fi
+    # Everything below this line is the protection surface (GOL-3051): skip it
+    # wholesale under `--surface merge-queue` so the exit code reflects only the
+    # surface the operator asked about. Without this, converging just the
+    # merge-queue timeout on a repo whose required_contexts promotion is paused
+    # would still exit 1 and read as a failed apply.
+    want_protection || continue
     [ "$system" = "out-of-scope" ] && continue
     local keys k tgt cur detail prot rs_id rs_name branch
     keys=$(jq -r '.targets|keys[]' <<<"$rowjson")

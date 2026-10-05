@@ -29,6 +29,35 @@
 # @EngineeringMoonBear is — so its approval cannot satisfy this requirement.
 # See docs/superpowers/specs/2026-08-03-agent-pr-merge-automation-design.md
 # for the full design and the amendment note appended there.
+# =============================================================================
+# !! DRIFT WARNING -- THIS FILE DOES NOT DESCRIBE LIVE STATE (GOL-3051) !!
+#
+# Verified against Goldberry-Playground/AgenticOS on 2026-10-05. This file
+# declares ONE ruleset named "main". Live, there are TWO, both created by hand
+# on 2026-09-05 after the org transfer, and neither is named "main":
+#
+#   22343539  "main-branch-protection"  deletion, non_fast_forward,
+#                                       required_linear_history, pull_request,
+#                                       required_status_checks
+#   20318403  "merge-queue"             merge_queue only
+#
+# DO NOT `terraform apply` THIS FILE AS-IS. Because the live rulesets carry
+# different NAMES, an apply does not update them -- it CREATES A THIRD ruleset
+# on the default branch. And this resource declares
+# `required_approving_review_count = 0` where live
+# `main-branch-protection` requires 1, so the union would relax the approval
+# requirement on `main`.
+#
+# Until this is reconciled, the enforced sources of truth are:
+#   - `.github/merge-policy.json` + `scripts/ci/apply-merge-policy.sh --check`
+#     for the settings that tool manages (it reads LIVE state, so it cannot
+#     drift the way this file has);
+#   - the live rulesets themselves for everything else.
+#
+# Reconciling this file to the live two-ruleset layout (import + split, or
+# delete this file in favour of the policy tool) is tracked separately -- it is
+# a protection change on `main` and therefore a board decision, not a drive-by.
+# =============================================================================
 resource "github_repository_ruleset" "main" {
   name        = "main"
   repository  = "AgenticOS"
@@ -57,7 +86,18 @@ resource "github_repository_ruleset" "main" {
     }
 
     merge_queue {
-      check_response_timeout_minutes    = 60
+      # 90, not GitHub's default 30 and not the 60 this line used to carry
+      # (GOL-3051). The live value was 30 and the queue silently dequeued
+      # approved, green PRs: the hosted-runner wait under ordinary multi-agent
+      # PR load is 45-90 min, and once the wait exceeds this timeout GitHub
+      # removes the entry with NO failure event -- the PR reverts to
+      # open + APPROVED + CLEAN and nothing turns red. 60 would not have been
+      # enough either (PR #814 waited 48+ min for `CI` to even start).
+      # The declared target of record is `.github/merge-policy.json`
+      # (`merge_queue_targets`), which `scripts/ci/apply-merge-policy.sh
+      # --surface merge-queue --check` enforces against live state; keep this
+      # number equal to it.
+      check_response_timeout_minutes    = 90
       grouping_strategy                 = "ALLGREEN"
       max_entries_to_build              = 5
       max_entries_to_merge              = 5

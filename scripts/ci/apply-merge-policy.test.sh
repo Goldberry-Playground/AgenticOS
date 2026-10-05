@@ -384,5 +384,71 @@ printf '%s\n' "$mq_out" | grep -q "check_response_timeout_minutes" \
   || { printf '%s\n' "$mq_out"; fail "healthy-mq's merge-queue row was never rendered — did the run abort?"; }
 echo "    ok: missing merge-queue ruleset = drift + message, run continued to the healthy repo"
 
+echo "### 8. --surface isolates one managed surface (GOL-3051)"
+# Converging a merge-queue timeout must NOT drag a repo's paused
+# required_contexts promotion (GOL-1953/GOL-1958) along with it. Own fixtures so
+# the drifted state here cannot perturb the converged assertions above.
+SURF_CFG="$WORK/merge-policy-surface.json"
+cat >"$SURF_CFG" <<'J'
+{ "dormant_reviewer_ruleset_name":"Code Quality Copilot review for default branch",
+  "merge_queue_ruleset_name":"merge-queue",
+  "repos":[
+    {"repo":"surf-repo","system":"ruleset","protection_ruleset":"main-branch-protection",
+     "merge_queue_targets":{"check_response_timeout_minutes":90},
+     "required_contexts":["Build","Paused promotion guard"],
+     "targets":{"strict":false}}
+  ] }
+J
+cat >"$FIX/rulesets_surf-repo.json" <<'J'
+[ {"id":500,"name":"main-branch-protection","enforcement":"active"},
+  {"id":600,"name":"merge-queue","enforcement":"active"} ]
+J
+# BOTH surfaces start off-target: strict=true + only [Build] required, timeout=30.
+cat >"$FIX/ruleset_500.json" <<'J'
+{ "id":500,"name":"main-branch-protection","target":"branch","enforcement":"active",
+  "bypass_actors":[],"conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
+  "rules":[{"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":true,"required_status_checks":[{"context":"Build"}]}}] }
+J
+cat >"$FIX/ruleset_600.json" <<'J'
+{ "id":600,"name":"merge-queue","target":"branch","enforcement":"active",
+  "bypass_actors":[],"conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
+  "rules":[{"type":"merge_queue","parameters":{"merge_method":"SQUASH","grouping_strategy":"ALLGREEN","max_entries_to_build":5,"min_entries_to_merge":1,"max_entries_to_merge":5,"min_entries_to_merge_wait_minutes":2,"check_response_timeout_minutes":30}}] }
+J
+surf(){ "$SCRIPT" --config "$SURF_CFG" "$@"; }
+
+# 8a. `--surface merge-queue --check` must see ONLY the merge-queue row: exactly
+#     one drift (the timeout), and no `strict`/`required_contexts` row at all.
+if so="$(surf --check --surface merge-queue 2>&1)"; then fail "surface check should exit 1 on timeout drift"; fi
+printf '%s\n' "$so" | grep -q 'check_response_timeout_minutes' || { printf '%s\n' "$so"; fail "merge-queue row missing"; }
+printf '%s\n' "$so" | grep -q 'drift: 1 setting' || { printf '%s\n' "$so"; fail "expected exactly 1 drift on the merge-queue surface"; }
+printf '%s\n' "$so" | grep -qE '(^| )strict |required_contexts' && { printf '%s\n' "$so"; fail "protection rows leaked into --surface merge-queue"; }
+echo "    ok: --surface merge-queue reports only the timeout (drift: 1)"
+
+# 8b. `--surface merge-queue --apply` writes the merge-queue ruleset and NOTHING
+#     else. This is the assertion that protects the paused promotion: a write to
+#     ruleset 500 here would mean the timeout fix silently promoted [Paused
+#     promotion guard] to a required check.
+: >"$FAKE_GH_CALLS"
+surf --apply --surface merge-queue >/dev/null 2>&1 || fail "surface apply should exit 0"
+grep -q 'PUT /repos/Goldberry-Playground/surf-repo/rulesets/600' "$FAKE_GH_CALLS" \
+  || { cat "$FAKE_GH_CALLS"; fail "merge-queue ruleset was not written"; }
+if grep -q 'rulesets/500' "$FAKE_GH_CALLS"; then cat "$FAKE_GH_CALLS"; fail "protection ruleset written under --surface merge-queue"; fi
+[ "$(wc -l <"$FAKE_GH_CALLS")" -eq 1 ] || { cat "$FAKE_GH_CALLS"; fail "expected exactly 1 write"; }
+got=$(jq -r '[.rules[]|select(.type=="merge_queue").parameters.check_response_timeout_minutes]|.[0]' "$FIX/ruleset_600.json")
+[ "$got" = "90" ] || fail "timeout=$got, expected 90"
+stillpaused=$(jq -r '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]|sort|join(",")' "$FIX/ruleset_500.json")
+[ "$stillpaused" = "Build" ] || fail "paused promotion leaked: required contexts now [$stillpaused]"
+echo "    ok: one write (ruleset 600), timeout=90, paused promotion untouched [$stillpaused]"
+
+# 8c. the mirror case: `--surface protection` must not touch the merge queue.
+: >"$FAKE_GH_CALLS"
+surf --apply --surface protection >/dev/null 2>&1 || fail "protection-surface apply should exit 0"
+if grep -q 'rulesets/600' "$FAKE_GH_CALLS"; then cat "$FAKE_GH_CALLS"; fail "merge-queue ruleset written under --surface protection"; fi
+echo "    ok: --surface protection left the merge-queue ruleset alone"
+
+# 8d. an unknown surface is rejected before any network call.
+if surf --check --surface bogus >/dev/null 2>&1; then fail "--surface bogus should exit non-zero"; fi
+echo "    ok: --surface bogus rejected"
+
 echo
-echo "PASS — check/apply/idempotency verified across ruleset PUT, legacy full-PUT, legacy granular PATCH, dormant-ruleset DELETE, the legacy→ruleset surface guard (GOL-2049), and the merge-queue ruleset leg (GOL-3051)."
+echo "PASS — check/apply/idempotency verified across ruleset PUT, legacy full-PUT, legacy granular PATCH, dormant-ruleset DELETE, the legacy→ruleset surface guard (GOL-2049), and the merge-queue ruleset leg + --surface isolation (GOL-3051)."
