@@ -204,15 +204,32 @@ expect_silent "${R}" "no-docker"
 echo "== the compose service it guards actually has init: true =="
 # Pins the fix itself: if someone drops `init: true` from paperclip-server, the
 # guard's whole premise (steady-state zombies ~0) is void. Cheap structural check.
-if python3 - "${REPO_ROOT}/docker-compose.yml" <<'PY'
-import sys, yaml
-d = yaml.safe_load(open(sys.argv[1]))
-svc = d["services"]["paperclip-server"]
-assert svc.get("init") is True, "paperclip-server is missing `init: true` (GOL-3002)"
-print("  paperclip-server init: true")
-PY
-then pass "docker-compose.yml: paperclip-server has init: true"
-else fail "docker-compose.yml: paperclip-server lost init: true — the pid leak is back"; fi
+# PyYAML is not guaranteed on every runner image, so parse the block in awk:
+# walk from the `paperclip-server:` service key to the next top-level service
+# key, and require an `init: true` line at service-key indentation inside it.
+if awk '
+  /^  [a-zA-Z0-9_.-]+:[[:space:]]*$/ { in_svc = ($1 == "paperclip-server:"); next }
+  in_svc && /^    init:[[:space:]]*true[[:space:]]*$/ { found = 1 }
+  END { exit(found ? 0 : 1) }
+' "${REPO_ROOT}/docker-compose.yml"; then
+  pass "docker-compose.yml: paperclip-server has init: true"
+else
+  fail "docker-compose.yml: paperclip-server lost init: true — the pid leak (GOL-3002) is back"
+fi
+
+# Negative control for the check above: the same matcher must NOT find init:true
+# in a copy with the line removed, otherwise the assertion is vacuous.
+NEG="$(mktemp)"; grep -v '^    init: true$' "${REPO_ROOT}/docker-compose.yml" > "${NEG}"
+if awk '
+  /^  [a-zA-Z0-9_.-]+:[[:space:]]*$/ { in_svc = ($1 == "paperclip-server:"); next }
+  in_svc && /^    init:[[:space:]]*true[[:space:]]*$/ { found = 1 }
+  END { exit(found ? 0 : 1) }
+' "${NEG}"; then
+  fail "init:true matcher is vacuous — it still passed with the line removed"
+else
+  pass "init:true matcher has a working negative control"
+fi
+rm -f "${NEG}"
 
 echo
 if [ "${FAILED}" -ne 0 ]; then
