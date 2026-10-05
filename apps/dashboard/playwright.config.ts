@@ -36,7 +36,11 @@ export default defineConfig({
       // aria-invalid (GOL-3044) likewise: the gallery's valid/invalid pair is
       // a 2-column grid on desktop and stacks below `sm`, and a field's error
       // row is the thing most likely to be clipped or crowded out there.
-      testMatch: /(viewport-overflow|focus-visible|aria-invalid)\.spec\.ts/,
+      // field-boundary (GOL-3045) too: the field grid is `sm:grid-cols-2`, so
+      // at 390px the fields are full-width and stacked — a different layout,
+      // and the viewport a light-mode user is most likely to meet an
+      // unreadable placeholder on.
+      testMatch: /(viewport-overflow|focus-visible|aria-invalid|field-boundary)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },

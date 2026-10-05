@@ -27,6 +27,12 @@ import { cn } from "@/lib/utils"
  * usual `text-muted-foreground`: `--text-muted` is only 2.82:1 on the light
  * page background, under the 3:1 WCAG 1.4.11 floor for a meaningful icon.
  * `--text-secondary` is 9.15:1 dark / 7.03:1 light.
+ *
+ * The border is `border-field-line`, shared with Input/Textarea/InputGroup so
+ * the whole form-field family has one measured edge. It was
+ * `border-border-strong`, which is `--moss-strong` — 1.93-2.81:1 on the dark
+ * surfaces (GOL-2707), so a dark-mode select had barely more of a boundary
+ * than the `border-input` fields did (GOL-3045).
  */
 function Select({
   className,
@@ -39,7 +45,7 @@ function Select({
       <select
         data-slot="select"
         className={cn(
-          "h-11 w-full min-w-0 truncate appearance-none rounded-lg border border-border-strong bg-surface-muted pl-2.5 pr-9 text-base text-text transition-colors",
+          "h-11 w-full min-w-0 truncate appearance-none rounded-lg border border-field-line bg-surface-muted pl-2.5 pr-9 text-base text-text transition-colors",
           "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
           "aria-invalid:border-2 aria-invalid:border-error-fg",
           "sm:h-8 sm:text-sm",

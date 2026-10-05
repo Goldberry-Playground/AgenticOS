@@ -180,6 +180,52 @@
      against every control fill as well. */
   --focus-ring-offset:  2px;
 
+  /* ── Form-field boundary (GOL-3045) ───────────
+     The perceivable edge of a text field when it is NOT focused, and the
+     placeholder inside it.
+
+     `--color-input` is a *surface* token (`var(--surface-muted)`), and six
+     call sites in components/ui legitimately use it that way — `bg-input/30`,
+     `disabled:bg-input/50`, `dark:disabled:bg-input/80`. It was ALSO being
+     used as `border-input`, i.e. a field was outlined in the colour of the
+     thing behind it: 1.00:1 on --surface-muted (literally the same colour),
+     1.05-1.38:1 everywhere else. The field had no boundary until you clicked
+     into it, so there was no common region to read and nothing for the
+     GOL-2968 focus ring to appear *around*. So this is a separate role token
+     rather than a re-point of --color-input: the two roles genuinely differ.
+
+     WCAG 1.4.11 wants >=3:1 for the visual boundary identifying a component,
+     against *every* colour adjacent to it — here both the page surface outside
+     the field and the field's own fill inside it. Measured against all seven
+     dark / five light surfaces a field can land on, and against each one's
+     composited `bg-input/30` fill:
+
+       --field-line  #668371 dark   worst 3.21 (--surface-elevated), best 4.67
+                     #6b7a68 light  worst 3.70 (--surface-recessed), best 4.56
+
+     The existing border ramp cannot carry this in dark mode: --border-strong
+     (--moss-strong #45604f) measures 1.93-2.81:1 there (GOL-2707). The dark
+     value here is that same moss hue and chroma with OKLCh lightness raised
+     0.462 -> 0.582, so the ramp stays one family. In light mode --moss-strong
+     already clears it (3.70 worst), so light reuses it rather than inventing a
+     second value.
+
+     Placeholders are text, so they owe 4.5:1, not 3:1. `--text-muted`
+     (--parchment-faint) is 2.51-3.27:1 — a light-mode empty field was an
+     invisible box containing illegible text. These clear 4.5:1 on every
+     surface AND on every composited field fill, while staying clearly dimmer
+     than a typed value (2.33:1 dark / 3.18:1 against --text) so a placeholder
+     still reads as a hint and not as content:
+
+       --field-placeholder  #a1977f dark   worst 4.60 surface / 5.17 fill
+                            #71645d light  worst 4.63
+
+     Disabled fields also carry `opacity-50`, which halves these; WCAG exempts
+     inactive components from 1.4.11, and the colours above are what an
+     *enabled* field paints. */
+  --field-line:         #668371;
+  --field-placeholder:  #a1977f;
+
   /* Geometry (v2) */
   --radius-card:        10px;
   --radius-chip:        999px;
@@ -285,6 +331,13 @@
      #fff --surface, 4.62 on --surface-elevated and --surface-header, and
      4.42 on --surface-recessed. */
   --focus-ring:          var(--accent-gold-600);
+
+  /* Form-field boundary (GOL-3045). --moss-strong is already 3.70-4.56:1 on
+     the light surfaces, so the field edge reuses the border ramp here; the
+     dark mode is the half that needed a lighter step. The placeholder is a
+     darkened --parchment-faint: 4.63:1 worst case (it was 2.51:1). */
+  --field-line:          var(--moss-strong);
+  --field-placeholder:   #71645d;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -323,7 +376,12 @@
   --color-accent-foreground: var(--accent-plum-300);
   --color-destructive:   var(--error);
   --color-border:        var(--border-brand);
+  /* Surface token, and background-only: `bg-input/30`, `disabled:bg-input/50`.
+     A field's *border* is --color-field-line, because a border painted in the
+     colour of the surface behind it is not a border (GOL-3045). */
   --color-input:         var(--surface-muted);
+  --color-field-line:        var(--field-line);
+  --color-field-placeholder: var(--field-placeholder);
   /* Focus-ring colour behind the shadcn `ring-*` and `border-ring`
      utilities. Was var(--accent-plum-400) (== --gold), which measures
      1.97-2.42:1 on the light-mode surfaces — sub-3:1 for every control in
