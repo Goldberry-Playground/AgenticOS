@@ -4,6 +4,7 @@ import { OdooClient } from "./odoo-client.js";
 import { runRequestBatch } from "./request.js";
 import { processReply, type ReceiveDeps } from "./receive.js";
 import { runSweep } from "./sweep.js";
+import { withScopeRetry } from "./scope-retry.js";
 import type { DrafterConfig, IssuePort, IssueLike, RequestState, StatePort } from "./ports.js";
 
 /**
@@ -57,38 +58,55 @@ function toIssueLike(i: {
   };
 }
 
-/** Adapt the host `ctx.issues` onto the company-bound {@link IssuePort}. */
+/**
+ * Adapt the host `ctx.issues` onto the company-bound {@link IssuePort}.
+ *
+ * Every call here is company-scoped, which is exactly the set the host's
+ * invocation-scope gate fails CLOSED on when a scheduled job races a concurrent
+ * `onEvent` dispatch (GOL-2927). They are therefore all wrapped in
+ * {@link withScopeRetry}, writes included — the denial is a pre-flight gate, so a
+ * denied write performed no work and a retry cannot double-post. See
+ * `scope-retry.ts` for the full derivation.
+ */
 function makeIssuePort(ctx: PluginContext, cfg: DrafterConfig): IssuePort {
   const companyId = cfg.companyId;
+  const retry = <T>(label: string, fn: () => Promise<T>): Promise<T> =>
+    withScopeRetry(label, fn, { logger: ctx.logger });
   return {
     async openRequestExistsForProduct(originId) {
-      const hits = await ctx.issues.list({ companyId, originKind: ORIGIN_KIND, originId, limit: 10 });
+      const hits = await retry("issues.list/open-for-product", () =>
+        ctx.issues.list({ companyId, originKind: ORIGIN_KIND, originId, limit: 10 }),
+      );
       return hits.some((i) => OPEN_STATUSES.has(i.status));
     },
     async createRequestIssue({ title, description, originId }) {
-      const issue = await ctx.issues.create({
-        companyId,
-        projectId: cfg.groveProjectId,
-        title,
-        description,
-        status: "todo",
-        priority: "medium",
-        assigneeAgentId: cfg.drafterAgentId,
-        originKind: ORIGIN_KIND,
-        originId,
-      });
+      const issue = await retry("issues.create", () =>
+        ctx.issues.create({
+          companyId,
+          projectId: cfg.groveProjectId,
+          title,
+          description,
+          status: "todo",
+          priority: "medium",
+          assigneeAgentId: cfg.drafterAgentId,
+          originKind: ORIGIN_KIND,
+          originId,
+        }),
+      );
       return { id: issue.id };
     },
     async get(issueId) {
-      const i = await ctx.issues.get(issueId, companyId);
+      const i = await retry("issues.get", () => ctx.issues.get(issueId, companyId));
       return i ? toIssueLike(i) : null;
     },
     async listOwnRequests(limit) {
-      const list = await ctx.issues.list({ companyId, originKindPrefix: ORIGIN_KIND, limit });
+      const list = await retry("issues.list/own-requests", () =>
+        ctx.issues.list({ companyId, originKindPrefix: ORIGIN_KIND, limit }),
+      );
       return list.map(toIssueLike).filter((i) => OPEN_STATUSES.has(i.status));
     },
     async listComments(issueId) {
-      const comments = await ctx.issues.listComments(issueId, companyId);
+      const comments = await retry("issues.listComments", () => ctx.issues.listComments(issueId, companyId));
       return comments.map((c) => ({
         authorAgentId: c.authorAgentId ?? null,
         body: c.body ?? "",
@@ -96,19 +114,29 @@ function makeIssuePort(ctx: PluginContext, cfg: DrafterConfig): IssuePort {
       }));
     },
     async postComment(issueId, body) {
-      await ctx.issues.createComment(issueId, body, companyId);
+      await retry("issues.createComment", () => ctx.issues.createComment(issueId, body, companyId));
     },
     async wakeAssignee(issueId, reason) {
-      await ctx.issues.requestWakeup(issueId, companyId, { reason });
+      await retry("issues.requestWakeup", () => ctx.issues.requestWakeup(issueId, companyId, { reason }));
     },
     async setStatus(issueId, status) {
-      await ctx.issues.update(issueId, { status }, companyId);
+      await retry("issues.update", () => ctx.issues.update(issueId, { status }, companyId));
     },
   };
 }
 
-/** Adapt the host `ctx.state` onto the {@link StatePort}. */
+/**
+ * Adapt the host `ctx.state` onto the {@link StatePort}.
+ *
+ * `scopeKind: "company"` state reads/writes resolve to a company scope in the
+ * SDK's `requestedCompanyScope()` and are gated like `ctx.issues.*`, so they get
+ * the same {@link withScopeRetry} treatment (GOL-2927). `scopeKind: "issue"`
+ * carries no company scope and is never gated — left unwrapped so the hot
+ * per-issue path keeps zero added branching.
+ */
 function makeStatePort(ctx: PluginContext, cfg: DrafterConfig): StatePort {
+  const retry = <T>(label: string, fn: () => Promise<T>): Promise<T> =>
+    withScopeRetry(label, fn, { logger: ctx.logger });
   return {
     async getRequest(issueId) {
       const v = await ctx.state.get({ scopeKind: "issue", scopeId: issueId, stateKey: "request" });
@@ -118,18 +146,22 @@ function makeStatePort(ctx: PluginContext, cfg: DrafterConfig): StatePort {
       await ctx.state.set({ scopeKind: "issue", scopeId: issueId, stateKey: "request" }, state);
     },
     async getDraftedVersion(productKey) {
-      const v = await ctx.state.get({
-        scopeKind: "company",
-        scopeId: cfg.companyId,
-        namespace: "drafted-version",
-        stateKey: productKey,
-      });
+      const v = await retry("state.get/drafted-version", () =>
+        ctx.state.get({
+          scopeKind: "company",
+          scopeId: cfg.companyId,
+          namespace: "drafted-version",
+          stateKey: productKey,
+        }),
+      );
       return (v as string | null) ?? null;
     },
     async setDraftedVersion(productKey, marker) {
-      await ctx.state.set(
-        { scopeKind: "company", scopeId: cfg.companyId, namespace: "drafted-version", stateKey: productKey },
-        marker,
+      await retry("state.set/drafted-version", () =>
+        ctx.state.set(
+          { scopeKind: "company", scopeId: cfg.companyId, namespace: "drafted-version", stateKey: productKey },
+          marker,
+        ),
       );
     },
   };

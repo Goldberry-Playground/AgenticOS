@@ -37339,50 +37339,113 @@ async function processReply(deps, issueId) {
 var HOUR_MS = 60 * 60 * 1e3;
 async function runSweep(deps, listLimit = 100) {
   const { issues, state, cfg, now, logger } = deps;
-  const summary = { scanned: 0, drafted: 0, invalid: 0, rePinged: 0, gaveUp: 0, waiting: 0 };
+  const summary = { scanned: 0, drafted: 0, invalid: 0, rePinged: 0, gaveUp: 0, waiting: 0, errors: 0 };
   const owned = await issues.listOwnRequests(listLimit);
   for (const issue2 of owned) {
-    const req = await state.getRequest(issue2.id);
-    if (!req || req.status !== "open") continue;
-    summary.scanned++;
-    const outcome = await processReply(deps, issue2.id);
-    if (outcome.status === "drafted") {
-      summary.drafted++;
-      continue;
-    }
-    if (outcome.status === "invalid") {
-      summary.invalid++;
-      if (outcome.gaveUp) summary.gaveUp++;
-      continue;
-    }
-    if (outcome.status !== "waiting") continue;
-    const ageMs = now.getTime() - new Date(req.createdAt).getTime();
-    const timeoutMs = Math.max(1, cfg.replyTimeoutHours) * HOUR_MS;
-    if (!req.rePinged && ageMs >= timeoutMs) {
-      await issues.postComment(
-        issue2.id,
-        "Still waiting on a content draft for this product. Please reply with the fenced ```json block described above, or say why you can't."
-      );
-      await issues.wakeAssignee(issue2.id, "content-drafter: draft reply overdue");
-      req.rePinged = true;
-      await state.setRequest(issue2.id, req);
-      summary.rePinged++;
-      logger?.info("content-drafter: re-pinged overdue request", { issueId: issue2.id, productId: req.productId });
-    } else if (req.rePinged && ageMs >= 2 * timeoutMs) {
-      await issues.postComment(
-        issue2.id,
-        "No usable content draft after a re-ping. Marking this request blocked; re-open it to retry."
-      );
-      req.status = "failed";
-      await issues.setStatus(issue2.id, "blocked");
-      await state.setRequest(issue2.id, req);
-      summary.gaveUp++;
-      logger?.info("content-drafter: gave up on overdue request", { issueId: issue2.id, productId: req.productId });
-    } else {
-      summary.waiting++;
+    try {
+      await sweepOne(deps, issue2, summary);
+    } catch (err) {
+      summary.errors++;
+      logger?.warn?.("content-drafter: sweep skipped an issue after an error", {
+        issueId: issue2.id,
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
   }
   return summary;
+}
+async function sweepOne(deps, issue2, summary) {
+  const { issues, state, cfg, now, logger } = deps;
+  const req = await state.getRequest(issue2.id);
+  if (!req || req.status !== "open") return;
+  summary.scanned++;
+  const outcome = await processReply(deps, issue2.id);
+  if (outcome.status === "drafted") {
+    summary.drafted++;
+    return;
+  }
+  if (outcome.status === "invalid") {
+    summary.invalid++;
+    if (outcome.gaveUp) summary.gaveUp++;
+    return;
+  }
+  if (outcome.status !== "waiting") return;
+  const ageMs = now.getTime() - new Date(req.createdAt).getTime();
+  const timeoutMs = Math.max(1, cfg.replyTimeoutHours) * HOUR_MS;
+  if (!req.rePinged && ageMs >= timeoutMs) {
+    await issues.postComment(
+      issue2.id,
+      "Still waiting on a content draft for this product. Please reply with the fenced ```json block described above, or say why you can't."
+    );
+    await issues.wakeAssignee(issue2.id, "content-drafter: draft reply overdue");
+    req.rePinged = true;
+    await state.setRequest(issue2.id, req);
+    summary.rePinged++;
+    logger?.info("content-drafter: re-pinged overdue request", { issueId: issue2.id, productId: req.productId });
+  } else if (req.rePinged && ageMs >= 2 * timeoutMs) {
+    await issues.postComment(
+      issue2.id,
+      "No usable content draft after a re-ping. Marking this request blocked; re-open it to retry."
+    );
+    req.status = "failed";
+    await issues.setStatus(issue2.id, "blocked");
+    await state.setRequest(issue2.id, req);
+    summary.gaveUp++;
+    logger?.info("content-drafter: gave up on overdue request", { issueId: issue2.id, productId: req.productId });
+  } else {
+    summary.waiting++;
+  }
+}
+
+// src/scope-retry.ts
+var DEFAULT_ATTEMPTS = 7;
+var DEFAULT_BASE_DELAY_MS = 250;
+var DEFAULT_MAX_DELAY_MS = 8e3;
+var defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function isInvocationScopeError(err) {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (!msg.includes("invocation scope")) return false;
+  return msg.includes("missing") || msg.includes("expired") || msg.includes("unknown");
+}
+function delayFor(attempt, opts, random) {
+  const raw = Math.min(opts.baseDelayMs * 2 ** attempt, opts.maxDelayMs);
+  const jitter = 0.75 + random() * 0.5;
+  return Math.round(raw * jitter);
+}
+async function withScopeRetry(label2, fn, opts = {}) {
+  const attempts = Math.max(1, opts.attempts ?? DEFAULT_ATTEMPTS);
+  const baseDelayMs = opts.baseDelayMs ?? DEFAULT_BASE_DELAY_MS;
+  const maxDelayMs = opts.maxDelayMs ?? DEFAULT_MAX_DELAY_MS;
+  const sleep = opts.sleep ?? defaultSleep;
+  const random = opts.random ?? Math.random;
+  let waitedMs = 0;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const result = await fn();
+      if (attempt > 0) {
+        opts.logger?.info?.("content-drafter: host call recovered after invocation-scope retry", {
+          label: label2,
+          attempt: attempt + 1,
+          waitedMs
+        });
+      }
+      return result;
+    } catch (err) {
+      if (!isInvocationScopeError(err) || attempt >= attempts - 1) {
+        if (isInvocationScopeError(err)) {
+          opts.logger?.warn?.("content-drafter: invocation-scope retry budget exhausted", {
+            label: label2,
+            attempts,
+            waitedMs
+          });
+        }
+        throw err;
+      }
+      const ms = delayFor(attempt, { baseDelayMs, maxDelayMs }, random);
+      waitedMs += ms;
+      await sleep(ms);
+    }
+  }
 }
 
 // src/worker.ts
@@ -37421,35 +37484,45 @@ function toIssueLike(i) {
 }
 function makeIssuePort(ctx, cfg) {
   const companyId = cfg.companyId;
+  const retry = (label2, fn) => withScopeRetry(label2, fn, { logger: ctx.logger });
   return {
     async openRequestExistsForProduct(originId) {
-      const hits = await ctx.issues.list({ companyId, originKind: ORIGIN_KIND, originId, limit: 10 });
+      const hits = await retry(
+        "issues.list/open-for-product",
+        () => ctx.issues.list({ companyId, originKind: ORIGIN_KIND, originId, limit: 10 })
+      );
       return hits.some((i) => OPEN_STATUSES.has(i.status));
     },
     async createRequestIssue({ title, description, originId }) {
-      const issue2 = await ctx.issues.create({
-        companyId,
-        projectId: cfg.groveProjectId,
-        title,
-        description,
-        status: "todo",
-        priority: "medium",
-        assigneeAgentId: cfg.drafterAgentId,
-        originKind: ORIGIN_KIND,
-        originId
-      });
+      const issue2 = await retry(
+        "issues.create",
+        () => ctx.issues.create({
+          companyId,
+          projectId: cfg.groveProjectId,
+          title,
+          description,
+          status: "todo",
+          priority: "medium",
+          assigneeAgentId: cfg.drafterAgentId,
+          originKind: ORIGIN_KIND,
+          originId
+        })
+      );
       return { id: issue2.id };
     },
     async get(issueId) {
-      const i = await ctx.issues.get(issueId, companyId);
+      const i = await retry("issues.get", () => ctx.issues.get(issueId, companyId));
       return i ? toIssueLike(i) : null;
     },
     async listOwnRequests(limit) {
-      const list = await ctx.issues.list({ companyId, originKindPrefix: ORIGIN_KIND, limit });
+      const list = await retry(
+        "issues.list/own-requests",
+        () => ctx.issues.list({ companyId, originKindPrefix: ORIGIN_KIND, limit })
+      );
       return list.map(toIssueLike).filter((i) => OPEN_STATUSES.has(i.status));
     },
     async listComments(issueId) {
-      const comments = await ctx.issues.listComments(issueId, companyId);
+      const comments = await retry("issues.listComments", () => ctx.issues.listComments(issueId, companyId));
       return comments.map((c) => ({
         authorAgentId: c.authorAgentId ?? null,
         body: c.body ?? "",
@@ -37457,17 +37530,18 @@ function makeIssuePort(ctx, cfg) {
       }));
     },
     async postComment(issueId, body) {
-      await ctx.issues.createComment(issueId, body, companyId);
+      await retry("issues.createComment", () => ctx.issues.createComment(issueId, body, companyId));
     },
     async wakeAssignee(issueId, reason) {
-      await ctx.issues.requestWakeup(issueId, companyId, { reason });
+      await retry("issues.requestWakeup", () => ctx.issues.requestWakeup(issueId, companyId, { reason }));
     },
     async setStatus(issueId, status) {
-      await ctx.issues.update(issueId, { status }, companyId);
+      await retry("issues.update", () => ctx.issues.update(issueId, { status }, companyId));
     }
   };
 }
 function makeStatePort(ctx, cfg) {
+  const retry = (label2, fn) => withScopeRetry(label2, fn, { logger: ctx.logger });
   return {
     async getRequest(issueId) {
       const v = await ctx.state.get({ scopeKind: "issue", scopeId: issueId, stateKey: "request" });
@@ -37477,18 +37551,24 @@ function makeStatePort(ctx, cfg) {
       await ctx.state.set({ scopeKind: "issue", scopeId: issueId, stateKey: "request" }, state);
     },
     async getDraftedVersion(productKey) {
-      const v = await ctx.state.get({
-        scopeKind: "company",
-        scopeId: cfg.companyId,
-        namespace: "drafted-version",
-        stateKey: productKey
-      });
+      const v = await retry(
+        "state.get/drafted-version",
+        () => ctx.state.get({
+          scopeKind: "company",
+          scopeId: cfg.companyId,
+          namespace: "drafted-version",
+          stateKey: productKey
+        })
+      );
       return v ?? null;
     },
     async setDraftedVersion(productKey, marker) {
-      await ctx.state.set(
-        { scopeKind: "company", scopeId: cfg.companyId, namespace: "drafted-version", stateKey: productKey },
-        marker
+      await retry(
+        "state.set/drafted-version",
+        () => ctx.state.set(
+          { scopeKind: "company", scopeId: cfg.companyId, namespace: "drafted-version", stateKey: productKey },
+          marker
+        )
       );
     }
   };
