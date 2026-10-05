@@ -23,7 +23,7 @@
 #     2026-10-05 audit found at 542;
 #   • it alerts on pid-budget pressure (pids.current/pids.max >= 50%), which
 #     catches pid exhaustion from ANY cause, not just zombies — including live
-#     leftover processes such as headless Chrome that outlives its run (GOL-3003);
+#     leftover processes such as headless Chrome that outlives its run (GOL-3005);
 #   • it alerts on a standing zombie population, which is a direct regression
 #     signal that `init: true` is no longer in effect (it should hold ~0).
 #

@@ -280,7 +280,7 @@ services:
     # because it needs NO image rebuild — the build context is /opt/paperclip
     # (a separate upstream clone), so a compose flag is both smaller and the only
     # half of this we own. Note this bounds the ZOMBIE leak only; live leftover
-    # processes (e.g. headless Chrome that outlives its run) are GOL-3003.
+    # processes (e.g. headless Chrome that outlives its run) are GOL-3005.
     #
     # Blast radius: picked up by `docker compose up -d --force-recreate
     # paperclip-server` in deploy-droplet.yml, which also tar-ships this file to

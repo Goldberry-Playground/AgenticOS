@@ -3,7 +3,7 @@
 **Incident class:** every agent run on the box fails to spawn.
 **First seen:** 2026-10-05 (GOL-3002). **Related:** GOL-2864 (restart forensics),
 GOL-2045 (CPU containment), GOL-1632 / GOL-2858 (backup interval re-arm),
-GOL-3003 (leftover headless Chrome).
+GOL-3005 (leftover headless Chrome).
 
 ## Symptom
 
@@ -105,7 +105,7 @@ the Grove ops Discord webhook on:
 | signal | threshold | meaning |
 | --- | --- | --- |
 | `pids.events max > 0` | any | the cap has **already** been hit since container start — spawns are failing right now (critical) |
-| `pids.current / pids.max` | ≥ 50% | pid-budget pressure from *any* cause, incl. live leftovers like GOL-3003 |
+| `pids.current / pids.max` | ≥ 50% | pid-budget pressure from *any* cause, incl. live leftovers like GOL-3005 |
 | zombies under PID 1 | ≥ 100 | regression signal: with `init: true` this sits near 0, so the reaper is not in effect |
 
 Alerts are rate-limited to one per 6 h **per severity level**, so an escalation
