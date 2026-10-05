@@ -463,7 +463,16 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* GOL-2959 — reflow, not overflow. The brand lockup plus the four utility
+     controls need ~371px of run; below that (320px phones, and any 390px
+     phone at 125% text zoom) they used to push the *document* 47px wide, so
+     every route scrolled on two axes and the Settings cog sat off-screen
+     entirely — WCAG 1.4.10 down to 320 CSS px, and a control you cannot
+     reach. Wrapping is content-driven on purpose: no magic breakpoint to
+     drift out of date when a chip's label grows. `margin-left: auto` on the
+     right cluster keeps it flush right on one row and on two. */
+  flex-wrap: wrap;
+  row-gap: 10px;
   padding: 14px 28px;
   gap: 24px;
   max-width: 1600px;
@@ -476,6 +485,7 @@
   gap: 12px;
   text-decoration: none;
   color: var(--parchment);
+  flex-shrink: 0;
 }
 
 .shell-wordmark {
@@ -493,6 +503,12 @@
 .shell-header-right {
   display: flex;
   align-items: center;
+  /* Flush right whether it shares the brand's row or wraps below it. */
+  margin-left: auto;
+  /* Second line of defence: at extreme text zoom the cluster itself can
+     outgrow a 320px row, so let it stack rather than clip. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -527,6 +543,7 @@
 .shell-tool-icon {
   width: 28px;
   height: 28px;
+  flex-shrink: 0;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -589,7 +606,7 @@
 .shell-tabs-mobile { display: none; }
 
 @media (max-width: 768px) {
-  .shell-header-row { padding: 12px 16px; gap: 12px; }
+  .shell-header-row { padding: 12px 16px; gap: 12px; row-gap: 10px; }
   /* Hide desktop tabs, show mobile dropdown */
   .shell-tabs--desktop { display: none; }
   .shell-tabs-mobile {

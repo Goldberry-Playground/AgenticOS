@@ -17,7 +17,7 @@ export function PaletteTrigger() {
     <button
       type="button"
       onClick={open}
-      className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-[--surface-muted]"
+      className="flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-[--surface-muted]"
       style={{ color: "var(--text-muted)" }}
       aria-label="Open command palette (⌘K)"
     >

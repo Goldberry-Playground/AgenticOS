@@ -82,7 +82,7 @@ export function FilterChip() {
     <Popover>
       <PopoverTrigger
         data-slot="filter-chip-trigger"
-        className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-plum-400]"
+        className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-plum-400]"
         style={{
           backgroundColor: "var(--surface-muted)",
           color: isActive ? "var(--accent-plum-300)" : "var(--text-secondary)",

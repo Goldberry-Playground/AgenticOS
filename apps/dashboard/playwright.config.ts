@@ -37,6 +37,24 @@ export default defineConfig({
         isMobile: true,
         hasTouch: true
       }
+    },
+    {
+      // Narrow lane (GOL-2959). The 390px lane above has a floor, and the app
+      // shell header had been pushing every route 47px wide at 320 since the
+      // filter chip landed — below that floor, so the suite stayed green.
+      // 320 CSS px is not a hypothetical: it is the iPhone SE (1st gen) and
+      // small Android class, and it is also what a 390px phone becomes at
+      // 125% text zoom. WCAG 1.4.10 (Reflow) names 320 explicitly as the
+      // width at which content must not require scrolling on two axes, so
+      // this is the lane that makes the criterion testable.
+      name: "narrow-chromium",
+      testMatch: /viewport-overflow\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 320, height: 844 },
+        isMobile: true,
+        hasTouch: true
+      }
     }
   ],
   webServer: {

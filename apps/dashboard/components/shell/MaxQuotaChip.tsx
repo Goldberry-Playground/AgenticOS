@@ -33,7 +33,7 @@ function Chip({
 }) {
   return (
     <span
-      className={`inline-flex items-center px-3 py-1 rounded-full text-xs border ${className}`}
+      className={`inline-flex items-center whitespace-nowrap px-3 py-1 rounded-full text-xs border ${className}`}
       title={title}
     >
       {children}
