@@ -134,9 +134,15 @@ else
 fi
 [[ -n "$base" ]] || die "no API base: set PAPERCLIP_API_URL or pass --api-url"
 
-pc_curl() { # pc_curl METHOD PATH [JSON_FILE] -> prints body, sets PC_CODE
+# pc_curl METHOD PATH [JSON_FILE] -> sets PC_CODE and PC_BODY (globals).
+# ⚠️ Never wrap this in $( ): command substitution runs the function in a
+# SUBSHELL, so PC_CODE would be lost and `set -u` would abort on the read.
+PC_CODE=""
+PC_BODY=""
+pc_curl() {
   local method="$1" path="$2" payload="${3:-}"
-  local -a args=(-sS -m 60 -o /tmp/pc-resp.$$ -w '%{http_code}'
+  local resp_file; resp_file="$(mktemp /tmp/pc-resp.XXXXXX)"
+  local -a args=(-sS -m 60 -o "$resp_file" -w '%{http_code}'
                  -X "$method" "${base}${path}"
                  -H "Authorization: Bearer ${PAPERCLIP_API_KEY}"
                  -H 'Content-Type: application/json'
@@ -145,14 +151,14 @@ pc_curl() { # pc_curl METHOD PATH [JSON_FILE] -> prints body, sets PC_CODE
   [[ -n "${PAPERCLIP_RUN_ID:-}" ]] && args+=(-H "X-Paperclip-Run-Id: ${PAPERCLIP_RUN_ID}")
   [[ -n "$payload" ]] && args+=(--data-binary "@${payload}")
   PC_CODE="$(curl "${args[@]}" || true)"
-  cat /tmp/pc-resp.$$ 2>/dev/null || true
-  rm -f /tmp/pc-resp.$$
+  PC_BODY="$(cat "$resp_file" 2>/dev/null || true)"
+  rm -f "$resp_file"
 }
 
 # ---- marker pre-check: duplicate guard, not a retry --------------------------
 if [[ -n "$marker" && $dry_run -eq 0 ]]; then
-  existing="$(pc_curl GET "/api/issues/${issue_id}/comments")"
-  if [[ "$PC_CODE" == "200" ]] && printf '%s' "$existing" | grep -qF "marker:${marker}"; then
+  pc_curl GET "/api/issues/${issue_id}/comments"
+  if [[ "$PC_CODE" == "200" ]] && printf '%s' "$PC_BODY" | grep -qF "marker:${marker}"; then
     printf 'marker:%s already present on %s — nothing posted (duplicate guard).\n' \
       "$marker" "$issue_id" >&2
     exit 0
@@ -196,7 +202,8 @@ if [[ $dry_run -eq 1 ]]; then
   exit 0
 fi
 
-resp="$(pc_curl "$method" "$path" "$payload_file")"
+pc_curl "$method" "$path" "$payload_file"
+resp="$PC_BODY"
 
 case "$PC_CODE" in
   200|201)
