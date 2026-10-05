@@ -9,6 +9,9 @@
 #   3. a second --apply reports ZERO changes (idempotent),
 #   4. a repo declared system=legacy that has migrated to a ruleset (404 on classic
 #      branch protection) is surfaced as drift, not a crash (GOL-2049 guard),
+#   5. the merge-queue ruleset leg (GOL-3051) converges only the declared
+#      merge_queue parameters, leaves the rest of the rule verbatim, and runs for
+#      `legacy` repos as well as `ruleset` ones,
 # without ever touching a board-gated production setting.
 set -euo pipefail
 
@@ -111,9 +114,32 @@ cat >"$FIX/ruleset_100.json" <<'J'
     {"type":"merge_queue","parameters":{}}
   ] }
 J
-# legacy repo WITH thread resolution (full-PUT path)
+# merge-queue ruleset for the ruleset repo (GOL-3051). OFF-TARGET timeout, and it
+# carries the full parameter set so the test can prove --apply overrides ONLY the
+# declared key and never drops merge_method / grouping_strategy / the entry knobs.
+cat >"$FIX/ruleset_200.json" <<'J'
+{ "id":200,"name":"merge-queue","target":"branch","enforcement":"active",
+  "bypass_actors":[],
+  "conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
+  "rules":[{"type":"merge_queue","parameters":{
+    "merge_method":"SQUASH","max_entries_to_build":5,"min_entries_to_merge":1,
+    "max_entries_to_merge":5,"min_entries_to_merge_wait_minutes":2,
+    "grouping_strategy":"ALLGREEN","check_response_timeout_minutes":30}}] }
+J
+# legacy repo WITH thread resolution (full-PUT path). It ALSO carries a merge-queue
+# ruleset (id 300): merge-queue settings are a ruleset even on repos whose branch
+# protection is classic, so the GOL-3051 leg must run outside the `system` dispatch.
 cat >"$FIX/rulesets_legacy-thread.json" <<'J'
-[ {"id":901,"name":"Code Quality Copilot review for default branch","enforcement":"disabled"} ]
+[ {"id":901,"name":"Code Quality Copilot review for default branch","enforcement":"disabled"},
+  {"id":300,"name":"merge-queue","enforcement":"active"} ]
+J
+cat >"$FIX/ruleset_300.json" <<'J'
+{ "id":300,"name":"merge-queue","target":"branch","enforcement":"active",
+  "bypass_actors":[],
+  "conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
+  "rules":[{"type":"merge_queue","parameters":{
+    "merge_method":"SQUASH","grouping_strategy":"ALLGREEN",
+    "check_response_timeout_minutes":30}}] }
 J
 # NOTE: live branch protection returns `checks` with an `app_id` binding (and a
 # deprecated `contexts` mirror). The full-PUT reconstruction must preserve the
@@ -143,13 +169,16 @@ J
 # --- test config ------------------------------------------------------------
 cat >"$WORK/merge-policy.json" <<'J'
 { "dormant_reviewer_ruleset_name":"Code Quality Copilot review for default branch",
+  "merge_queue_ruleset_name":"merge-queue",
   "repos":[
     {"repo":"rs-repo","system":"ruleset","protection_ruleset":"main-branch-protection",
      "targets":{"strict":false,"dismiss_stale_reviews":false,"thread_resolution":false,"extra_approval_unattributed":false},
+     "merge_queue_targets":{"check_response_timeout_minutes":90},
      "required_contexts":["Build","New guard"],
      "delete_dormant_reviewer_ruleset":true},
     {"repo":"legacy-thread","system":"legacy","branch":"4.x",
      "targets":{"strict":false,"dismiss_stale_reviews":false,"thread_resolution":false},
+     "merge_queue_targets":{"check_response_timeout_minutes":90},
      "delete_dormant_reviewer_ruleset":true},
     {"repo":"legacy-strict","system":"legacy","branch":"main",
      "required_contexts":["Build","Lint","New legacy guard"],
@@ -200,6 +229,30 @@ lsc=$(jq -r '[.required_status_checks.checks[].context]|sort|join(",")' "$FIX/pr
 newpin=$(jq -r '.required_status_checks.checks[]|select(.context=="New legacy guard").app_id' "$FIX/protection_legacy-strict_main.json")
 [ "$newpin" = "15368" ] || fail "new legacy context app_id=$newpin, expected 15368 (inherited from existing checks)"
 echo "    ok: legacy checks = [$lsc], new context pinned to app_id=$newpin"
+
+echo "### 3d. merge-queue timeout converged on BOTH systems, other params verbatim (GOL-3051)"
+for f in "$FIX/ruleset_200.json:rs-repo(ruleset)" "$FIX/ruleset_300.json:legacy-thread(legacy)"; do
+  mqf="${f%%:*}"; who="${f##*:}"
+  to=$(jq -r '.rules[]|select(.type=="merge_queue").parameters.check_response_timeout_minutes' "$mqf")
+  [ "$to" = "90" ] || fail "$who merge-queue check_response_timeout_minutes=$to, expected 90"
+  mm=$(jq -r '.rules[]|select(.type=="merge_queue").parameters.merge_method' "$mqf")
+  gs=$(jq -r '.rules[]|select(.type=="merge_queue").parameters.grouping_strategy' "$mqf")
+  [ "$mm" = "SQUASH" ] || fail "$who lost merge_method on the merge-queue PUT (got '$mm')"
+  [ "$gs" = "ALLGREEN" ] || fail "$who lost grouping_strategy on the merge-queue PUT (got '$gs')"
+  echo "    ok: $who timeout=90, merge_method=$mm, grouping_strategy=$gs preserved"
+done
+# The ruleset repo's fixture carries the entry-count knobs too — none of them are
+# declared, so a merge (not a replace) must leave all three untouched. This is the
+# assertion that would catch a PUT body rebuilt from the declared keys alone.
+untouched=$(jq -r '.rules[]|select(.type=="merge_queue").parameters
+  |[.max_entries_to_build,.min_entries_to_merge,.max_entries_to_merge,.min_entries_to_merge_wait_minutes]|join(",")' "$FIX/ruleset_200.json")
+[ "$untouched" = "5,1,5,2" ] || fail "undeclared merge_queue entry knobs changed: [$untouched], expected [5,1,5,2]"
+echo "    ok: undeclared entry knobs untouched [$untouched]"
+# The branch-protection ruleset must NOT have grown a merge_queue timeout: the two
+# surfaces are separate rulesets and the legs must not cross-write.
+bp_to=$(jq -r '[.rules[]?|select(.type=="merge_queue").parameters.check_response_timeout_minutes]|.[0]//"absent"' "$FIX/ruleset_100.json")
+[ "$bp_to" = "absent" ] || fail "merge-queue target leaked into the branch-protection ruleset (got $bp_to)"
+echo "    ok: branch-protection ruleset untouched by the merge-queue leg"
 
 echo "### 4. --check again (expect exit 0, aligned)"
 run --check >/dev/null 2>&1 || fail "--check should pass after apply"
@@ -285,5 +338,51 @@ printf '%s\n' "$guard_out" | grep -q '\[healthy-legacy\]' \
   || { printf '%s\n' "$guard_out"; fail "run aborted on the migrated repo — remaining repos were not processed"; }
 echo "    ok: 404 surfaced as drift, message shown, remaining repos still processed (display + summary)"
 
+echo "### 7. repo declares merge_queue_targets but has NO merge-queue ruleset (GOL-3051)"
+# A repo whose merge-queue ruleset was renamed or deleted must be reported as
+# drift with an actionable message, never crash the run and never be silently
+# counted as aligned — silently-aligned is the exact failure mode this whole
+# issue is about. `no-mq` has an EMPTY ruleset list, so ruleset_id_by_name finds
+# nothing; `healthy-mq` is listed second and is already on target, so its section
+# only prints if the run continued.
+MQ_CFG="$WORK/merge-policy-mq.json"
+cat >"$MQ_CFG" <<'J'
+{ "dormant_reviewer_ruleset_name":"Code Quality Copilot review for default branch",
+  "merge_queue_ruleset_name":"merge-queue",
+  "repos":[
+    {"repo":"no-mq","system":"legacy","branch":"main","targets":{"strict":false},
+     "merge_queue_targets":{"check_response_timeout_minutes":90}},
+    {"repo":"healthy-mq","system":"legacy","branch":"main","targets":{"strict":false},
+     "merge_queue_targets":{"check_response_timeout_minutes":90}}
+  ] }
+J
+cat >"$FIX/rulesets_no-mq.json" <<'J'
+[]
+J
+cat >"$FIX/protection_no-mq_main.json" <<'J'
+{ "required_status_checks":{"strict":false,"contexts":[],"checks":[]},
+  "enforce_admins":{"enabled":false},"required_pull_request_reviews":null,
+  "required_conversation_resolution":{"enabled":false} }
+J
+cat >"$FIX/rulesets_healthy-mq.json" <<'J'
+[ {"id":400,"name":"merge-queue","enforcement":"active"} ]
+J
+cat >"$FIX/ruleset_400.json" <<'J'
+{ "id":400,"name":"merge-queue","target":"branch","enforcement":"active","bypass_actors":[],
+  "conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
+  "rules":[{"type":"merge_queue","parameters":{"merge_method":"SQUASH","check_response_timeout_minutes":90}}] }
+J
+cp "$FIX/protection_no-mq_main.json" "$FIX/protection_healthy-mq_main.json"
+
+if mq_out="$("$SCRIPT" --config "$MQ_CFG" --check 2>&1)"; then mq_rc=0; else mq_rc=$?; fi
+[ "$mq_rc" -ne 0 ] || { printf '%s\n' "$mq_out"; fail "missing merge-queue ruleset should make --check exit non-zero"; }
+printf '%s\n' "$mq_out" | grep -q "drift: 1 setting(s) off-target" \
+  || { printf '%s\n' "$mq_out"; fail "expected exactly the missing-ruleset repo to count as drift (summary leg)"; }
+printf '%s\n' "$mq_out" | grep -q "merge-queue ruleset 'merge-queue' not found" \
+  || { printf '%s\n' "$mq_out"; fail "expected an actionable not-found message for the missing merge-queue ruleset"; }
+printf '%s\n' "$mq_out" | grep -q "check_response_timeout_minutes" \
+  || { printf '%s\n' "$mq_out"; fail "healthy-mq's merge-queue row was never rendered — did the run abort?"; }
+echo "    ok: missing merge-queue ruleset = drift + message, run continued to the healthy repo"
+
 echo
-echo "PASS — check/apply/idempotency verified across ruleset PUT, legacy full-PUT, legacy granular PATCH, dormant-ruleset DELETE, and the legacy→ruleset surface guard (GOL-2049)."
+echo "PASS — check/apply/idempotency verified across ruleset PUT, legacy full-PUT, legacy granular PATCH, dormant-ruleset DELETE, the legacy→ruleset surface guard (GOL-2049), and the merge-queue ruleset leg (GOL-3051)."

@@ -4,7 +4,9 @@
 # repos (GOL-1819). Four settings each independently invalidate an already-green PR
 # and fight the merge queue; this script reads the declared target state from
 # .github/merge-policy.json and either reports drift (--check) or converges it
-# (--apply).
+# (--apply). GOL-3051 added a second managed surface: the repo's own named
+# merge-queue ruleset, whose check_response_timeout_minutes can silently make the
+# queue non-functional (see the merge-queue section below).
 #
 #   --check   (default)  Read-only. Print a before/after table for every repo and
 #                        exit non-zero if any managed setting is off-target. Safe
@@ -41,7 +43,7 @@ while [ $# -gt 0 ]; do
     --dry-run) DRY=1 ;;
     --repo)    ONLY_REPO="${2:?--repo needs a value}"; shift ;;
     --config)  CONFIG="${2:?--config needs a value}"; shift ;;
-    -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
@@ -158,6 +160,80 @@ target_val() { # <row-json> <canonical-key>
 say_write() { # <description>
   if [ "$DRY" = 1 ]; then echo "    ${C_DIM}[dry-run]${C_RST} would $1"
   else echo "    -> $1"; fi
+}
+
+# ---- merge-queue ruleset (GOL-3051) ----------------------------------------
+# GitHub keeps merge-queue settings in their OWN named ruleset, separate from the
+# branch-protection surface above — so this leg is independent of a row's
+# `system` and runs for `ruleset` and `legacy` repos alike. The canonical target
+# keys here are the raw `merge_queue` parameter names (they sit flat under
+# `.parameters`), so adding another knob needs no mapping table.
+#
+# WHY THIS IS MANAGED NOW (GOL-3051): every one of the six repos carried
+# check_response_timeout_minutes = 30, while the observed hosted-runner queue
+# wait under ordinary multi-agent PR load is 45-90 min. Once the wait exceeds
+# that timeout the merge queue is not merely slow, it is NON-FUNCTIONAL — and it
+# fails SILENTLY: GitHub removes the entry, nothing turns red, and the PR reverts
+# to open + APPROVED + CLEAN, so the next agent reads it as "just needs merging"
+# and re-enqueues, burning another full merge_group fan-out against the saturated
+# runner pool. AgenticOS PR #814 was dequeued 31m50s after enqueue with its
+# required `CI` run still sitting in `queued`. Declaring the value here makes the
+# number a reviewable diff and a `--check` row instead of invisible click-ops.
+
+# Read one merge_queue parameter out of a merge-queue ruleset detail JSON.
+# Same array-wrap + .[0] trick as the boolean readers so an absent parameter
+# renders "unset" rather than being confused with a real falsy value.
+mq_current() { # <ruleset-json> <parameter-name>
+  jq -r --arg k "$2" "[ .rules[]? | select(.type==\"merge_queue\").parameters[\$k] ] | $_boolstr" <<<"$1"
+}
+
+# The declared merge-queue target value for a key, rendered as a string.
+mq_target() { # <row-json> <parameter-name>
+  jq -r --arg k "$2" '.merge_queue_targets[$k]|tostring' <<<"$1"
+}
+
+process_merge_queue() { # <row-json>
+  local row="$1" repo rs_name rs_id detail keys k tgt cur off_here=0
+  # A row without `merge_queue_targets` is simply not managed on this surface.
+  jq -e 'has("merge_queue_targets")' <<<"$row" >/dev/null || return 0
+  repo=$(jq -r '.repo' <<<"$row")
+  rs_name=$(jq -r '.merge_queue_ruleset_name' <<<"$CONFIG_JSON")
+  echo "  [$repo]  (merge-queue ruleset: $rs_name)"
+
+  rs_id=$(ruleset_id_by_name "$repo" "$rs_name")
+  if [ -z "$rs_id" ]; then
+    echo "    ${C_RED}ERROR${C_RST}: merge-queue ruleset '$rs_name' not found"
+    OFFTARGET=$((OFFTARGET+1)); return 0
+  fi
+  detail=$(ghapi "/repos/$OWNER/$repo/rulesets/$rs_id")
+
+  keys=$(jq -r '.merge_queue_targets|keys[]' <<<"$row")
+  for k in $keys; do
+    tgt=$(mq_target "$row" "$k")
+    cur=$(mq_current "$detail" "$k")
+    local before=$OFFTARGET; row "$k" "$cur" "$tgt"
+    [ "$OFFTARGET" -gt "$before" ] && off_here=1
+  done
+
+  [ "$MODE" = apply ] || return 0
+  [ "$off_here" = 1 ] || { echo "    ${C_GRN}already aligned — no change${C_RST}"; return 0; }
+
+  # Override ONLY the declared merge_queue parameters (`.parameters + $t`); every
+  # other parameter — merge_method, grouping_strategy, the entry-count knobs —
+  # and every other rule in the ruleset is carried through verbatim. A PUT that
+  # dropped merge_method would change how the queue merges, so this must stay a
+  # merge and never a replacement.
+  local body
+  body=$(jq --argjson t "$(jq -c '.merge_queue_targets' <<<"$row")" '
+    {name, target, enforcement, bypass_actors, conditions,
+     rules: (.rules | map(
+       if .type=="merge_queue" then .parameters = (.parameters + $t) else . end))}' <<<"$detail")
+
+  say_write "PUT merge-queue ruleset '$rs_name' ($rs_id) with aligned merge_queue params"
+  CHANGES=$((CHANGES+1))
+  if [ "$DRY" != 1 ]; then
+    printf '%s' "$body" | ghapi --method PUT "/repos/$OWNER/$repo/rulesets/$rs_id" --input - >/dev/null
+  fi
 }
 
 # ---- per-repo processing ---------------------------------------------------
@@ -410,6 +486,9 @@ jq -c '.repos[]' <<<"$CONFIG_JSON" | while IFS= read -r rowjson; do
     out-of-scope) process_out_of_scope "$rowjson" ;;
     *) echo "  [$repo] unknown system: $system"; OFFTARGET=$((OFFTARGET+1)) ;;
   esac
+  # Merge-queue settings live in a separate ruleset, so this leg is deliberately
+  # outside the `system` dispatch (GOL-3051).
+  process_merge_queue "$rowjson"
   echo
 # NOTE: the while loop runs in a subshell (pipe), so OFFTARGET/CHANGES mutations
 # there do not survive. We recompute the exit disposition below from a summary line.
@@ -422,6 +501,21 @@ summary() {
   while IFS= read -r rowjson; do
     local repo system; repo=$(jq -r '.repo' <<<"$rowjson"); system=$(jq -r '.system' <<<"$rowjson")
     [ -n "$ONLY_REPO" ] && [ "$ONLY_REPO" != "$repo" ] && continue
+    # Merge-queue leg first: it is a different ruleset, so neither the
+    # out-of-scope skip nor the legacy-404 `continue` below may mask its drift
+    # (GOL-3051).
+    if jq -e 'has("merge_queue_targets")' <<<"$rowjson" >/dev/null; then
+      local mq_name mq_id mq_detail mq_k
+      mq_name=$(jq -r '.merge_queue_ruleset_name' <<<"$CONFIG_JSON")
+      mq_id=$(ruleset_id_by_name "$repo" "$mq_name")
+      if [ -z "$mq_id" ]; then off=$((off+1))
+      else
+        mq_detail=$(ghapi "/repos/$OWNER/$repo/rulesets/$mq_id")
+        for mq_k in $(jq -r '.merge_queue_targets|keys[]' <<<"$rowjson"); do
+          [ "$(mq_current "$mq_detail" "$mq_k")" = "$(mq_target "$rowjson" "$mq_k")" ] || off=$((off+1))
+        done
+      fi
+    fi
     [ "$system" = "out-of-scope" ] && continue
     local keys k tgt cur detail prot rs_id rs_name branch
     keys=$(jq -r '.targets|keys[]' <<<"$rowjson")
