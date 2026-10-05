@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { parseAsString, useQueryState } from "nuqs";
-import { Menu, X } from "lucide-react";
+import { Check, Menu, Network, X } from "lucide-react";
 import { MemoryVista } from "@/components/shell/MemoryVista";
 import { MemoryTree } from "@/components/memory/MemoryTree";
 import { MemoryReader } from "@/components/memory/MemoryReader";
@@ -74,7 +74,26 @@ export default function MemoryPage() {
             </button>
             <h1 className="memory-toolbar__title">Memory</h1>
           </div>
-          <MemorySyncIndicator />
+          <div className="memory-toolbar__actions">
+            {/* Reader/graph mode toggle. Lives in the toolbar so it is present
+                in BOTH modes — and carries its state on three channels:
+                aria-pressed for AT, a filled container, and a leading
+                check/graph icon, so it never depends on colour alone. */}
+            <button
+              type="button"
+              className="memory-view-toggle"
+              onClick={() => setGraphMode((g) => !g)}
+              aria-pressed={graphMode}
+            >
+              {graphMode ? (
+                <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+              ) : (
+                <Network size={13} strokeWidth={1.75} aria-hidden="true" />
+              )}
+              Graph view
+            </button>
+            <MemorySyncIndicator />
+          </div>
         </div>
 
         <div className="memory-panes">
@@ -101,16 +120,16 @@ export default function MemoryPage() {
             />
           )}
 
-          {/* Center: reader or graph */}
-          {graphMode ? (
-            <GraphCanvas onSelectNode={handleGraphSelect} />
-          ) : (
-            <MemoryReader
-              path={activePath}
-              graphMode={graphMode}
-              onToggleGraph={() => setGraphMode((g) => !g)}
-            />
-          )}
+          {/* Center: reader or graph. The wrapper is the measured pane the
+              graph canvas sizes itself to (min-width:0 so flex cannot let it
+              overflow). */}
+          <div className="memory-pane-main">
+            {graphMode ? (
+              <GraphCanvas onSelectNode={handleGraphSelect} />
+            ) : (
+              <MemoryReader path={activePath} />
+            )}
+          </div>
 
           {/* Right rail */}
           <MemoryRail path={activePath} onNavigate={handleNavigate} />

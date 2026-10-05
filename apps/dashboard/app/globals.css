@@ -1655,6 +1655,54 @@
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
+.memory-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+/* Reader/graph mode toggle — a filter-chip toggle. State is carried on three
+   independent channels (aria-pressed, container fill, leading icon) so it is
+   never colour-alone. Mirrors the chip toggles on /architecture. */
+.memory-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-button, 8px);
+  cursor: pointer;
+  flex-shrink: 0;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  transition:
+    color var(--motion-fast, 120ms) var(--ease, ease),
+    background-color var(--motion-fast, 120ms) var(--ease, ease),
+    border-color var(--motion-fast, 120ms) var(--ease, ease);
+}
+.memory-view-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent-plum-600);
+}
+.memory-view-toggle[aria-pressed="true"] {
+  /* Three non-colour channels carry "on": the filled container, the heavier
+     label, and the leading check icon (vs the graph icon when off). The gold
+     edge matches .shell-tab[aria-selected="true"] — selected is gold. */
+  background: var(--accent-plum-800);
+  color: var(--accent-plum-300);
+  border-color: var(--gold);
+  font-weight: 600;
+}
+.memory-view-toggle:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .memory-view-toggle { transition: none; }
+}
 .memory-toolbar__title {
   font-size: 12px;
   font-weight: 600;
@@ -1697,6 +1745,25 @@
   overflow: hidden;
 }
 .memory-sidebar-backdrop { display: none; }
+/* The measured centre pane. min-width/min-height:0 keep a flex child from
+   pushing past the pane, which is what the graph canvas is sized against. */
+.memory-pane-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.memory-rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 240px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--border-subtle);
+}
 
 /* KPI dl reset */
 .kpi-grid dl.kpi { margin: 0; }
@@ -1715,6 +1782,23 @@
     border-right: 1px solid var(--moss-line);
   }
   .memory-sidebar--open { transform: translateX(0); }
+  /* A fixed 240px rail beside the centre pane leaves only ~150px for the
+     reader/graph at 390px wide. Stack the rail underneath instead of
+     starving the primary content — GOL-2950. */
+  .memory-panes {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .memory-pane-main {
+    flex: 1 0 auto;
+    min-height: 70vh;
+  }
+  .memory-rail {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+    overflow-y: visible;
+  }
   .memory-sidebar-backdrop {
     display: block;
     position: fixed;

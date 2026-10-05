@@ -22,14 +22,7 @@ export function MemoryRail({ path, onNavigate }: MemoryRailProps) {
   const pageTags = page?.tags ?? [];
 
   return (
-    <aside
-      className="flex flex-col shrink-0 overflow-y-auto border-l"
-      style={{
-        width: "240px",
-        backgroundColor: "var(--surface)",
-        borderColor: "var(--border-subtle)",
-      }}
-    >
+    <aside className="memory-rail">
       {/* Backlinks */}
       <section
         className="px-4 pt-5 pb-4 border-b"
