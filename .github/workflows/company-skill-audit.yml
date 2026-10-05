@@ -1,0 +1,105 @@
+name: Company skill audit
+
+# Weekly degraded-skill-install audit (GOL-2994, trap found via GOL-2963).
+#
+# Importing a company skill from an external git ref (`github` / `skills_sh` /
+# `url`) that ships a `scripts/` directory succeeds, reports no error, and
+# installs ONLY SKILL.md. The platform's trust gate is right to refuse external
+# executables; the defect is that it is quiet. The agent then reads SKILL.md,
+# runs `scripts/<entrypoint>`, and gets a missing-file error that looks exactly
+# like a dropped credential — which is how GOL-2963 burned a heartbeat and filed
+# a false regression against three correctly-closed tickets.
+#
+# Fixing the install path is upstream Paperclip code we do not own. What we own
+# is noticing, on a schedule, without anyone remembering to look.
+#
+# Why SSH and not a direct API call from the runner: the audit needs the board
+# bearer key (GET /api/companies is board-only) and the VPC-bound
+# paperclip-server origin. Both are resolved ON the box by
+# scripts/plugin-api-env.sh from 1Password via the credential-broker OP
+# service-account token (GOL-313) — this repo has no CI secrets:write, so the
+# board key is deliberately NOT a GitHub Actions secret. Read-only job: it does
+# not take the deploy lock, because an audit must still run during a deploy.
+#
+# Runbook: docs/runbooks/company-skill-install-lanes.md
+
+on:
+  workflow_dispatch:
+  # On-demand button for an in-container Paperclip agent with NO `actions:write`
+  # and no injected credential: mint a contents:write gh-token-broker token and
+  # POST /repos/<owner>/<repo>/dispatches with
+  # {"event_type":"company-skill-audit"}. Same lane as disk-reclaim.yml
+  # (GOL-141) — the broker App lacks actions:write, so workflow_dispatch is a
+  # 403 for agents while repository_dispatch is not.
+  repository_dispatch:
+    types: [company-skill-audit]
+  schedule:
+    # Mondays 09:41 UTC. Weekly, not daily: the trap only re-arms when a human
+    # imports a script-bearing skill from an external source, which is a rare,
+    # deliberate act — and a red run here is routed to a person, so the cadence
+    # should match how fast the risk actually accrues.
+    - cron: "41 9 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: company-skill-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit company skill libraries
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out composite actions
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions
+
+      - name: Configure SSH
+        uses: ./.github/actions/configure-ssh
+        with:
+          deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
+          host: ${{ secrets.DROPLET_HOST }}
+
+      - name: Audit every company skill library
+        # `shell: bash` is load-bearing: GitHub's default for `run:` is
+        # `bash -e {0}` WITHOUT pipefail, so `| tee audit.log` below would mask
+        # the runner's nonzero exit behind tee's 0 and this gate would report
+        # success while a degraded skill sat in the library (the exact failure
+        # mode GOL-804 hit in the plugin-convergence assert).
+        shell: bash
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          # `bash -lc` so node is on PATH. The runner lives in the deployed
+          # checkout, which deploy-droplet.yml resets to main; assert it is
+          # there rather than letting `command not found` read as a finding.
+          set +e
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "bash -lc '
+            set -uo pipefail
+            cd /opt/agenticos/repo || exit 2
+            if [ ! -x scripts/ops/run-company-skill-audit.sh ]; then
+              echo \"FATAL: scripts/ops/run-company-skill-audit.sh absent from the deployed checkout — it predates GOL-2994. Run deploy-droplet.yml (workflow_dispatch) to refresh /opt/agenticos/repo, then re-run this audit.\" >&2
+              exit 2
+            fi
+            scripts/ops/run-company-skill-audit.sh
+          '" 2>&1 | tee audit.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "### Company skill audit"
+            echo
+            echo '```'
+            cat audit.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$rc" in
+            0) echo "::notice::every company skill library is clean" ;;
+            1) echo "::error::degraded company skill install(s) or slug collision — see the job summary and docs/runbooks/company-skill-install-lanes.md" ;;
+            *) echo "::error::the skill audit could not complete (exit ${rc}) — this is NOT a clean result" ;;
+          esac
+          exit "$rc"
