@@ -294,10 +294,13 @@ function cmdCheck() {
  * Skipped for merge/squash/amend/-C sources, where the message is not ours to extend.
  */
 function cmdStamp(msgFile, source) {
-  if (!msgFile || !existsSync(msgFile)) return 0;
+  if (!msgFile) return 0;
   if (source && !["message"].includes(source)) return 0; // merge | squash | commit | template | editor
   const identity = loadIdentity(actingAgentId());
   if (!identity) return 0;
+  // The read IS the existence check -- no existsSync() first. A check-then-write pair
+  // on the same path is a file-system race (CodeQL js/file-system-race) and buys
+  // nothing: a missing or unreadable message file simply means "nothing to stamp".
   let text;
   try {
     text = readFileSync(msgFile, "utf8");
