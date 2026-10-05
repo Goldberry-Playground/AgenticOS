@@ -265,7 +265,14 @@
   --color-popover:       var(--surface-elevated);
   --color-popover-foreground: var(--text);
   --color-primary:       var(--accent-plum-400);
-  --color-primary-foreground: var(--text-inverse);
+  /* --color-primary is brand gold (#c9a227) in BOTH themes — the plum scale
+     aliases to --gold and .light never re-points it. So primary's foreground
+     must NOT ride --text-inverse, which legitimately flips per theme
+     (#0d1612 dark → #f0ebe4 light): that put light parchment on gold at
+     ~2.2:1 in light mode. --ink-on-light is dark in both themes
+     (#0d1612 / #1a1512) → >=8:1 on gold either way. See GOL-2980, and
+     --warning-fg above for the same class of defect (GOL-903). */
+  --color-primary-foreground: var(--ink-on-light);
   --color-secondary:     var(--surface);
   --color-secondary-foreground: var(--text-secondary);
   --color-muted:         var(--surface-muted);
@@ -281,7 +288,8 @@
   --color-sidebar:                   var(--surface);
   --color-sidebar-foreground:        var(--text);
   --color-sidebar-primary:           var(--accent-plum-400);
-  --color-sidebar-primary-foreground: var(--text-inverse);
+  /* Same gold-in-both-themes reasoning as --color-primary-foreground (GOL-2980). */
+  --color-sidebar-primary-foreground: var(--ink-on-light);
   --color-sidebar-accent:            var(--accent-plum-800);
   --color-sidebar-accent-foreground: var(--accent-plum-300);
   --color-sidebar-border:            var(--border-brand);
