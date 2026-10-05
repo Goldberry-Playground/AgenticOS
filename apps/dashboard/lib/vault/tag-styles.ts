@@ -49,18 +49,28 @@ export interface TagStyle {
  * That window is narrow and the arithmetic is worth writing down, because it
  * is the reason this ramp looks "bunched" and must stay that way:
  *
- *   >= 3:1 vs #1a1714 (Y=4.71)  =>  Y >= 12.6
- *   >= 3:1 vs #ffffff           =>  Y <= 30.0
+ *   >= 3:1 vs #1a1714  =>  Y >= 12.65
+ *   >= 3:1 vs #f7f4f0  =>  Y <= 26.92
  *
- * A 1.98:1 total luminance span for six swatches caps the best possible
- * adjacent grayscale step at 1.147:1, so a *grayscale*-separable ramp is
+ * Those two surfaces are the *strictest* of the pairs in play, and they were
+ * measured, not assumed. The rendered pane backdrop is `--ink` — #060f0b dark
+ * and #f7f4f0 light — while #1a1714 is the documented dark-surface constant.
+ * On the dark side #1a1714 binds (it is lighter than #060f0b); on the light
+ * side #f7f4f0 binds (it is darker than #ffffff). Note that `--surface`
+ * (#182721) is NOT the node backdrop — the graph is painted with
+ * `backgroundColor="transparent"` and `--surface` is only the label halo.
+ * Tuning against #ffffff instead of #f7f4f0 is what put the first cut of
+ * `personal` at 2.96:1 on the real surface.
+ *
+ * A 1.81:1 total luminance span for six swatches caps the best possible
+ * adjacent grayscale step at 1.126:1, so a *grayscale*-separable ramp is
  * unreachable on two surfaces at once — GOL-2979 proved that, and it is why
  * shape (not luminance) carries the colour-blind channel here. Do not "fix"
  * flat grayscale by pushing these values apart; that just re-breaks contrast.
  *
  * Side effect of using the full window instead of bunching inside it: worst-
  * case CIEDE2000 separation under simulated CVD improves across the board —
- * deuteranopia 5.5 -> 8.1, protanopia 6.4 -> 11.2, tritanopia 7.8 -> 11.1.
+ * deuteranopia 5.5 -> 8.1, protanopia 6.4 -> 11.2, tritanopia 7.8 -> 11.6.
  */
 export const TAG_STYLE_SCALE: readonly TagStyle[] = [
   { color: "#5c8938", shape: "square" }, // moss green  (was #7fae5c)
@@ -78,7 +88,7 @@ export const TAG_STYLE_SCALE: readonly TagStyle[] = [
   { color: "#c9a227", shape: "triangle" }, // brand gold (unchanged, see above)
   { color: "#a54d00", shape: "triangle-down" }, // ember   (was #d97c3f)
   { color: "#506586", shape: "hexagon" }, // slate blue  (was #8aa0c4)
-  { color: "#bd79a8", shape: "cross" }, // mallow        (was #c47fae)
+  { color: "#ba77a6", shape: "cross" }, // mallow        (was #c47fae)
 ];
 
 /**

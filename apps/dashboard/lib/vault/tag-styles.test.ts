@@ -31,9 +31,21 @@ function contrastRatio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** The two surfaces a graph node is actually drawn on. */
+/**
+ * The two surfaces a graph node is actually drawn on — the *strictest* of the
+ * candidates, and measured in the running app rather than assumed.
+ *
+ * The pane backdrop is `--ink`: #060f0b dark, #f7f4f0 light. #1a1714 is the
+ * documented dark-surface constant and is lighter than #060f0b, so it binds on
+ * the dark side; #f7f4f0 is darker than #ffffff, so it binds on the light side.
+ * Asserting this pair therefore covers every surface the ramp can land on.
+ *
+ * `--surface` (#182721) deliberately does NOT appear here: the graph renders
+ * with `backgroundColor="transparent"` and uses `--surface` only for the label
+ * halo, so no fill is ever drawn on it.
+ */
 const DARK_SURFACE = "#1a1714";
-const LIGHT_SURFACE = "#ffffff";
+const LIGHT_SURFACE = "#f7f4f0";
 
 /**
  * Brand gold is a canonical brand colour, so its contrast fix needs the brand
@@ -52,7 +64,7 @@ describe("TAG_STYLE_SCALE colour values", () => {
       "#c9a227", // marketing / brand gold — HELD, see GOL-2979
       "#a54d00", // video / ember
       "#506586", // concepts / slate blue
-      "#bd79a8", // personal / mallow
+      "#ba77a6", // personal / mallow
     ]);
     expect(OTHER_TAG_STYLE.color).toBe("#796e63");
   });
