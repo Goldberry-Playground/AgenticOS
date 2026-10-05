@@ -78,6 +78,37 @@ Behaviour is pinned by `scripts/ci/audit-company-skills.test.mjs`, which CI runs
 through the existing `scripts/ci/*.test.mjs` glob. The GOL-2963 install is a
 fixture in there, so a refactor cannot silently stop catching it.
 
+## Scheduled audit (so nobody has to remember)
+
+A tool you have to remember to run is not a control. `scripts/ops/run-company-skill-audit.sh`
+is the on-droplet runner: it resolves the board key + the VPC-bound
+paperclip-server origin through `scripts/plugin-api-env.sh` (1Password via the
+credential-broker OP service-account token — never a GitHub Actions secret),
+enumerates every company from `GET /api/companies`, and audits each library in
+one pass.
+
+```bash
+# on agenticos-droplet, as the deploy user
+cd /opt/agenticos/repo && scripts/ops/run-company-skill-audit.sh
+scripts/ops/run-company-skill-audit.sh <companyId> [<companyId>…]   # skip enumeration
+```
+
+Exit codes are deliberately distinct: **0** clean, **1** a degraded install or
+slug collision, **2** the audit could not complete (auth, network, bad
+payload). A red scheduled run gets routed to a human, so "we found a degraded
+skill" must never look like "we could not look".
+
+`.github/workflows/company-skill-audit.yml` runs it weekly over the existing
+deploy SSH lane, and on `repository_dispatch` type `company-skill-audit` — the
+on-demand button an in-container agent can press with a `contents:write`
+gh-token-broker token and no `actions:write` (same pattern as
+`disk-reclaim.yml`). Findings land as a red run plus a job summary;
+`ci-failure-router` opens the issue.
+
+Offline harness: `scripts/ci/run-company-skill-audit.test.sh` (stubbed `op`
+container + a throwaway localhost paperclip-server), run by CI through the
+existing `scripts/ci/*.test.sh` glob.
+
 ## Known findings (2026-10-05)
 
 - `goldberry-playground/odoocker-goldberrygrove/odoo-logistics` — the original
