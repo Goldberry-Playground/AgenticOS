@@ -122,6 +122,49 @@ describe("runSweep", () => {
     expect(saved.i1.status).toBe("failed");
   });
 
+  it("isolates a throwing issue: counts it, keeps sweeping, finishes the tick (GOL-2927)", async () => {
+    // Before this, one throw (e.g. the host's invocation-scope denial) aborted
+    // runSweep and silently dropped every remaining request in the tick.
+    const warn = vi.fn();
+    const { deps, issues } = build({
+      issues_: [issue("i1"), issue("i2")],
+      reqByIssue: { i1: reqState(), i2: reqState() },
+      comments: { i1: [goodReply], i2: [goodReply] },
+    });
+    deps.logger = { info: () => {}, warn };
+    (issues.listComments as any).mockImplementation(async (id: string) => {
+      if (id === "i1") {
+        throw new Error(
+          'Plugin "f071f43f" is not allowed to perform "issues.listComments": ' +
+            "the worker referenced a missing, expired, or unknown invocation scope",
+        );
+      }
+      return [goodReply];
+    });
+
+    const s = await runSweep(deps);
+
+    expect(s.errors).toBe(1);
+    // i2 still got drafted — the whole point. A sweep that stopped at i1 would
+    // report drafted:0 here.
+    expect(s.drafted).toBe(1);
+    expect(issues.setStatus).toHaveBeenCalledWith("i2", "done");
+    expect(issues.setStatus).not.toHaveBeenCalledWith("i1", "done");
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("sweep skipped an issue"),
+      expect.objectContaining({ issueId: "i1" }),
+    );
+  });
+
+  it("reports errors:0 on a clean tick", async () => {
+    const { deps } = build({
+      issues_: [issue("i1")],
+      reqByIssue: { i1: reqState() },
+      comments: { i1: [goodReply] },
+    });
+    expect((await runSweep(deps)).errors).toBe(0);
+  });
+
   it("leaves a fresh waiting request alone", async () => {
     const { deps, issues } = build({
       issues_: [issue("i1")],

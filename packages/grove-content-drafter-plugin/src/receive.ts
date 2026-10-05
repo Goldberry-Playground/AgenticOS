@@ -28,7 +28,11 @@ export interface ReceiveDeps {
   state: StatePort;
   cfg: DrafterConfig;
   now: Date;
-  logger?: { info: (msg: string, meta?: Record<string, unknown>) => void };
+  logger?: {
+    info: (msg: string, meta?: Record<string, unknown>) => void;
+    /** Optional so existing test fakes that only provide `info` still satisfy it. */
+    warn?: (msg: string, meta?: Record<string, unknown>) => void;
+  };
 }
 
 export type ReplyOutcome =

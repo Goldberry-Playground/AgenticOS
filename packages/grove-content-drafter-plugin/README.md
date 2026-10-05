@@ -41,6 +41,25 @@ partial content.
 events deliver deltas and can be missed, so the sweep re-applies any reply the
 event dropped, re-pings an overdue request once, then gives up (blocks it).
 
+### Host invocation-scope denials (GOL-2927)
+
+A scheduled job dispatch carries no `companyId`, so the host registers **no**
+invocation scope for it — and then fails *closed* on every company-scoped
+worker→host call whenever any other scoped dispatch to this same plugin is in
+flight. For this plugin that competitor is its own company-wide
+`issue.comment.created` handler, which is why the loss was load-correlated (~20%
+of sweep ticks dropped in a busy window, 0% in a quiet one).
+
+Mitigation (`src/scope-retry.ts`, Option B on GOL-2927): every company-scoped
+host call goes through `withScopeRetry` — bounded jittered backoff (~16s across
+7 attempts, well under the 5-min `runJob` timeout) on *that one error class only*.
+Retrying is safe even for writes because the denial is a pure pre-flight gate in
+the SDK's `gated()` wrapper, so a denied call performed no work. The sweep also
+isolates per-issue failures now (`SweepSummary.errors`) instead of losing the
+whole tick. The real fix is upstream in closed-source `@paperclipai/server`:
+derive a scope for `runJob` and `handleWebhook`, both of which already know the
+company.
+
 Typed/facet-driving facts (USDA zones, sun, layer) are **never** agent-filled —
 they come from the USDA fetch step (GOL-2383/B) and human review. All Odoo writes
 stay in the plugin; the agent gets no Odoo credentials. HTML output is restricted
