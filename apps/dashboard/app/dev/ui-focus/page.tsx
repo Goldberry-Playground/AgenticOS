@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -128,6 +129,107 @@ function Controls({ surface }: { surface: string }) {
   );
 }
 
+/**
+ * GOL-3044 — the `aria-invalid` half of the gallery.
+ *
+ * Deliberately NOT nested inside the `[data-focus-surface]` sections above:
+ * `e2e/focus-visible.spec.ts` tabs each of those sections under a fixed press
+ * ceiling, and another half-dozen controls per section would spend it. These
+ * carry their own `data-invalid-surface` attribute and their own spec.
+ *
+ * Each surface shows a valid control beside its invalid twin, because the
+ * question this page has to answer is not "can you see a red thing" but "can
+ * you tell these two apart" — in deuteranopia, protanopia, tritanopia and
+ * grayscale. Colour is not allowed to be the answer, so the invalid side
+ * differs by border weight and by an octagon-and-text error row as well.
+ */
+function InvalidControls({ surface }: { surface: string }) {
+  const id = surface.replace(/^--/, "");
+  return (
+    <div className="grid gap-6 sm:grid-cols-2">
+      {([false, true] as const).map((invalid) => {
+        const state = invalid ? "invalid" : "valid";
+        const error = invalid
+          ? "Enter an absolute path — “~” is expanded, “./” is not."
+          : undefined;
+        return (
+          <div
+            key={state}
+            data-invalid-column={state}
+            className="flex flex-col gap-4"
+          >
+            <p className="font-mono text-[0.6875rem] tracking-wider text-text-muted uppercase">
+              {state}
+            </p>
+
+            <Field
+              id={`${id}-${state}-input`}
+              label="Vault path"
+              error={error}
+            >
+              {(control) => (
+                <Input {...control} placeholder="~/Documents/vault" />
+              )}
+            </Field>
+
+            <Field
+              id={`${id}-${state}-select`}
+              label="Default model"
+              error={error && "Pick a model — the saved one is no longer offered."}
+            >
+              {(control) => (
+                <Select {...control} defaultValue="b">
+                  <option value="a">Option A</option>
+                  <option value="b">Option B</option>
+                </Select>
+              )}
+            </Field>
+
+            <Field
+              id={`${id}-${state}-textarea`}
+              label="Run notes"
+              error={error && "Notes are capped at 280 characters."}
+            >
+              {(control) => (
+                <Textarea {...control} placeholder="Textarea" className="min-h-11" />
+              )}
+            </Field>
+
+            <Field
+              id={`${id}-${state}-group`}
+              label="Repository"
+              error={error && "Repository must be owner/name."}
+            >
+              {(control) => (
+                <InputGroup>
+                  <InputGroupAddon>
+                    <span aria-hidden="true">/</span>
+                  </InputGroupAddon>
+                  <InputGroupInput {...control} placeholder="owner/name" />
+                </InputGroup>
+              )}
+            </Field>
+
+            {/* A Button and a Badge can carry aria-invalid too (a combobox
+                trigger, a status chip). They are not fields, so they have no
+                FieldError of their own — on a gold-filled variant the border
+                only clears 3:1 on its outer edge, which is why the spec treats
+                them as border-only and why real usage still owes them a
+                message nearby. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button aria-invalid={invalid || undefined}>default</Button>
+              <Button variant="outline" aria-invalid={invalid || undefined}>
+                outline
+              </Button>
+              <Badge aria-invalid={invalid || undefined}>badge</Badge>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function UiFocusGalleryPage() {
   if (process.env.UI_FOCUS_GALLERY !== "1") notFound();
 
@@ -159,6 +261,37 @@ export default function UiFocusGalleryPage() {
               {token}
             </h2>
             <Controls surface={token} />
+          </section>
+        ))}
+      </div>
+
+      <header className="mt-12 mb-8 flex flex-col gap-2 border-b border-border-subtle pb-6">
+        <p className="font-mono text-xs tracking-widest text-text-muted uppercase">
+          Design system · dev only
+        </p>
+        <h1 className="text-2xl font-semibold text-text sm:text-3xl">
+          components/ui error states
+        </h1>
+        <p className="max-w-prose text-sm leading-relaxed text-text-secondary">
+          Every pair below is the same control, valid on the left and{" "}
+          <code>aria-invalid</code> on the right. Cover the colour — squint, or
+          view this page in grayscale — and the invalid side should still be the
+          obvious one: a heavier border, an octagon, and a sentence saying what
+          is wrong.
+        </p>
+      </header>
+
+      <div className="flex flex-col gap-6">
+        {SURFACES.map(({ token, className }) => (
+          <section
+            key={token}
+            data-invalid-surface={token}
+            className={`${className} rounded-xl border border-border-subtle p-4 sm:p-6`}
+          >
+            <h2 className="mb-4 font-mono text-xs tracking-wider text-text-secondary">
+              {token}
+            </h2>
+            <InvalidControls surface={token} />
           </section>
         ))}
       </div>
