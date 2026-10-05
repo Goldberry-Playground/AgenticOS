@@ -320,9 +320,11 @@ export function GraphCanvas({ onSelectNode }: GraphCanvasProps) {
       traceShape(ctx, node, x, y, radius);
       ctx.fillStyle = node.style.color;
       ctx.fill();
-      // A 1px rim in the theme's secondary text colour. Several ramp hues sit
-      // under 3:1 against the light surface (#7fae5c is 2.59:1), so the rim is
-      // what guarantees the node is perceivable — WCAG 1.4.11.
+      // A 1px rim in the theme's secondary text colour. Since GOL-2989 the
+      // fills themselves clear 3:1 on both surfaces, so the rim is no longer
+      // the only thing carrying WCAG 1.4.11 — but it still is for the one
+      // held-back hue (brand gold, 2.42:1 on white, see GOL-2979) and it is
+      // what separates two adjacent nodes of the same category. Keep it.
       ctx.lineWidth = 1.2 / globalScale;
       ctx.strokeStyle = tokens.stroke;
       ctx.stroke();

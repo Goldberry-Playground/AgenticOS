@@ -10,6 +10,79 @@ import {
   type TagShape,
 } from "./tag-styles";
 
+/**
+ * WCAG 2.1 relative luminance and contrast ratio (SC 1.4.11), computed here
+ * rather than imported so the guard below depends on nothing that a future
+ * refactor of the colour pipeline could quietly redefine.
+ */
+function relativeLuminance(hex: string): number {
+  const h = hex.replace("#", "");
+  const channel = (i: number) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+}
+
+function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort(
+    (x, y) => y - x
+  );
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** The two surfaces a graph node is actually drawn on. */
+const DARK_SURFACE = "#1a1714";
+const LIGHT_SURFACE = "#ffffff";
+
+/**
+ * Brand gold is a canonical brand colour, so its contrast fix needs the brand
+ * owner's sign-off and is tracked on GOL-2979 rather than landed here. Listing
+ * it explicitly — instead of loosening the 3:1 floor — keeps the exception
+ * visible and self-expiring: the pin below fails the moment the value moves,
+ * which forces whoever lands #b69000 to delete this set at the same time.
+ */
+const HELD_PENDING_BRAND_SIGNOFF: ReadonlySet<string> = new Set(["#c9a227"]);
+
+describe("TAG_STYLE_SCALE colour values", () => {
+  it("is the GOL-2989 lightness-only re-tint of the brand ramp", () => {
+    expect(TAG_STYLE_SCALE.map((s) => s.color)).toEqual([
+      "#5c8938", // farm / moss green
+      "#7452b8", // software / brand plum
+      "#c9a227", // marketing / brand gold — HELD, see GOL-2979
+      "#a54d00", // video / ember
+      "#506586", // concepts / slate blue
+      "#bd79a8", // personal / mallow
+    ]);
+    expect(OTHER_TAG_STYLE.color).toBe("#796e63");
+  });
+
+  it("holds >=3:1 against both theme surfaces, so each fill is a perceivable graphical object", () => {
+    const measured = [...TAG_STYLE_SCALE, OTHER_TAG_STYLE]
+      .map((s) => s.color)
+      .filter((color) => !HELD_PENDING_BRAND_SIGNOFF.has(color))
+      .map((color) => ({
+        color,
+        onDark: Number(contrastRatio(color, DARK_SURFACE).toFixed(2)),
+        onLight: Number(contrastRatio(color, LIGHT_SURFACE).toFixed(2)),
+      }));
+
+    // Every non-held value, not just "most of them".
+    expect(measured).toHaveLength(6);
+
+    const failures = measured.filter((m) => m.onDark < 3 || m.onLight < 3);
+    expect(failures).toEqual([]);
+  });
+
+  it("pins the held brand gold, so landing GOL-2979 must also retire the exception", () => {
+    // If this fails because gold moved: apply the new value, then delete
+    // HELD_PENDING_BRAND_SIGNOFF and this test. Do not widen the set.
+    expect([...HELD_PENDING_BRAND_SIGNOFF]).toEqual(["#c9a227"]);
+    expect(TAG_STYLE_SCALE[2].color).toBe("#c9a227");
+    expect(contrastRatio("#c9a227", LIGHT_SURFACE)).toBeLessThan(3);
+  });
+});
+
 describe("TAG_STYLE_SCALE", () => {
   it("pairs every colour with a distinct shape, so colour is never the only channel", () => {
     const shapes = TAG_STYLE_SCALE.map((s) => s.shape);
