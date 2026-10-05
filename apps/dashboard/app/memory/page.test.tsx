@@ -75,4 +75,37 @@ describe("Memory page", () => {
       expect(screen.getByText(/Inbox is empty/i)).toBeInTheDocument();
     });
   });
+
+  // GOL-2950: the toggle used to live inside MemoryReader, which unmounts in
+  // graph mode — so its "on" state was unreachable and there was no way back
+  // to the reader. It now lives in the toolbar and reports state via
+  // aria-pressed rather than text colour alone.
+  it("keeps the graph-view toggle in the toolbar and reports state via aria-pressed", () => {
+    vi.spyOn(global, "fetch").mockImplementation(async () => {
+      const body = {
+        tree: { kind: "folder", name: "root", path: "", children: [] },
+        flatPaths: [],
+      };
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    renderWithClient(<MemoryPage />);
+
+    const toggle = screen.getByRole("button", { name: /^Graph view$/i });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(toggle);
+
+    // Still mounted in graph mode, and now pressed.
+    const pressed = screen.getByRole("button", { name: /^Graph view$/i });
+    expect(pressed).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(pressed);
+    expect(
+      screen.getByRole("button", { name: /^Graph view$/i }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
 });
