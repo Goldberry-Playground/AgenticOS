@@ -75,15 +75,19 @@ jobs:
           HOST: ${{ secrets.DROPLET_HOST }}
           USER: ${{ secrets.DROPLET_USER }}
         run: |
-          # `bash -lc` so node is on PATH. The runner lives in the deployed
-          # checkout, which deploy-droplet.yml resets to main; assert it is
-          # there rather than letting `command not found` read as a finding.
+          # `bash -lc` so node is on PATH. The runner lives in the git clone at
+          # /opt/agenticos/repo, which deploy-host-scripts.yml `git reset --hard
+          # origin/main`s on any push to main touching `scripts/**` (GOL-1965).
+          # That is NOT the /opt/agenticos tarball snapshot deploy-droplet.yml
+          # ships to, and deploy-droplet.yml never touches this clone. Assert the
+          # runner is present rather than letting `command not found` read as a
+          # finding.
           set +e
           ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "bash -lc '
             set -uo pipefail
             cd /opt/agenticos/repo || exit 2
             if [ ! -x scripts/ops/run-company-skill-audit.sh ]; then
-              echo \"FATAL: scripts/ops/run-company-skill-audit.sh absent from the deployed checkout — it predates GOL-2994. Run deploy-droplet.yml (workflow_dispatch) to refresh /opt/agenticos/repo, then re-run this audit.\" >&2
+              echo \"FATAL: scripts/ops/run-company-skill-audit.sh absent from /opt/agenticos/repo — the clone predates GOL-2994. Run deploy-host-scripts.yml (workflow_dispatch) — that is the ONLY pipeline that refreshes this clone; deploy-droplet.yml will not. Then re-run this audit.\" >&2
               exit 2
             fi
             scripts/ops/run-company-skill-audit.sh

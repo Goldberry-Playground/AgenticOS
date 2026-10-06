@@ -109,6 +109,23 @@ Offline harness: `scripts/ci/run-company-skill-audit.test.sh` (stubbed `op`
 container + a throwaway localhost paperclip-server), run by CI through the
 existing `scripts/ci/*.test.sh` glob.
 
+### Which pipeline puts the runner on the box
+
+The workflow invokes the runner from **`/opt/agenticos/repo`** — the Droplet's
+real git clone, not the `/opt/agenticos` tarball snapshot. Exactly one pipeline
+refreshes that clone on a host-script change: **`deploy-host-scripts.yml`**,
+whose path filter already globs `scripts/**` (GOL-1965). So merging a change to
+`scripts/ops/run-company-skill-audit.sh` reaches production with **zero new
+deploy wiring**.
+
+`deploy-droplet.yml` deliberately does *not* `git pull` and never touches
+`/opt/agenticos/repo`, so adding the runner to *its* path filter would only
+re-ship the file to a directory the cron never reads. If the audit ever exits
+`2` with the `FATAL: … absent from /opt/agenticos/repo` message, the recovery is
+`deploy-host-scripts.yml` (`workflow_dispatch`) — running `deploy-droplet.yml`
+yields the identical FATAL, which is precisely the burned-heartbeat loop this
+feature exists to prevent.
+
 ## Known findings (2026-10-05)
 
 - `goldberry-playground/odoocker-goldberrygrove/odoo-logistics` — the original
