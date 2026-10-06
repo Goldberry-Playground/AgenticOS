@@ -52,10 +52,12 @@ export interface AsOfChipProps {
    */
   scope: string;
   /**
-   * Epoch-ms instant the data was fetched — normally the backing query's
-   * `dataUpdatedAt`. `0`/`null`/omitted means nothing has resolved yet and
-   * renders an em-dash in the same footprint. Never a render-time clock; see
-   * `./as-of.ts`.
+   * Epoch-ms instant the data was fetched — the backing query's
+   * `dataUpdatedAt`, or `oldestUpdatedAt(...)` over all of them when a vista
+   * has several, so the claim holds for every tile under the banner rather
+   * than just the freshest one. `0`/`null`/omitted means nothing has resolved
+   * yet and renders an em-dash in the same footprint. Never a render-time
+   * clock; see `./as-of.ts`.
    */
   asOfMs?: number | null;
 }

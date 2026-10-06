@@ -6,7 +6,7 @@ import { ActivityStripBackdrop } from "./backdrops/ActivityStripBackdrop";
 import { useRecentRunEvents } from "@/lib/hooks/use-recent-run-events";
 import { useRunsStats } from "@/lib/hooks/use-runs-stats";
 import { useNextCron } from "@/lib/hooks/use-next-cron";
-import { freshestUpdatedAt } from "./as-of";
+import { oldestUpdatedAt } from "./as-of";
 
 /**
  * Runs tab hero vista. Composes the {@link VistaShell} chrome with the
@@ -83,7 +83,10 @@ export function RunsVista() {
     <VistaShell
       scope="Runs"
       accent="gold"
-      asOfMs={freshestUpdatedAt(
+      // Oldest, not newest, of the three (GOL-3111): the chip speaks for the
+      // whole banner, and the chart, the tiles and the cron ETA come from three
+      // separate endpoints. `max` let a failing one hide behind its siblings.
+      asOfMs={oldestUpdatedAt(
         eventsQuery.dataUpdatedAt,
         statsQuery.dataUpdatedAt,
         nextCronQuery.dataUpdatedAt,
