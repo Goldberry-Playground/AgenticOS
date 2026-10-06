@@ -65,19 +65,38 @@ type Probe = {
   contrast: number | null;
 };
 
+type ShellSnapshot = {
+  /** Keys of every visible focusable in the scope, in DOM order, right now. */
+  keys: string[];
+  /** The focus treatment of `document.activeElement`, if it is in the scope. */
+  focused: Probe | null;
+};
+
 /**
- * Tab forward until every focusable inside `scope` has been visited (or we run
- * out of presses), reading the computed focus treatment at each stop.
+ * Read the scope's focusable set and the current focus treatment in one pass,
+ * deriving every key from the element's own properties.
  *
- * Returns one probe per control, keyed by a human-readable name, so a failure
- * names the control instead of an index.
+ * GOL-3095: this used to write a `data-focus-probe` attribute onto each control
+ * up front and read it back off `document.activeElement`. React owns those
+ * nodes and is free to re-create them — a theme toggle, a layout-level state
+ * change, a Suspense boundary resolving, a hydration mismatch — at which point
+ * every attribute the spec wrote is gone, no Tab stop can be identified, and
+ * the failure reads `reached: (nothing)`: a WCAG 2.4.3 report for a cause that
+ * has nothing to do with the Tab order. That cost two heartbeats on GOL-3073.
+ *
+ * So nothing is written. The key is `index:tag:identity` computed from the live
+ * DOM at read time, which means a replacement node in the same position with
+ * the same identity produces the same key, and the probe simply does not
+ * notice. `identity` deliberately prefers authored, stable attributes over
+ * visible text — see `identify` below.
+ * What the probe cannot absorb — the focusable *set* changing underneath it —
+ * is reported as drift, by name, instead of as a Tab-order finding.
  */
-async function probeFocusByTabbing(
+async function snapshotShell(
   page: import("@playwright/test").Page,
   scopeSelector: string,
-): Promise<{ probes: Probe[]; expected: string[] }> {
-  // Tag each control in the scope so a Tab stop can be identified by name.
-  const expected = await page.evaluate(
+): Promise<ShellSnapshot> {
+  return page.evaluate(
     ({ focusable, scope }) => {
       const root = document.querySelector(scope);
       if (!root) throw new Error(`scope not found: ${scope}`);
@@ -86,29 +105,31 @@ async function probeFocusByTabbing(
           const r = el.getBoundingClientRect();
           return r.width > 0 && r.height > 0;
         },
-      );
-      return controls.map((el, i) => {
-        const label =
-          el.getAttribute("aria-label") ||
-          (el.textContent || "").trim().slice(0, 28);
-        const key = `${i}:${el.tagName.toLowerCase()}:${label || "(no label)"}`;
-        el.setAttribute("data-focus-probe", key);
-        return key;
-      });
-    },
-    { focusable: FOCUSABLE, scope: scopeSelector },
-  );
+      ) as HTMLElement[];
 
-  const probes: Probe[] = [];
-  const seen = new Set<string>();
-  // Generous ceiling: the skip link and anything before the scope burn presses.
-  for (let i = 0; i < 60 && seen.size < expected.length; i++) {
-    await page.keyboard.press("Tab");
-    const probe = await page.evaluate(() => {
+      // A key has to be stable for as long as the control is, or the drift
+      // check below reads an ordinary data update as DOM replacement. So:
+      // authored `aria-label` first, then an anchor's path — never the visible
+      // text when something stabler exists. The nav tabs render
+      // `Runs<span class="count">3</span>`; those counts are hard-coded today
+      // but TabBar.tsx is explicit that they get wired to live data, at which
+      // point a poll landing mid-walk would rename a control under the probe.
+      const identify = (el: HTMLElement) => {
+        const aria = el.getAttribute("aria-label");
+        if (aria?.trim()) return aria.trim();
+        if (el instanceof HTMLAnchorElement && el.getAttribute("href")) {
+          return el.pathname;
+        }
+        const text = (el.textContent || "").trim();
+        return text ? text.slice(0, 28) : "(no label)";
+      };
+      const keys = controls.map(
+        (el, i) => `${i}:${el.tagName.toLowerCase()}:${identify(el)}`,
+      );
+
       const el = document.activeElement as HTMLElement | null;
-      if (!el || el === document.body) return null;
-      const key = el.getAttribute("data-focus-probe");
-      if (!key) return null;
+      const index = el ? controls.indexOf(el) : -1;
+      if (!el || index === -1) return { keys, focused: null };
 
       const cs = getComputedStyle(el);
 
@@ -150,27 +171,113 @@ async function probeFocusByTabbing(
       if (ring && back) {
         const a = lum(ring);
         const b = lum(back);
-        contrast =
-          (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        contrast = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
       }
 
       return {
-        name: key,
-        focusVisible: el.matches(":focus-visible"),
-        outlineStyle: cs.outlineStyle,
-        outlineWidth: parseFloat(cs.outlineWidth) || 0,
-        outlineColor: cs.outlineColor,
-        boxShadow: cs.boxShadow,
-        backdrop,
-        contrast,
-      } satisfies Probe;
-    });
-    if (probe && !seen.has(probe.name)) {
-      seen.add(probe.name);
-      probes.push(probe);
+        keys,
+        focused: {
+          name: keys[index],
+          focusVisible: el.matches(":focus-visible"),
+          outlineStyle: cs.outlineStyle,
+          outlineWidth: parseFloat(cs.outlineWidth) || 0,
+          outlineColor: cs.outlineColor,
+          boxShadow: cs.boxShadow,
+          backdrop,
+          contrast,
+        },
+      };
+    },
+    { focusable: FOCUSABLE, scope: scopeSelector },
+  );
+}
+
+/**
+ * Hand the scope's markup back to the browser as new nodes.
+ *
+ * Only `probe survives a mid-probe re-render` uses this. It assigns HTML
+ * captured *before* the probe started, so every imperative mutation made since
+ * is discarded and every node is a fresh object — which is what React does
+ * when it re-creates a subtree from its own tree, and the thing the old
+ * attribute-based probe could not survive.
+ */
+async function replaceScopeNodes(
+  page: import("@playwright/test").Page,
+  scopeSelector: string,
+  pristineHtml: string,
+) {
+  await page.evaluate(
+    ({ scope, html }) => {
+      const root = document.querySelector(scope);
+      if (!root) throw new Error(`scope not found: ${scope}`);
+      root.innerHTML = html;
+    },
+    { scope: scopeSelector, html: pristineHtml },
+  );
+}
+
+type ProbeResult = {
+  probes: Probe[];
+  expected: string[];
+  /**
+   * Set when the scope's focusable set stopped matching the set the probe
+   * started from. Non-null means the DOM changed under the probe, so neither
+   * `probes` nor `expected` can be read as a statement about the Tab order.
+   */
+  drift: { press: number; keys: string[] } | null;
+};
+
+/**
+ * Tab forward until every focusable inside `scope` has been visited (or we run
+ * out of presses), reading the computed focus treatment at each stop.
+ *
+ * Returns one probe per control, keyed by a human-readable name, so a failure
+ * names the control instead of an index.
+ */
+async function probeFocusByTabbing(
+  page: import("@playwright/test").Page,
+  scopeSelector: string,
+  opts: {
+    /** Test hook: replace the scope's nodes after the Nth press (0-indexed). */
+    disrupt?: { afterPress: number; run: () => Promise<void> };
+  } = {},
+): Promise<ProbeResult> {
+  const expected = (await snapshotShell(page, scopeSelector)).keys;
+
+  const probes: Probe[] = [];
+  const seen = new Set<string>();
+  let drift: ProbeResult["drift"] = null;
+  // Generous ceiling: the skip link and anything before the scope burn presses,
+  // and a re-render drops focus to <body>, so the walk restarts from the top of
+  // the document and pays for the lead-in a second time.
+  for (let i = 0; i < 60 && seen.size < expected.length; i++) {
+    await page.keyboard.press("Tab");
+    if (opts.disrupt && opts.disrupt.afterPress === i) {
+      await opts.disrupt.run();
+    }
+    const snap = await snapshotShell(page, scopeSelector);
+    if (!drift && snap.keys.join("|") !== expected.join("|")) {
+      drift = { press: i + 1, keys: snap.keys };
+    }
+    if (snap.focused && !seen.has(snap.focused.name)) {
+      seen.add(snap.focused.name);
+      probes.push(snap.focused);
     }
   }
-  return { probes, expected };
+  return { probes, expected, drift };
+}
+
+/** Failure text for a focusable-set change, which is never a 2.4.3 finding. */
+function driftMessage(scopeSelector: string, result: ProbeResult): string {
+  const drift = result.drift;
+  const why = [
+    `the DOM was replaced or re-rendered under the probe at Tab press ${drift?.press},`,
+    "so this run says NOTHING about the Tab order (WCAG 2.4.3). Look for a",
+    "client re-render of the app shell; e2e/hydration.spec.ts names the",
+    "hydration-mismatch case.",
+  ].join(" ");
+  const list = (keys: string[]) => keys.join("\n        ");
+  return `\n${scopeSelector}: the focusable set changed — ${why}\n\nbefore: ${list(result.expected)}\nafter:  ${list(drift?.keys ?? [])}\n`;
 }
 
 /** A control is compliant when it paints a >=2px ring at >=3:1, or a shadow. */
@@ -210,15 +317,18 @@ for (const theme of ["dark", "light"] as const) {
       await page.evaluate(() => document.fonts.ready);
       await freezeTransitions(page);
 
-      const { probes, expected } = await probeFocusByTabbing(
-        page,
-        "header.shell-header",
-      );
+      const result = await probeFocusByTabbing(page, "header.shell-header");
+      const { probes, expected } = result;
 
       testInfo.attach(`header-focus-${theme}.json`, {
-        body: JSON.stringify({ expected, probes }, null, 2),
+        body: JSON.stringify(result, null, 2),
         contentType: "application/json",
       });
+
+      // Check this BEFORE the Tab order (GOL-3095). If the header's focusable
+      // set moved mid-probe, the comparison below is reading two different
+      // DOMs against each other and would blame the Tab order for it.
+      expect(result.drift, driftMessage("header.shell-header", result)).toBeNull();
 
       // Reaching every control matters as much as how it looks: a control the
       // Tab order skips is a 2.4.3 problem this spec would otherwise hide by
@@ -317,3 +427,102 @@ for (const theme of ["dark", "light"] as const) {
     });
   });
 }
+
+/**
+ * GOL-3095 — the probe's own integrity.
+ *
+ * Everything above is only a statement about the app if the probe can tell a
+ * skipped Tab stop apart from a DOM it no longer recognises. This test puts the
+ * shell's nodes through exactly the replacement React performs on a re-render,
+ * one press into the walk, and asserts the probe still names every control.
+ *
+ * It is the regression test for the failure mode, not a test of the app: delete
+ * the drift check and the read-time keying and this goes red with the same
+ * `reached: (nothing)` signature that sent GOL-3073 hunting a Tab-order bug.
+ */
+test.describe("focus probe integrity", () => {
+  test.slow();
+
+  test("a mid-probe re-render of the shell is not read as a Tab-order failure", async ({
+    page,
+  }, testInfo) => {
+    const scope = "header.shell-header";
+    await page.goto("/runs", { waitUntil: "load" });
+    await page.evaluate(() => document.fonts.ready);
+    await freezeTransitions(page);
+    await expect(page.locator(scope)).toBeVisible();
+
+    // Captured before the probe runs, so replaying it discards anything the
+    // probe did imperatively — same as React rendering from its own tree.
+    const pristine = await page.evaluate(
+      (sel) => document.querySelector(sel)!.innerHTML,
+      scope,
+    );
+
+    const result = await probeFocusByTabbing(page, scope, {
+      disrupt: {
+        afterPress: 1,
+        run: () => replaceScopeNodes(page, scope, pristine),
+      },
+    });
+
+    testInfo.attach("probe-integrity.json", {
+      body: JSON.stringify(result, null, 2),
+      contentType: "application/json",
+    });
+
+    // The replacement is markup-identical, so there is nothing for the probe to
+    // report: no drift, and every control still reached.
+    expect(result.drift, driftMessage(scope, result)).toBeNull();
+    expect(
+      result.probes.map((p) => p.name).sort(),
+      `The probe lost its Tab stops when the shell's nodes were replaced.\nexpected: ${result.expected.join("\n          ")}\nreached:  ${result.probes.map((p) => p.name).join("\n          ")}`,
+    ).toEqual([...result.expected].sort());
+  });
+
+  /**
+   * The other half of keying off the live DOM: a key must not embed a value
+   * that changes on its own. The nav tabs carry count badges that TabBar.tsx
+   * says will be wired to live data, so a poll landing mid-walk would rename a
+   * control — and a probe keyed on visible text would report that as DOM
+   * replacement. Identity comes from `aria-label` / the anchor path instead.
+   */
+  test("a count badge updating mid-probe is not read as DOM replacement", async ({
+    page,
+  }, testInfo) => {
+    const scope = "header.shell-header";
+    await page.goto("/runs", { waitUntil: "load" });
+    await page.evaluate(() => document.fonts.ready);
+    await freezeTransitions(page);
+    await expect(page.locator(scope)).toBeVisible();
+
+    const { html, changed } = await page.evaluate((sel) => {
+      const clone = document.querySelector(sel)!.cloneNode(true) as HTMLElement;
+      const badges = clone.querySelectorAll(
+        ".count, .shell-tabs-mobile__count",
+      );
+      badges.forEach((b, i) => {
+        b.textContent = `${9000 + i}`;
+      });
+      return { html: clone.innerHTML, changed: badges.length };
+    }, scope);
+    // Guard against the mutation silently doing nothing if the badge class
+    // is renamed: then this test would pass while asserting nothing.
+    expect(changed, "no count badges found to update").toBeGreaterThan(0);
+
+    const result = await probeFocusByTabbing(page, scope, {
+      disrupt: { afterPress: 1, run: () => replaceScopeNodes(page, scope, html) },
+    });
+
+    testInfo.attach("probe-count-update.json", {
+      body: JSON.stringify({ changed, ...result }, null, 2),
+      contentType: "application/json",
+    });
+
+    expect(result.drift, driftMessage(scope, result)).toBeNull();
+    expect(
+      result.probes.map((p) => p.name).sort(),
+      "A count badge update renamed a control under the probe — the key is reading volatile text.",
+    ).toEqual([...result.expected].sort());
+  });
+});
