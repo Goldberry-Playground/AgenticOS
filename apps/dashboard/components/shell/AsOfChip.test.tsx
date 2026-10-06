@@ -55,6 +55,10 @@ describe("AsOfChip — reserved footprint", () => {
     // Without this the min-width is inert: it does not apply to a non-replaced
     // inline box.
     expect(declared).toMatch(/display:\s*inline-block/);
+    // The slack has to fall at the chip's trailing edge. Centred, it opens a
+    // gap inside the phrase — "LIVE AS OF     —" reads as a broken label
+    // rather than a pending one, which is what the 390px render showed.
+    expect(declared).toMatch(/text-align:\s*left/);
   });
 });
 

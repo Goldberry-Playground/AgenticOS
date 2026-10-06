@@ -105,10 +105,13 @@ The two deltas derive from existing columns (`calls.cost_cents`,
 ### Per-tab Vista hero — `VistaShell` · ✅ Shipped (chrome) / mixed data
 
 Every tab renders its own hero at the top via `components/shell/VistaShell.tsx`:
-a dusk-indigo console panel with a tinted accent, a "Live · as of HH:MM:SS"
-indicator, gold horizon rules, an animated topic backdrop, and a 4-tile KPI
-grid (`KpiTile`). The chrome is shipped; whether a given hero's tiles are real
-depends on the tab:
+a dusk-indigo console panel with a tinted accent, a
+`Runs · live as of HH:MM:SS` freshness chip (`AsOfChip`), gold horizon rules,
+an animated topic backdrop, and a 4-tile KPI grid (`KpiTile`). The leading
+scope word is required: every route renders this hero *and* the layout's
+`KpiVista` banner, fed by a different query on a different interval, so each
+chip has to name the data it speaks for (GOL-3099). The chrome is shipped;
+whether a given hero's tiles are real depends on the tab:
 
 | Vista | Tile data source | Status |
 |---|---|---|
@@ -586,7 +589,7 @@ banner is omitted — it is not yet mounted; see §1.)
 │ ⬡ AgenticOS                              [Filter: All ▾]  [⌘K]  ⚙          │
 │ [Runs 3] Architecture 11  Cost $2.41  Health 2 warn  Memory 1,652           │
 ├────────────────────────────────────────────────────────────────────────────┤
-│ ░░ RunsVista — Live · as of 14:42:03 ░░  [stats tiles: real /api/tasks/*]   │
+│ ░░ RunsVista — Runs · live as of 14:42:03 ░░  [tiles: real /api/tasks/*]   │
 ├────────────────────────────────────────────────────────────────────────────┤
 │ LIVE  [▶ curator 2m12s] [▶ daily-brief 45s]              (live-runs-strip)  │
 │ ┌ Vault ingest 🚧 ┐  ┌ Live runs ✅ ┐  ┌ Scheduled runs 🚧 ┐                 │

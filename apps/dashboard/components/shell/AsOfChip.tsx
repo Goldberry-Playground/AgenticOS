@@ -65,7 +65,14 @@ export function AsOfChip({ scope, asOfMs }: AsOfChipProps) {
     <div className="vista-meta" aria-live="off">
       <span className="live-dot" aria-hidden="true" />
       <span>
-        {scope} · live as of{" "}
+        {/*
+          * One template literal, not `{scope} · live as of`: separate JSX
+          * children become separate text nodes, and Chromium's accessibility
+          * tree then exposes "FLEET" and " · LIVE AS OF" as two StaticText
+          * siblings that some screen readers pause between. One node reads as
+          * one phrase.
+          */}
+        {`${scope} · live as of `}
         <span className="as-of-time">{formatAsOf(asOfMs)}</span>
       </span>
     </div>

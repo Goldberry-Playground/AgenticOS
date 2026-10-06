@@ -907,7 +907,15 @@
   display: inline-block;
   min-width: calc(8ch + 0.75em);
   font-variant-numeric: tabular-nums;
-  text-align: center;
+  /*
+   * Left, not centre. The reserved box is wider than the em-dash either way,
+   * but centring puts that slack *inside* the phrase — rendered at 390px it
+   * reads "LIVE AS OF     —", which looks like a broken label rather than a
+   * pending one. Left-aligned, the placeholder sits exactly where the first
+   * digit will land and the slack falls at the chip's trailing edge, where
+   * there is nothing to separate it from.
+   */
+  text-align: left;
 }
 .vista-meta .live-dot {
   width: 6px;
