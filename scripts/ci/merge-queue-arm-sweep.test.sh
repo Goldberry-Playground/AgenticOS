@@ -18,7 +18,11 @@
 #   5. vendor drift WARNs + alerts but still runs the sweep (a drift check that
 #      could stop the timer would reintroduce the bug this ticket deletes),
 #   6. one failing repo does not stop the others, and the run exits 1,
-#   7. the installer's unit bodies == cloud-init's inline unit bodies.
+#   7. the installer's unit bodies == cloud-init's inline unit bodies,
+#   11. the installer installs WITHOUT root, via `systemctl link` under the
+#       deploy user's passwordless-systemctl sudoers rule — never writing
+#       /etc/systemd/system itself — and deploy-host-scripts.yml runs it, so no
+#       human has to paste anything to install the timer.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -326,13 +330,149 @@ awk '/Self-verifying with one --dry-run/,0' "$INSTALLER" | grep -qE '^\s*(exit [
   || ok "a failed self-verify leaves the timer enabled"
 # The enable must happen BEFORE the self-verify, or a dry-run failure would mean
 # the timer was never armed at all.
-ENABLE_LINE=$(grep -n 'systemctl enable --now agenticos-merge-queue-arm.timer' "$INSTALLER" | head -n1 | cut -d: -f1)
+ENABLE_LINE=$(grep -nE '(systemctl|\$\{SC\[@\]\}") enable --now agenticos-merge-queue-arm\.timer' "$INSTALLER" | head -n1 | cut -d: -f1)
 VERIFY_LINE=$(grep -n 'Self-verifying with one --dry-run' "$INSTALLER" | head -n1 | cut -d: -f1)
 if [ -n "$ENABLE_LINE" ] && [ -n "$VERIFY_LINE" ] && [ "$ENABLE_LINE" -lt "$VERIFY_LINE" ]; then
   ok "timer is enabled before the self-verify runs"
 else
   bad "self-verify runs before the timer is enabled (enable=$ENABLE_LINE verify=$VERIFY_LINE)"
 fi
+
+echo "== 11. the install needs no root: systemctl link under passwordless sudo"
+# This is the whole reason GOL-3125 sat blocked: the first installer wrote
+# /etc/systemd/system directly, so it needed root, and NO agent has root SSH to
+# this droplet (probed, not assumed). cloud-init grants deploy
+# `ALL=(ALL) NOPASSWD: /bin/systemctl` with no argument restriction, and
+# `systemctl link <abs-path>` makes systemd do the /etc write. Prove the
+# installer takes that path, and prove it touches ${SYSTEMD_DIR} with nothing
+# but systemctl.
+SUDO_LOG="$WORK/sudo.log"
+cat >"$BIN/sudo" <<'STUB'
+#!/usr/bin/env bash
+# Stands in for the deploy user's NOPASSWD systemctl rule. Logs every systemctl
+# invocation and succeeds; anything that is NOT `-n systemctl` is a bug in the
+# installer (the rule covers systemctl and ufw only), so fail loudly on it.
+args=("$@")
+[ "${args[0]:-}" = "-n" ] || { echo "sudo called without -n: $*" >&2; exit 97; }
+[ "${args[1]:-}" = "systemctl" ] || { echo "sudo called for non-systemctl: $*" >&2; exit 98; }
+printf '%s
+' "${args[*]:2}" >>"$SUDO_LOG"
+[ "${args[2]:-}" = "--version" ] && { echo "systemd 249 (249.11-0ubuntu3)"; exit 0; }
+exit 0
+STUB
+chmod +x "$BIN/sudo"
+
+# A complete fake clone so the pre-flight passes and the self-verify has a sweep.
+CLONE="$WORK/clone"
+mkdir -p "$CLONE/infra/scripts/vendored"
+printf '#!/usr/bin/env bash
+echo "fake sweep $*"
+exit 0
+' >"$CLONE/infra/scripts/merge-queue-arm-sweep.sh"
+printf '#!/usr/bin/env bash
+exit 0
+' >"$CLONE/infra/scripts/vendored/merge-queue-arm-automerge.sh"
+chmod +x "$CLONE/infra/scripts/merge-queue-arm-sweep.sh" "$CLONE/infra/scripts/vendored/merge-queue-arm-automerge.sh"
+FAKE_ETC="$WORK/etc-systemd"; FAKE_UNITS="$WORK/units"
+mkdir -p "$FAKE_ETC" "$WORK/secrets"
+: >"$WORK/secrets/gh-broker-client.key"
+
+run_installer() { # extra env as KEY=VAL args; output -> $WORK/inst.txt, rc -> $RC
+  : >"$SUDO_LOG"
+  set +e
+  # env -u: the ambient agent environment exports broker vars, and a test that
+  # passes because of them is a test that proves nothing (GOL-3125, twice).
+  PATH="$BIN:$PATH" SUDO_LOG="$SUDO_LOG" \
+    env -u ARM_PROTECTED -u GH_TOKEN_BROKER_URL -u GH_BROKER_API_KEY_FILE \
+      REPO="$CLONE" LOG_DIR="$WORK/log" SYSTEMD_DIR="$FAKE_ETC" UNIT_DIR="$FAKE_UNITS" \
+      BROKER_KEY="$WORK/secrets/gh-broker-client.key" "$@" \
+      bash "$INSTALLER" >"$WORK/inst.txt" 2>&1
+  RC=$?
+  set -e
+}
+
+run_installer
+check "non-root install succeeds (exit 0)" "$RC" "0"
+grep -q 'Privilege: sudo-systemctl' "$WORK/inst.txt" \
+  && ok "resolves to passwordless systemctl, not root" || bad "did not take the sudo-systemctl path"
+# The load-bearing assertion: systemd did the /etc write, we did not.
+if [ -z "$(ls -A "$FAKE_ETC")" ]; then
+  ok "installer wrote NOTHING into \$SYSTEMD_DIR itself"
+else
+  bad "installer wrote into \$SYSTEMD_DIR directly: $(ls -A "$FAKE_ETC" | tr '\n' ' ')"
+fi
+for u in agenticos-merge-queue-arm.service agenticos-merge-queue-arm.timer; do
+  [ -s "$FAKE_UNITS/$u" ] && ok "staged $u in \$UNIT_DIR" || bad "did not stage $u"
+  grep -q "^link --force $FAKE_UNITS/$u\$" "$SUDO_LOG" \
+    && ok "systemctl link'd $u" || bad "no 'systemctl link' for $u"
+done
+grep -qx 'daemon-reload' "$SUDO_LOG" && ok "daemon-reload via sudo systemctl" || bad "no daemon-reload"
+grep -qx 'enable --now agenticos-merge-queue-arm.timer' "$SUDO_LOG" \
+  && ok "enable --now via sudo systemctl" || bad "no enable --now"
+# ${UNIT_DIR} must not live inside the clone: a linked unit's target has to
+# survive `git reset --hard origin/main`, or systemd loses the unit on the next
+# host-script deploy.
+grep -qE '^UNIT_DIR="\$\{UNIT_DIR:-/opt/agenticos/units\}"' "$INSTALLER" \
+  && ok "UNIT_DIR defaults outside the git clone" || bad "UNIT_DIR default drifted into the clone"
+
+echo "== 11b. a fresh droplet (cloud-init already wrote real unit files) is a no-op"
+# cloud-init's write_files puts REAL files there, which `systemctl link` will not
+# and should not clobber. Identical body => nothing to do.
+# `|| true`-free but non-fatal: if test 11 failed there is nothing staged to
+# copy, and crashing the harness under `set -e` here would hide every remaining
+# assertion (including test 12) behind one upstream failure.
+if [ -s "$FAKE_UNITS/agenticos-merge-queue-arm.service" ] && [ -s "$FAKE_UNITS/agenticos-merge-queue-arm.timer" ]; then
+  cp "$FAKE_UNITS/agenticos-merge-queue-arm.service" "$FAKE_ETC/"
+  cp "$FAKE_UNITS/agenticos-merge-queue-arm.timer"   "$FAKE_ETC/"
+  rm -rf "$FAKE_UNITS"
+  run_installer
+else
+  bad "test 11 staged no units, so 11b cannot run"
+  RC=1; : >"$SUDO_LOG"; : >"$WORK/inst.txt"
+fi
+check "still exits 0 against cloud-init's own files" "$RC" "0"
+check "no link call at all" "$(grep -c '^link ' "$SUDO_LOG" || true)" "0"
+check "both units reported identical" "$(grep -c 'already present and identical' "$WORK/inst.txt" || true)" "2"
+grep -qx 'enable --now agenticos-merge-queue-arm.timer' "$SUDO_LOG" \
+  && ok "still converges the enable (idempotent)" || bad "skipped the enable"
+
+echo "== 11c. a DIFFERING regular unit file refuses instead of guessing"
+printf '[Unit]\nDescription=hand-edited by someone\n' >"$FAKE_ETC/agenticos-merge-queue-arm.service"
+run_installer
+check "refuses (exit 1)" "$RC" "1"
+grep -q 'exists as a regular file and DIFFERS' "$WORK/inst.txt" \
+  && ok "says what is wrong" || bad "unclear refusal"
+grep -q 'Re-run as root' "$WORK/inst.txt" \
+  && ok "names root as the escalation" || bad "no escalation named"
+check "enabled nothing on refusal" "$(grep -c 'enable --now' "$SUDO_LOG" || true)" "0"
+rm -f "$BIN/sudo"; rm -rf "$FAKE_ETC" "$FAKE_UNITS"
+
+echo "== 12. deploy-host-scripts.yml actually runs the installer"
+# Without this the timer is still only installed when a human remembers — which
+# is the identical shape of the bug this whole ticket deletes, moved one level up.
+DEPLOY_WF="$ROOT/.github/workflows/deploy-host-scripts.yml"
+grep -q 'bash infra/scripts/install-merge-queue-arm-sweep.sh' "$DEPLOY_WF" \
+  && ok "deploy workflow invokes the installer" || bad "deploy workflow does not install the timer"
+# It has to be reachable: the push path filter must cover the installer itself.
+grep -q "infra/scripts/\*\*" "$DEPLOY_WF" \
+  && ok "push path filter covers infra/scripts/**" || bad "installer changes would not trigger the deploy"
+# Last step, so it can never block the clone refresh / dist rebuild above it.
+# `|| true` on both: with pipefail a missing match aborts the harness before the
+# summary, so the one failure that matters would take every later line with it.
+INST_LINE=$( { grep -n 'install-merge-queue-arm-sweep.sh' "$DEPLOY_WF" || true; } | tail -n1 | cut -d: -f1)
+LAST_STEP=$( { grep -n '^      - name:' "$DEPLOY_WF" || true; } | tail -n1 | cut -d: -f1)
+if [ -n "$INST_LINE" ] && [ -n "$LAST_STEP" ] && [ "$INST_LINE" -gt "$LAST_STEP" ]; then
+  ok "timer convergence is the final step"
+else
+  bad "timer convergence is not the last step (install=$INST_LINE last-step=$LAST_STEP)"
+fi
+python3 -c "
+import sys
+try: import yaml
+except ImportError: sys.exit(0)
+yaml.safe_load(open('$DEPLOY_WF'))
+" && ok "deploy workflow still parses as YAML" || bad "deploy workflow YAML is broken"
+
 
 echo
 echo "passed=$PASS failed=$FAIL"

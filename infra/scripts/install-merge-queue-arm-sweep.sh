@@ -8,14 +8,34 @@
 #
 # Fresh Droplets get this from cloud-init (droplet-bootstrap.yaml.tpl, which
 # carries the same unit bodies inline so a fresh provision never depends on the
-# repo clone). THIS script is the install path for an ALREADY-RUNNING box, where
-# the deploy user can't write /etc/systemd/system (its sudo is NOPASSWD only for
-# systemctl/ufw, and the account password is locked). Run it as root:
+# repo clone). THIS script is the install path for an ALREADY-RUNNING box, and
+# it is wired into deploy-host-scripts.yml so merging a change here installs the
+# timer with no human step at all.
 #
-#   • from the DigitalOcean web Console (logged in as root), or
-#   • ssh root@<droplet>  (Terraform SSH key is on root)
+# NO ROOT REQUIRED (GOL-3125, second pass). The first version of this script
+# wrote /etc/systemd/system directly, so it demanded root, and root SSH to this
+# droplet is not available to any agent — which parked the whole ticket on a
+# human pasting one line. That turned out to be avoidable:
 #
-# then paste exactly one line — that is the whole root step:
+#   • cloud-init grants `deploy` the sudoers rule
+#     `ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/sbin/ufw`, with NO argument
+#     restriction, so `deploy` may run ANY systemctl verb unattended; and
+#   • `systemctl link <absolute-path>` is the documented way to install a unit
+#     that lives outside the unit search path — systemd itself does the
+#     /etc/systemd/system write, as a symlink, so we never need write access to
+#     that directory.
+#
+# So: as root we write the unit files directly (unchanged, and what cloud-init
+# effectively does). As any user with passwordless systemctl we stage the same
+# bodies under ${UNIT_DIR} (deploy-owned) and `systemctl link` them. Both paths
+# end at the same `systemctl enable --now`.
+#
+# ${UNIT_DIR} is deliberately /opt/agenticos/units and NOT inside the git clone:
+# a linked unit's symlink target must survive `git reset --hard origin/main`, and
+# anything under ${REPO} is one force-push away from vanishing underneath
+# systemd.
+#
+# Usage, from anywhere with the deploy key (or root):
 #
 #   bash /opt/agenticos/repo/infra/scripts/install-merge-queue-arm-sweep.sh
 #
@@ -23,9 +43,11 @@
 # (do NOT `git reset` the clone by hand to fix that — see below), and it ends by
 # running one --dry-run tick, so its output is the verification.
 #
-# WHY User=root AND NOT User=deploy (the drift-guard's pattern)
+# WHY THE UNIT RUNS AS User=root AND NOT User=deploy (the drift-guard's pattern)
 #
-# The sweep needs two things the `deploy` user cannot be given cheaply:
+# Separate question from the one above. The INSTALLER needs no root, but the
+# installed service still runs as root, because the sweep needs two things the
+# `deploy` user cannot be given cheaply:
 #   1. /opt/agenticos/secrets/gh-broker-client.key — the broker client bearer,
 #      a chmod-600 secret deliberately kept out of /opt/agenticos/.env so that
 #      paperclip-server and its agent subprocesses never see it. Making it
@@ -43,15 +65,11 @@
 # inline copies in infra/cloud-init/droplet-bootstrap.yaml.tpl.
 set -euo pipefail
 
-if [ "$(id -u)" -ne 0 ]; then
-  echo "ERROR: must run as root (writes /etc/systemd/system)." >&2
-  echo "  → DO web Console as root, or 'ssh root@<droplet>', then: bash $0" >&2
-  exit 1
-fi
-
 REPO="${REPO:-/opt/agenticos/repo}"
 LOG_DIR="${LOG_DIR:-/var/log/agenticos}"
 BROKER_KEY="${BROKER_KEY:-/opt/agenticos/secrets/gh-broker-client.key}"
+SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
+UNIT_DIR="${UNIT_DIR:-/opt/agenticos/units}"
 mkdir -p "${LOG_DIR}"
 
 # ── Pre-flight: fail HERE, loudly, once — not every 5 minutes, quietly ────────
@@ -93,6 +111,31 @@ EOF
   exit 1
 fi
 
+# ── Privilege: root, or passwordless systemctl (the `deploy` sudoers rule) ───
+# Resolved AFTER the clone pre-flight on purpose: a stale clone must refuse with
+# the stale-clone remedy no matter who is running, and the pre-flight is pure
+# reads.
+if [ "$(id -u)" -eq 0 ]; then
+  SC=(systemctl)
+  PRIV=root
+elif sudo -n systemctl --version >/dev/null 2>&1; then
+  SC=(sudo -n systemctl)
+  PRIV=sudo-systemctl
+else
+  cat >&2 <<EOF
+ERROR: need either root, or passwordless sudo for systemctl.
+
+This box grants the deploy user 'ALL=(ALL) NOPASSWD: /bin/systemctl' in
+cloud-init, so running this as 'deploy' is the normal path and needs no root.
+If you are someone else, use root: the DigitalOcean web Console, or
+'ssh root@<droplet>', then:
+
+  bash $0
+EOF
+  exit 1
+fi
+echo "Privilege: ${PRIV}"
+
 # Both ship from the repo clone; the vendored sweep is exec'd directly.
 chmod +x "${REPO}/infra/scripts/merge-queue-arm-sweep.sh" 2>/dev/null || true
 chmod +x "${REPO}/infra/scripts/vendored/merge-queue-arm-automerge.sh" 2>/dev/null || true
@@ -109,9 +152,45 @@ elif ! docker inspect gh-token-broker >/dev/null 2>&1; then
   echo "         The sweep alerts to Discord and retries on the next tick." >&2
 fi
 
+# Normalize a unit body the same way the installer/cloud-init sync test does, so
+# "already installed by cloud-init" is decided on meaning, not on whitespace.
+norm_unit() { sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d'; }
+
 install_unit() { # $1 = unit filename; body on stdin
-  cat >"/etc/systemd/system/$1"
-  echo "  wrote /etc/systemd/system/$1"
+  local name="$1" body
+  body="$(cat)"
+
+  if [ "${PRIV}" = root ]; then
+    printf '%s\n' "${body}" >"${SYSTEMD_DIR}/${name}"
+    echo "  wrote ${SYSTEMD_DIR}/${name}"
+    return 0
+  fi
+
+  # Non-root. We cannot write ${SYSTEMD_DIR}; systemd can, via `systemctl link`.
+  mkdir -p "${UNIT_DIR}"
+  printf '%s\n' "${body}" >"${UNIT_DIR}/${name}"
+  echo "  staged ${UNIT_DIR}/${name}"
+
+  # A fresh droplet already has these as REAL files from cloud-init's
+  # write_files. Linking over a regular file is not something `systemctl link`
+  # will do, and it should not: if the bodies agree there is nothing to install,
+  # and if they disagree only root can resolve it. Decide, do not guess.
+  if [ -f "${SYSTEMD_DIR}/${name}" ] && [ ! -L "${SYSTEMD_DIR}/${name}" ]; then
+    if diff -q <(norm_unit <"${SYSTEMD_DIR}/${name}") <(printf '%s\n' "${body}" | norm_unit) >/dev/null 2>&1; then
+      echo "  ${SYSTEMD_DIR}/${name} already present and identical (cloud-init) — not relinking"
+      return 0
+    fi
+    cat >&2 <<EOF
+ERROR: ${SYSTEMD_DIR}/${name} exists as a regular file and DIFFERS from the body
+       this installer would install, and a non-root run cannot replace it.
+       Re-run as root (DO web Console / ssh root@<droplet>) to overwrite it:
+         bash $0
+EOF
+    exit 1
+  fi
+
+  "${SC[@]}" link --force "${UNIT_DIR}/${name}"
+  echo "  linked ${SYSTEMD_DIR}/${name} -> ${UNIT_DIR}/${name}"
 }
 
 echo "Installing merge-queue arming sweep unit (REPO=${REPO})…"
@@ -144,12 +223,12 @@ Unit=agenticos-merge-queue-arm.service
 WantedBy=timers.target
 UNIT
 
-systemctl daemon-reload
-systemctl enable --now agenticos-merge-queue-arm.timer
+"${SC[@]}" daemon-reload
+"${SC[@]}" enable --now agenticos-merge-queue-arm.timer
 
 echo
 echo "Enabled. Scheduled runs:"
-systemctl list-timers 'agenticos-merge-queue-arm.timer' --no-pager || true
+"${SC[@]}" list-timers 'agenticos-merge-queue-arm.timer' --no-pager || true
 
 # ── Self-verify: prove the install, do not hand back a checklist ─────────────
 # One --dry-run tick exercises the whole path (broker mint -> per-repo GraphQL
@@ -170,7 +249,7 @@ fi
 
 echo
 echo "Force one real tick now, and read the log:"
-echo "  systemctl start agenticos-merge-queue-arm.service"
+echo "  ${SC[*]} start agenticos-merge-queue-arm.service"
 echo "  tail -n 80 ${LOG_DIR}/merge-queue-arm.log"
 echo
 echo "The timer NEVER sets ARM_PROTECTED=1 (that needs a board decision); the"
