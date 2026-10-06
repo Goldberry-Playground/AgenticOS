@@ -43,6 +43,7 @@ export function HealthVista() {
 
   return (
     <VistaShell
+      scope="Health"
       accent="pine"
       asOfMs={dataUpdatedAt}
       backdrop={<LatencyOscilloscopeBackdrop />}

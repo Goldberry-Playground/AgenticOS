@@ -42,7 +42,7 @@ describe("KpiVista", () => {
     const { container } = renderWithQuery(<KpiVista />);
     const meta = container.querySelector(".vista-meta");
     expect(meta).not.toBeNull();
-    expect(meta?.textContent).toMatch(/Live/);
+    expect(meta?.textContent).toMatch(/Fleet · live as of/);
     expect(container.querySelector(".live-dot")).not.toBeNull();
   });
 
@@ -99,7 +99,7 @@ describe("KpiVista", () => {
   it("shows an em-dash, not a fabricated time, until a KPI fetch resolves", () => {
     const { container } = renderWithQuery(<KpiVista />);
     expect(container.querySelector(".vista-meta")?.textContent).toMatch(
-      /Live · as of\s*\u2014/,
+      /Fleet · live as of\s*\u2014/,
     );
   });
 
@@ -134,7 +134,7 @@ describe("KpiVista", () => {
       .map((n) => n.toString().padStart(2, "0"))
       .join(":");
     expect(container.querySelector(".vista-meta")?.textContent).toContain(
-      `Live · as of ${expected}`,
+      `Fleet · live as of ${expected}`,
     );
   });
 });

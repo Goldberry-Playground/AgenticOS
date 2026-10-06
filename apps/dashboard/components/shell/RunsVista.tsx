@@ -81,6 +81,7 @@ export function RunsVista() {
 
   return (
     <VistaShell
+      scope="Runs"
       accent="gold"
       asOfMs={freshestUpdatedAt(
         eventsQuery.dataUpdatedAt,

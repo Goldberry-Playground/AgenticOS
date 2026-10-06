@@ -11,7 +11,7 @@ describe("VistaShell", () => {
 
   it("renders the dusk console chrome with horizons and live meta", () => {
     const { container } = render(
-      <VistaShell backdrop={<div data-testid="bd" />}>
+      <VistaShell scope="Runs" backdrop={<div data-testid="bd" />}>
         <KpiTile value="1" label="alpha" />
         <KpiTile value="2" label="beta" />
         <KpiTile value="3" label="gamma" />
@@ -27,7 +27,7 @@ describe("VistaShell", () => {
 
   it("renders the supplied KPI tiles inside .kpi-grid", () => {
     const { container } = render(
-      <VistaShell backdrop={null}>
+      <VistaShell scope="Runs" backdrop={null}>
         <KpiTile value="1" label="alpha" />
         <KpiTile value="2" label="beta" />
         <KpiTile value="3" label="gamma" />
@@ -40,7 +40,7 @@ describe("VistaShell", () => {
 
   it("applies data-accent attribute (defaults to gold)", () => {
     const { container, rerender } = render(
-      <VistaShell backdrop={null}>
+      <VistaShell scope="Runs" backdrop={null}>
         <KpiTile value="x" label="x" />
       </VistaShell>,
     );
@@ -49,7 +49,7 @@ describe("VistaShell", () => {
     ).toBe("gold");
 
     rerender(
-      <VistaShell accent="copper" backdrop={null}>
+      <VistaShell scope="Runs" accent="copper" backdrop={null}>
         <KpiTile value="x" label="x" />
       </VistaShell>,
     );
@@ -61,7 +61,7 @@ describe("VistaShell", () => {
   it("formats asOfMs into HH:MM:SS in the live indicator", () => {
     const at = new Date("2026-05-28T09:07:03Z").getTime();
     const { container } = render(
-      <VistaShell asOfMs={at} backdrop={null}>
+      <VistaShell scope="Runs" asOfMs={at} backdrop={null}>
         <KpiTile value="x" label="x" />
       </VistaShell>,
     );
@@ -70,7 +70,7 @@ describe("VistaShell", () => {
       .map((n) => n.toString().padStart(2, "0"))
       .join(":");
     expect(container.querySelector(".vista-meta")?.textContent).toBe(
-      `Live · as of ${expected}`,
+      `Runs · live as of ${expected}`,
     );
   });
 
@@ -94,7 +94,7 @@ describe("VistaShell", () => {
     vi.useFakeTimers();
 
     const tree = (
-      <VistaShell backdrop={null}>
+      <VistaShell scope="Runs" backdrop={null}>
         <KpiTile value="x" label="x" />
       </VistaShell>
     );
@@ -119,24 +119,24 @@ describe("VistaShell", () => {
     vi.setSystemTime(new Date("2026-10-05T23:30:26.000Z"));
 
     const { container } = render(
-      <VistaShell backdrop={null}>
+      <VistaShell scope="Runs" backdrop={null}>
         <KpiTile value="x" label="x" />
       </VistaShell>,
     );
 
     expect(container.querySelector(".vista-meta")?.textContent).toBe(
-      "Live · as of \u2014",
+      "Runs · live as of \u2014",
     );
   });
 
   it("treats asOfMs={0} as 'no data yet' rather than the Unix epoch", () => {
     const { container } = render(
-      <VistaShell asOfMs={0} backdrop={null}>
+      <VistaShell scope="Runs" asOfMs={0} backdrop={null}>
         <KpiTile value="x" label="x" />
       </VistaShell>,
     );
     expect(container.querySelector(".vista-meta")?.textContent).toBe(
-      "Live · as of \u2014",
+      "Runs · live as of \u2014",
     );
   });
 
@@ -152,7 +152,7 @@ describe("VistaShell", () => {
     vi.setSystemTime(fetchedAt + 45 * 60_000);
 
     const { container } = render(
-      <VistaShell asOfMs={fetchedAt} backdrop={null}>
+      <VistaShell scope="Runs" asOfMs={fetchedAt} backdrop={null}>
         <KpiTile value="x" label="x" />
       </VistaShell>,
     );
@@ -162,7 +162,7 @@ describe("VistaShell", () => {
       .map((n) => n.toString().padStart(2, "0"))
       .join(":");
     expect(container.querySelector(".vista-meta")?.textContent).toBe(
-      `Live · as of ${expected}`,
+      `Runs · live as of ${expected}`,
     );
   });
 });

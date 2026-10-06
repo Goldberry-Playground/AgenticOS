@@ -891,6 +891,24 @@
   text-transform: uppercase;
   z-index: 2;
 }
+/*
+ * GOL-3099 — reserve the loaded footprint of the clock.
+ *
+ * `.vista-meta` is right-anchored, and the time is the only part of the chip
+ * whose width changes, so the `—` placeholder used to pull the left edge in:
+ * measured 108px placeholder against 156px loaded, a 48px jump about a second
+ * after first paint, on both banners and at both viewports. `min-width` is
+ * `HH:MM:SS` (8 monospace advances) plus a little more than the 8 × 0.08em of
+ * tracking it carries, so the declared width always governs over the content
+ * width and the two states measure identically. `tabular-nums` keeps the
+ * digits even if the webfont fails and a proportional fallback is used.
+ */
+.vista-meta .as-of-time {
+  display: inline-block;
+  min-width: calc(8ch + 0.75em);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
 .vista-meta .live-dot {
   width: 6px;
   height: 6px;
