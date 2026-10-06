@@ -23,8 +23,32 @@ function formatDeltaCount(n: number): string {
   return `+${n}`;
 }
 
-function liveTimestamp(): string {
-  const d = new Date();
+/**
+ * GOL-2653 / GOL-3073 — this used to be `liveTimestamp()`, called with no
+ * argument *during render*, so it read `new Date()` fresh on the server and
+ * again on the client. Two things were wrong with that:
+ *
+ * 1. It is a guaranteed hydration mismatch the moment the second ticks over
+ *    between the SSR render and hydration. React's recovery is to throw away
+ *    the server HTML and "regenerate this tree on the client" — it re-renders
+ *    and replaces the DOM for the whole root, not just this span. That broke
+ *    `e2e/focus-visible.spec.ts`, which tags header controls with a
+ *    `data-focus-probe` attribute and then Tabs through reading it back: the
+ *    regeneration deletes every attribute it just wrote, so the probe found
+ *    zero controls and main went red on a commit whose merge-queue run,
+ *    three minutes earlier on the identical tree, had passed.
+ * 2. It also lied. Called once during render and never again, the "Live · as
+ *    of" clock froze at first paint and never ticked, while the readings next
+ *    to it refreshed every 30s underneath it.
+ *
+ * Taking an explicit instant fixes both. The caller passes
+ * `dataUpdatedAt` from the KPI query, which is 0 until a fetch actually
+ * resolves — so SSR and the first client render agree on "no time yet", and
+ * the value that does appear is the real as-of time of the data rather than a
+ * wall clock that happens to be near it.
+ */
+function liveTimestamp(epochMs: number): string {
+  const d = new Date(epochMs);
   const hh = d.getHours().toString().padStart(2, "0");
   const mm = d.getMinutes().toString().padStart(2, "0");
   const ss = d.getSeconds().toString().padStart(2, "0");
@@ -32,7 +56,7 @@ function liveTimestamp(): string {
 }
 
 export function KpiVista() {
-  const { data } = useKpiData();
+  const { data, dataUpdatedAt } = useKpiData();
 
   const runsToday = data?.runsToday ?? null;
   const runs = data?.activeRuns ?? null;
@@ -45,7 +69,9 @@ export function KpiVista() {
 
       <div className="vista-meta" aria-label="Live data indicator">
         <span className="live-dot" aria-hidden="true" />
-        <span>Live · as of {liveTimestamp()}</span>
+        <span>
+          Live · as of {dataUpdatedAt ? liveTimestamp(dataUpdatedAt) : "—"}
+        </span>
       </div>
 
       <div className="horizon top" />
