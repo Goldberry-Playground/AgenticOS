@@ -68,6 +68,35 @@ export function extractReferencedPaths(markdown) {
   return found;
 }
 
+/**
+ * `<!-- skill-audit-ignore: scripts/a.sh, references/b.md -->`
+ *
+ * A SKILL.md sometimes quotes a path that belongs to a *different* skill — the
+ * `paperclip-board-writes` skill cites the bundled `paperclip` skill's
+ * inventory as evidence, and `extractReferencedPaths` is deliberately
+ * permissive about where a path appears, so that citation read as a dropped
+ * entrypoint. That is a false positive on a skill attached to every agent,
+ * which is the fastest way to teach people to ignore a control.
+ *
+ * The fix is an explicit, reviewable opt-out rather than a heuristic about
+ * invocation position: tightening the extractor to "command position only"
+ * would also stop catching `odoo-logistics`, the GOL-2963 founding case, whose
+ * dropped `scripts/*.py` are documented in prose. Suppression has to be a
+ * visible edit to the skill's own body, and the report always prints the count
+ * so a silenced path is never invisible.
+ */
+export function extractIgnoredPaths(markdown) {
+  const ignored = new Set();
+  if (!markdown) return ignored;
+  for (const match of markdown.matchAll(/<!--\s*skill-audit-ignore:\s*([^>]*?)\s*-->/g)) {
+    for (const raw of match[1].split(/[,\s]+/)) {
+      const path = raw.replace(/^[`'"]+|[`'".,;]+$/g, "").trim();
+      if (path) ignored.add(path);
+    }
+  }
+  return ignored;
+}
+
 function inventoryPaths(skill) {
   return new Set((skill.fileInventory ?? []).map((entry) => (typeof entry === "string" ? entry : entry?.path)).filter(Boolean));
 }
@@ -79,7 +108,11 @@ function inventoryPaths(skill) {
 export function auditSkill(skill) {
   const installed = inventoryPaths(skill);
   const referenced = extractReferencedPaths(skill.markdown);
-  const dropped = [...referenced].filter((path) => !installed.has(path)).sort();
+  const ignored = extractIgnoredPaths(skill.markdown);
+  const dropped = [...referenced]
+    .filter((path) => !installed.has(path) && !ignored.has(path))
+    .sort();
+  const ignoredPaths = [...referenced].filter((path) => ignored.has(path)).sort();
   const droppedScripts = dropped.filter((path) => path.startsWith("scripts/"));
   const reasons = [];
 
@@ -114,6 +147,9 @@ export function auditSkill(skill) {
     attachedAgentCount: skill.attachedAgentCount ?? null,
     installedCount: installed.size,
     droppedPaths: dropped,
+    // Printed in the report even on a clean skill: a suppression nobody can
+    // see is a suppression nobody will revisit.
+    ignoredPaths,
     degraded: reasons.length > 0,
     reasons,
   };
@@ -157,6 +193,13 @@ export function formatReport(audit) {
     for (const reason of finding.reasons) lines.push(`   • ${reason.code}: ${reason.detail}`);
     lines.push("   dropped:");
     for (const path of finding.droppedPaths) lines.push(`     - ${path}`);
+  }
+  const suppressed = audit.results.filter((r) => (r.ignoredPaths ?? []).length > 0);
+  for (const skill of suppressed) {
+    lines.push("");
+    lines.push(`ℹ️  SUPPRESSED  ${skill.key} declares skill-audit-ignore for:`);
+    for (const path of skill.ignoredPaths) lines.push(`     - ${path}`);
+    lines.push("   these are quoted from another skill, not this skill's entrypoints");
   }
   for (const collision of audit.slugCollisions) {
     lines.push("");

@@ -126,6 +126,23 @@ re-ship the file to a directory the cron never reads. If the audit ever exits
 yields the identical FATAL, which is precisely the burned-heartbeat loop this
 feature exists to prevent.
 
+## When a SKILL.md legitimately quotes another skill's path
+
+The path extractor is permissive about *where* a path appears, because the
+GOL-2963 founding case documents its dropped `scripts/*.py` in prose, not in
+command position. The cost of that permissiveness is that a skill which cites
+**another** skill's file as evidence gets reded for it. Declare those paths:
+
+```markdown
+<!-- skill-audit-ignore: scripts/paperclip-upload-artifact.sh, references/other.md -->
+```
+
+Per-path, not a blanket mute: a second undeclared missing path still reds, and
+the report prints an `ℹ️ SUPPRESSED` block for every declared path, so a
+suppression is always visible to the next reader. Use it only for paths that
+belong to a different skill — if the path is this skill's own entrypoint, the
+finding is real and the fix is to ship the file or stop documenting it.
+
 ## Known findings (2026-10-05)
 
 - `goldberry-playground/odoocker-goldberrygrove/odoo-logistics` — the original

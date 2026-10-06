@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
   auditSkill,
   auditSkills,
+  extractIgnoredPaths,
   extractReferencedPaths,
   formatReport,
 } from "../ops/audit-company-skills.mjs";
@@ -182,6 +183,71 @@ test("the report names the dropped entrypoint, not just a count", () => {
   const report = formatReport(auditSkills([degradedSkill]));
   assert.match(report, /scripts\/odoo_client\.py/);
   assert.match(report, /scripts_executables_blocked/);
+});
+
+console.log("skill-audit-ignore");
+
+// Regression: the live 2026-10-05 run reded `paperclip-board-writes` for
+// `scripts/paperclip-upload-artifact.sh` — a path its SKILL.md quotes as
+// *evidence about the bundled `paperclip` skill's inventory*, not as its own
+// entrypoint. A control that wrongly reds a skill attached to all 7 agents is
+// a control people learn to ignore.
+const QUOTING_SKILL_MD = `---
+name: paperclip-board-writes
+---
+<!-- skill-audit-ignore: scripts/paperclip-upload-artifact.sh -->
+
+The bundled skill's \`fileInventory\` contains exactly one script,
+\`scripts/paperclip-upload-artifact.sh\`, which is why the helper it documents
+path-404s. Use \`scripts/set_blockers.py\` from *this* skill instead.
+`;
+
+const quotingSkill = {
+  id: "87d032ee",
+  key: "company/6a74334e/paperclip-board-writes",
+  slug: "paperclip-board-writes",
+  sourceType: "local_path",
+  trustLevel: "scripts_executables",
+  attachedAgentCount: 7,
+  fileInventory: ["SKILL.md", "scripts/set_blockers.py"],
+  markdown: QUOTING_SKILL_MD,
+};
+
+test("parses one or many ignore markers, tolerating backticks and commas", () => {
+  const ignored = extractIgnoredPaths(
+    "a <!-- skill-audit-ignore: scripts/a.sh, references/b.md -->\n" +
+      "b <!--skill-audit-ignore:  `scripts/c.py` -->",
+  );
+  assert.deepEqual([...ignored].sort(), ["references/b.md", "scripts/a.sh", "scripts/c.py"]);
+});
+
+test("a quoted foreign path declared ignored does not red the skill", () => {
+  const finding = auditSkill(quotingSkill);
+  assert.equal(finding.degraded, false, "declared-ignored path must not count as dropped");
+  assert.deepEqual(finding.droppedPaths, []);
+  assert.deepEqual(finding.ignoredPaths, ["scripts/paperclip-upload-artifact.sh"]);
+});
+
+test("the suppression is printed, never silent", () => {
+  const report = formatReport(auditSkills([quotingSkill]));
+  assert.match(report, /SUPPRESSED/);
+  assert.match(report, /scripts\/paperclip-upload-artifact\.sh/);
+});
+
+test("an undeclared missing path still reds, so the marker cannot be forgotten into silence", () => {
+  const noMarker = { ...quotingSkill, markdown: QUOTING_SKILL_MD.replace(/<!-- skill-audit-ignore:[^>]*-->/, "") };
+  assert.equal(auditSkill(noMarker).degraded, true);
+});
+
+test("a marker cannot hide a path the skill genuinely invokes elsewhere -- it is per-path, not a blanket mute", () => {
+  // Declaring one path ignored must not excuse a second, undeclared one.
+  const twoMissing = {
+    ...quotingSkill,
+    markdown: QUOTING_SKILL_MD + "\nThen run `scripts/really-missing.sh` to finish.\n",
+  };
+  const finding = auditSkill(twoMissing);
+  assert.equal(finding.degraded, true);
+  assert.deepEqual(finding.droppedPaths, ["scripts/really-missing.sh"]);
 });
 
 if (failures > 0) {
