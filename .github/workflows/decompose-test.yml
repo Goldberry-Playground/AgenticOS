@@ -1,5 +1,12 @@
 name: decompose-test
 
+# GOL-3080: `paths:` is NOT supported on `merge_group`, so the queue leg ignores
+# the filter declared below and this re-runs on EVERY entry. The `paths` step
+# re-applies the same list via scripts/ci/merge-group-paths.sh (which fails OPEN
+# on any ambiguity), keeping the merge-commit gate but making it conditional
+# rather than dropping it. Keep the two pattern lists in sync;
+# scripts/ci/merge-group-paths.test.sh asserts this exact set.
+
 on:
   merge_group:
   pull_request:
@@ -13,17 +20,45 @@ on:
       - "scripts/decompose.py"
       - "scripts/tests/**"
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - id: paths
+        name: Does this entry touch the decompose paths?
+        # pull_request/push already had `paths:` applied by GitHub and
+        # short-circuit to true; only `merge_group` needs it re-applied.
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$EVENT" != 'merge_group' ]; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hit=$(bash scripts/ci/merge-group-paths.sh --base "$BASE_SHA" --head "$HEAD_SHA" \
+            --pattern 'scripts/decompose.py' \
+            --pattern 'scripts/tests/**' \
+            --pattern '.github/workflows/decompose-test.yml')
+          echo "hit=$hit" >> "$GITHUB_OUTPUT"
+          if [ "$hit" != 'true' ]; then
+            echo "::notice::Queue entry touches none of the decompose paths — skipping."
+          fi
+      - if: steps.paths.outputs.hit == 'true'
+        uses: actions/setup-python@v7
         with:
           python-version: "3.x"
       - name: Unit tests (stdlib only)
+        if: steps.paths.outputs.hit == 'true'
         run: python3 scripts/tests/test_decompose.py
       - name: Acceptance dry-run (sample spec → 3 real ownership.yml)
+        if: steps.paths.outputs.hit == 'true'
         run: |
           python3 scripts/decompose.py \
             --spec scripts/tests/fixtures/sample-spec.yml \
