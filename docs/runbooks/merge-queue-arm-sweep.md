@@ -76,24 +76,57 @@ of. `deploy-droplet.yml` does not touch that clone.
 NOPASSWD only for `systemctl`/`ufw` with the account password locked. No agent
 has root SSH to this box (`~/.ssh/agenticos-droplet.pub` is the public half
 only, and no private counterpart exists in 1Password). So, as **root**, from the
-DigitalOcean web Console or `ssh root@<droplet>`:
+DigitalOcean web Console or `ssh root@<droplet>`, paste exactly this one line:
 
 ```bash
-cd /opt/agenticos/repo && git fetch origin main && git reset --hard origin/main
-bash infra/scripts/install-merge-queue-arm-sweep.sh
+bash /opt/agenticos/repo/infra/scripts/install-merge-queue-arm-sweep.sh
 ```
 
-Idempotent — safe to re-run. Then verify:
+That is the whole root step. It is idempotent, it refuses safely if the clone is
+not current yet (below), and it ends by running one `--dry-run` tick itself, so
+the output *is* the verification — there is no checklist to work through
+afterwards. A fresh droplet needs none of it: cloud-init carries the units
+inline and enables the timer.
+
+### ⚠️ Do NOT `git reset` the clone by hand to make the script appear
+
+The merge of the host scripts and the arrival of those scripts on the box are
+two separate events. `deploy-host-scripts.yml` fires on the push to `main` and
+refreshes `/opt/agenticos/repo`; until it has run, the installer is not there.
+The obvious fix is the wrong one:
+
+```bash
+# ❌ never
+cd /opt/agenticos/repo && git fetch origin main && git reset --hard origin/main
+```
+
+That clone bind-mounts `packages/<plugin>` straight into `paperclip-server`, so
+a bare reset reverts every live plugin bundle to whatever `dist/` happens to be
+committed — silently, with nothing red anywhere. It happened on 2026-09-29
+(GOL-2591) and knocked out the github-sync liveness heartbeat 14 minutes after
+it armed. `deploy-host-scripts.yml` is the only refresh that pairs the reset
+with `rebuild-plugin-dists.sh` and a registry convergence.
+
+So if the installer says the clone predates the merge, re-run that workflow and
+then re-run the installer:
+
+> Actions ▸ **Deploy Host Scripts** ▸ Run workflow (branch `main`)
+> <https://github.com/Goldberry-Playground/AgenticOS/actions/workflows/deploy-host-scripts.yml>
+
+The installer's pre-flight checks this for you and refuses with that remedy
+rather than installing a unit that would fail on a missing file every five
+minutes forever. It also warns — without refusing — if
+`/opt/agenticos/secrets/gh-broker-client.key` is unreadable or the
+`gh-token-broker` container is down: a missing key never fixes itself, a down
+broker does, and neither is worth leaving the queue unguarded over.
+
+### Manual verification, if you want more than the self-check
 
 ```bash
 systemctl list-timers agenticos-merge-queue-arm.timer --no-pager
-/opt/agenticos/repo/infra/scripts/merge-queue-arm-sweep.sh --dry-run   # arms nothing
-systemctl start agenticos-merge-queue-arm.service
+systemctl start agenticos-merge-queue-arm.service   # force one real tick
 tail -n 80 /var/log/agenticos/merge-queue-arm.log
 ```
-
-A fresh droplet needs none of this — cloud-init carries the units inline and
-enables the timer.
 
 ## Reading the log
 

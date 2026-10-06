@@ -262,6 +262,78 @@ for f in "$VENDORED" "$WRAPPER" "$INSTALLER"; do
   fi
 done
 
+echo "== 9. the installer refuses a stale clone instead of failing every 5 minutes"
+# The unit ExecStarts out of ${REPO}. Installed against a clone that predates the
+# GOL-3125 merge, it would install cleanly and then fail on a missing file on
+# every single tick, forever, with nothing but a growing log to say so. The
+# pre-flight has to refuse BEFORE it writes anything to /etc/systemd/system —
+# which is also what makes this case safe to run for real here.
+cat >"$BIN/id" <<'STUB'
+#!/usr/bin/env bash
+# Pretend to be root so the installer reaches the pre-flight under test. It must
+# still refuse before any /etc write, which is why this is safe.
+[ "${1:-}" = "-u" ] && { echo 0; exit 0; }
+exec /usr/bin/id "$@"
+STUB
+chmod +x "$BIN/id"
+mkdir -p "$WORK/staleclone"
+set +e
+PATH="$BIN:$PATH" env REPO="$WORK/staleclone" LOG_DIR="$WORK/log" \
+  BROKER_KEY="$WORK/secrets/gh-broker-client.key" \
+  bash "$INSTALLER" >"$WORK/inst.txt" 2>&1
+RC=$?
+set -e
+check "refuses a clone missing the payload (exit 1)" "$RC" "1"
+grep -q 'merge-queue-arm-sweep.sh does not exist' "$WORK/inst.txt" \
+  && ok "names the missing file" || bad "does not name the missing file"
+grep -q 'Deploy Host Scripts' "$WORK/inst.txt" \
+  && ok "points at the safe refresh (deploy-host-scripts.yml)" || bad "no safe-refresh remedy"
+grep -q "Do NOT 'git reset --hard'" "$WORK/inst.txt" \
+  && ok "warns off the hand-reset (GOL-2591 dist revert)" || bad "no GOL-2591 warning"
+grep -q 'wrote /etc/systemd/system' "$WORK/inst.txt" \
+  && bad "wrote a unit before the pre-flight refused!" || ok "wrote nothing to /etc/systemd/system"
+rm -f "$BIN/id"
+
+# The remedy must stay a remedy, not become something the installer does itself:
+# this clone bind-mounts the live plugin dists, so a bare reset here reverts them
+# with no signal (GOL-2591). deploy-host-scripts.yml is the only refresh that
+# pairs the reset with a rebuild + registry convergence.
+# Anchored at start-of-line so the refusal message's own prose ("Do NOT 'git
+# reset --hard' …") is not mistaken for a command.
+if grep -qE '^[[:space:]]*(sudo(( -[^ ]+)* -u [^ ]+)? )?git +(-C [^ ]+ +)?(reset|pull|fetch|checkout)' "$INSTALLER"; then
+  bad "installer mutates the host clone — that reverts bind-mounted plugin dists (GOL-2591)"
+else
+  ok "installer never git-resets/pulls the host clone"
+fi
+
+# A missing broker KEY never fixes itself; a broker container that is down right
+# now does. Neither may block the install — an unguarded queue is worse than a
+# warning, and the sweep already alerts on a dead broker at tick time.
+grep -q 'WARNING: broker client key' "$INSTALLER" \
+  && ok "warns (not errors) on a missing broker key" || bad "no broker-key pre-flight"
+grep -q 'WARNING: the gh-token-broker container is not running' "$INSTALLER" \
+  && ok "warns (not errors) on a down broker" || bad "no broker-container pre-flight"
+
+echo "== 10. the install self-verifies instead of handing back a checklist"
+grep -q 'merge-queue-arm-sweep.sh" --dry-run || DRY_RC=\$?' "$INSTALLER" \
+  && ok "runs one --dry-run tick and captures its exit code" \
+  || bad "installer does not self-verify with a dry-run"
+# ...and a failed dry-run must NOT unwind the timer: the timer being live is the
+# whole point of GOL-3125, and a transient broker blip must not leave the
+# sequential queue unguarded behind a dead merge group.
+awk '/Self-verifying with one --dry-run/,0' "$INSTALLER" | grep -qE '^\s*(exit [1-9]|systemctl (disable|stop))' \
+  && bad "a failed self-verify unwinds or fails the install" \
+  || ok "a failed self-verify leaves the timer enabled"
+# The enable must happen BEFORE the self-verify, or a dry-run failure would mean
+# the timer was never armed at all.
+ENABLE_LINE=$(grep -n 'systemctl enable --now agenticos-merge-queue-arm.timer' "$INSTALLER" | head -n1 | cut -d: -f1)
+VERIFY_LINE=$(grep -n 'Self-verifying with one --dry-run' "$INSTALLER" | head -n1 | cut -d: -f1)
+if [ -n "$ENABLE_LINE" ] && [ -n "$VERIFY_LINE" ] && [ "$ENABLE_LINE" -lt "$VERIFY_LINE" ]; then
+  ok "timer is enabled before the self-verify runs"
+else
+  bad "self-verify runs before the timer is enabled (enable=$ENABLE_LINE verify=$VERIFY_LINE)"
+fi
+
 echo
 echo "passed=$PASS failed=$FAIL"
 [ "$FAIL" -eq 0 ]
