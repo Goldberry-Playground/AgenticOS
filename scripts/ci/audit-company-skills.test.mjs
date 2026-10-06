@@ -9,12 +9,15 @@
  * stops reding that shape, this test fails.
  */
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
+  ACKNOWLEDGEMENT_FILE,
   auditSkill,
   auditSkills,
   extractIgnoredPaths,
   extractReferencedPaths,
   formatReport,
+  parseAcknowledgements,
 } from "../ops/audit-company-skills.mjs";
 
 let failures = 0;
@@ -248,6 +251,186 @@ test("a marker cannot hide a path the skill genuinely invokes elsewhere -- it is
   const finding = auditSkill(twoMissing);
   assert.equal(finding.degraded, true);
   assert.deepEqual(finding.droppedPaths, ["scripts/really-missing.sh"]);
+});
+
+console.log("\nexpiring acknowledgements (editable:false skills)");
+
+// The real shape this lane exists for: the bundled `paperclip` skill documents
+// a script the package does not ship, and is installed `editable:false` so its
+// body cannot be annotated honest. Without an ack lane the weekly audit reds on
+// this forever, which is how a control gets muted.
+const VENDORED_SKILL_MD = `---
+name: paperclip
+---
+For a multiline comment body, run \`scripts/paperclip-issue-update.sh\`.
+`;
+
+const vendoredSkill = {
+  id: "22758459-6c0a-4e5a-9b4f-2a4b7f0c9d11",
+  key: "paperclipai/paperclip/paperclip",
+  slug: "paperclip",
+  sourceType: "local_path",
+  trustLevel: "scripts_executables",
+  editable: false,
+  attachedAgentCount: 1,
+  fileInventory: [{ path: "SKILL.md" }, { path: "scripts/paperclip-upload-artifact.sh" }],
+  markdown: VENDORED_SKILL_MD,
+};
+
+const NOW = new Date("2026-10-06T06:00:00Z");
+const ackFor = (overrides = {}) => [
+  {
+    skillKey: "paperclipai/paperclip/paperclip",
+    path: "scripts/paperclip-issue-update.sh",
+    expires: "2027-01-06",
+    expiresAt: new Date("2027-01-06T23:59:59.999Z"),
+    issue: "GOL-3030",
+    reason: "upstream package drift; mitigated by paperclip-board-writes",
+    ...overrides,
+  },
+];
+
+test("with no acknowledgement the vendored skill reds", () => {
+  const finding = auditSkill(vendoredSkill, { now: NOW });
+  assert.equal(finding.degraded, true);
+  assert.deepEqual(finding.droppedPaths, ["scripts/paperclip-issue-update.sh"]);
+});
+
+test("an in-date acknowledgement on an editable:false skill suppresses the finding", () => {
+  const finding = auditSkill(vendoredSkill, { acknowledgements: ackFor(), now: NOW });
+  assert.equal(finding.degraded, false);
+  assert.deepEqual(finding.droppedPaths, []);
+  assert.equal(finding.acknowledgedPaths.length, 1);
+  assert.equal(finding.acknowledgedPaths[0].issue, "GOL-3030");
+});
+
+test("the acknowledgement is printed with its issue and expiry, never silent", () => {
+  const report = formatReport(auditSkills([vendoredSkill], { acknowledgements: ackFor(), now: NOW }));
+  assert.match(report, /ACKNOWLEDGED/);
+  assert.match(report, /GOL-3030/);
+  assert.match(report, /expires 2027-01-06/);
+});
+
+test("an EXPIRED acknowledgement stops suppressing and the finding reds again", () => {
+  const stale = ackFor({ expires: "2026-10-01", expiresAt: new Date("2026-10-01T23:59:59.999Z") });
+  const finding = auditSkill(vendoredSkill, { acknowledgements: stale, now: NOW });
+  assert.equal(finding.degraded, true, "an expired entry must not suppress");
+  assert.deepEqual(finding.droppedPaths, ["scripts/paperclip-issue-update.sh"]);
+  assert.equal(finding.expiredAcknowledgements.length, 1);
+  const report = formatReport(auditSkills([vendoredSkill], { acknowledgements: stale, now: NOW }));
+  assert.match(report, /ACKNOWLEDGEMENT EXPIRED/);
+});
+
+test("an entry expiring today is still in date (end-of-day, not start)", () => {
+  const today = ackFor({ expires: "2026-10-06", expiresAt: new Date("2026-10-06T23:59:59.999Z") });
+  assert.equal(auditSkill(vendoredSkill, { acknowledgements: today, now: NOW }).degraded, false);
+});
+
+test("an acknowledgement expiring within 14 days says so, so renewal is not a surprise", () => {
+  const soon = ackFor({ expires: "2026-10-12", expiresAt: new Date("2026-10-12T23:59:59.999Z") });
+  const report = formatReport(auditSkills([vendoredSkill], { acknowledgements: soon, now: NOW }));
+  assert.match(report, /expiring soon/);
+});
+
+test("the ack file is REJECTED for an editable skill -- that case must use the in-body marker", () => {
+  const editable = { ...vendoredSkill, editable: true };
+  const finding = auditSkill(editable, { acknowledgements: ackFor(), now: NOW });
+  assert.equal(finding.degraded, true, "an editable skill must not be silenced out of band");
+  assert.equal(finding.rejectedAcknowledgements.length, 1);
+  const report = formatReport(auditSkills([editable], { acknowledgements: ackFor(), now: NOW }));
+  assert.match(report, /ACKNOWLEDGEMENT REJECTED/);
+});
+
+test("a payload that omits `editable` is treated as editable -- fail closed, no suppression on a guess", () => {
+  const { editable: _unused, ...unknown } = vendoredSkill;
+  assert.equal(auditSkill(unknown, { acknowledgements: ackFor(), now: NOW }).degraded, true);
+});
+
+test("an acknowledgement is per-path and per-skill, not a blanket mute", () => {
+  const twoMissing = {
+    ...vendoredSkill,
+    markdown: VENDORED_SKILL_MD + "\nAlso run `scripts/paperclip-not-shipped.sh`.\n",
+  };
+  const finding = auditSkill(twoMissing, { acknowledgements: ackFor(), now: NOW });
+  assert.equal(finding.degraded, true);
+  assert.deepEqual(finding.droppedPaths, ["scripts/paperclip-not-shipped.sh"]);
+  // An entry naming another skill's key must not reach this one.
+  const wrongSkill = ackFor({ skillKey: "someone-else/other/skill" });
+  assert.equal(auditSkill(vendoredSkill, { acknowledgements: wrongSkill, now: NOW }).degraded, true);
+});
+
+test("an acknowledgement whose finding is gone is reported STALE but does not red a clean library", () => {
+  const fixed = {
+    ...vendoredSkill,
+    fileInventory: [...vendoredSkill.fileInventory, { path: "scripts/paperclip-issue-update.sh" }],
+  };
+  const audit = auditSkills([fixed], { acknowledgements: ackFor(), now: NOW });
+  assert.equal(audit.degraded.length, 0, "a tidy-up must not fail the audit");
+  assert.equal(audit.results[0].staleAcknowledgements.length, 1);
+  assert.match(formatReport(audit), /STALE ACKNOWLEDGEMENT/);
+});
+
+console.log("\nacknowledgement file parsing (fail closed)");
+
+test("parseAcknowledgements accepts a well-formed entry and derives end-of-day expiry", () => {
+  const { entries, errors } = parseAcknowledgements(
+    JSON.stringify({
+      acknowledgements: [
+        { skillKey: "a/b/c", path: "scripts/x.sh", expires: "2027-01-06", issue: "GOL-1", reason: "why" },
+      ],
+    }),
+  );
+  assert.deepEqual(errors, []);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].expiresAt.toISOString(), "2027-01-06T23:59:59.999Z");
+});
+
+test("every field is mandatory -- a nameless or unexplained entry is an error, not an entry", () => {
+  for (const field of ["skillKey", "path", "expires", "issue", "reason"]) {
+    const entry = { skillKey: "a/b/c", path: "scripts/x.sh", expires: "2027-01-06", issue: "GOL-1", reason: "why" };
+    delete entry[field];
+    const { entries, errors } = parseAcknowledgements(JSON.stringify({ acknowledgements: [entry] }));
+    assert.equal(entries.length, 0, `missing ${field} must not yield an entry`);
+    assert.match(errors[0], new RegExp(field));
+  }
+});
+
+test("a malformed expiry is rejected rather than coerced into a permanent mute", () => {
+  for (const expires of ["soon", "2027-13-99", "06/01/2027", ""]) {
+    const { entries, errors } = parseAcknowledgements(
+      JSON.stringify({
+        acknowledgements: [
+          { skillKey: "a/b/c", path: "scripts/x.sh", expires, issue: "GOL-1", reason: "why" },
+        ],
+      }),
+    );
+    assert.equal(entries.length, 0, `"${expires}" must not be honoured`);
+    assert.ok(errors.length > 0);
+  }
+});
+
+test("unparseable or shapeless JSON yields an error and zero entries", () => {
+  assert.equal(parseAcknowledgements("{not json").entries.length, 0);
+  assert.ok(parseAcknowledgements("{not json").errors.length > 0);
+  assert.ok(parseAcknowledgements(JSON.stringify({})).errors.length > 0);
+});
+
+test("a bad entry is reported in the report, so it cannot fail silently", () => {
+  const { errors } = parseAcknowledgements(JSON.stringify({ acknowledgements: [{ path: "scripts/x.sh" }] }));
+  const report = formatReport(auditSkills([vendoredSkill], { acknowledgementErrors: errors, now: NOW }));
+  assert.match(report, /BAD ACKNOWLEDGEMENT/);
+});
+
+console.log("\nthe shipped acknowledgement file");
+
+test("the committed scripts/ops/skill-audit-acknowledged.json is valid and fully explained", async () => {
+  const url = new URL(`../ops/${ACKNOWLEDGEMENT_FILE}`, import.meta.url);
+  const { entries, errors } = parseAcknowledgements(await readFile(url, "utf8"));
+  assert.deepEqual(errors, [], "the file we ship must parse clean");
+  for (const entry of entries) {
+    assert.match(entry.issue, /^GOL-\d+$/, `${entry.path}: issue must be a GOL ticket`);
+    assert.ok(entry.reason.length > 40, `${entry.path}: reason must actually explain itself`);
+  }
 });
 
 if (failures > 0) {

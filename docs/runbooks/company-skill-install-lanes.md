@@ -143,7 +143,50 @@ suppression is always visible to the next reader. Use it only for paths that
 belong to a different skill — if the path is this skill's own entrypoint, the
 finding is real and the fix is to ship the file or stop documenting it.
 
-## Known findings (2026-10-05)
+## When the skill cannot be annotated at all (`editable:false`)
+
+The marker above is an edit to the skill's own body, so it is unavailable for a
+skill installed `editable:false` — vendored or bundled code. A true finding
+against such a skill would red the weekly audit every Monday forever, and a
+control that cries wolf on a known, accepted condition is a control people learn
+to mute. That is the failure mode this whole feature exists to prevent, so the
+audit must not ship with one built in.
+
+For that case only, record an **expiring** acknowledgement in
+`scripts/ops/skill-audit-acknowledged.json`:
+
+```json
+{
+  "skillKey": "paperclipai/paperclip/paperclip",
+  "path": "scripts/paperclip-issue-update.sh",
+  "expires": "2027-01-06",
+  "issue": "GOL-3030",
+  "reason": "why this is accepted, and what to check at expiry"
+}
+```
+
+The rules the tool enforces (and `scripts/ci/audit-company-skills.test.mjs`
+pins):
+
+- **Only for `editable:false`.** An entry naming an editable skill is
+  `⚠️ ACKNOWLEDGEMENT REJECTED` and the finding still reds — use the in-body
+  marker, which keeps the opt-out next to what it describes. A payload that
+  omits `editable` counts as editable: no suppression on a guess.
+- **Expiry is the point.** Past `expires` (end of that UTC day) it stops
+  suppressing and prints `⚠️ ACKNOWLEDGEMENT EXPIRED`. Renewal is a deliberate
+  re-review. Inside 14 days the report says `expiring soon`.
+- **`issue` and `reason` are mandatory**, and a malformed entry is
+  `⚠️ BAD ACKNOWLEDGEMENT` and is not honoured — fail closed, so a typo cannot
+  become a permanent mute.
+- **Per-path, per-skill.** A second undeclared missing path still reds.
+- An entry whose finding is gone prints `⚠️ STALE ACKNOWLEDGEMENT` (delete it)
+  but does not fail the audit — a tidy-up is not an incident.
+- `--no-ack` audits with the file ignored, to see the raw picture.
+
+Nothing is ever hidden: acknowledged paths print in full, with their ticket and
+days remaining.
+
+## Known findings (2026-10-06)
 
 - `goldberry-playground/odoocker-goldberrygrove/odoo-logistics` — the original
   trap. Re-homed as the `local_path` skill
@@ -154,6 +197,12 @@ finding is real and the fix is to ship the file or stop documenting it.
   `scripts/paperclip-issue-update.sh` (the heredoc helper it tells every agent
   to use for multiline comments) but ships only
   `scripts/paperclip-upload-artifact.sh`. `GET …/files?path=scripts/paperclip-issue-update.sh`
-  → **404**. Upstream packaging drift, not ours to patch; until it lands, build
-  multiline comment bodies with a `jq --arg` / heredoc-from-file pattern rather
-  than that script.
+  → **404**. Upstream packaging drift, not ours to patch, and the skill is
+  `editable:false` so its body cannot be annotated honest. **Acknowledged until
+  2027-01-06** in `scripts/ops/skill-audit-acknowledged.json` (GOL-3030); the
+  mitigation for our agents is the company skill `paperclip-board-writes`, which
+  ships a working copy of the helper. Elsewhere, build multiline comment bodies
+  with a `jq --arg` / heredoc-from-file pattern rather than that script.
+
+Net effect: once the `odoo-logistics` twin is uninstalled the weekly audit runs
+**green**, so the first red it ever posts will be a new, real degradation.

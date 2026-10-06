@@ -23,6 +23,12 @@
  *   node scripts/ops/audit-company-skills.mjs            # human report
  *   node scripts/ops/audit-company-skills.mjs --json     # machine report
  *   node scripts/ops/audit-company-skills.mjs --fixture f.json   # offline
+ *   node scripts/ops/audit-company-skills.mjs --no-ack            # ignore the ack file
+ *
+ * Findings on a skill installed `editable:false` cannot be silenced in the
+ * skill's own body, so they are acknowledged out of band and with an expiry in
+ * scripts/ops/skill-audit-acknowledged.json — see the comment block in that
+ * file for the rules.
  *
  * Env: PAPERCLIP_API_URL, PAPERCLIP_API_KEY, PAPERCLIP_COMPANY_ID.
  *      PAPERCLIP_API_HOST sets a Host header when talking to the container
@@ -97,6 +103,86 @@ export function extractIgnoredPaths(markdown) {
   return ignored;
 }
 
+/** Default location of the expiring-acknowledgement file, next to this tool. */
+export const ACKNOWLEDGEMENT_FILE = "skill-audit-acknowledged.json";
+
+/**
+ * Parse the acknowledgement file into usable entries plus per-entry errors.
+ *
+ * Fail-closed and noisy: a malformed entry is never honoured and is reported,
+ * so a typo'd `expires` or a missing `reason` cannot quietly turn into a
+ * permanent mute. Errors do not abort the audit — the finding the bad entry
+ * meant to cover simply reds, which is the safe direction.
+ */
+export function parseAcknowledgements(raw) {
+  const entries = [];
+  const errors = [];
+  let doc;
+  try {
+    doc = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch (err) {
+    return { entries, errors: [`acknowledgement file is not valid JSON: ${err.message}`] };
+  }
+  const list = doc?.acknowledgements;
+  if (!Array.isArray(list)) {
+    return { entries, errors: ['acknowledgement file has no "acknowledgements" array'] };
+  }
+  list.forEach((entry, index) => {
+    const where = `acknowledgements[${index}]`;
+    for (const field of ["skillKey", "path", "expires", "issue", "reason"]) {
+      if (typeof entry?.[field] !== "string" || entry[field].trim() === "") {
+        errors.push(`${where}: missing or empty "${field}"`);
+        return;
+      }
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.expires)) {
+      errors.push(`${where}: "expires" must be ISO YYYY-MM-DD, got "${entry.expires}"`);
+      return;
+    }
+    // End of the named UTC day, so an entry expiring "today" is still live today.
+    const expiresAt = new Date(`${entry.expires}T23:59:59.999Z`);
+    if (Number.isNaN(expiresAt.getTime())) {
+      errors.push(`${where}: "expires" is not a real date ("${entry.expires}")`);
+      return;
+    }
+    entries.push({
+      skillKey: entry.skillKey.trim(),
+      path: entry.path.trim(),
+      expires: entry.expires,
+      expiresAt,
+      issue: entry.issue.trim(),
+      reason: entry.reason.trim(),
+    });
+  });
+  return { entries, errors };
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Classify one missing path against the acknowledgements for its skill.
+ *
+ * Returns null when nothing covers it (so it stays a plain dropped path).
+ * The three non-null verdicts all keep the path dropped *except*
+ * `acknowledged`: an entry only suppresses while it is in date and the skill
+ * is genuinely un-annotatable.
+ */
+function classifyAcknowledgement(skill, path, acks, now) {
+  const ack = acks.find((entry) => entry.path === path);
+  if (!ack) return null;
+  // `editable !== false` covers both an editable skill and a payload that
+  // omits the field: without proof the body cannot be annotated, insist on the
+  // in-body marker, which keeps the opt-out next to what it describes.
+  if (skill.editable !== false) {
+    return { ...ack, verdict: "rejected", daysLeft: null };
+  }
+  const daysLeft = Math.ceil((ack.expiresAt.getTime() - now.getTime()) / DAY_MS);
+  if (ack.expiresAt.getTime() < now.getTime()) {
+    return { ...ack, verdict: "expired", daysLeft };
+  }
+  return { ...ack, verdict: "acknowledged", daysLeft };
+}
+
 function inventoryPaths(skill) {
   return new Set((skill.fileInventory ?? []).map((entry) => (typeof entry === "string" ? entry : entry?.path)).filter(Boolean));
 }
@@ -105,14 +191,37 @@ function inventoryPaths(skill) {
  * Audit one skill payload (the shape returned by
  * GET /api/companies/:id/skills/:skillId).
  */
-export function auditSkill(skill) {
+export function auditSkill(skill, { acknowledgements = [], now = new Date() } = {}) {
   const installed = inventoryPaths(skill);
   const referenced = extractReferencedPaths(skill.markdown);
   const ignored = extractIgnoredPaths(skill.markdown);
-  const dropped = [...referenced]
+  const missing = [...referenced]
     .filter((path) => !installed.has(path) && !ignored.has(path))
     .sort();
   const ignoredPaths = [...referenced].filter((path) => ignored.has(path)).sort();
+
+  // Expiring, out-of-band acknowledgements for skills whose body we cannot
+  // annotate. Only an in-date entry on an `editable:false` skill suppresses;
+  // every other verdict leaves the path dropped so the finding still reds.
+  const acks = acknowledgements.filter((entry) => entry.skillKey === skill.key);
+  const dropped = [];
+  const acknowledgedPaths = [];
+  const expiredAcknowledgements = [];
+  const rejectedAcknowledgements = [];
+  for (const path of missing) {
+    const verdict = classifyAcknowledgement(skill, path, acks, now);
+    if (verdict?.verdict === "acknowledged") {
+      acknowledgedPaths.push(verdict);
+      continue;
+    }
+    if (verdict?.verdict === "expired") expiredAcknowledgements.push(verdict);
+    if (verdict?.verdict === "rejected") rejectedAcknowledgements.push(verdict);
+    dropped.push(path);
+  }
+  // An entry whose finding is gone is cruft, not a failure: report it so it
+  // gets deleted, but do not red a clean library over a tidy-up.
+  const staleAcknowledgements = acks.filter((entry) => !missing.includes(entry.path));
+
   const droppedScripts = dropped.filter((path) => path.startsWith("scripts/"));
   const reasons = [];
 
@@ -150,6 +259,10 @@ export function auditSkill(skill) {
     // Printed in the report even on a clean skill: a suppression nobody can
     // see is a suppression nobody will revisit.
     ignoredPaths,
+    acknowledgedPaths,
+    expiredAcknowledgements,
+    rejectedAcknowledgements,
+    staleAcknowledgements,
     degraded: reasons.length > 0,
     reasons,
   };
@@ -160,8 +273,9 @@ export function auditSkill(skill) {
  * two installs sharing a slug is how a degraded skill keeps shadowing its
  * healthy replacement after someone re-homes it.
  */
-export function auditSkills(skills) {
-  const results = skills.map(auditSkill);
+export function auditSkills(skills, options = {}) {
+  const { acknowledgementErrors = [] } = options;
+  const results = skills.map((skill) => auditSkill(skill, options));
   const bySlug = new Map();
   for (const skill of skills) {
     if (!bySlug.has(skill.slug)) bySlug.set(skill.slug, []);
@@ -177,6 +291,7 @@ export function auditSkills(skills) {
     degraded: results.filter((r) => r.degraded),
     healthy: results.filter((r) => !r.degraded),
     slugCollisions,
+    acknowledgementErrors,
     results,
   };
 }
@@ -200,6 +315,39 @@ export function formatReport(audit) {
     lines.push(`ℹ️  SUPPRESSED  ${skill.key} declares skill-audit-ignore for:`);
     for (const path of skill.ignoredPaths) lines.push(`     - ${path}`);
     lines.push("   these are quoted from another skill, not this skill's entrypoints");
+  }
+  for (const skill of audit.results) {
+    for (const ack of skill.acknowledgedPaths ?? []) {
+      lines.push("");
+      lines.push(`ℹ️  ACKNOWLEDGED  ${skill.key} → ${ack.path}`);
+      lines.push(`   ${ack.issue} · expires ${ack.expires} (${ack.daysLeft} day(s) left)`);
+      lines.push(`   ${ack.reason}`);
+      if (ack.daysLeft <= 14) {
+        lines.push("   → expiring soon: re-review and either delete or renew this entry");
+      }
+    }
+    for (const ack of skill.expiredAcknowledgements ?? []) {
+      lines.push("");
+      lines.push(`⚠️  ACKNOWLEDGEMENT EXPIRED  ${skill.key} → ${ack.path}`);
+      lines.push(`   expired ${ack.expires} (${ack.issue}) — no longer suppressing; this finding is red again`);
+      lines.push("   re-review it: fix the skill, delete the entry, or renew it with a new expiry");
+    }
+    for (const ack of skill.rejectedAcknowledgements ?? []) {
+      lines.push("");
+      lines.push(`⚠️  ACKNOWLEDGEMENT REJECTED  ${skill.key} → ${ack.path}`);
+      lines.push("   this skill is editable, so the acknowledgement file does not apply to it");
+      lines.push("   use an in-body `<!-- skill-audit-ignore: … -->` marker, or install the file");
+    }
+    for (const ack of skill.staleAcknowledgements ?? []) {
+      lines.push("");
+      lines.push(`⚠️  STALE ACKNOWLEDGEMENT  ${skill.key} → ${ack.path}`);
+      lines.push("   nothing is missing at this path any more — delete the entry");
+    }
+  }
+  for (const err of audit.acknowledgementErrors ?? []) {
+    lines.push("");
+    lines.push(`⚠️  BAD ACKNOWLEDGEMENT  ${err}`);
+    lines.push("   not honoured — any finding it meant to cover is red");
   }
   for (const collision of audit.slugCollisions) {
     lines.push("");
@@ -267,6 +415,22 @@ export async function fetchSkills() {
   );
 }
 
+/**
+ * Read + parse the acknowledgement file. A missing file is normal (nothing is
+ * acknowledged); an unreadable one is an error we report rather than swallow.
+ */
+export async function loadAcknowledgements(filePath) {
+  const { readFile } = await import("node:fs/promises");
+  let raw;
+  try {
+    raw = await readFile(filePath, "utf8");
+  } catch (err) {
+    if (err.code === "ENOENT") return { entries: [], errors: [] };
+    return { entries: [], errors: [`cannot read ${filePath}: ${err.message}`] };
+  }
+  return parseAcknowledgements(raw);
+}
+
 async function main(argv) {
   const asJson = argv.includes("--json");
   const fixtureIndex = argv.indexOf("--fixture");
@@ -283,7 +447,18 @@ async function main(argv) {
     return 2;
   }
 
-  const audit = auditSkills(skills);
+  let acknowledgements = [];
+  let acknowledgementErrors = [];
+  if (!argv.includes("--no-ack")) {
+    const { fileURLToPath } = await import("node:url");
+    const { dirname, join } = await import("node:path");
+    const here = dirname(fileURLToPath(import.meta.url));
+    ({ entries: acknowledgements, errors: acknowledgementErrors } = await loadAcknowledgements(
+      join(here, ACKNOWLEDGEMENT_FILE),
+    ));
+  }
+
+  const audit = auditSkills(skills, { acknowledgements, acknowledgementErrors });
   console.log(asJson ? JSON.stringify(audit, null, 2) : formatReport(audit));
   return audit.degraded.length > 0 || audit.slugCollisions.length > 0 ? 1 : 0;
 }
