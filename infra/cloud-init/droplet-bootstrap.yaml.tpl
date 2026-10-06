@@ -618,6 +618,21 @@ runcmd:
   # is the source of truth for a fresh (re)provision.
   - sudo -u deploy git clone --branch agenticos-v0.2.1 --depth 1 https://github.com/EngineeringMoonBear/Paperclip-AgenticOS.git /opt/paperclip
 
+  # --- Patch the Paperclip fork build context (GOL-3005) ---
+  # The fork is under a different GitHub owner that the agenticos-developer App
+  # is not installed on, so agent automation cannot open a PR against it. Core
+  # server fixes therefore land as reviewed patches in this repo under
+  # infra/paperclip-patches/ and are applied to the build context before the
+  # `docker compose up -d` further down builds the paperclip-server image.
+  #
+  # This must stay in lockstep with deploy-paperclip-server.yml, which applies
+  # the same patches with the same script on a live box — otherwise a reprovision
+  # would silently ship an UNPATCHED server and reintroduce whatever the patches
+  # fix. The script is all-or-nothing and exits non-zero on a patch that no
+  # longer applies against the pin above, which fails provisioning loudly rather
+  # than booting a half-patched image.
+  - sudo -u deploy bash /opt/agenticos/repo/infra/scripts/apply-paperclip-patches.sh /opt/paperclip /opt/agenticos/repo/infra/paperclip-patches
+
   # --- AgenticOS docker-compose (telemetry DB + Ollama + OpenViking + Paperclip).
   #
   # The openviking-config directory in the repo holds ov.conf, which the
