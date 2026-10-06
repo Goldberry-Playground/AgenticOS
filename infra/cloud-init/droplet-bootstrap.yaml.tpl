@@ -385,6 +385,55 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  # merge-queue arming sweep (GOL-3125): GOL-3118 measured that auto-merge
+  # inherits the identity of whoever ARMED it, so arming an agent PR as the App
+  # makes every later merge-queue enqueue healthy. It shipped the tool but
+  # nothing called it — an agent PR was armed only if an agent remembered, and a
+  # forgotten PR builds a merge group no `merge_group` workflow runs on, which
+  # (the queue being sequential) stalls every healthy entry behind it. This
+  # cannot be a GitHub Actions workflow: a workflow has only GITHUB_TOKEN, and
+  # arming as `github-actions` rebuilds the same dead group, while minting
+  # another identity in Actions would need the App private key in Actions
+  # secrets (declined, ADR-0001). gh-token-broker runs on this box, so the
+  # sweep mints a short-lived repo-scoped App token per run — no new secret.
+  # User=root: it reads the chmod-600 /opt/agenticos/secrets/gh-broker-client.key
+  # (group-reading it to `deploy` would permanently widen who can mint App
+  # tokens here) and docker-inspects the broker, which publishes no ports.
+  # Keep in sync with infra/scripts/install-merge-queue-arm-sweep.sh.
+  - path: /etc/systemd/system/agenticos-merge-queue-arm.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS merge-queue arming sweep (arm auto-merge as the agent App so no agent PR builds a dead merge group)
+      After=network-online.target docker.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/merge-queue-arm-sweep.sh'
+      StandardOutput=append:/var/log/agenticos/merge-queue-arm.log
+      StandardError=append:/var/log/agenticos/merge-queue-arm.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-merge-queue-arm.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run the AgenticOS merge-queue arming sweep every 5 minutes
+
+      [Timer]
+      OnCalendar=*:0/5
+      Persistent=true
+      RandomizedDelaySec=60
+      Unit=agenticos-merge-queue-arm.service
+
+      [Install]
+      WantedBy=timers.target
+
   - path: /etc/systemd/system/agenticos-host-clone-drift.timer
     permissions: "0644"
     content: |
@@ -913,6 +962,13 @@ runcmd:
   # clone the host timers run from has drifted from origin/main. ---
   - chmod +x /opt/agenticos/repo/infra/scripts/host-clone-drift-guard.sh
   - systemctl enable --now agenticos-host-clone-drift.timer
+
+  # --- merge-queue arming sweep (GOL-3125): arm auto-merge as the agent App on
+  # every eligible open agent PR, every 5 min, so no forgotten PR wedges the
+  # sequential merge queue. ARM_UNAPPROVED=1 / never ARM_PROTECTED=1. ---
+  - chmod +x /opt/agenticos/repo/infra/scripts/merge-queue-arm-sweep.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/vendored/merge-queue-arm-automerge.sh
+  - systemctl enable --now agenticos-merge-queue-arm.timer
 
   # --- pid-pressure guard (GOL-3002): detection layer for the paperclip-server
   # pid/zombie leak that `init: true` in docker-compose.yml fixes. ---
