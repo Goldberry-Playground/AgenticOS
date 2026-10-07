@@ -73,6 +73,7 @@ export function ArchitectureVista() {
 
   return (
     <VistaShell
+      scope="Architecture"
       accent="copper"
       asOfMs={dataUpdatedAt}
       backdrop={<SkillGalaxyBackdrop domains={domains} />}

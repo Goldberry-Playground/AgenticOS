@@ -84,6 +84,7 @@ export function CostVista() {
 
   return (
     <VistaShell
+      scope="Cost"
       accent="amber"
       asOfMs={dataUpdatedAt}
       backdrop={

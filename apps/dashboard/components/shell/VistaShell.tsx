@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { formatAsOf } from "./as-of";
+import { AsOfChip } from "./AsOfChip";
 
 /**
  * Dusk-indigo console chrome shared by every per-tab vista. Renders the
@@ -31,6 +31,12 @@ export interface VistaShellProps {
    * whole tree. See `./as-of.ts`.
    */
   asOfMs?: number | null;
+  /**
+   * The data this vista's freshness chip speaks for — the tab's own name
+   * (`"Runs"`, `"Cost"`, …). Required because the root layout renders a second
+   * chip on the same page: see {@link AsOfChip} and GOL-3099.
+   */
+  scope: string;
   /** The 4 KPI tiles, typically `<KpiTile />` children. */
   children: ReactNode;
   /** The animated backdrop component (absolutely-positioned, full-bleed). */
@@ -40,6 +46,7 @@ export interface VistaShellProps {
 export function VistaShell({
   accent = "gold",
   asOfMs,
+  scope,
   children,
   backdrop,
 }: VistaShellProps) {
@@ -47,10 +54,7 @@ export function VistaShell({
     <div className="kpi-vista" data-accent={accent}>
       {backdrop}
 
-      <div className="vista-meta" aria-label="Live data indicator">
-        <span className="live-dot" aria-hidden="true" />
-        <span>Live · as of {formatAsOf(asOfMs)}</span>
-      </div>
+      <AsOfChip scope={scope} asOfMs={asOfMs} />
 
       <div className="horizon top" />
 

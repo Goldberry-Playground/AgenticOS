@@ -1,7 +1,7 @@
 "use client";
 import { EkgSweep } from "./EkgSweep";
 import { useKpiData } from "@/lib/hooks/use-kpi-data";
-import { formatAsOf } from "./as-of";
+import { AsOfChip } from "./AsOfChip";
 
 /**
  * Persistent KPI vista banner — the "dusk navigator's console" that sits
@@ -36,10 +36,14 @@ export function KpiVista() {
     <div className="kpi-vista">
       <EkgSweep />
 
-      <div className="vista-meta" aria-label="Live data indicator">
-        <span className="live-dot" aria-hidden="true" />
-        <span>Live · as of {formatAsOf(dataUpdatedAt)}</span>
-      </div>
+      {/*
+        * "Fleet", not "Live": every route renders this banner *and* its own
+        * page banner, fed by a different query on a different interval, so
+        * the two chips can legitimately show different times. Naming the data
+        * each one speaks for is what keeps that from reading as a bug — see
+        * `AsOfChip` (GOL-3099).
+        */}
+      <AsOfChip scope="Fleet" asOfMs={dataUpdatedAt} />
 
       <div className="horizon top" />
 

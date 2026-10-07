@@ -53,6 +53,7 @@ export function MemoryVista() {
 
   return (
     <VistaShell
+      scope="Memory"
       accent="sage"
       asOfMs={freshestUpdatedAt(
         scopesQuery.dataUpdatedAt,
