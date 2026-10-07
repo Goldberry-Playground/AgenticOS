@@ -315,6 +315,57 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # paperclip-db-catchup (GOL-2858): the two units above watch that dumps are
+  # written and ship them off-box — this one makes sure they EXIST. The Paperclip
+  # server arms its dump as an in-process interval at PROCESS START and re-arms it
+  # from zero on every restart with no catch-up for the run it missed, so when
+  # restarts come closer together than the interval the interval never matures and
+  # the backup does not run at all (2026-09-30: 7 restarts in 11.3h, an 11h39m gap,
+  # /api/health still "ok"). That scheduler is in /opt/paperclip, outside this
+  # repo; this timer is the same catch-up out of process — wall-clock anchored so a
+  # paperclip-server restart cannot reset it, Persistent=true so a run missed while
+  # the box was down fires on boot, and a no-op whenever the newest dump is fresh.
+  - path: /etc/systemd/system/agenticos-paperclip-db-catchup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS Paperclip DB catch-up dump (restart-immune backup safety net; GOL-2858)
+      After=network-online.target docker.service
+      Wants=network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/paperclip-db-catchup.sh'
+      # A dump of this database takes ~5 minutes at 300M; cap the pathological
+      # case well above that so a wedged pg_dump cannot hold the single-flight
+      # lock until the next fire.
+      TimeoutStartSec=45min
+      StandardOutput=append:/var/log/agenticos/paperclip-db-catchup.log
+      StandardError=append:/var/log/agenticos/paperclip-db-catchup.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-paperclip-db-catchup.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Hourly check that a Paperclip DB dump actually happened (GOL-2858)
+
+      [Timer]
+      # :50 — clear of the volume guard (:20) and the off-box shipper (:05/:35),
+      # so a catch-up dump is written well before the next shipper run sees it.
+      OnCalendar=*-*-* *:50:00
+      Persistent=true
+      RandomizedDelaySec=120
+      Unit=agenticos-paperclip-db-catchup.service
+
+      [Install]
+      WantedBy=timers.target
+
   # worktree reaper (GOL-1632 / #765): agents create a per-issue
   # .wt-<issue>-<repo> worktree inside the shared project checkouts, each with
   # its own ~1GB node_modules, and nothing ever reclaimed them — 31 abandoned
@@ -990,7 +1041,7 @@ runcmd:
   # --- Disk hygiene (GOL-131): weekly docker reclaim + daily disk-guard ---
   # Ensure the reclaim scripts are executable, apply the journald cap now
   # (config alone only bounds FUTURE growth), then enable the timers.
-  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py /opt/agenticos/repo/infra/scripts/worktree-reaper.sh /opt/agenticos/repo/scripts/ops/reap-stale-worktrees.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py /opt/agenticos/repo/infra/scripts/paperclip-db-catchup.sh /opt/agenticos/repo/infra/scripts/worktree-reaper.sh /opt/agenticos/repo/scripts/ops/reap-stale-worktrees.sh
   - systemctl restart systemd-journald
   - journalctl --vacuum-size=200M || true
   - systemctl enable --now agenticos-docker-prune.timer
@@ -999,6 +1050,8 @@ runcmd:
   - systemctl enable --now agenticos-paperclip-volume-guard.timer
   # off-box copies of every completed Paperclip dump (GOL-2769)
   - systemctl enable --now agenticos-paperclip-backup-offsite.timer
+  # hourly catch-up for the dump the server's restart-reset interval missed (GOL-2858)
+  - systemctl enable --now agenticos-paperclip-db-catchup.timer
   # nightly abandoned-worktree reclaim (GOL-1632 / #765)
   - systemctl enable --now agenticos-worktree-reaper.timer
   # vendor-status guard (GOL-3021): 5-minutely vendor status -> snapshot + Discord

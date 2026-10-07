@@ -6,6 +6,9 @@
 #                                              backup-freshness check → Discord; GOL-1632)
 #   - agenticos-paperclip-backup-offsite.*    (every 30m: ship completed Paperclip
 #                                              DB dumps to DO Spaces; GOL-2769)
+#   - agenticos-paperclip-db-catchup.*        (hourly: take the DB dump the
+#                                              server's restart-reset interval
+#                                              never got round to; GOL-2858)
 #   - agenticos-worktree-reaper.service/.timer (nightly reap of abandoned agent
 #                                              worktrees; GOL-1632 / #765)
 #   - journald cap                            (SystemMaxUse=200M drop-in + vacuum)
@@ -46,6 +49,7 @@ chmod +x "${REPO}/infra/scripts/docker-prune.sh" "${REPO}/infra/scripts/disk-gua
          "${REPO}/infra/scripts/paperclip-volume-guard.sh" \
          "${REPO}/infra/scripts/paperclip-backup-offsite.py" \
          "${REPO}/infra/scripts/worktree-reaper.sh" \
+         "${REPO}/infra/scripts/paperclip-db-catchup.sh" \
          "${REPO}/scripts/ops/reap-stale-worktrees.sh" 2>/dev/null || true
 
 write_file() { # $1 = dest path; body on stdin
@@ -194,6 +198,54 @@ Unit=agenticos-paperclip-backup-offsite.service
 WantedBy=timers.target
 UNIT
 
+# --- paperclip DB catch-up dump: hourly (GOL-2858) ---
+# The two units above watch and ship the dumps. This one makes sure they EXIST.
+# paperclip-server schedules its dump as an in-process interval armed at process
+# START and re-armed from zero on every restart, with no catch-up for the run it
+# missed — so when restarts come closer together than the 240m interval, the
+# interval never matures and the backup does not run at all. On 2026-09-30 that
+# was seven restarts in 11.3h and an 11h39m gap with no dump, while /api/health
+# still said databaseBackup "ok" (its own staleness threshold is 26h).
+#
+# The scheduler lives in /opt/paperclip, outside this repo. This timer is the
+# same catch-up out of process: wall-clock anchored (a paperclip-server restart
+# cannot reset it), Persistent=true so a run missed while the box was down fires
+# on boot, and a no-op on every fire where the newest dump is already fresh.
+# Worst-case staleness becomes interval + slack + 1h instead of unbounded.
+write_file /etc/systemd/system/agenticos-paperclip-db-catchup.service <<UNIT
+[Unit]
+Description=AgenticOS Paperclip DB catch-up dump (restart-immune backup safety net; GOL-2858)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=${REPO}
+ExecStart=/bin/bash -lc '${REPO}/infra/scripts/paperclip-db-catchup.sh'
+# A dump of this database takes ~5 minutes at 300M; cap the pathological case
+# well above that so a wedged pg_dump cannot hold the lock until the next fire.
+TimeoutStartSec=45min
+StandardOutput=append:${LOG_DIR}/paperclip-db-catchup.log
+StandardError=append:${LOG_DIR}/paperclip-db-catchup.log
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+write_file /etc/systemd/system/agenticos-paperclip-db-catchup.timer <<UNIT
+[Unit]
+Description=Hourly check that a Paperclip DB dump actually happened (GOL-2858)
+[Timer]
+# :50 — clear of the volume guard (:20) and the off-box shipper (:05/:35), so a
+# catch-up dump is written well before the next shipper run picks it up.
+OnCalendar=*-*-* *:50:00
+Persistent=true
+RandomizedDelaySec=120
+Unit=agenticos-paperclip-db-catchup.service
+[Install]
+WantedBy=timers.target
+UNIT
+
 # --- worktree reaper: nightly (GOL-1632 / #765) ---
 # Agents create a per-issue .wt-<issue>-<repo> worktree inside the shared project
 # checkouts; each carries its own ~1GB node_modules and nothing ever reclaimed
@@ -300,6 +352,7 @@ systemctl daemon-reload
 systemctl enable --now agenticos-docker-prune.timer agenticos-disk-guard.timer \
                        agenticos-paperclip-volume-guard.timer \
                        agenticos-paperclip-backup-offsite.timer \
+                       agenticos-paperclip-db-catchup.timer \
                        agenticos-worktree-reaper.timer
 
 # Apply the journald cap immediately (config alone only bounds future growth).
@@ -311,6 +364,7 @@ echo "Enabled. Scheduled runs:"
 systemctl list-timers 'agenticos-docker-prune.timer' 'agenticos-disk-guard.timer' \
                       'agenticos-paperclip-volume-guard.timer' \
                       'agenticos-paperclip-backup-offsite.timer' \
+                      'agenticos-paperclip-db-catchup.timer' \
                       'agenticos-worktree-reaper.timer' --no-pager || true
 
 # The off-box shipper is inert without its bucket-scoped Spaces key, and an
@@ -344,6 +398,10 @@ echo
 echo "Smoke-test the reclaim now (root):"
 echo "  ${REPO}/infra/scripts/docker-prune.sh   # reclaims + prints df before/after"
 echo "  WARN_PCT=0 ${REPO}/infra/scripts/disk-guard.sh   # force the alert path once"
+echo
+echo "Smoke-test the DB catch-up without writing anything (root):"
+echo "  DRY_RUN=1 STALE_MIN=0 ${REPO}/infra/scripts/paperclip-db-catchup.sh  # forces the dump decision"
+echo "  ${REPO}/infra/scripts/paperclip-db-catchup.sh                        # no-op unless a dump is overdue"
 echo "  WARN_PCT=0 STALE_MIN=0 REPAGE_MIN=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # force both alert paths"
 echo "  DRY_RUN=1 RECLAIM_PCT=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # show what the reclaim WOULD delete (deletes nothing)"
 echo "  DRY_RUN=1 ${REPO}/infra/scripts/worktree-reaper.sh   # list reapable worktrees (deletes nothing)"
