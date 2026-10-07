@@ -62,6 +62,19 @@ steps and failed requests.
   belong in the issue thread.
 - Never echo the URL, and never commit it.
 
+## Company skills — external git sources are markdown-only
+
+- A skill imported from **`github` / `skills_sh` / `url` that ships a `scripts/`
+  directory installs only `SKILL.md`** — silently, with no error and nothing in
+  the API payload or UI saying so. Executables must come from **`local_path`**
+  or **`catalog`**.
+- So when a skill's documented script is "missing", **audit the install before
+  you suspect your credentials**. GOL-2963 lost a heartbeat to that mis-diagnosis
+  and filed a false regression against three closed tickets.
+- Audit: `node scripts/ops/audit-company-skills.mjs`. Full lane rules, the
+  authoring recipe, and current findings:
+  [`docs/runbooks/company-skill-install-lanes.md`](runbooks/company-skill-install-lanes.md).
+
 ## Auth / billing
 
 - Claude agents run on the **Claude Max subscription** (`claude_local`, OAuth) —
