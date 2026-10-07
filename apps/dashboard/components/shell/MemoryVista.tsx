@@ -5,7 +5,7 @@ import { KpiTile } from "./KpiTile";
 import { MemoryAccumulationBackdrop } from "./backdrops/MemoryAccumulationBackdrop";
 import { useVikingScopes } from "@/lib/hooks/use-viking-scopes";
 import { useVaultStats } from "@/lib/hooks/use-vault-stats";
-import { freshestUpdatedAt } from "./as-of";
+import { oldestUpdatedAt } from "./as-of";
 
 /**
  * Memory tab hero vista — wired to live endpoints (truth pass 2026-07-12;
@@ -55,7 +55,10 @@ export function MemoryVista() {
     <VistaShell
       scope="Memory"
       accent="sage"
-      asOfMs={freshestUpdatedAt(
+      // Oldest of the two (GOL-3111). OpenViking going unreachable while
+      // vault-server stays up is the exact case this vista hits in practice,
+      // and `max` used to let the vault's stamp speak for both.
+      asOfMs={oldestUpdatedAt(
         scopesQuery.dataUpdatedAt,
         vaultQuery.dataUpdatedAt,
       )}

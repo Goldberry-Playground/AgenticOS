@@ -45,18 +45,51 @@ export function formatAsOf(epochMs: number | null | undefined): string {
 }
 
 /**
- * The freshest of several React Query `dataUpdatedAt` stamps.
+ * The honest "as of" instant for a vista backed by several React Query
+ * queries: the **oldest** of their `dataUpdatedAt` stamps, skipping zeros.
  *
- * A vista backed by more than one query is "as of" its most recent fetch; a
- * query that has not resolved contributes 0 and so cannot drag the label back
- * to the epoch. Returns 0 when nothing has resolved.
+ * GOL-3111. `dataUpdatedAt` advances only when a fetch *succeeds*, so the
+ * previous version of this function — a `max` named `freshestUpdatedAt` —
+ * reported the healthiest query and made a failing one invisible: its stamp
+ * froze while a sibling on the same 30s interval kept dragging the label
+ * forward. The chip would read "live as of 18:07:05" with a tile beside it
+ * showing data from 40 minutes ago, which is precisely the condition the chip
+ * exists to surface.
+ *
+ * `min` makes the claim one the whole banner can keep. Once every query has
+ * resolved, the oldest stamp is the point past which *something* on screen may
+ * be stale, and a freshness indicator that over-promises is worse than none.
+ *
+ * Two deliberate decisions, so the next reader knows they were decided:
+ *
+ *  - **Zeros are skipped, not treated as the minimum.** A query that has not
+ *    resolved yet carries 0; counting it would pin every banner to the epoch
+ *    for the first few hundred milliseconds of every page load, and
+ *    {@link formatAsOf} would render `—` even for data already on screen.
+ *  - **A partial reading wins over no reading.** While some queries have
+ *    resolved and others have not, the result describes only the resolved
+ *    subset — it is a floor over part of the banner rather than all of it. The
+ *    alternative, holding `—` until the last query lands, hides a true
+ *    statement about the tiles that *are* populated for as long as the slowest
+ *    endpoint takes. An honest floor over what has arrived beats silence.
+ *
+ * Known limit, not fixed here: a query that fails on its *first* attempt has
+ * never had a successful fetch, so its stamp is 0 and it is skipped — the
+ * label still speaks only for its siblings. Stamps alone cannot tell "not back
+ * yet" from "never came back"; distinguishing them needs the query's error
+ * state and a different affordance than a timestamp, because the honest
+ * message there is "a tile is unavailable", not an older time.
+ *
+ * Returns 0 when nothing has resolved, which {@link formatAsOf} renders as
+ * {@link AS_OF_UNKNOWN}.
  */
-export function freshestUpdatedAt(
+export function oldestUpdatedAt(
   ...stamps: Array<number | null | undefined>
 ): number {
-  let newest = 0;
+  let oldest = 0;
   for (const s of stamps) {
-    if (s && Number.isFinite(s) && s > newest) newest = s;
+    if (!s || !Number.isFinite(s) || s <= 0) continue;
+    if (oldest === 0 || s < oldest) oldest = s;
   }
-  return newest;
+  return oldest;
 }
