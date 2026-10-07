@@ -106,6 +106,7 @@ jobs:
             'ls -la /tmp/paperclip-patches-staging/paperclip-patches'
 
       - name: Update /opt/paperclip, apply patches, rebuild paperclip-server
+        id: rebuild
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
           USER: ${{ secrets.DROPLET_USER }}
@@ -113,7 +114,12 @@ jobs:
         run: |
           # `deploy` is in the docker group — no sudo (sudo would block on a
           # password prompt and hang the job). REF is charset-validated above.
-          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "REF='${REF}' bash -s" <<'REMOTE'
+          # The remote prints a marker right after `up -d`; we turn it into the
+          # `recreated` output so the wait/verify steps below run whenever the
+          # container was actually replaced, even if a later step fails
+          # (GOL-3172) — and are skipped when we failed before touching it.
+          set +e -o pipefail
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "REF='${REF}' bash -s" <<'REMOTE' | tee /tmp/rebuild.log
             set -euo pipefail
             cd /opt/paperclip
             echo "current /opt/paperclip HEAD: $(git rev-parse --short HEAD)"
@@ -135,10 +141,47 @@ jobs:
             # container so it runs the new code. State survives on paperclip-data.
             docker compose build paperclip-server
             docker compose up -d paperclip-server
+            echo "PAPERCLIP_RECREATED=1"
             docker compose ps paperclip-server
           REMOTE
+          rc=$?
+          if grep -qx 'PAPERCLIP_RECREATED=1' /tmp/rebuild.log; then
+            echo "recreated=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit $rc
 
+      - name: Wait for paperclip-server healthy after recreate
+        if: ${{ !cancelled() && steps.rebuild.outputs.recreated == 'true' }}
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          # GOL-3172: the first start of a freshly built image (migrations check,
+          # static UI, plugin bind mounts) took ~40s on 2026-10-06; the old 10 x 3s
+          # window reported a good deploy as failed. Wait up to 36 x 5s (~3 min),
+          # log elapsed time per attempt, and on timeout dump the container's
+          # recent logs so the cause is in this job log.
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" '
+            set -uo pipefail
+            cd /opt/agenticos
+            start=$SECONDS
+            for i in $(seq 1 36); do
+              if docker compose exec -T paperclip-server sh -lc "wget -qO- http://127.0.0.1:3100/api/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:3100/api/health >/dev/null 2>&1"; then
+                echo "paperclip-server /api/health OK after $((SECONDS - start))s (attempt $i/36)"; exit 0
+              fi
+              echo "waiting for /api/health (attempt $i/36, $((SECONDS - start))s elapsed)"; sleep 5
+            done
+            echo "::error::paperclip-server did not become healthy within $((SECONDS - start))s of recreate"
+            echo "--- docker compose ps paperclip-server ---"
+            docker compose ps paperclip-server || true
+            echo "--- last 40 lines of docker logs paperclip-server ---"
+            docker logs --tail 40 paperclip-server 2>&1 || true
+            exit 1'
+
+      # Both verify steps run whenever the container was recreated, even if the
+      # health wait failed, so a verify result is always recorded (GOL-3172).
       - name: Verify Paperclip fork patches are live in the container
+        if: ${{ !cancelled() && steps.rebuild.outputs.recreated == 'true' }}
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
           USER: ${{ secrets.DROPLET_USER }}
@@ -187,6 +230,7 @@ jobs:
           REMOTE
 
       - name: Verify server healthy + concurrency cap live
+        if: ${{ !cancelled() && steps.rebuild.outputs.recreated == 'true' }}
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
           USER: ${{ secrets.DROPLET_USER }}
@@ -209,11 +253,9 @@ jobs:
               echo "::error::PAPERCLIP_MAX_CONCURRENT_RUNS not set/positive in container (got: '\''$val'\'') — cap would be DISABLED"; exit 1
             fi
             echo "concurrency cap live: PAPERCLIP_MAX_CONCURRENT_RUNS=$val"
-            # Health probe (loopback inside the container network).
-            for i in 1 2 3 4 5 6 7 8 9 10; do
-              if docker compose exec -T paperclip-server sh -lc "wget -qO- http://127.0.0.1:3100/api/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:3100/api/health >/dev/null 2>&1"; then
-                echo "paperclip-server /api/health OK"; exit 0
-              fi
-              echo "waiting for /api/health ($i/10)"; sleep 3
-            done
-            echo "::error::paperclip-server did not become healthy after recreate"; exit 1'
+            # Health probe (loopback inside the container network). One shot: the
+            # wait step above already gave the server ~3 min to come up.
+            if docker compose exec -T paperclip-server sh -lc "wget -qO- http://127.0.0.1:3100/api/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:3100/api/health >/dev/null 2>&1"; then
+              echo "paperclip-server /api/health OK"; exit 0
+            fi
+            echo "::error::paperclip-server /api/health not OK (see the wait step for logs)"; exit 1'
