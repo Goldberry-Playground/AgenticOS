@@ -1,0 +1,14 @@
+#!/bin/sh
+# Agent-owned pre-commit hook (GOL-2986). Reached via core.hooksPath in
+# scripts/agent-git/gitconfig, so it runs for EVERY repo an agent commits in and
+# repo-provided hooks still never run.
+#
+# Asserts that the acting agent ($PAPERCLIP_AGENT_ID) is the commit author, because a
+# linked worktree shares the main repo's .git/config and a sibling run's
+# `git config user.email` silently becomes yours -- which defeats the PR-review
+# self-review guard (GOL-2720/GOL-2976). Fails CLOSED on a proven mismatch (and
+# repairs the identity for the retry); exits 0 for humans, CI, unknown agents and
+# in-progress merge/rebase/cherry-pick. See agent-identity.mjs.
+set -e
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec node "$hook_dir/../agent-identity.mjs" check
