@@ -154,6 +154,20 @@ pnpm lint
 
 Requires Node ≥20 and pnpm ≥9.
 
+### Running a second instance on one host
+
+The dashboard boots an auxiliary vault MCP bridge on `127.0.0.1:7610`. A second
+instance on the same host would collide on that port, so give it its own:
+
+```bash
+AGENTICOS_MCP_PORT=7611 PORT=3001 pnpm --filter @agenticos/dashboard start
+```
+
+Without the override the second instance still **serves normally** — it logs a
+single `MCP vault server DISABLED (degraded mode)` line and runs without vault
+MCP tools. Set the override when that instance actually needs the bridge, and
+point its config `mcpServerUrl` at the matching port.
+
 ⚠️ Next.js 16 has breaking changes from earlier versions. See `apps/dashboard/AGENTS.md` and `node_modules/next/dist/docs/` before assuming v15 patterns apply.
 
 ## Contributing
