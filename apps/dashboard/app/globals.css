@@ -154,6 +154,27 @@
   /* Motion (v2 alias) */
   --ease:               cubic-bezier(0.4, 0.0, 0.2, 1);
 
+  /* ── Focus ring (GOL-2968) ─────────────────────
+     The ONE keyboard-focus treatment. Components must not hand-roll a
+     focus style; the `:focus-visible` rule in @layer base below applies
+     this to every interactive element. WCAG 1.4.11 wants >=3:1 against
+     each adjacent colour, so the ring is measured against every surface
+     token it can land on, per theme:
+
+       --gold-bright #e0b73a on dark   --ink 10.18  --surface-header  9.52
+                                       --surface 8.15  --surface-elevated 6.99
+                                       --surface-recessed 9.67  --dusk-surface 9.42
+
+     --gold #c9a227 (the old --color-ring) is NOT usable: it measures
+     1.97-2.42:1 on the light surfaces, so it failed 1.4.11 in light mode
+     on every control that used it. See .light for the light-mode value. */
+  --focus-ring:         var(--gold-bright);
+  --focus-ring-width:   2px;
+  /* Offset puts a gap of the *parent* surface between control and ring, so
+     the ring only has to clear 3:1 against that one colour rather than
+     against every control fill as well. */
+  --focus-ring-offset:  2px;
+
   /* Geometry (v2) */
   --radius-card:        10px;
   --radius-chip:        999px;
@@ -243,6 +264,13 @@
   --error-border:        #f8c4c4;
   --info-bg:             #eef5ff;
   --info-border:         #b8d4f8;
+
+  /* Focus ring — the dark-mode --gold-bright only measures 1.52-1.91:1 on
+     these surfaces. --accent-gold-600 (#876411, which is already the light
+     --warning-fg, for the same reason) measures 4.96 on --ink, 5.44 on the
+     #fff --surface, 4.62 on --surface-elevated and --surface-header, and
+     4.42 on --surface-recessed. */
+  --focus-ring:          var(--accent-gold-600);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -275,7 +303,11 @@
   --color-destructive:   var(--error);
   --color-border:        var(--border-brand);
   --color-input:         var(--surface-muted);
-  --color-ring:          var(--accent-plum-400);
+  /* Focus-ring colour behind the shadcn `ring-*` and `border-ring`
+     utilities. Was var(--accent-plum-400) (== --gold), which measures
+     1.97-2.42:1 on the light-mode surfaces — sub-3:1 for every control in
+     components/ui that focuses with a ring. See --focus-ring. */
+  --color-ring:          var(--focus-ring);
 
   /* Sidebar tokens */
   --color-sidebar:                   var(--surface);
@@ -385,6 +417,72 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     Keyboard focus indicator — WCAG 2.4.7 (GOL-2968)
+     ───────────────────────────────────────────────────────────
+     Interactive elements got no shared focus treatment, so every
+     component hand-rolled one and at least two were broken: the global
+     Filter chip and the settings toggle both carried
+     `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-plum-400]`,
+     where the opt-out landed but the replacement never painted
+     (`ring-[--var]` is Tailwind v3 arbitrary-value syntax; v4 needs
+     `ring-(--var)`). Result: outline:none AND box-shadow:none while
+     :focus-visible matched — a keyboard user could reach the control but
+     not see that they had.
+
+     This is the default now, so components do not have to think about it.
+     Notes for anyone editing it:
+     - `:where()` keeps specificity at (0,1,0) and the rule lives in
+       @layer base, so a component CAN still opt out with a utility —
+       `focus-visible:outline-none` wins. Opting out means you owe a
+       replacement indicator that clears 3:1; prefer not to.
+     - `:focus-visible`, not `:focus` — pointer users should not see it.
+     - outline (not box-shadow/ring) because `outline` follows
+       border-radius, cannot be clipped by `overflow:hidden`, and does
+       not affect layout.
+     - [tabindex^="-"] is excluded: Radix parks tabindex="-1" on popover
+       and tab-panel containers, which are focus targets but not controls.
+     ═══════════════════════════════════════════════════════════ */
+  :where(
+    a[href],
+    area[href],
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [contenteditable="true"],
+    [role="button"],
+    [role="link"],
+    [role="switch"],
+    [role="tab"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [tabindex]:not([tabindex^="-"])
+  ):focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* Windows High Contrast / forced-colors: our palette is discarded, so
+     defer to the system highlight colour rather than painting a ring the
+     user's chosen scheme may render invisible. */
+  @media (forced-colors: active) {
+    :where(
+      a[href], area[href], button, input, select, textarea, summary,
+      [contenteditable="true"], [role="button"], [role="link"],
+      [role="switch"], [role="tab"], [role="checkbox"], [role="radio"],
+      [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"],
+      [role="option"], [tabindex]:not([tabindex^="-"])
+    ):focus-visible {
+      outline-color: Highlight;
+    }
   }
   body {
     @apply bg-background text-foreground;
@@ -1650,8 +1748,12 @@
 }
 .skip-to-content:focus {
   top: 12px;
-  outline: 2px solid var(--gold-bright);
-  outline-offset: 2px;
+  /* Was a hand-rolled `2px solid var(--gold-bright)` — the one correct
+     focus indicator in the file, now the source of the --focus-ring
+     token. :focus (not :focus-visible) on purpose: the link exists only
+     for keyboard users and must reveal itself however focus arrived. */
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1671,6 +1773,54 @@
   padding: 8px 16px;
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
+}
+.memory-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+/* Reader/graph mode toggle — a filter-chip toggle. State is carried on three
+   independent channels (aria-pressed, container fill, leading icon) so it is
+   never colour-alone. Mirrors the chip toggles on /architecture. */
+.memory-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-button, 8px);
+  cursor: pointer;
+  flex-shrink: 0;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  transition:
+    color var(--motion-fast, 120ms) var(--ease, ease),
+    background-color var(--motion-fast, 120ms) var(--ease, ease),
+    border-color var(--motion-fast, 120ms) var(--ease, ease);
+}
+.memory-view-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent-plum-600);
+}
+.memory-view-toggle[aria-pressed="true"] {
+  /* Three non-colour channels carry "on": the filled container, the heavier
+     label, and the leading check icon (vs the graph icon when off). The gold
+     edge matches .shell-tab[aria-selected="true"] — selected is gold. */
+  background: var(--accent-plum-800);
+  color: var(--accent-plum-300);
+  border-color: var(--gold);
+  font-weight: 600;
+}
+.memory-view-toggle:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .memory-view-toggle { transition: none; }
 }
 .memory-toolbar__title {
   font-size: 12px;
@@ -1714,6 +1864,25 @@
   overflow: hidden;
 }
 .memory-sidebar-backdrop { display: none; }
+/* The measured centre pane. min-width/min-height:0 keep a flex child from
+   pushing past the pane, which is what the graph canvas is sized against. */
+.memory-pane-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.memory-rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 240px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--border-subtle);
+}
 
 /* KPI dl reset */
 .kpi-grid dl.kpi { margin: 0; }
@@ -1732,6 +1901,23 @@
     border-right: 1px solid var(--moss-line);
   }
   .memory-sidebar--open { transform: translateX(0); }
+  /* A fixed 240px rail beside the centre pane leaves only ~150px for the
+     reader/graph at 390px wide. Stack the rail underneath instead of
+     starving the primary content — GOL-2950. */
+  .memory-panes {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .memory-pane-main {
+    flex: 1 0 auto;
+    min-height: 70vh;
+  }
+  .memory-rail {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+    overflow-y: visible;
+  }
   .memory-sidebar-backdrop {
     display: block;
     position: fixed;

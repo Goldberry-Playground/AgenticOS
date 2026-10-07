@@ -255,6 +255,39 @@ services:
     cpus: "3.5"
     cpu_shares: 1024
     pids_limit: 2048
+    # PID-leak reaper (GOL-3002). The image ENTRYPOINT ends in `exec gosu node
+    # node … server/dist/index.js`, so container PID 1 is the node server itself.
+    # libuv reaps only the pids it spawned (per-pid waitpid), never `waitpid(-1)`
+    # — so every orphaned GRANDCHILD of an agent run (the run's bash dies, its
+    # `git`/`chrome`/`sleep` children reparent to PID 1) becomes a zombie that
+    # nothing ever collects. Zombies hold a pid each, so they accrue against
+    # pids_limit above until it is exhausted and EVERY subsequent spawn fails
+    # with EAGAIN.
+    #
+    # That is what happened on 2026-10-05: pids.current=2043/2048 with
+    # pids.events max=542, of which only 352 were live threads — the other 1,691
+    # were zombies parented to PID 1 (989 bash, 225 git, 177 chrome-headless,
+    # 130 chrome, 84 chrome_crashpad, 35 node, 15 sleep, 8 python3), the oldest
+    # 4.8 days old (the container's whole uptime). Two agent-run failure storms
+    # followed (16:21–16:30Z, 18:03–18:08Z): 60+ runs died with
+    # `spawn /usr/local/bin/claude EAGAIN`. `docker restart` only resets the
+    # clock — at the observed ~350 zombies/day the cap returns in ~5-6 days.
+    #
+    # `init: true` interposes docker's own init (tini, /usr/bin/docker-init) as
+    # PID 1; it loops on `waitpid(-1)` and so reaps any orphan reparented to it,
+    # and forwards signals to the server (node moves to PID 2, keeping its
+    # existing graceful-shutdown path). Chosen over an in-image tini ENTRYPOINT
+    # because it needs NO image rebuild — the build context is /opt/paperclip
+    # (a separate upstream clone), so a compose flag is both smaller and the only
+    # half of this we own. Note this bounds the ZOMBIE leak only; live leftover
+    # processes (e.g. headless Chrome that outlives its run) are GOL-3005.
+    #
+    # Blast radius: picked up by `docker compose up -d --force-recreate
+    # paperclip-server` in deploy-droplet.yml, which also tar-ships this file to
+    # /opt/agenticos/docker-compose.yml. That deploy asserts the engine supports
+    # `--init` BEFORE it touches this service, so a (very unlikely) engine
+    # without docker-init fails the pre-flight instead of leaving the server down.
+    init: true
     restart: unless-stopped
     ports:
       - "10.116.16.2:3100:3100"

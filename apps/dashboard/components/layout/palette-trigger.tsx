@@ -17,7 +17,11 @@ export function PaletteTrigger() {
     <button
       type="button"
       onClick={open}
-      className="flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-[--surface-muted]"
+      // `hover:bg-[--surface-muted]` was the same inert v3 arbitrary-value
+      // syntax as the Filter chip's broken ring — the trigger had no hover
+      // affordance at all. `bg-(--surface-muted)` is the v4 spelling.
+      // GOL-2968.
+      className="flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-(--surface-muted)"
       style={{ color: "var(--text-muted)" }}
       aria-label="Open command palette (⌘K)"
     >

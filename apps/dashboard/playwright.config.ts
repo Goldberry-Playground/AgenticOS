@@ -24,13 +24,16 @@ export default defineConfig({
       // Deliberately a chromium descriptor: the E2E workflow only installs the
       // chromium browser, so a webkit/Mobile Safari project would not run.
       name: "mobile-chromium",
-      // Scoped to the responsive suite on purpose. `dashboard-load` and
+      // Scoped to the responsive + a11y suites on purpose. `dashboard-load` and
       // `tab-isolation` assert on the `role="tab"` tablist, which is
       // `display: none` below 768px — the mobile nav is a dropdown button
       // instead — so running them here would be red by design rather than
       // by defect. Widening this lane means making those specs nav-aware
       // first; that is a separate piece of work.
-      testMatch: /viewport-overflow\.spec\.ts/,
+      // focus-visible (GOL-2968) is in this lane too: below 768px the header
+      // swaps its 5 tab links for a dropdown button, so the mobile Tab order
+      // is a different set of controls than the desktop lane probes.
+      testMatch: /(viewport-overflow|focus-visible)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },

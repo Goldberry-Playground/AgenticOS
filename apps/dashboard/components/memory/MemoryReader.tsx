@@ -6,8 +6,6 @@ import { RenderPageBody } from "@/lib/markdown/render-page";
 
 interface MemoryReaderProps {
   path: string | null;
-  graphMode?: boolean;
-  onToggleGraph?: () => void;
 }
 
 const VAULT_WIKI_ROOT =
@@ -18,7 +16,7 @@ function buildObsidianUrl(pagePath: string): string {
   return "obsidian://open?path=" + encodeURIComponent(absolutePath);
 }
 
-export function MemoryReader({ path, graphMode = false, onToggleGraph }: MemoryReaderProps) {
+export function MemoryReader({ path }: MemoryReaderProps) {
   const { data: page, isLoading, isError } = useVaultPage(path);
 
   if (!path) {
@@ -111,17 +109,11 @@ export function MemoryReader({ path, graphMode = false, onToggleGraph }: MemoryR
           </div>
         </div>
 
-        {/* Header actions */}
+        {/* Header actions. The reader/graph toggle lives in the Memory
+            toolbar, not here: this component unmounts in graph mode, so a
+            toggle rendered inside it could never show its "on" state (or be
+            used to switch back). See GOL-2950. */}
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={onToggleGraph ?? undefined}
-            className="text-xs px-2 py-1 rounded"
-            style={{ color: graphMode ? "var(--accent-plum-400)" : "var(--text-muted)" }}
-            aria-label="Toggle graph view"
-          >
-            Graph view
-          </button>
-
           {/* Open in Obsidian */}
           <a
             href={obsidianUrl}

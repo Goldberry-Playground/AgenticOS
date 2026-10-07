@@ -23,6 +23,13 @@ name: Deploy paperclip-server (core code)
 # workflow_dispatch is 403 for agents (same pattern as
 # recreate-paperclip-server.yml / disk-reclaim.yml). client_payload.ref selects
 # the ref; defaults to the cloud-init pin.
+#
+# After moving /opt/paperclip to the chosen ref, this also applies the patches in
+# infra/paperclip-patches/ to the build context (GOL-3005). The fork lives under a
+# different GitHub owner that our App is not installed on, so agent automation
+# cannot PR it; a reviewed patch in this repo is the only self-service path for a
+# core-server fix. Patches are all-or-nothing and applied BEFORE the build, so a
+# patch that no longer applies fails the job without touching the live container.
 
 on:
   workflow_dispatch:
@@ -50,10 +57,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out composite actions
+      - name: Check out composite actions + Paperclip fork patches
         uses: actions/checkout@v7
         with:
-          sparse-checkout: .github/actions
+          sparse-checkout: |
+            .github/actions
+            infra/paperclip-patches
+            infra/scripts/apply-paperclip-patches.sh
 
       - name: Resolve + validate deploy ref
         id: ref
@@ -79,7 +89,23 @@ jobs:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
 
-      - name: Update /opt/paperclip and rebuild paperclip-server
+      - name: Ship Paperclip fork patches to the Droplet
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          set -euo pipefail
+          # Separate step (and separate ssh invocation) from the remote script
+          # below: that one feeds a heredoc on stdin, and a tar stream cannot
+          # share stdin with it. Staged under /tmp, never inside the build
+          # context, so nothing here can end up COPYed into the image.
+          tar c -C infra paperclip-patches scripts/apply-paperclip-patches.sh \
+            | ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+                'set -eu; rm -rf /tmp/paperclip-patches-staging; mkdir -p /tmp/paperclip-patches-staging; tar x -C /tmp/paperclip-patches-staging'
+          ssh -n -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            'ls -la /tmp/paperclip-patches-staging/paperclip-patches'
+
+      - name: Update /opt/paperclip, apply patches, rebuild paperclip-server
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
           USER: ${{ secrets.DROPLET_USER }}
@@ -98,12 +124,66 @@ jobs:
               || git fetch --depth 1 origin "refs/tags/${REF}:refs/tags/${REF}"
             git checkout --force --detach FETCH_HEAD
             echo "updated /opt/paperclip HEAD: $(git rev-parse --short HEAD) ($REF)"
+            # Patch the build context BEFORE the build (GOL-3005). All-or-nothing
+            # and it exits non-zero on a patch that no longer applies, so a stale
+            # patch stops the deploy here — the live container is untouched until
+            # the `up -d` below.
+            STAGING=/tmp/paperclip-patches-staging
+            bash "$STAGING/scripts/apply-paperclip-patches.sh" /opt/paperclip "$STAGING/paperclip-patches"
             cd /opt/agenticos
             # Rebuild the image from the updated build context, then recreate the
             # container so it runs the new code. State survives on paperclip-data.
             docker compose build paperclip-server
             docker compose up -d paperclip-server
             docker compose ps paperclip-server
+          REMOTE
+
+      - name: Verify Paperclip fork patches are live in the container
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          set -euo pipefail
+          # A clean `git apply` proves the build CONTEXT was patched; it does not
+          # prove the built image picked the change up (a cached layer or a build
+          # that reads from somewhere else would both pass silently). So assert
+          # every file the patches ADD is actually present under /app in the
+          # running container. Derived from the patches themselves, so this stays
+          # correct as patches come and go — including going to zero.
+          shopt -s nullglob
+          patches=(infra/paperclip-patches/*.patch)
+          shopt -u nullglob
+          if [ ${#patches[@]} -eq 0 ]; then
+            echo "no fork patches to verify"
+            exit 0
+          fi
+          added="$(git apply --summary "${patches[@]}" | sed -n 's/^ create mode [0-7]* //p')"
+          if [ -z "$added" ]; then
+            echo "fork patches add no new files — nothing to assert in the container"
+            exit 0
+          fi
+          # These paths are interpolated into a remote shell command below, so
+          # hold them to a safe charset rather than trusting the patch headers.
+          if printf '%s' "$added" | grep -qE '[^A-Za-z0-9._/[:space:]-]'; then
+            echo "::error::patch adds a path with unexpected characters; refusing to interpolate it into a remote command"
+            printf '%s\n' "$added"
+            exit 1
+          fi
+          echo "asserting these patch-added files exist in the container:"
+          printf '%s\n' "$added" | sed 's/^/  /'
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "ADDED='${added}' bash -s" <<'REMOTE'
+            set -euo pipefail
+            cd /opt/agenticos
+            missing=0
+            for rel in $ADDED; do
+              if docker compose exec -T paperclip-server test -e "/app/$rel"; then
+                echo "  present  /app/$rel"
+              else
+                echo "::error::patched file missing in the running container: /app/$rel"
+                missing=1
+              fi
+            done
+            exit $missing
           REMOTE
 
       - name: Verify server healthy + concurrency cap live

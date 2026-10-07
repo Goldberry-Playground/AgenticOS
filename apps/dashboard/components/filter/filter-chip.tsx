@@ -82,7 +82,14 @@ export function FilterChip() {
     <Popover>
       <PopoverTrigger
         data-slot="filter-chip-trigger"
-        className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-plum-400]"
+        // No focus-visible utilities here on purpose: the shared
+        // `:focus-visible` rule in globals.css @layer base owns the focus
+        // ring. This class list used to carry
+        // `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent-plum-400]`,
+        // which stripped the indicator and then failed to paint a
+        // replacement (v3 `ring-[--var]` syntax is inert in Tailwind v4) —
+        // WCAG 2.4.7 failure on a top-level global control. GOL-2968.
+        className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
         style={{
           backgroundColor: "var(--surface-muted)",
           color: isActive ? "var(--accent-plum-300)" : "var(--text-secondary)",
