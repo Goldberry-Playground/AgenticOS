@@ -25,11 +25,11 @@ name: Deploy paperclip-server (core code)
 # the ref; defaults to the cloud-init pin.
 #
 # After moving /opt/paperclip to the chosen ref, this also applies the patches in
-# infra/paperclip-patches/ to the build context (GOL-3005). That directory is a
-# short-lived staging area for core-server fixes that must ship before they are
-# upstreamed into the fork and tagged; it is normally empty, which is a no-op.
-# Patches are all-or-nothing and applied BEFORE the build, so a patch that no
-# longer applies fails the job without touching the live container.
+# infra/paperclip-patches/ to the build context (GOL-3005). The fork lives under a
+# different GitHub owner that our App is not installed on, so agent automation
+# cannot PR it; a reviewed patch in this repo is the only self-service path for a
+# core-server fix. Patches are all-or-nothing and applied BEFORE the build, so a
+# patch that no longer applies fails the job without touching the live container.
 
 on:
   workflow_dispatch:
@@ -38,7 +38,7 @@ on:
         description: Paperclip-AgenticOS ref (tag/branch/sha) to deploy into /opt/paperclip
         required: true
         type: string
-        default: agenticos-v0.2.2
+        default: agenticos-v0.2.1
   repository_dispatch:
     types: [deploy-paperclip-server]
 
@@ -74,7 +74,7 @@ jobs:
           set -euo pipefail
           REF="${DISPATCH_REF:-}"
           [ -n "$REF" ] || REF="${INPUT_REF:-}"
-          [ -n "$REF" ] || REF="agenticos-v0.2.2"
+          [ -n "$REF" ] || REF="agenticos-v0.2.1"
           # Allowlist: git ref / sha chars only. This value is interpolated into
           # a remote shell command, so reject anything with metacharacters.
           case "$REF" in

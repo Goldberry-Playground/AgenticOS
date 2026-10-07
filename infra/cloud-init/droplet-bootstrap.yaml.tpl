@@ -742,7 +742,7 @@ runcmd:
   # --- Clone repo ---
   - sudo -u deploy git clone https://github.com/${github_repo}.git /opt/agenticos/repo
 
-  # --- Clone Paperclip fork (pinned to agenticos-v0.2.2) ---
+  # --- Clone Paperclip fork (pinned to agenticos-v0.2.1) ---
   # Canonical fork repo name is Paperclip-AgenticOS (GitHub redirects the bare
   # `paperclip` name, but pin the real one). paperclip-server's compose service
   # builds its image from this clone at /opt/paperclip.
@@ -760,19 +760,14 @@ runcmd:
   # box, post-provision updates to /opt/paperclip ship via the
   # deploy-paperclip-server.yml workflow (git checkout <tag> + rebuild); this pin
   # is the source of truth for a fresh (re)provision.
-  # v0.2.2 = v0.2.1 + sweep a run's leftover process group on exit (GOL-3005,
-  # PR #8): headless Chrome etc. no longer outlives its run. Previously shipped
-  # as infra/paperclip-patches/0001, retired with this pin bump.
-  # The fork was transferred to Goldberry-Playground on 2026-08-03; the old
-  # EngineeringMoonBear URL only redirects, so clone the canonical one.
-  - sudo -u deploy git clone --branch agenticos-v0.2.2 --depth 1 https://github.com/Goldberry-Playground/Paperclip-AgenticOS.git /opt/paperclip
+  - sudo -u deploy git clone --branch agenticos-v0.2.1 --depth 1 https://github.com/EngineeringMoonBear/Paperclip-AgenticOS.git /opt/paperclip
 
   # --- Patch the Paperclip fork build context (GOL-3005) ---
-  # Core-server fixes belong upstream in the fork (agents CAN PR it). When one
-  # has to ship before it can be tagged, it lands as a reviewed patch in this
-  # repo under infra/paperclip-patches/ and is applied to the build context
-  # before the `docker compose up -d` further down builds the paperclip-server
-  # image. An empty patch dir is a no-op.
+  # The fork is under a different GitHub owner that the agenticos-developer App
+  # is not installed on, so agent automation cannot open a PR against it. Core
+  # server fixes therefore land as reviewed patches in this repo under
+  # infra/paperclip-patches/ and are applied to the build context before the
+  # `docker compose up -d` further down builds the paperclip-server image.
   #
   # This must stay in lockstep with deploy-paperclip-server.yml, which applies
   # the same patches with the same script on a live box — otherwise a reprovision
