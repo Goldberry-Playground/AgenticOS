@@ -9,8 +9,14 @@ import { test, expect } from "@playwright/test";
  * whole page drifts under the thumb and the right edge of every control in the
  * offending row sits off-screen, so you cannot see the value you are changing.
  *
- * This spec runs in both projects, so the desktop lane guards against the
+ * This spec runs in every project, so the desktop lane guards against the
  * mirror-image regression (a `w-[1400px]` hard-coded width, say) too.
+ *
+ * GOL-2959 added the 320px lane. The 390px lane has a floor, and the app shell
+ * header sat under it: at 320 the brand lockup plus the four utility controls
+ * pushed every route 47px wide, which put the Settings cog entirely off-screen.
+ * 320 CSS px is the width WCAG 1.4.10 (Reflow) names, and it is what a 390px
+ * phone becomes at 125% text zoom.
  *
  * On failure it names the offending elements rather than just the delta —
  * hunting an overflow from a bare number is the slow part.
@@ -71,6 +77,57 @@ test.describe("no horizontal overflow", () => {
       ).toBeLessThanOrEqual(clientWidth);
     });
   }
+});
+
+/**
+ * GOL-2959 — the shell header's utility cluster must stay on-screen.
+ *
+ * The document-level check above catches the overflow, but it reports a
+ * number. This names the harm: `.shell-header-right` is the only route to
+ * Settings and to the global filter, and at 320px its right edge ran 47px
+ * past the viewport, so the cog was not merely clipped — it was unreachable.
+ * The fix is reflow (the row wraps), so the assertion is on the cluster's
+ * right edge, not on the header staying one line tall.
+ */
+test.describe("shell header utility cluster", () => {
+  test.slow();
+
+  test("stays within the viewport at every width", async ({ page }) => {
+    await page.goto("/runs", { waitUntil: "load" });
+    await page.evaluate(() => document.fonts.ready);
+
+    const cluster = page.locator(".shell-header-right");
+    await expect(cluster).toBeVisible();
+
+    const { clientWidth, clusterRight, settingsRight } = await page.evaluate(
+      () => {
+        const de = document.documentElement;
+        const right = (sel: string) =>
+          Math.round(
+            document.querySelector(sel)!.getBoundingClientRect().right,
+          );
+        return {
+          clientWidth: de.clientWidth,
+          clusterRight: right(".shell-header-right"),
+          settingsRight: right('.shell-header-right a[href="/settings"]'),
+        };
+      },
+    );
+
+    expect(
+      clusterRight,
+      `header utility cluster right edge is ${clusterRight} vs viewport ${clientWidth}`,
+    ).toBeLessThanOrEqual(clientWidth);
+    expect(
+      settingsRight,
+      `Settings cog right edge is ${settingsRight} vs viewport ${clientWidth} — ` +
+        "an off-screen cog is an unreachable control, not a cosmetic clip",
+    ).toBeLessThanOrEqual(clientWidth);
+
+    // It is a link, so "reachable" means a real click lands on it.
+    await page.locator('.shell-header-right a[href="/settings"]').click();
+    await expect(page).toHaveURL(/\/settings$/);
+  });
 });
 
 test.describe("settings model-tier selects", () => {

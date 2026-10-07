@@ -295,7 +295,11 @@ const manifest: PaperclipPluginManifestV1 = {
   //   green and a wedged PR (grove-sites#875 / GOL-2718). All agent PRs share one App
   //   opener login, so the git commit author (name/email) is the discriminating
   //   signal, read via a new GitHubClient.listPullCommitAuthors (`pulls/{n}/commits`,
-  //   reuses pull_requests:read). A new OPTIONAL config field prReviewAuthorIdentities
+  //   reuses pull_requests:read). GOL-2976: the git author email/name BLEED when an
+  //   agent commits in a shared worktree carrying a sibling agent's `user.email`, so
+  //   the commit message's `Co-authored-by:` trailers — written by the acting agent's
+  //   own process, not from `user.email` — are also folded in as a bleed-proof author
+  //   signal. A new OPTIONAL config field prReviewAuthorIdentities
   //   maps reviewer slug → author identities; when a SUPPLEMENTARY reviewer (Iris)
   //   authored the PR and the required reviewer (Ada) is independent, Iris's twin is
   //   skipped — Ada reviews independently and the gate greens on Ada alone (no Iris

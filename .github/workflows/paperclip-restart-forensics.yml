@@ -1,0 +1,267 @@
+name: Paperclip Restart Forensics
+
+# GOL-2864: read-only attribution for paperclip-server restarts.
+#
+# WHY THIS EXISTS. On 2026-09-30 paperclip-server booted seven times in 11.3h.
+# Four of those were pinned to deploy runs from the Actions side alone, but the
+# other three could not be attributed, because the only evidence that separates
+# "killed" from "stopped" lives on the box:
+#
+#   docker inspect  -> .State.OOMKilled / .RestartCount / .State.ExitCode
+#   journalctl -k   -> the kernel's own "Killed process" / "oom-kill:" lines
+#
+# and nobody outside the Droplet can read either. The investigation stalled on
+# exactly that, so the gap is now closed in code instead of re-derived by hand
+# every time.
+#
+# A NOTE ON WHAT THE SERVER LOG CANNOT TELL YOU. It is tempting to read "no
+# graceful-shutdown line in server.log" as proof of SIGKILL. It is not. The
+# SIGTERM path in server/dist/index.js is silent end to end: it flushes
+# telemetry, calls app.locals.paperclipShutdown, awaits shutdownInstrumentation
+# and exits 0, and the one logger.info it contains is guarded on an embedded
+# Postgres this deployment does not run. A clean `docker compose stop` and a
+# kernel SIGKILL therefore leave byte-identical traces in server.log. Only
+# .State.OOMKilled and the kernel ring buffer distinguish them -- hence this
+# workflow.
+#
+# Strictly read-only. It inspects and greps; it never builds, recreates,
+# restarts or stops anything, and it touches no stateful service. Safe to run
+# at any time.
+
+on:
+  workflow_dispatch:
+  # Also run on a push that touches THIS file. The GitHub App installation token
+  # cannot create workflow_dispatch events (actions:write is not granted), so a
+  # merged one-line change here is the trigger of record. Read-only and touches
+  # no stateful service, so firing it on its own edits is safe. Same pattern as
+  # otel-collector-diag.yml (GOL-313).
+  push:
+    paths:
+      - '.github/workflows/paperclip-restart-forensics.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paperclip-restart-forensics
+  cancel-in-progress: true
+
+jobs:
+  forensics:
+    name: Attribute paperclip-server restarts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out composite actions
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions
+
+      - name: Configure SSH
+        uses: ./.github/actions/configure-ssh
+        with:
+          deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
+          host: ${{ secrets.DROPLET_HOST }}
+
+      - name: Collect restart forensics
+        # `shell: bash` is load-bearing: it runs `bash --noprofile --norc -eo
+        # pipefail {0}`, whereas GitHub's default for `run:` is `bash -e {0}`
+        # WITHOUT pipefail, which would let `| tee` mask a nonzero exit from the
+        # ssh and report a green run over a collection that never happened.
+        shell: bash
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          # `set -uo pipefail` (no -e) on the remote side: every probe below is
+          # independent, and a missing optional tool must not abort the ones
+          # after it. Each probe prints its own fallback instead.
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" '
+            set -uo pipefail
+            cd /opt/agenticos
+
+            echo "===== 1. container state: OOM-killed? how many restarts? ====="
+            # .State.OOMKilled is THE discriminator between an OOM-kill and an
+            # orderly stop. .RestartCount counts restart-policy revivals of the
+            # SAME container; it resets to 0 on every `up -d --force-recreate`,
+            # so a deploy-driven restart shows 0 here while a crash-loop does
+            # not -- that difference is the second discriminator.
+            docker inspect paperclip-server --format \
+              "oomkilled={{.State.OOMKilled}} exitcode={{.State.ExitCode}} status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}} finished={{.State.FinishedAt}} created={{.Created}} error={{.State.Error}}" \
+              2>/dev/null || echo "(paperclip-server container not found)"
+            echo
+
+            echo "===== 2. configured memory + concurrency envelope ====="
+            docker inspect paperclip-server --format \
+              "mem_limit={{.HostConfig.Memory}} memswap={{.HostConfig.MemorySwap}} reservation={{.HostConfig.MemoryReservation}} cpus={{.HostConfig.NanoCpus}} restart_policy={{.HostConfig.RestartPolicy.Name}}" \
+              2>/dev/null || echo "(unavailable)"
+            echo
+
+            echo "===== 3. live memory vs limit, and cgroup OOM counters ====="
+            # NOTE the two numbers disagree on purpose: `docker stats` reports the
+            # working set (it subtracts page cache), while cgroup memory.current
+            # includes it. On the first live run that was 1.485GiB (49.5%) vs
+            # 2.63GiB (88%) -- the gap is ~1.1GiB of reclaimable page cache from
+            # writing server.log, not demand on the limit. Read the docker stats
+            # figure when judging OOM risk.
+            #
+            # memory.events oom_kill is the cgroup-level kill counter. It resets
+            # when the container is RECREATED (not when it is merely restarted),
+            # so read it together with .RestartCount above. A nonzero oom_kill
+            # with mem usage pinned at the limit is a confirmed container OOM.
+            docker stats --no-stream --format \
+              "usage={{.MemUsage}} pct={{.MemPerc}} cpu={{.CPUPerc}}" paperclip-server 2>/dev/null \
+              || echo "(docker stats unavailable)"
+            CG=$(docker inspect paperclip-server --format "{{.Id}}" 2>/dev/null)
+            FOUND=
+            for f in /sys/fs/cgroup/system.slice/docker-${CG}.scope/memory.events \
+                     /sys/fs/cgroup/docker/${CG}/memory.events; do
+              if [ -r "$f" ]; then
+                echo "--- $f ---"; cat "$f"; FOUND=$f; break
+              fi
+            done
+            if [ -z "$FOUND" ]; then
+              # Same rule as probes 4 and 5: not finding the counter is not the
+              # same as the counter reading zero. oom_kill is a primary
+              # discriminator, so never let its absence look like an all-clear.
+              echo "INCONCLUSIVE: cgroup memory.events not readable for ${CG:-unknown}; oom_kill count unknown"
+            fi
+            echo
+
+            echo "===== 4. kernel OOM-killer activity, last 24h ====="
+            # The authoritative record. If a boot was an OOM-kill, the victim and
+            # its RSS are named here.
+            #
+            # An empty result is only meaningful if the journal was actually
+            # READABLE. An earlier draft of this step printed "no OOM lines"
+            # whenever journalctl was missing or sudo refused -- i.e. it reported
+            # the all-clear precisely when it had learned nothing. Silence from a
+            # probe that cannot run is not evidence of absence, so the two cases
+            # are now labelled INCONCLUSIVE and CONCLUSIVE and never share
+            # wording.
+            # The first live run returned "sudo: a password is required": the deploy
+            # user has no NOPASSWD entry. Try the unprivileged readers first, and
+            # require a NON-EMPTY result, because an unprivileged `journalctl -k`
+            # can exit 0 having read nothing -- which would look identical to a
+            # clean box.
+            KLOG=
+            for reader in "journalctl -k --since -24h --no-pager" \
+                          "sudo -n journalctl -k --since -24h --no-pager" \
+                          "dmesg -T"; do
+              if command -v ${reader%% *} >/dev/null 2>&1 \
+                 && $reader >/tmp/gol2864.kmsg 2>/tmp/gol2864.kerr \
+                 && [ -s /tmp/gol2864.kmsg ]; then
+                KLOG="$reader"; break
+              fi
+            done
+            if [ -z "$KLOG" ]; then
+              echo "INCONCLUSIVE: no readable kernel log. Last error: $(head -1 /tmp/gol2864.kerr 2>/dev/null)"
+              echo "  To make this probe conclusive, grant the deploy user NOPASSWD for"
+              echo "  /usr/bin/journalctl, or add it to the systemd-journal group."
+            elif grep -iE "oom-kill|Out of memory|Killed process|oom_reaper" /tmp/gol2864.kmsg; then
+              echo "^^ CONCLUSIVE (via $KLOG): kernel OOM-killer DID fire (lines above)"
+            else
+              echo "CONCLUSIVE (via $KLOG): kernel log read; zero OOM-killer lines in range"
+            fi
+            rm -f /tmp/gol2864.kmsg /tmp/gol2864.kerr
+            echo
+
+            echo "===== 5. docker daemon view of container deaths, last 24h ====="
+            # --until now is required: without it `docker events --since` streams
+            # live and never returns, hanging the step until the job timeout.
+            #
+            # Same INCONCLUSIVE/CONCLUSIVE split as probe 4: an empty event list
+            # and an unavailable daemon must not read alike. Every event for the
+            # container is printed rather than grepped, so a lifecycle status we
+            # did not anticipate cannot be silently filtered away.
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "INCONCLUSIVE: docker CLI unavailable"
+            else
+              # `.Action`, NOT `.Status`. The template is applied to
+              # *events.Message, which has no Status field; the first live run
+              # returned an "Error parsing format ... cannot evaluate field Status"
+              # -- and because that text is non-empty, the draft printed it and
+              # then declared the result CONCLUSIVE. An error is never data: any
+              # failure or template error is INCONCLUSIVE.
+              # --until takes a timestamp, not the word "now": this daemon answered
+              # `failed to parse value as time or duration: "now"`. It is still
+              # required -- without any --until, `docker events --since` streams
+              # live and never returns, hanging the step until the job timeout.
+              # Filter to LIFECYCLE events only. The compose healthcheck execs
+              # every 10s and each one emits exec_create + exec_start + exec_die,
+              # so an unfiltered 24h window is ~26k lines of healthcheck noise
+              # that buries the handful of die/start/create lines this probe
+              # exists to find -- and the daemon truncates to the most recent
+              # events, so the restarts scroll off entirely. Repeated
+              # --filter event= are OR-ed.
+              if ! EVENTS=$(timeout 60 docker events --since 24h --until "$(date -u +%Y-%m-%dT%H:%M:%S)" \
+                  --filter container=paperclip-server \
+                  --filter event=create --filter event=start --filter event=die \
+                  --filter event=stop --filter event=kill --filter event=restart \
+                  --filter event=oom --filter event=destroy \
+                  --format "{{.Time}} {{.Action}} exitCode={{index .Actor.Attributes \"exitCode\"}}" 2>&1); then
+                echo "INCONCLUSIVE: docker events failed: $(printf %s "$EVENTS" | head -1)"
+              elif printf %s "$EVENTS" | grep -qiE "^Error|template:"; then
+                echo "INCONCLUSIVE: docker events returned an error: $(printf %s "$EVENTS" | head -1)"
+              elif [ -n "$EVENTS" ]; then
+                echo "$EVENTS"
+                echo "^^ CONCLUSIVE: an oom action confirms an OOM-kill; a die/start pair with"
+                echo "   no preceding stop is a crash; create/destroy is a deploy recreate."
+              else
+                # An empty result here is usually a LIE, and the live run proved
+                # it: the daemon reported "zero lifecycle events in 24h" for a
+                # container it had itself created 1h42m earlier. The daemon keeps
+                # events in a bounded in-memory ring, the healthcheck floods it
+                # with ~26k exec_* events a day, and the --filter is applied at
+                # READ time, so filtering cannot recover what the ring already
+                # evicted. Cross-check against the container create time: if the
+                # container was created inside the window and no create event
+                # came back, the ring has rolled. That is INCONCLUSIVE, not
+                # "nothing happened".
+                CREATED=$(docker inspect paperclip-server --format "{{.Created}}" 2>/dev/null)
+                CREATED_TS=$(date -d "$CREATED" +%s 2>/dev/null || echo 0)
+                CUTOFF=$(( $(date +%s) - 86400 ))
+                if [ "$CREATED_TS" -gt "$CUTOFF" ] 2>/dev/null; then
+                  echo "INCONCLUSIVE: no lifecycle events returned, yet the container was created"
+                  echo "  at $CREATED -- inside the window. The daemon event ring has rolled"
+                  echo "  (healthcheck exec_* floods it), so this probe only sees the last few"
+                  echo "  hours on this box. Run it soon after an incident, not days later."
+                else
+                  echo "CONCLUSIVE: daemon reachable; zero lifecycle events for paperclip-server in 24h"
+                  echo "  (container predates the window, so an empty ring is consistent)"
+                fi
+              fi
+            fi
+            echo
+
+            echo "===== 6. host memory + swap headroom ====="
+            # A container OOM at mem_limit is possible while the host is fine;
+            # a host OOM is not possible while this shows GB of available. The
+            # pair disambiguates cgroup-OOM from host-OOM.
+            free -m 2>/dev/null || echo "INCONCLUSIVE: free(1) unavailable"
+            echo
+            command -v uptime >/dev/null 2>&1 && echo "uptime: $(uptime)"
+            echo
+
+            echo "===== 7. was a deploy responsible? last repo touch ====="
+            # A recreate driven by deploy-droplet.yml / deploy-droplet-plugins.yml
+            # lands within ~2 min of the clone moving. If the clone has not moved
+            # since well before the restart, no deploy caused it.
+            git -C /opt/agenticos/repo log -1 --format="repo HEAD %h %cI %s" 2>/dev/null \
+              || echo "(no /opt/agenticos/repo clone)"
+            stat -c "%n last-modified %y" /opt/agenticos/.env 2>/dev/null || true
+          ' | tee forensics.log
+
+      - name: Publish summary
+        if: always()
+        run: |
+          {
+            echo "### 🔍 paperclip-server restart forensics (GOL-2864)"
+            echo
+            echo "Key line — \`oomkilled=true\` confirms an OOM-kill; \`oomkilled=false\`"
+            echo "with \`restarts=0\` points at a deploy or operator recreate instead."
+            echo
+            echo '```'
+            cat forensics.log 2>/dev/null || echo "(collection produced no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

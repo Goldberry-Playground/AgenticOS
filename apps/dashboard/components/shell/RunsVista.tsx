@@ -6,6 +6,7 @@ import { ActivityStripBackdrop } from "./backdrops/ActivityStripBackdrop";
 import { useRecentRunEvents } from "@/lib/hooks/use-recent-run-events";
 import { useRunsStats } from "@/lib/hooks/use-runs-stats";
 import { useNextCron } from "@/lib/hooks/use-next-cron";
+import { freshestUpdatedAt } from "./as-of";
 
 /**
  * Runs tab hero vista. Composes the {@link VistaShell} chrome with the
@@ -57,9 +58,16 @@ function formatEta(seconds: number): string {
 }
 
 export function RunsVista() {
-  // Pin `now` to mount time so the chart axis stays stable for the
-  // lifetime of the page render. Refetched data drops into the same
-  // 60-minute window without the right edge sliding.
+  // Pin the chart's right-hand edge to mount time so the 60-minute axis stays
+  // stable for the lifetime of the page render — refetched data drops into the
+  // same window without the edge sliding.
+  //
+  // This is deliberately NOT the "as of" label (GOL-3073). It is also not a
+  // hydration hazard: `events` is empty on the server and on the client's
+  // first render (the query has not resolved), and with no events every value
+  // the backdrop renders — zeroed buckets, the floor y-scale, the fixed
+  // -60m/-45m/-30m/-15m/now labels — is independent of `now`. Feed it anything
+  // event-derived and that stops being true.
   const nowIso = useMemo(() => new Date().toISOString(), []);
 
   const eventsQuery = useRecentRunEvents(60);
@@ -74,7 +82,11 @@ export function RunsVista() {
   return (
     <VistaShell
       accent="gold"
-      asOf={nowIso}
+      asOfMs={freshestUpdatedAt(
+        eventsQuery.dataUpdatedAt,
+        statsQuery.dataUpdatedAt,
+        nextCronQuery.dataUpdatedAt,
+      )}
       backdrop={<ActivityStripBackdrop events={events} now={nowIso} />}
     >
       <KpiTile

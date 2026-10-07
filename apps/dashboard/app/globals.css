@@ -293,7 +293,14 @@
   --color-popover:       var(--surface-elevated);
   --color-popover-foreground: var(--text);
   --color-primary:       var(--accent-plum-400);
-  --color-primary-foreground: var(--text-inverse);
+  /* --color-primary is brand gold (#c9a227) in BOTH themes — the plum scale
+     aliases to --gold and .light never re-points it. So primary's foreground
+     must NOT ride --text-inverse, which legitimately flips per theme
+     (#0d1612 dark → #f0ebe4 light): that put light parchment on gold at
+     ~2.2:1 in light mode. --ink-on-light is dark in both themes
+     (#0d1612 / #1a1512) → >=8:1 on gold either way. See GOL-2980, and
+     --warning-fg above for the same class of defect (GOL-903). */
+  --color-primary-foreground: var(--ink-on-light);
   --color-secondary:     var(--surface);
   --color-secondary-foreground: var(--text-secondary);
   --color-muted:         var(--surface-muted);
@@ -313,7 +320,8 @@
   --color-sidebar:                   var(--surface);
   --color-sidebar-foreground:        var(--text);
   --color-sidebar-primary:           var(--accent-plum-400);
-  --color-sidebar-primary-foreground: var(--text-inverse);
+  /* Same gold-in-both-themes reasoning as --color-primary-foreground (GOL-2980). */
+  --color-sidebar-primary-foreground: var(--ink-on-light);
   --color-sidebar-accent:            var(--accent-plum-800);
   --color-sidebar-accent-foreground: var(--accent-plum-300);
   --color-sidebar-border:            var(--border-brand);
@@ -585,9 +593,19 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* GOL-2959 — reflow, not overflow. The brand lockup plus the four utility
+     controls need ~371px of run; below that (320px phones, and any 390px
+     phone at 125% text zoom) they used to push the *document* 47px wide, so
+     every route scrolled on two axes and the Settings cog sat off-screen
+     entirely — WCAG 1.4.10 down to 320 CSS px, and a control you cannot
+     reach. Wrapping is content-driven on purpose: no magic breakpoint to
+     drift out of date when a chip's label grows. `margin-left: auto` on the
+     right cluster keeps it flush right on one row and on two. */
+  flex-wrap: wrap;
   padding: 14px 28px;
-  gap: 24px;
+  /* row column — `gap` is the shorthand, so a separate `row-gap` declared
+     before it was silently reset to 24px. */
+  gap: 10px 24px;
   max-width: 1600px;
   margin: 0 auto;
 }
@@ -598,6 +616,7 @@
   gap: 12px;
   text-decoration: none;
   color: var(--parchment);
+  flex-shrink: 0;
 }
 
 .shell-wordmark {
@@ -615,6 +634,12 @@
 .shell-header-right {
   display: flex;
   align-items: center;
+  /* Flush right whether it shares the brand's row or wraps below it. */
+  margin-left: auto;
+  /* Second line of defence: at extreme text zoom the cluster itself can
+     outgrow a 320px row, so let it stack rather than clip. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -649,6 +674,7 @@
 .shell-tool-icon {
   width: 28px;
   height: 28px;
+  flex-shrink: 0;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -711,7 +737,7 @@
 .shell-tabs-mobile { display: none; }
 
 @media (max-width: 768px) {
-  .shell-header-row { padding: 12px 16px; gap: 12px; }
+  .shell-header-row { padding: 12px 16px; gap: 12px; row-gap: 10px; }
   /* Hide desktop tabs, show mobile dropdown */
   .shell-tabs--desktop { display: none; }
   .shell-tabs-mobile {
@@ -1889,6 +1915,168 @@
   overflow-y: auto;
   background: var(--surface);
   border-left: 1px solid var(--border-subtle);
+}
+
+/* ── Memory graph (GOL-2960) ──────────────────────────────────────────
+   A node's category used to be carried by fill colour alone, and
+   `force-graph` only renders `nodeLabel` as a hover tooltip — which does
+   not exist on touch. The canvas now draws a shape + an on-canvas label
+   per node; these rules give that canvas a text legend and a selection
+   card so the category and the identity of a node are both readable
+   without colour and without hovering. */
+/* A definite stage height, not `flex: 1`.
+   The canvas is handed an explicit pixel height measured from its own pane
+   (GOL-2950) while every ancestor up to <main> is a content-driven
+   `flex: 1` — so the pane could also take its height back FROM the canvas.
+   That is a ratchet, not a layout: measured at 1440x900 it ran the canvas to
+   2228px and the document to 5588px (reader mode on the same page is
+   1117px). Giving the stage a definite, viewport-relative height makes the
+   measurement independent of its own content, which is what breaks the
+   loop — and it means the graph gets a usable stage no matter how much
+   summary content sits above it. */
+.memory-graph {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: 70vh;
+  min-width: 0;
+}
+/* The measured box the canvas is sized against, and the containing block
+   for the selection card. Takes whatever the stage has left after the
+   footer. */
+.memory-graph__canvas {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.memory-graph__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface);
+  max-height: 38%;
+  overflow-y: auto;
+}
+.graph-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  /* --text-muted is only 3.27:1 on --surface; instructional copy owes 4.5:1. */
+  color: var(--text-secondary);
+}
+.graph-legend {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.graph-legend__title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  line-height: 20px;
+}
+.graph-legend__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+/* Shape swatch + literal #tag + count. The swatch alone would still be
+   colour-alone, which is the defect this legend exists to close. */
+.graph-legend__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--radius-button);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.graph-legend__tag {
+  font-weight: 500;
+  color: var(--text);
+}
+.graph-legend__count {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* What a tap on a node does: name the page, then let the user open it. */
+.graph-selection {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+.graph-selection__body {
+  flex: 1;
+  min-width: 0;
+}
+.graph-selection__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graph-selection__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.graph-selection__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+/* Below ~480px the title, the tag line and two controls cannot share a row
+   without the title truncating to nothing — wrap the actions underneath. */
+@media (max-width: 480px) {
+  .graph-selection {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .graph-selection__body {
+    flex-basis: 100%;
+  }
+  .graph-selection__open {
+    flex: 1;
+  }
 }
 
 /* KPI dl reset */

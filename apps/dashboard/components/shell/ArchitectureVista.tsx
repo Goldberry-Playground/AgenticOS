@@ -61,8 +61,7 @@ function toDomainStats(paths: string[]): DomainStats {
 }
 
 export function ArchitectureVista() {
-  const nowIso = useMemo(() => new Date().toISOString(), []);
-  const { data } = useArchitectureVista();
+  const { data, dataUpdatedAt } = useArchitectureVista();
 
   const skills = data?.skills ?? null;
   const runsToday = data?.runsToday ?? null;
@@ -75,7 +74,7 @@ export function ArchitectureVista() {
   return (
     <VistaShell
       accent="copper"
-      asOf={nowIso}
+      asOfMs={dataUpdatedAt}
       backdrop={<SkillGalaxyBackdrop domains={domains} />}
     >
       <KpiTile

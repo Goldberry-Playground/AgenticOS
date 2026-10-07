@@ -5,6 +5,7 @@ import { KpiTile } from "./KpiTile";
 import { MemoryAccumulationBackdrop } from "./backdrops/MemoryAccumulationBackdrop";
 import { useVikingScopes } from "@/lib/hooks/use-viking-scopes";
 import { useVaultStats } from "@/lib/hooks/use-vault-stats";
+import { freshestUpdatedAt } from "./as-of";
 
 /**
  * Memory tab hero vista — wired to live endpoints (truth pass 2026-07-12;
@@ -32,7 +33,6 @@ function relativeTime(epochMs: number | undefined): string | null {
 }
 
 export function MemoryVista() {
-  const nowIso = useMemo(() => new Date().toISOString(), []);
   const scopesQuery = useVikingScopes();
   const vaultQuery = useVaultStats();
 
@@ -54,7 +54,10 @@ export function MemoryVista() {
   return (
     <VistaShell
       accent="sage"
-      asOf={nowIso}
+      asOfMs={freshestUpdatedAt(
+        scopesQuery.dataUpdatedAt,
+        vaultQuery.dataUpdatedAt,
+      )}
       backdrop={<MemoryAccumulationBackdrop />}
     >
       <KpiTile
