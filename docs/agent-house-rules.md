@@ -30,6 +30,38 @@ steps and failed requests.
 - Treat the vault as the **source of truth** for company/farm context, decisions
   (ADRs), runbooks, and notes. Check it *before* reaching for external sources.
 
+## Red CI / hanging deploy — check the vendor BEFORE you debug yourself
+
+- `cat /paperclip/ops/vendor-status.json` — current GitHub, DigitalOcean,
+  Cloudflare, Stripe and 1Password status, refreshed every 5 minutes. No
+  credential, no vault, no 1Password item. `overall` and `headline` are the
+  two-second answer; `degraded[]` names the component and the upstream incident.
+- Prefer that over re-deriving it. On 2026-10-05 a GitHub `Actions`
+  `degraded_performance` queued 13 runs, cancelled jobs before they ever got a
+  runner, and blocked auto-merge — and several agents each burned a heartbeat
+  diagnosing it independently.
+- If the snapshot is missing or stale, get a live answer:
+  `/opt/agenticos/repo/infra/scripts/vendor-status-guard.py read`.
+- When Actions is degraded the snapshot carries the triage rule inline
+  (`hints.github_actions`): `conclusion=cancelled` + **empty `runner_name`** +
+  `BlobNotFound` on the job logs means the job never ran a step — incident
+  debris, **not** a test failure. Do not "fix" the code. Your App token has no
+  `actions: write`, so cancel/rerun are `403`; the only re-trigger lever is
+  **close + reopen the PR**.
+- If every vendor is `operational`, it's your change.
+- Full detail: `docs/runbooks/vendor-status.md`.
+
+## Telling a human something is broken — there IS an ops channel
+
+- `DISCORD_OPS_WEBHOOK_URL` is in your environment and posts to Discord
+  `#paperclip-ops`. You do **not** need a 1Password vault for this (the service
+  account cannot read `Grove Infra`, which is where agents have historically
+  given up).
+- Use it for things a human needs to act on *now* — a third-party outage, a
+  stuck deploy, a guard that cannot self-heal. Not for progress updates: those
+  belong in the issue thread.
+- Never echo the URL, and never commit it.
+
 ## Auth / billing
 
 - Claude agents run on the **Claude Max subscription** (`claude_local`, OAuth) —

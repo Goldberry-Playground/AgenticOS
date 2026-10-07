@@ -449,6 +449,50 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # vendor-status guard (GOL-3021): observability for the things we do NOT run.
+  # Every 5 min it reads the public GitHub/DO/Cloudflare/Stripe/1Password status
+  # APIs, writes a snapshot onto the paperclip-data volume (so in-container
+  # agents can answer "is this me or is this GitHub?" with one credential-free
+  # read at /paperclip/ops/vendor-status.json), and posts to the Discord ops
+  # webhook ONLY on a transition into or out of degradation.
+  # Root because the snapshot lands under /var/lib/docker/volumes (0710 root).
+  # Deliberately NOT a GitHub Actions schedule: the main thing it watches is
+  # Actions, and on 2026-10-05 scheduled runs were among those that never got a
+  # runner. Keep in sync with infra/scripts/install-vendor-status.sh.
+  - path: /etc/systemd/system/agenticos-vendor-status.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS vendor-status guard (GitHub/DO/Cloudflare/Stripe/1Password -> snapshot + Discord on transition)
+      After=network-online.target docker.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/vendor-status-guard.py poll'
+      StandardOutput=append:/var/log/agenticos/vendor-status.log
+      StandardError=append:/var/log/agenticos/vendor-status.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-vendor-status.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Poll vendor status every 5 minutes (GOL-3021)
+
+      [Timer]
+      OnCalendar=*:0/5
+      Persistent=true
+      RandomizedDelaySec=60
+      Unit=agenticos-vendor-status.service
+
+      [Install]
+      WantedBy=timers.target
+
   # --- pid-pressure guard (GOL-3002). paperclip-server is capped at
   # pids_limit: 2048 and runs every agent as a subprocess. Because the image
   # entrypoint `exec gosu node`s the server into PID 1, and libuv reaps only the
@@ -957,6 +1001,9 @@ runcmd:
   - systemctl enable --now agenticos-paperclip-backup-offsite.timer
   # nightly abandoned-worktree reclaim (GOL-1632 / #765)
   - systemctl enable --now agenticos-worktree-reaper.timer
+  # vendor-status guard (GOL-3021): 5-minutely vendor status -> snapshot + Discord
+  - chmod +x /opt/agenticos/repo/infra/scripts/vendor-status-guard.py
+  - systemctl enable --now agenticos-vendor-status.timer
 
   # --- Host-clone drift-guard (GOL-1976): read-only detection that the on-box
   # clone the host timers run from has drifted from origin/main. ---
