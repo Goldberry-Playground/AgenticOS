@@ -238,12 +238,46 @@ export interface CommitAuthor {
   email: string;
   name: string;
   login: string;
+  /**
+   * The full commit message (GOL-2976). The git author email/name bleed when an
+   * agent commits in a worktree carrying a sibling agent's `user.email` (shared-
+   * checkout identity bleed), mis-attributing the commit and silently defeating
+   * the self-review skip. The `Co-authored-by:` trailers in the message are
+   * written by the ACTING agent's own process — not derived from `user.email` —
+   * so they survive the bleed and give {@link collectAuthorSignals} a second,
+   * bleed-proof source of author identity. Optional / may be empty.
+   */
+  message?: string;
+}
+
+/**
+ * Parse `Co-authored-by:` trailers (GOL-2976) from a commit message, returning
+ * each trailer's display name and email. Git's trailer is `Co-authored-by: Name
+ * <email>` (key is case-insensitive); either facet may be absent. These are the
+ * bleed-proof author signal: the acting agent writes them into the message even
+ * when the worktree's `user.email` belongs to a different agent.
+ */
+export function parseCoAuthorTrailers(message: string | undefined): Array<{ name: string; email: string }> {
+  if (!message) return [];
+  const out: Array<{ name: string; email: string }> = [];
+  for (const rawLine of message.split(/\r?\n/)) {
+    const m = /^\s*co-authored-by:\s*(.*)$/i.exec(rawLine);
+    if (!m) continue;
+    const value = (m[1] ?? "").trim();
+    const emailMatch = /<([^>]+)>/.exec(value);
+    const email = emailMatch ? (emailMatch[1] ?? "").trim() : "";
+    const name = (emailMatch ? value.slice(0, emailMatch.index) : value).trim();
+    if (name || email) out.push({ name, email });
+  }
+  return out;
 }
 
 /**
  * Collect the normalized set of author signals for a PR: every commit's author
- * email + name + login, plus the PR opener login. Empty facets are dropped. The
- * set is matched against each reviewer's configured identities.
+ * email + name + login, every commit's `Co-authored-by:` trailer name + email
+ * (GOL-2976 — bleed-proof identity that survives a mis-set worktree `user.email`),
+ * plus the PR opener login. Empty facets are dropped. The set is matched against
+ * each reviewer's configured identities.
  */
 export function collectAuthorSignals(
   commits: readonly CommitAuthor[],
@@ -260,6 +294,10 @@ export function collectAuthorSignals(
     add(c.email);
     add(c.name);
     add(c.login);
+    for (const t of parseCoAuthorTrailers(c.message)) {
+      add(t.email);
+      add(t.name);
+    }
   }
   add(prAuthorLogin);
   return out;

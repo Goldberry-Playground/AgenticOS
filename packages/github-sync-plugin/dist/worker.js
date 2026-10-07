@@ -37032,9 +37032,11 @@ var GitHubClient = class {
   }
   /**
    * List a PR's commit authors (GOL-2720 self-review guard). Returns each commit's
-   * author name/email plus GitHub login so the caller can tell whether a would-be
-   * reviewer also WROTE the PR — all agent PRs share one App opener login, so the
-   * git commit author (name/email) is the only signal that discriminates them.
+   * author name/email, GitHub login, and full message so the caller can tell whether
+   * a would-be reviewer also WROTE the PR — all agent PRs share one App opener login,
+   * so the git commit author (name/email) plus the message's `Co-authored-by:`
+   * trailers (GOL-2976 — bleed-proof when a shared worktree mis-set `user.email`)
+   * are the signals that discriminate them.
    *
    * Single page at 100 commits (GitHub caps `pulls/{n}/commits` at 250 across
    * pages; a PR with >100 commits is vanishingly rare here). `truncated` reports
@@ -37054,7 +37056,8 @@ var GitHubClient = class {
     const authors = batch.map((c) => ({
       email: String(c?.commit?.author?.email ?? ""),
       name: String(c?.commit?.author?.name ?? ""),
-      login: String(c?.author?.login ?? "")
+      login: String(c?.author?.login ?? ""),
+      message: String(c?.commit?.message ?? "")
     }));
     return { ok: true, data: { authors, truncated: batch.length >= PER_PAGE } };
   }
@@ -37563,6 +37566,20 @@ var REQUIRED_REVIEWER = "ada";
 function normalizeAuthorSignal(s) {
   return s.trim().toLowerCase();
 }
+function parseCoAuthorTrailers(message) {
+  if (!message) return [];
+  const out = [];
+  for (const rawLine of message.split(/\r?\n/)) {
+    const m = /^\s*co-authored-by:\s*(.*)$/i.exec(rawLine);
+    if (!m) continue;
+    const value = (m[1] ?? "").trim();
+    const emailMatch = /<([^>]+)>/.exec(value);
+    const email3 = emailMatch ? (emailMatch[1] ?? "").trim() : "";
+    const name = (emailMatch ? value.slice(0, emailMatch.index) : value).trim();
+    if (name || email3) out.push({ name, email: email3 });
+  }
+  return out;
+}
 function collectAuthorSignals(commits, prAuthorLogin) {
   const out = /* @__PURE__ */ new Set();
   const add = (s) => {
@@ -37575,6 +37592,10 @@ function collectAuthorSignals(commits, prAuthorLogin) {
     add(c.email);
     add(c.name);
     add(c.login);
+    for (const t of parseCoAuthorTrailers(c.message)) {
+      add(t.email);
+      add(t.name);
+    }
   }
   add(prAuthorLogin);
   return out;
@@ -38519,7 +38540,11 @@ var manifest = {
   //   green and a wedged PR (grove-sites#875 / GOL-2718). All agent PRs share one App
   //   opener login, so the git commit author (name/email) is the discriminating
   //   signal, read via a new GitHubClient.listPullCommitAuthors (`pulls/{n}/commits`,
-  //   reuses pull_requests:read). A new OPTIONAL config field prReviewAuthorIdentities
+  //   reuses pull_requests:read). GOL-2976: the git author email/name BLEED when an
+  //   agent commits in a shared worktree carrying a sibling agent's `user.email`, so
+  //   the commit message's `Co-authored-by:` trailers — written by the acting agent's
+  //   own process, not from `user.email` — are also folded in as a bleed-proof author
+  //   signal. A new OPTIONAL config field prReviewAuthorIdentities
   //   maps reviewer slug → author identities; when a SUPPLEMENTARY reviewer (Iris)
   //   authored the PR and the required reviewer (Ada) is independent, Iris's twin is
   //   skipped — Ada reviews independently and the gate greens on Ada alone (no Iris
