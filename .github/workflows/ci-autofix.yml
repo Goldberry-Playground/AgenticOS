@@ -25,17 +25,27 @@
 #
 # TWO KNOWN LIMITATIONS, both logged loudly at runtime rather than hidden:
 #
-#  1. GITHUB_TOKEN pushes do not re-trigger `pull_request` checks. The fix
-#     commit lands but `Build` stays red until a maintainer hits "Re-run" (or
-#     Dependabot pushes again). This turns "rebuild by hand" into "click
-#     Re-run" — better, not solved. Solving it needs a GitHub App token in
-#     repo secrets, which is a credential change for the board to approve.
+#  1. GITHUB_TOKEN pushes do not re-trigger `pull_request` checks — and on
+#     AgenticOS#797 the failure mode turned out to be worse than "no runs":
+#     GitHub created all five `pull_request` runs for the pushed head and parked
+#     every one at `conclusion: action_required`, so the PR's live head carried
+#     ZERO build results and sat `mergeable_state: blocked` until someone with
+#     `actions:write` clicked "Approve and run workflows". No agent token can do
+#     that (`POST /actions/runs/{id}/approve` 403s for the agenticos-developer
+#     App), so it was a human click on every bundled-dependency bump.
+#     HANDLED (GOL-2940): the final step below approves exactly the runs for the
+#     sha it just pushed, via `scripts/ci/approve-gated-runs.mjs`. That script
+#     documents the blast radius it deliberately keeps tiny; if approval is
+#     denied it warns with the manual fallback rather than reddening the PR.
 #  2. GitHub may hand Dependabot-triggered workflows a READ-ONLY GITHUB_TOKEN
 #     regardless of the `permissions:` block above. If that is what this repo
 #     does, the push below 403s. The step treats that as a warning with
 #     instructions, not a job failure, so the first real Dependabot bundled-dep
 #     bump tells us definitively which world we are in without also burying the
 #     PR under a red check that is not about the dependency.
+#     ANSWERED (GOL-2940): it does NOT. The autofix push on AgenticOS#797
+#     succeeded, so this repo's Dependabot-triggered runs get a write-capable
+#     GITHUB_TOKEN. The warning stays as the fail-safe in case that changes.
 name: CI autofix
 
 on:
@@ -45,6 +55,10 @@ on:
 permissions:
   contents: write
   pull-requests: read
+  # GOL-2940: needed only to clear the `action_required` runs that this job's
+  # own GITHUB_TOKEN push parks on the pushed head (limitation 1 above).
+  # scripts/ci/approve-gated-runs.mjs scopes that to the single sha pushed here.
+  actions: write
 
 concurrency:
   group: ci-autofix-${{ github.head_ref }}
@@ -127,6 +141,7 @@ jobs:
           pnpm -w build
 
       - name: Commit & push one fix commit (or skip if clean)
+        id: push
         if: steps.gate.outputs.proceed == 'true'
         env:
           HEAD_REF: ${{ github.head_ref }}
@@ -165,4 +180,21 @@ jobs:
             echo "::warning::Could not push the [ci-autofix] commit to $HEAD_REF — the GITHUB_TOKEN for this run is most likely read-only (GitHub restricts it for Dependabot-triggered workflows). Rebuild by hand: 'pnpm install --frozen-lockfile --prod=false && pnpm -w build', then commit packages/*/dist. Tracked on GOL-2694."
             exit 0
           fi
-          echo "::notice::Pushed one [ci-autofix] commit to $HEAD_REF. NOTE (limitation 1): GITHUB_TOKEN pushes do not re-trigger pull_request checks — a maintainer 'Re-run' (or the next push) is needed to turn Build green."
+          # Hand the pushed sha to the approval step. Only set on a SUCCESSFUL
+          # push, so the next step is a no-op in every other path (clean tree,
+          # read-only token, gate skip) — it must never approve a sha this job
+          # did not create.
+          echo "pushed_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "::notice::Pushed one [ci-autofix] commit to $HEAD_REF. GITHUB_TOKEN pushes do not re-trigger pull_request checks, so the next step approves the action_required runs GitHub parks on that head (GOL-2940)."
+
+      # GOL-2940: without this, a bundled-dependency bump wedges on every cycle
+      # — the dist rebuild lands but the PR's live head has no build results
+      # until a human clicks "Approve and run workflows". Approves ONLY runs for
+      # the sha pushed above; see scripts/ci/approve-gated-runs.mjs for why that
+      # scoping is the whole security argument, and its test for the behaviour.
+      - name: Approve the gated runs for the pushed commit (GOL-2940)
+        if: steps.push.outputs.pushed_sha != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUSHED_SHA: ${{ steps.push.outputs.pushed_sha }}
+        run: node scripts/ci/approve-gated-runs.mjs "$GITHUB_REPOSITORY" "$PUSHED_SHA"

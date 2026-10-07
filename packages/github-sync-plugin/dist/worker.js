@@ -20431,6 +20431,7 @@ var PLUGIN_UI_SLOT_TYPES = [
   "sidebarPanel",
   "projectSidebarItem",
   "globalToolbarButton",
+  "appShellOverlay",
   "toolbarButton",
   "contextMenuItem",
   "commentAnnotation",
@@ -21200,6 +21201,145 @@ var zapier_default = {
     }
   ],
   docsUrl: "https://docs.zapier.com/mcp/quickstart"
+};
+
+// node_modules/@paperclipai/shared/dist/app-definitions/arcade.json
+var arcade_default = {
+  schemaVersion: 1,
+  slug: "arcade",
+  name: "Arcade",
+  description: "Use the tools exposed by your Arcade MCP connection.",
+  categories: [
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/arcade.png"
+  },
+  urlPatterns: [
+    "https://api.arcade.dev/*"
+  ],
+  methods: [
+    {
+      key: "mcp",
+      transport: "mcp_remote",
+      auth: "none",
+      ownershipModes: [
+        "dcr",
+        "customer"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {},
+      guidanceMd: "Paste your Arcade MCP URL. Sign in if required, or add a token or headers under Advanced authentication.",
+      riskTier: "S3",
+      label: "Connect MCP server",
+      consoleLinks: {
+        docs: "https://docs.arcade.dev/en/operate/governance/mcp-gateways"
+      }
+    }
+  ],
+  docsUrl: "https://docs.arcade.dev/en/operate/governance/mcp-gateways"
+};
+
+// node_modules/@paperclipai/shared/dist/app-definitions/executor.json
+var executor_default = {
+  schemaVersion: 1,
+  slug: "executor",
+  name: "Executor",
+  description: "Use the tools exposed by your Executor MCP connection.",
+  categories: [
+    "productivity"
+  ],
+  featured: true,
+  branding: {
+    logoUrl: "/brands/apps/executor.png"
+  },
+  urlPatterns: [
+    "https://executor.sh/*"
+  ],
+  methods: [
+    {
+      key: "mcp",
+      transport: "mcp_remote",
+      auth: "none",
+      ownershipModes: [
+        "dcr",
+        "customer"
+      ],
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
+      defaults: {},
+      guidanceMd: "Paste your Executor MCP URL. Sign in if required, or add a token or headers under Advanced authentication.",
+      riskTier: "S3",
+      label: "Connect MCP server",
+      consoleLinks: {
+        docs: "https://executor.sh/docs/mcp-proxy"
+      }
+    }
+  ],
+  docsUrl: "https://executor.sh/docs/mcp-proxy"
+};
+
+// node_modules/@paperclipai/shared/dist/app-definitions/railway.json
+var railway_default = {
+  schemaVersion: 1,
+  slug: "railway",
+  name: "Railway",
+  description: "Inspect services and logs, deploy applications, and run commands in your Railway containers.",
+  categories: [
+    "developer"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/railway.svg",
+    darkLogoUrl: "/brands/apps/railway-dark.svg"
+  },
+  urlPatterns: [
+    "https://mcp.railway.com/"
+  ],
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr",
+        "customer"
+      ],
+      whenToUse: "Authorize your Railway account in the browser.",
+      defaults: {
+        serverUrl: "https://mcp.railway.com",
+        scopesHint: [
+          "openid",
+          "offline_access",
+          "workspace:member"
+        ],
+        oauthAuthorizationParams: {
+          prompt: "consent"
+        }
+      },
+      guidanceMd: "Sign in to Railway and select the workspaces your agents may use. Paperclip adds direct service, deployment, and bounded log tools when Railway accepts the connection for API access. Container commands require the separate SSH setup on the connection. Project tokens are not supported by Railway's hosted connection.",
+      riskTier: "S4",
+      label: "Connect Railway",
+      consoleLinks: {
+        docs: "https://docs.railway.com/ai/mcp-server",
+        register: "https://docs.railway.com/integrations/oauth/creating-an-app",
+        settings: "https://railway.com/account"
+      },
+      warnings: [
+        "Railway enforces the workspaces selected at consent. Selected actions start Allowed; choose Ask first for operations you want to approve.",
+        "Logs and container commands can expose application data and secrets. Grant access only to agents trusted with the selected services.",
+        "The general Railway agent and committing staged changes are unavailable because their internal changes cannot be individually reviewed in Paperclip.",
+        "Live Railway qualification is pending. If Railway rejects API access, reconnect with the required permissions; Paperclip never falls back to another credential."
+      ],
+      requiredResourceFilters: [
+        "workspace",
+        "project",
+        "environment",
+        "service"
+      ]
+    }
+  ],
+  redirectConstraints: "https-or-loopback-http"
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions/github.json
@@ -22222,7 +22362,7 @@ var composio_default = {
   schemaVersion: 1,
   slug: "composio",
   name: "Composio",
-  description: "Connect Composio so Paperclip can discover and manage the toolkits in your project.",
+  description: "Discover and use connected apps through Composio Connect.",
   categories: [
     "productivity"
   ],
@@ -22232,43 +22372,30 @@ var composio_default = {
     darkLogoUrl: "/brands/apps/composio-dark.svg"
   },
   urlPatterns: [
-    "https://backend.composio.dev/*"
+    "https://backend.composio.dev/*",
+    "https://connect.composio.dev/*",
+    "https://mcp.composio.dev/*",
+    "https://*.composio.dev/*"
   ],
   methods: [
     {
-      key: "api-key",
-      transport: "rest_api",
-      auth: "api_key",
+      key: "mcp",
+      transport: "mcp_remote",
+      auth: "none",
       ownershipModes: [
+        "dcr",
         "customer"
       ],
-      whenToUse: "Use a project API key from the Composio project that owns the toolkits and connected accounts.",
+      whenToUse: "Use the provider-hosted connection for the quickest setup.",
       defaults: {
-        serviceHost: "backend.composio.dev"
+        serverUrl: "https://connect.composio.dev/mcp"
       },
-      guidanceMd: "Create a scoped project API key in Composio. It needs read access to toolkits and auth configs; later service-connection phases also need connected-account and session access.",
+      guidanceMd: "Sign in to Composio Connect, or paste an externally configured MCP session URL and headers.",
       riskTier: "S3",
-      credentialFields: [
-        {
-          key: "apiKey",
-          label: "Composio project API key",
-          type: "password",
-          required: true,
-          placeholder: "Paste the Composio API key",
-          secret: true
-        }
-      ],
-      keyPlacement: {
-        location: "header",
-        name: "x-api-key"
-      },
-      consoleLinks: {
-        keys: "https://app.composio.dev/",
-        settings: "https://app.composio.dev/",
-        docs: "https://docs.composio.dev/reference/authenticating-to-composio/project-api-key-permissions"
-      }
+      label: "Composio Connect"
     }
-  ]
+  ],
+  docsUrl: "https://docs.composio.dev/docs/composio-connect"
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions/oauth-generic.json
@@ -25021,6 +25148,108 @@ var xero_default = {
   ]
 };
 
+// node_modules/@paperclipai/shared/dist/app-definitions/youcom.json
+var youcom_default = {
+  schemaVersion: 1,
+  slug: "youcom",
+  name: "You.com",
+  description: "Connect You.com's provider-hosted MCP server.",
+  categories: [
+    "ai"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/youcom.svg",
+    darkLogoUrl: "/brands/apps/youcom-dark.svg"
+  },
+  urlPatterns: [
+    "https://api.you.com/*"
+  ],
+  docsUrl: "https://you.com/docs/build-with-agents/mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://api.you.com/mcp"
+      },
+      guidanceMd: "Connect You.com in the browser. A You.com account for browser sign-in, or a You.com API key from you.com/platform for higher rate limits; a keyless free profile is also available.",
+      riskTier: "S2",
+      label: "Sign in with You.com",
+      consoleLinks: {
+        docs: "https://you.com/docs/build-with-agents/mcp-server"
+      },
+      warnings: [
+        "A You.com account for browser sign-in, or a You.com API key from you.com/platform for higher rate limits; a keyless free profile is also available."
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://api.you.com/mcp"
+      },
+      guidanceMd: "Use a customer-created You.com key. A You.com account for browser sign-in, or a You.com API key from you.com/platform for higher rate limits; a keyless free profile is also available.",
+      riskTier: "S2",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "You.com API key",
+          type: "password",
+          required: true,
+          placeholder: "Paste your You.com API key",
+          secret: true
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://you.com/docs/build-with-agents/mcp-server",
+        docs: "https://you.com/docs/build-with-agents/mcp-server"
+      },
+      warnings: [
+        "A You.com account for browser sign-in, or a You.com API key from you.com/platform for higher rate limits; a keyless free profile is also available."
+      ]
+    },
+    {
+      key: "mcp-free",
+      transport: "mcp_remote",
+      auth: "none",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Connect without an account for limited, rate-capped web search.",
+      defaults: {
+        serverUrl: "https://api.you.com/mcp?profile=free"
+      },
+      guidanceMd: "Use the keyless free profile. You.com limits the free profile to a reduced read-only tool set.",
+      riskTier: "S2",
+      label: "Use the free profile",
+      consoleLinks: {
+        docs: "https://you.com/docs/build-with-agents/mcp-server"
+      },
+      warnings: [
+        "The free profile is keyless and exposes a reduced read-only tool set with You.com rate limits."
+      ]
+    }
+  ]
+};
+
 // node_modules/@paperclipai/shared/dist/app-definitions/gmail.json
 var gmail_default = {
   schemaVersion: 1,
@@ -26805,7 +27034,7 @@ var xai_default = {
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions.generated.js
-var APP_DEFINITIONS = [agentmail_default, zapier_default, github_default, slack_default, microsoft_teams_default, imessage_photon_default, telegram_default, discord_default, notion_default, posthog_default, linear_default, context7_default, shopify_default, composio_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default, jira_default, airtable_default, beehiiv_default, bitly_default, candid_default, cloudflare_default, cloudinary_default, coda_default, hugging_face_default, kernel_default, local_falcon_default, make_default, manufact_default, miro_default, netlify_default, oreilly_default, planetscale_default, resend_default, ticktick_default, todoist_default, webflow_default, wix_default, brex_default, clickhouse_default, egnyte_default, embat_default, mixpanel_default, postman_default, razorpay_default, sanity_default, stripe_default, supabase_default, ticket_tailor_default, asana_default, box_default, mem0_default, pagerduty_default, similarweb_default, xero_default, gmail_default, google_drive_default, google_docs_default, google_sheets_default, google_slides_default, google_calendar_default, google_chat_default, google_people_default, google_workspace_search_default, openai_default, openrouter_default, xai_default];
+var APP_DEFINITIONS = [agentmail_default, zapier_default, arcade_default, executor_default, railway_default, github_default, slack_default, microsoft_teams_default, imessage_photon_default, telegram_default, discord_default, notion_default, posthog_default, linear_default, context7_default, shopify_default, composio_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default, jira_default, airtable_default, beehiiv_default, bitly_default, candid_default, cloudflare_default, cloudinary_default, coda_default, hugging_face_default, kernel_default, local_falcon_default, make_default, manufact_default, miro_default, netlify_default, oreilly_default, planetscale_default, resend_default, ticktick_default, todoist_default, webflow_default, wix_default, brex_default, clickhouse_default, egnyte_default, embat_default, mixpanel_default, postman_default, razorpay_default, sanity_default, stripe_default, supabase_default, ticket_tailor_default, asana_default, box_default, mem0_default, pagerduty_default, similarweb_default, xero_default, youcom_default, gmail_default, google_drive_default, google_docs_default, google_sheets_default, google_slides_default, google_calendar_default, google_chat_default, google_people_default, google_workspace_search_default, openai_default, openrouter_default, xai_default];
 
 // node_modules/@paperclipai/shared/dist/self-serve-mcp-research.json
 var self_serve_mcp_research_default = {
@@ -26855,6 +27084,7 @@ var self_serve_mcp_research_default = {
     { slug: "similarweb", name: "Similarweb", wave: 3, status: "self_serve", docsUrl: "https://developers.similarweb.com/docs/similarweb-mcp", serverUrl: "https://mcp.similarweb.com", authMode: "api_key", prerequisite: "A Similarweb subscription with API access and an API key.", riskTier: "S2" },
     { slug: "xero", name: "Xero", wave: 3, status: "self_serve", docsUrl: "https://developer.xero.com/ai", serverUrl: "https://mcp.xero.com/mcp", authMode: "customer_oauth", prerequisite: "Create a Xero OAuth app and confirm the applicable AI and data-use terms before connecting.", riskTier: "S4" },
     { slug: "zapier", name: "Zapier", wave: 3, status: "self_serve", docsUrl: "https://docs.zapier.com/mcp/quickstart", serverUrl: "https://mcp.zapier.com/", authMode: "generated_url", prerequisite: "Create a Zapier MCP server, choose the actions it exposes, and paste its generated connection URL.", riskTier: "S3" },
+    { slug: "youcom", name: "You.com", wave: 4, status: "self_serve", docsUrl: "https://you.com/docs/build-with-agents/mcp-server", serverUrl: "https://api.you.com/mcp", authMode: "dcr_or_api_key", prerequisite: "A You.com account for browser sign-in, or a You.com API key from you.com/platform for higher rate limits; a keyless free profile is also available.", riskTier: "S2" },
     { slug: "g2", name: "G2", wave: "blocked", status: "blocked", docsUrl: "https://documentation.g2.com/docs/g2-mcp-server", serverUrl: "https://mcp.g2.com/mcp", authMode: "provider_approval", prerequisite: "G2 must enable cross-application token introspection before an independently registered client can work.", riskTier: "S3" },
     { slug: "vercel", name: "Vercel", wave: "blocked", status: "blocked", docsUrl: "https://vercel.com/docs/agent-resources/vercel-mcp", serverUrl: "https://mcp.vercel.com", authMode: "provider_approval", prerequisite: "Vercel currently reviews and approves MCP clients.", riskTier: "S3" },
     { slug: "zomato", name: "Zomato", wave: "blocked", status: "blocked", docsUrl: "https://github.com/Zomato/mcp-server-manifest", serverUrl: "https://mcp-server.zomato.com/mcp", authMode: "provider_approval", prerequisite: "Zomato currently limits third-party clients and requires redirect-URI allowlisting.", riskTier: "S3" }
@@ -26875,8 +27105,11 @@ var CONNECTABLE_APP_SLUGS = /* @__PURE__ */ new Set([
   "agentmail",
   ...SELF_SERVE_MCP_CANDIDATES.map((entry) => entry.slug),
   "zapier",
+  "arcade",
+  "executor",
   "slack",
   "notion",
+  "railway",
   "posthog",
   "linear",
   "google-sheets",
@@ -26904,7 +27137,6 @@ var APP_STORE_HIDDEN_SLUGS = /* @__PURE__ */ new Set([
   "brex",
   "candid",
   "coda",
-  "composio",
   "context7",
   "egnyte",
   "embat",
@@ -27416,6 +27648,20 @@ var localAiConnectionSchema = aiConnectionLoginIntentSchema.extend({
   localSessionId: external_exports.string().uuid().optional()
 });
 var localAiLoginStartSchema = aiConnectionLoginIntentSchema.extend({ restart: external_exports.boolean().optional() });
+
+// node_modules/@paperclipai/shared/dist/remote-mcp-connectors.js
+var REMOTE_MCP_CONNECTOR_METHODS = {
+  zapier: "generated-url",
+  arcade: "mcp",
+  composio: "mcp",
+  executor: "mcp"
+};
+function isRemoteMcpConnectorId(value) {
+  return typeof value === "string" && Object.hasOwn(REMOTE_MCP_CONNECTOR_METHODS, value);
+}
+function isRemoteMcpConnectorMethod(provider, method) {
+  return isRemoteMcpConnectorId(provider) && method === REMOTE_MCP_CONNECTOR_METHODS[provider];
+}
 
 // node_modules/@paperclipai/shared/dist/mcp-remote-headers.js
 var HTTP_TOKEN_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
@@ -28834,6 +29080,46 @@ var createIssueThreadInteractionCommon = {
   addresseeAgentId: external_exports.string().guid().nullable().optional(),
   addresseeUserId: external_exports.string().trim().min(1).nullable().optional()
 };
+var createAskUserQuestionsPayloadSchema = askUserQuestionsPayloadSchema.superRefine((value, ctx) => {
+  if (!value.questionSet)
+    return;
+  const shown = new Set(value.questionSet.questions.map((question) => question.id));
+  const stored = new Set(value.questions.map((question) => question.id));
+  if (shown.size !== stored.size || [...shown].some((id) => !stored.has(id))) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["questionSet", "questions"],
+      message: "questionSet must present every questions entry with the same question IDs. Include choice questions as well as text questions; a partial form hides required answers."
+    });
+  }
+  const storedById = new Map(value.questions.map((question) => [question.id, question]));
+  for (const [index, question] of value.questionSet.questions.entries()) {
+    const storage = storedById.get(question.id);
+    if (!storage)
+      continue;
+    const mismatch = (field2) => ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["questionSet", "questions", index, field2],
+      message: `questionSet ${field2} must match the corresponding questions entry.`
+    });
+    if (question.prompt !== storage.prompt)
+      mismatch("prompt");
+    if (storage.required !== void 0 && question.required !== storage.required)
+      mismatch("required");
+    const mode = question.answerMode === "multi_select" ? "multi" : "single";
+    if (storage.selectionMode !== mode)
+      mismatch("answerMode");
+    if (question.answerMode === "text") {
+      if (storage.options.length !== 1 || !storage.options[0].freeText)
+        mismatch("answerMode");
+    } else {
+      const choices = storage.options.filter((option) => !option.freeText);
+      const canonical = new Map((question.options ?? []).map((option) => [option.id, option.label]));
+      if (choices.length !== canonical.size || choices.some((option) => canonical.get(option.id) !== option.label))
+        mismatch("options");
+    }
+  }
+});
 var createIssueThreadInteractionSchema = external_exports.discriminatedUnion("kind", [
   external_exports.object({
     ...createIssueThreadInteractionCommon,
@@ -28855,7 +29141,7 @@ var createIssueThreadInteractionSchema = external_exports.discriminatedUnion("ki
     title: external_exports.string().trim().max(240).nullable().optional(),
     summary: external_exports.string().trim().max(1e3).nullable().optional(),
     continuationPolicy: issueThreadInteractionContinuationPolicySchema.optional().default("wake_assignee"),
-    payload: askUserQuestionsPayloadSchema
+    payload: createAskUserQuestionsPayloadSchema
   }),
   external_exports.object({
     ...createIssueThreadInteractionCommon,
@@ -29429,6 +29715,7 @@ var routineRevisionSnapshotRoutineV1Schema = external_exports.object({
 }).strict();
 var routineRevisionSnapshotTriggerV1Schema = external_exports.object({
   id: external_exports.string().guid(),
+  setupPending: external_exports.boolean().optional(),
   kind: external_exports.enum(ROUTINE_TRIGGER_KINDS),
   label: external_exports.string().nullable(),
   enabled: external_exports.boolean(),
@@ -29455,6 +29742,7 @@ var createRoutineTriggerSchema = external_exports.discriminatedUnion("kind", [
   }),
   baseTriggerSchema.extend({
     kind: external_exports.literal("webhook"),
+    setupPending: external_exports.boolean().optional(),
     signingMode: external_exports.enum(ROUTINE_TRIGGER_SIGNING_MODES).optional().default("bearer"),
     replayWindowSec: external_exports.number().int().min(30).max(86400).optional().default(300)
   }),
@@ -29463,6 +29751,8 @@ var createRoutineTriggerSchema = external_exports.discriminatedUnion("kind", [
   })
 ]);
 var updateRoutineTriggerSchema = external_exports.object({
+  setupPending: external_exports.literal(false).optional(),
+  archived: external_exports.boolean().optional(),
   label: external_exports.string().trim().max(120).optional().nullable(),
   enabled: external_exports.boolean().optional(),
   cronExpression: external_exports.string().trim().min(1).optional().nullable(),
@@ -30652,6 +30942,7 @@ var connectToolAppSchema = external_exports.object({
   resumeConnectionId: external_exports.string().guid().optional(),
   /** Exact configured connection to reauthorize without replacing its identity. */
   reconnectConnectionId: external_exports.string().guid().optional(),
+  saveDraft: external_exports.boolean().optional(),
   authMode: genericMcpAuthModeSchema.optional(),
   oauthClient: genericMcpOAuthClientSchema.optional(),
   credentialSource: external_exports.enum(["paperclip_vault", "vercel_connect"]).optional(),
@@ -30673,7 +30964,10 @@ var connectToolAppSchema = external_exports.object({
   if (value.grantKind === "agent" !== Boolean(value.subjectAgentId)) {
     ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["subjectAgentId"], message: "subjectAgentId is required exactly for an agent grant" });
   }
-  if (value.authMode && value.galleryKey) {
+  if (value.saveDraft && !isRemoteMcpConnectorMethod(value.galleryKey, value.connectionMethodKey)) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["saveDraft"], message: "Draft saving requires a remote MCP connector" });
+  }
+  if (value.authMode && value.galleryKey && !isRemoteMcpConnectorMethod(value.galleryKey, value.connectionMethodKey)) {
     ctx.addIssue({
       code: external_exports.ZodIssueCode.custom,
       path: ["authMode"],
@@ -30716,7 +31010,8 @@ var finishToolAppSchema = external_exports.object({
   reviewedCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).optional(),
   access: external_exports.union([
     external_exports.literal("all_agents"),
-    external_exports.object({ agentIds: external_exports.array(external_exports.string().guid()).min(1).max(250) })
+    // Choosing specific agents may intentionally leave the connection unassigned.
+    external_exports.object({ agentIds: external_exports.array(external_exports.string().guid()).max(250) })
   ])
 });
 var finalizeOAuthAccessSchema = external_exports.object({
@@ -31278,6 +31573,134 @@ var CHAT_RESOURCE_AVAILABILITIES = [
   "removed"
 ];
 
+// node_modules/@paperclipai/shared/dist/types/chat-github.js
+var GITHUB_REVIEW_EVENTS = [
+  "opened",
+  "synchronize",
+  "reopened",
+  "ready_for_review",
+  "mention",
+  "comment"
+];
+
+// node_modules/@paperclipai/shared/dist/validators/chat-github.js
+var githubIdSchema = external_exports.string().regex(/^[1-9][0-9]{0,19}$/);
+var githubCommitSchema = external_exports.string().regex(/^[a-f0-9]{40}$/i).transform((value) => value.toLowerCase());
+var shortList = external_exports.array(external_exports.string().trim().min(1).max(256)).max(100);
+var prompts = external_exports.object({
+  opened: external_exports.string().max(12e3),
+  synchronize: external_exports.string().max(12e3),
+  reopened: external_exports.string().max(12e3),
+  ready_for_review: external_exports.string().max(12e3),
+  mention: external_exports.string().max(12e3),
+  comment: external_exports.string().max(12e3)
+}).strict();
+var githubReviewPolicySchema = external_exports.object({
+  invocation: external_exports.enum(["mentions_only", "linked_authors", "allowed_authors"]),
+  events: external_exports.array(external_exports.enum(GITHUB_REVIEW_EVENTS)).max(GITHUB_REVIEW_EVENTS.length),
+  reviewDrafts: external_exports.boolean(),
+  reviewBotAuthors: external_exports.boolean(),
+  includeAuthors: shortList,
+  excludeAuthors: shortList,
+  targetBranches: shortList,
+  excludedBranches: shortList,
+  requiredLabels: shortList,
+  excludedLabels: shortList,
+  ignoredPaths: shortList,
+  instructions: external_exports.string().max(24e3),
+  prompts,
+  findingCategories: shortList,
+  minimumCommentSeverity: external_exports.enum(["info", "warning", "error"]),
+  publishSummary: external_exports.boolean(),
+  publishInline: external_exports.boolean(),
+  allowApprove: external_exports.boolean(),
+  allowRequestChanges: external_exports.boolean(),
+  ratingThreshold: external_exports.union([
+    external_exports.literal(1),
+    external_exports.literal(2),
+    external_exports.literal(3),
+    external_exports.literal(4),
+    external_exports.literal(5),
+    external_exports.null()
+  ])
+}).strict();
+var person = {
+  githubUserId: githubIdSchema,
+  login: external_exports.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}(?:\[bot\])?$/),
+  automaticReviews: external_exports.boolean()
+};
+var githubAllowedPersonSchema = external_exports.discriminatedUnion("kind", [
+  external_exports.object({ ...person, kind: external_exports.literal("member"), userId: external_exports.string().min(1) }).strict(),
+  external_exports.object({
+    ...person,
+    kind: external_exports.literal("guest"),
+    sponsorUserId: external_exports.string().min(1),
+    permissionProfile: external_exports.literal("restricted")
+  }).strict()
+]);
+var githubChatConfigurationSchema = external_exports.object({
+  version: external_exports.literal(1),
+  toolsEnabled: external_exports.boolean(),
+  responsibleUserId: external_exports.string().min(1),
+  memberAccess: external_exports.enum(["all_linked", "selected"]),
+  people: external_exports.array(githubAllowedPersonSchema).max(500),
+  defaults: githubReviewPolicySchema,
+  repositories: external_exports.record(githubIdSchema, githubReviewPolicySchema.partial()).refine((value) => Object.keys(value).length <= 500)
+}).strict().superRefine((value, ctx) => {
+  if (new Set(value.people.map((person2) => person2.githubUserId)).size !== value.people.length)
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["people"],
+      message: "Each GitHub account can be allowed only once."
+    });
+});
+var updateGitHubChatConfigurationSchema = external_exports.object({
+  expectedRevision: external_exports.number().int().nonnegative(),
+  configuration: githubChatConfigurationSchema
+}).strict();
+var githubReviewAssessmentSchema = external_exports.object({
+  reviewedCommit: githubCommitSchema,
+  score: external_exports.union([
+    external_exports.literal(0),
+    external_exports.literal(1),
+    external_exports.literal(2),
+    external_exports.literal(3),
+    external_exports.literal(4),
+    external_exports.literal(5)
+  ]),
+  complete: external_exports.boolean(),
+  summary: external_exports.string().trim().min(1).max(24e3),
+  rationale: external_exports.string().trim().min(1).max(12e3),
+  coverage: external_exports.object({
+    reviewedPaths: external_exports.array(external_exports.string().min(1).max(1024)).max(5e3),
+    omittedPaths: external_exports.array(external_exports.string().min(1).max(1024)).max(5e3),
+    limitations: shortList
+  }).strict(),
+  findings: external_exports.array(external_exports.object({
+    key: external_exports.string().min(1).max(160),
+    path: external_exports.string().min(1).max(1024),
+    line: external_exports.number().int().positive(),
+    side: external_exports.enum(["LEFT", "RIGHT"]),
+    severity: external_exports.enum(["info", "warning", "error"]),
+    category: external_exports.string().min(1).max(80),
+    body: external_exports.string().trim().min(1).max(12e3)
+  }).strict()).max(300)
+}).strict().superRefine((value, ctx) => {
+  if (value.complete && value.coverage.reviewedPaths.length === 0)
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["coverage"],
+      message: "A complete assessment must identify reviewed files."
+    });
+  const keys = value.findings.map((f) => `${f.key}:${f.path}:${f.side}:${f.line}`);
+  if (new Set(keys).size !== keys.length)
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["findings"],
+      message: "Duplicate findings are not allowed."
+    });
+});
+
 // node_modules/@paperclipai/shared/dist/validators/chat-channels.js
 var chatProviderSchema = external_exports.enum(CHAT_PROVIDERS);
 var chatEndpointStatusSchema = external_exports.enum(CHAT_ENDPOINT_STATUSES);
@@ -31321,7 +31744,14 @@ var createChatEndpointSchema = external_exports.object({
   applicationId: external_exports.string().uuid().optional(),
   name: external_exports.string().trim().min(1).max(160).optional()
 }).strict();
+var slackAppConfigurationSchema = external_exports.object({
+  appName: external_exports.string().trim().min(1, "Enter a Slack app name.").max(35),
+  botName: external_exports.string().trim().min(1).max(80).regex(/^[a-z0-9._-]+$/, "Use lowercase letters, numbers, dots, hyphens, or underscores for the bot name."),
+  command: external_exports.string().trim().min(2).max(32).regex(/^\/[a-z0-9_-]+$/, "Start the command with / and use lowercase letters, numbers, hyphens, or underscores.")
+}).strict();
 var updateChatEndpointSchema = external_exports.object({
+  communicationInstructions: multilineTextSchema.pipe(external_exports.string().trim().max(4e3)).optional(),
+  slackApp: slackAppConfigurationSchema.optional(),
   allowDirectMessages: external_exports.boolean().optional(),
   allowGroupChats: external_exports.boolean().optional(),
   allowUnlinkedPeople: external_exports.boolean().optional()
@@ -31862,6 +32292,7 @@ var instanceExperimentalSettingsSchema = external_exports.object({
   // configs continue to load during upgrades.
   enableApps: external_exports.boolean().default(true),
   enableChatConnectors: external_exports.boolean().default(false),
+  enableMcpAggregators: external_exports.boolean().default(false),
   enablePipelines: external_exports.boolean().default(false),
   enableCases: external_exports.boolean().default(false),
   enableAgentChat: external_exports.boolean().default(false),
@@ -32441,6 +32872,7 @@ var companySkillProjectScanResultSchema = external_exports.object({
   warnings: external_exports.array(external_exports.string())
 });
 var companySkillCreateSchema = external_exports.object({
+  idempotencyKey: external_exports.string().min(1).max(240).optional(),
   folderId: external_exports.string().guid().nullable().optional(),
   name: external_exports.string().min(1),
   slug: external_exports.string().min(1).nullable().optional(),
@@ -32694,6 +33126,14 @@ var moveFolderItemSchema = external_exports.object({
   folderId: external_exports.string().guid().optional().nullable()
 });
 
+// node_modules/@paperclipai/shared/dist/agent-appearance.js
+var AGENT_PALETTE_IDS = ["bubblegum-sky", "pink-lemonade", "orchid-peach", "coral-mint", "lime-lagoon", "arctic-blue", "solar-flare", "violet-ember", "deep-tide", "coral-current", "golden-hour", "tangerine-cobalt", "electric-grove", "flamingo-jade", "cherry-pop", "turquoise-cherry", "ultraviolet-tide"];
+var agentAppearanceSchema = external_exports.object({
+  schemaVersion: external_exports.literal(1),
+  characterVersion: external_exports.literal("cap-v1"),
+  paletteId: external_exports.enum(AGENT_PALETTE_IDS)
+}).strict();
+
 // node_modules/@paperclipai/shared/dist/validators/company-portability.js
 var portabilityIncludeSchema = external_exports.object({
   company: external_exports.boolean().optional(),
@@ -32752,6 +33192,7 @@ var portabilityAgentManifestEntrySchema = external_exports.object({
   role: external_exports.string().min(1),
   title: external_exports.string().nullable(),
   icon: external_exports.string().nullable(),
+  appearance: agentAppearanceSchema.nullable().optional(),
   capabilities: external_exports.string().nullable(),
   reportsToSlug: external_exports.string().min(1).nullable(),
   adapterType: external_exports.string().min(1),
@@ -33249,6 +33690,7 @@ var createAgentSchema = external_exports.object({
   role: external_exports.enum(AGENT_ROLES).optional().default("general"),
   title: external_exports.string().optional().nullable(),
   icon: external_exports.enum(AGENT_ICON_NAMES).optional().nullable(),
+  appearance: agentAppearanceSchema.optional(),
   reportsTo: external_exports.string().guid().optional().nullable(),
   capabilities: external_exports.string().optional().nullable(),
   desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema).optional(),
@@ -34576,6 +35018,13 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: false,
     selfHostedDefault: false
   },
+  enableMcpAggregators: {
+    title: "MCP aggregators",
+    description: "Show experimental Zapier, Arcade, Composio Connect, and Executor setup. Existing MCP connections keep running when hidden.",
+    tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
   enablePipelines: {
     title: "Pipelines",
     description: "Enable pipeline definitions and pipeline-driven case production surfaces.",
@@ -34854,6 +35303,13 @@ var RUNTIME_EXPOSURE_APP_PORT_MAX = 42999;
 var RUNTIME_EXPOSURE_HMR_PORT_OFFSET = 1e4;
 var RUNTIME_EXPOSURE_HMR_PORT_MIN = RUNTIME_EXPOSURE_APP_PORT_MIN + RUNTIME_EXPOSURE_HMR_PORT_OFFSET;
 var RUNTIME_EXPOSURE_HMR_PORT_MAX = RUNTIME_EXPOSURE_APP_PORT_MAX + RUNTIME_EXPOSURE_HMR_PORT_OFFSET;
+
+// node_modules/@paperclipai/shared/dist/railway-connection.js
+var configureRailwaySshSchema = external_exports.discriminatedUnion("action", [
+  external_exports.object({ action: external_exports.literal("prepare"), grantId: external_exports.string().uuid() }).strict(),
+  external_exports.object({ action: external_exports.literal("enable"), grantId: external_exports.string().uuid(), knownHosts: external_exports.string().min(1).max(8192) }).strict(),
+  external_exports.object({ action: external_exports.literal("remove"), grantId: external_exports.string().uuid() }).strict()
+]);
 
 // node_modules/@paperclipai/shared/dist/announcements.js
 var ANNOUNCEMENT_MANIFEST_MAX_BYTES = 64 * 1024;
@@ -37032,9 +37488,11 @@ var GitHubClient = class {
   }
   /**
    * List a PR's commit authors (GOL-2720 self-review guard). Returns each commit's
-   * author name/email plus GitHub login so the caller can tell whether a would-be
-   * reviewer also WROTE the PR — all agent PRs share one App opener login, so the
-   * git commit author (name/email) is the only signal that discriminates them.
+   * author name/email, GitHub login, and full message so the caller can tell whether
+   * a would-be reviewer also WROTE the PR — all agent PRs share one App opener login,
+   * so the git commit author (name/email) plus the message's `Co-authored-by:`
+   * trailers (GOL-2976 — bleed-proof when a shared worktree mis-set `user.email`)
+   * are the signals that discriminate them.
    *
    * Single page at 100 commits (GitHub caps `pulls/{n}/commits` at 250 across
    * pages; a PR with >100 commits is vanishingly rare here). `truncated` reports
@@ -37054,7 +37512,8 @@ var GitHubClient = class {
     const authors = batch.map((c) => ({
       email: String(c?.commit?.author?.email ?? ""),
       name: String(c?.commit?.author?.name ?? ""),
-      login: String(c?.author?.login ?? "")
+      login: String(c?.author?.login ?? ""),
+      message: String(c?.commit?.message ?? "")
     }));
     return { ok: true, data: { authors, truncated: batch.length >= PER_PAGE } };
   }
@@ -37563,6 +38022,20 @@ var REQUIRED_REVIEWER = "ada";
 function normalizeAuthorSignal(s) {
   return s.trim().toLowerCase();
 }
+function parseCoAuthorTrailers(message) {
+  if (!message) return [];
+  const out = [];
+  for (const rawLine of message.split(/\r?\n/)) {
+    const m = /^\s*co-authored-by:\s*(.*)$/i.exec(rawLine);
+    if (!m) continue;
+    const value = (m[1] ?? "").trim();
+    const emailMatch = /<([^>]+)>/.exec(value);
+    const email3 = emailMatch ? (emailMatch[1] ?? "").trim() : "";
+    const name = (emailMatch ? value.slice(0, emailMatch.index) : value).trim();
+    if (name || email3) out.push({ name, email: email3 });
+  }
+  return out;
+}
 function collectAuthorSignals(commits, prAuthorLogin) {
   const out = /* @__PURE__ */ new Set();
   const add = (s) => {
@@ -37575,6 +38048,10 @@ function collectAuthorSignals(commits, prAuthorLogin) {
     add(c.email);
     add(c.name);
     add(c.login);
+    for (const t of parseCoAuthorTrailers(c.message)) {
+      add(t.email);
+      add(t.name);
+    }
   }
   add(prAuthorLogin);
   return out;
@@ -38519,7 +38996,11 @@ var manifest = {
   //   green and a wedged PR (grove-sites#875 / GOL-2718). All agent PRs share one App
   //   opener login, so the git commit author (name/email) is the discriminating
   //   signal, read via a new GitHubClient.listPullCommitAuthors (`pulls/{n}/commits`,
-  //   reuses pull_requests:read). A new OPTIONAL config field prReviewAuthorIdentities
+  //   reuses pull_requests:read). GOL-2976: the git author email/name BLEED when an
+  //   agent commits in a shared worktree carrying a sibling agent's `user.email`, so
+  //   the commit message's `Co-authored-by:` trailers — written by the acting agent's
+  //   own process, not from `user.email` — are also folded in as a bleed-proof author
+  //   signal. A new OPTIONAL config field prReviewAuthorIdentities
   //   maps reviewer slug → author identities; when a SUPPLEMENTARY reviewer (Iris)
   //   authored the PR and the required reviewer (Ada) is independent, Iris's twin is
   //   skipped — Ada reviews independently and the gate greens on Ada alone (no Iris

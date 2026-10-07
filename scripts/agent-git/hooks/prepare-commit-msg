@@ -1,0 +1,8 @@
+#!/bin/sh
+# Agent-owned prepare-commit-msg hook (GOL-2986/GOL-2976). Stamps the acting agent's
+# `Co-authored-by:` trailer -- written by this process, NOT read from `user.email` --
+# so the PR-review guard keeps a bleed-proof author signal even if the git author
+# facet is wrong. Never fails a commit. $1 = message file, $2 = source.
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+node "$hook_dir/../agent-identity.mjs" stamp "$1" "$2" || true
+exit 0

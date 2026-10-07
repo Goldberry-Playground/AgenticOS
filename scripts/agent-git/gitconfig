@@ -26,4 +26,15 @@
 	# hooks. A hostile repo could ship a post-checkout / pre-commit / fsmonitor
 	# hook that executes during a routine `git` call with the agent's write token
 	# attached. Agent workflows don't depend on repo hooks.
-	hooksPath = /dev/null
+	#
+	# This points at an AGENT-OWNED hooks directory instead of /dev/null, which keeps
+	# that property exactly: core.hooksPath replaces `.git/hooks` for every repo, so a
+	# repo-provided hook is still never executed — only the two hooks we ship here are,
+	# and they live on a read-only mount outside any repo (docker-compose.yml:
+	# ./scripts/agent-git:/paperclip/agent-git:ro) that repo content cannot write to.
+	# A hostile repo also cannot redirect hooksPath: that key is config, not tracked
+	# content. Missing directory (droplet host, CI) ⇒ git silently runs no hooks.
+	#
+	# The hooks assert the acting agent's git identity at commit time (GOL-2986) —
+	# see scripts/agent-git/agent-identity.mjs and docs/agent-house-rules.md.
+	hooksPath = /paperclip/agent-git/hooks

@@ -66,8 +66,7 @@ function toMonthCurve(points: BurndownPoint[]): {
 }
 
 export function CostVista() {
-  const nowIso = useMemo(() => new Date().toISOString(), []);
-  const { data } = useCostVista();
+  const { data, dataUpdatedAt } = useCostVista();
 
   const today = data?.today ?? null;
   const projection = data?.projection ?? null;
@@ -86,7 +85,7 @@ export function CostVista() {
   return (
     <VistaShell
       accent="amber"
-      asOf={nowIso}
+      asOfMs={dataUpdatedAt}
       backdrop={
         <BurndownProjectionBackdrop
           actualByDay={actualByDay}

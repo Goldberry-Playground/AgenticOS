@@ -4,7 +4,9 @@
 # repos (GOL-1819). Four settings each independently invalidate an already-green PR
 # and fight the merge queue; this script reads the declared target state from
 # .github/merge-policy.json and either reports drift (--check) or converges it
-# (--apply).
+# (--apply). GOL-3051 added a second managed surface: the repo's own named
+# merge-queue ruleset, whose check_response_timeout_minutes can silently make the
+# queue non-functional (see the merge-queue section below).
 #
 #   --check   (default)  Read-only. Print a before/after table for every repo and
 #                        exit non-zero if any managed setting is off-target. Safe
@@ -16,11 +18,30 @@
 #                        without executing them.
 #
 #   --repo <name>        Limit to a single repo (matches the "repo" field).
+#   --surface <name>     Limit to ONE managed surface: `protection` (branch
+#                        protection / required contexts / dormant ruleset) or
+#                        `merge-queue`. Default `all`.
+#                        REQUIRED to converge a merge-queue timeout on a repo whose
+#                        required_contexts promotion is still paused (GOL-1953 /
+#                        GOL-1958): a bare `--apply` there would ALSO promote that
+#                        repo's paused contexts, which is a separate board decision.
+#                        `--surface merge-queue --apply` touches nothing but the
+#                        merge-queue ruleset.
 #   --config <path>      Override the policy file (default: repo .github/merge-policy.json).
 #
-# WRITES ARE BOARD-GATED. The default GITHUB_TOKEN cannot write branch protection or
-# rulesets, and no admin token is provisioned in these repos. --apply must be run by
-# an operator (Josh) whose `gh` auth holds admin. See GOL-1819 / GOL-392 / GOL-1207.
+# WRITES ARE BOARD-GATED -- BY POLICY, NOT BY CAPABILITY (corrected GOL-3051).
+# This block used to say "no admin token is provisioned in these repos", which is
+# no longer true and was keeping routine convergence on Josh's plate for no
+# reason. Verified 2026-10-05: an installation token minted from the
+# `agenticos-developer` App (scripts/agent-git/github-app-token.mjs) DOES carry
+# ruleset write -- a same-value `PUT /repos/.../rulesets/{id}` returns 200. What
+# remains true is that an Actions-workflow `GITHUB_TOKEN` cannot.
+# So the gate is a deliberate policy choice about blast radius, not a missing
+# credential: branch protection and required-context promotion are board
+# decisions (GOL-1953 is paused pending GOL-1958). Treat --apply on the
+# `protection` surface as board-gated, and prefer
+# `--surface merge-queue` for the narrow, non-weakening queue settings.
+# See GOL-1819 / GOL-392 / GOL-1207 / GOL-3051.
 #
 # Auth: uses the ambient `gh` CLI credential (GH_TOKEN / gh auth login).
 # Deps: gh, jq.
@@ -33,6 +54,7 @@ CONFIG="${MERGE_POLICY_CONFIG:-$here/../../.github/merge-policy.json}"
 MODE="check"
 DRY=0
 ONLY_REPO=""
+SURFACE="all"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -40,12 +62,27 @@ while [ $# -gt 0 ]; do
     --apply)   MODE="apply" ;;
     --dry-run) DRY=1 ;;
     --repo)    ONLY_REPO="${2:?--repo needs a value}"; shift ;;
+    --surface) SURFACE="${2:?--surface needs a value}"; shift ;;
     --config)  CONFIG="${2:?--config needs a value}"; shift ;;
-    -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
+    # Print the leading comment block by SHAPE, not by line number: the hardcoded
+    # range this replaces had already drifted into spilling `set -euo pipefail`
+    # and the first two assignments into the usage text, and every edit to the
+    # doc block re-broke it (GOL-3051).
+    -h|--help) awk 'NR>1 && /^#/ {print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift
 done
+
+case "$SURFACE" in
+  all|protection|merge-queue) ;;
+  *) echo "error: --surface must be one of: all, protection, merge-queue (got '$SURFACE')" >&2; exit 2 ;;
+esac
+
+# Surface predicates. Kept as functions so both the display loop and summary()
+# gate on exactly the same condition and cannot drift apart.
+want_protection() { [ "$SURFACE" = all ] || [ "$SURFACE" = protection ]; }
+want_merge_queue() { [ "$SURFACE" = all ] || [ "$SURFACE" = merge-queue ]; }
 
 command -v gh >/dev/null || { echo "error: gh CLI not found" >&2; exit 3; }
 command -v jq >/dev/null || { echo "error: jq not found" >&2; exit 3; }
@@ -158,6 +195,81 @@ target_val() { # <row-json> <canonical-key>
 say_write() { # <description>
   if [ "$DRY" = 1 ]; then echo "    ${C_DIM}[dry-run]${C_RST} would $1"
   else echo "    -> $1"; fi
+}
+
+# ---- merge-queue ruleset (GOL-3051) ----------------------------------------
+# GitHub keeps merge-queue settings in their OWN named ruleset, separate from the
+# branch-protection surface above — so this leg is independent of a row's
+# `system` and runs for `ruleset` and `legacy` repos alike. The canonical target
+# keys here are the raw `merge_queue` parameter names (they sit flat under
+# `.parameters`), so adding another knob needs no mapping table.
+#
+# WHY THIS IS MANAGED NOW (GOL-3051): every one of the six repos carried
+# check_response_timeout_minutes = 30, while the observed hosted-runner queue
+# wait under ordinary multi-agent PR load is 45-90 min. Once the wait exceeds
+# that timeout the merge queue is not merely slow, it is NON-FUNCTIONAL — and it
+# fails SILENTLY: GitHub removes the entry, nothing turns red, and the PR reverts
+# to open + APPROVED + CLEAN, so the next agent reads it as "just needs merging"
+# and re-enqueues, burning another full merge_group fan-out against the saturated
+# runner pool. AgenticOS PR #814 was dequeued 31m50s after enqueue with its
+# required `CI` run still sitting in `queued`. Declaring the value here makes the
+# number a reviewable diff and a `--check` row instead of invisible click-ops.
+
+# Read one merge_queue parameter out of a merge-queue ruleset detail JSON.
+# Same array-wrap + .[0] trick as the boolean readers so an absent parameter
+# renders "unset" rather than being confused with a real falsy value.
+mq_current() { # <ruleset-json> <parameter-name>
+  jq -r --arg k "$2" "[ .rules[]? | select(.type==\"merge_queue\").parameters[\$k] ] | $_boolstr" <<<"$1"
+}
+
+# The declared merge-queue target value for a key, rendered as a string.
+mq_target() { # <row-json> <parameter-name>
+  jq -r --arg k "$2" '.merge_queue_targets[$k]|tostring' <<<"$1"
+}
+
+process_merge_queue() { # <row-json>
+  local row="$1" repo rs_name rs_id detail keys k tgt cur off_here=0
+  want_merge_queue || return 0
+  # A row without `merge_queue_targets` is simply not managed on this surface.
+  jq -e 'has("merge_queue_targets")' <<<"$row" >/dev/null || return 0
+  repo=$(jq -r '.repo' <<<"$row")
+  rs_name=$(jq -r '.merge_queue_ruleset_name' <<<"$CONFIG_JSON")
+  echo "  [$repo]  (merge-queue ruleset: $rs_name)"
+
+  rs_id=$(ruleset_id_by_name "$repo" "$rs_name")
+  if [ -z "$rs_id" ]; then
+    echo "    ${C_RED}ERROR${C_RST}: merge-queue ruleset '$rs_name' not found"
+    OFFTARGET=$((OFFTARGET+1)); return 0
+  fi
+  detail=$(ghapi "/repos/$OWNER/$repo/rulesets/$rs_id")
+
+  keys=$(jq -r '.merge_queue_targets|keys[]' <<<"$row")
+  for k in $keys; do
+    tgt=$(mq_target "$row" "$k")
+    cur=$(mq_current "$detail" "$k")
+    local before=$OFFTARGET; row "$k" "$cur" "$tgt"
+    [ "$OFFTARGET" -gt "$before" ] && off_here=1
+  done
+
+  [ "$MODE" = apply ] || return 0
+  [ "$off_here" = 1 ] || { echo "    ${C_GRN}already aligned — no change${C_RST}"; return 0; }
+
+  # Override ONLY the declared merge_queue parameters (`.parameters + $t`); every
+  # other parameter — merge_method, grouping_strategy, the entry-count knobs —
+  # and every other rule in the ruleset is carried through verbatim. A PUT that
+  # dropped merge_method would change how the queue merges, so this must stay a
+  # merge and never a replacement.
+  local body
+  body=$(jq --argjson t "$(jq -c '.merge_queue_targets' <<<"$row")" '
+    {name, target, enforcement, bypass_actors, conditions,
+     rules: (.rules | map(
+       if .type=="merge_queue" then .parameters = (.parameters + $t) else . end))}' <<<"$detail")
+
+  say_write "PUT merge-queue ruleset '$rs_name' ($rs_id) with aligned merge_queue params"
+  CHANGES=$((CHANGES+1))
+  if [ "$DRY" != 1 ]; then
+    printf '%s' "$body" | ghapi --method PUT "/repos/$OWNER/$repo/rulesets/$rs_id" --input - >/dev/null
+  fi
 }
 
 # ---- per-repo processing ---------------------------------------------------
@@ -404,12 +516,17 @@ jq -c '.repos[]' <<<"$CONFIG_JSON" | while IFS= read -r rowjson; do
   repo=$(jq -r '.repo' <<<"$rowjson")
   [ -n "$ONLY_REPO" ] && [ "$ONLY_REPO" != "$repo" ] && continue
   system=$(jq -r '.system' <<<"$rowjson")
-  case "$system" in
-    ruleset)      process_ruleset_repo "$rowjson" ;;
-    legacy)       process_legacy_repo "$rowjson" ;;
-    out-of-scope) process_out_of_scope "$rowjson" ;;
-    *) echo "  [$repo] unknown system: $system"; OFFTARGET=$((OFFTARGET+1)) ;;
-  esac
+  if want_protection; then
+    case "$system" in
+      ruleset)      process_ruleset_repo "$rowjson" ;;
+      legacy)       process_legacy_repo "$rowjson" ;;
+      out-of-scope) process_out_of_scope "$rowjson" ;;
+      *) echo "  [$repo] unknown system: $system"; OFFTARGET=$((OFFTARGET+1)) ;;
+    esac
+  fi
+  # Merge-queue settings live in a separate ruleset, so this leg is deliberately
+  # outside the `system` dispatch (GOL-3051).
+  process_merge_queue "$rowjson"
   echo
 # NOTE: the while loop runs in a subshell (pipe), so OFFTARGET/CHANGES mutations
 # there do not survive. We recompute the exit disposition below from a summary line.
@@ -422,6 +539,27 @@ summary() {
   while IFS= read -r rowjson; do
     local repo system; repo=$(jq -r '.repo' <<<"$rowjson"); system=$(jq -r '.system' <<<"$rowjson")
     [ -n "$ONLY_REPO" ] && [ "$ONLY_REPO" != "$repo" ] && continue
+    # Merge-queue leg first: it is a different ruleset, so neither the
+    # out-of-scope skip nor the legacy-404 `continue` below may mask its drift
+    # (GOL-3051).
+    if want_merge_queue && jq -e 'has("merge_queue_targets")' <<<"$rowjson" >/dev/null; then
+      local mq_name mq_id mq_detail mq_k
+      mq_name=$(jq -r '.merge_queue_ruleset_name' <<<"$CONFIG_JSON")
+      mq_id=$(ruleset_id_by_name "$repo" "$mq_name")
+      if [ -z "$mq_id" ]; then off=$((off+1))
+      else
+        mq_detail=$(ghapi "/repos/$OWNER/$repo/rulesets/$mq_id")
+        for mq_k in $(jq -r '.merge_queue_targets|keys[]' <<<"$rowjson"); do
+          [ "$(mq_current "$mq_detail" "$mq_k")" = "$(mq_target "$rowjson" "$mq_k")" ] || off=$((off+1))
+        done
+      fi
+    fi
+    # Everything below this line is the protection surface (GOL-3051): skip it
+    # wholesale under `--surface merge-queue` so the exit code reflects only the
+    # surface the operator asked about. Without this, converging just the
+    # merge-queue timeout on a repo whose required_contexts promotion is paused
+    # would still exit 1 and read as a failed apply.
+    want_protection || continue
     [ "$system" = "out-of-scope" ] && continue
     local keys k tgt cur detail prot rs_id rs_name branch
     keys=$(jq -r '.targets|keys[]' <<<"$rowjson")

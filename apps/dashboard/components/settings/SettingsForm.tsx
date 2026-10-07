@@ -438,7 +438,13 @@ function ConnectorRow({
         role="switch"
         aria-checked={connector.enabled}
         onClick={() => onToggle(connector.id)}
-        className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        // Focus ring comes from the shared `:focus-visible` rule in
+        // globals.css @layer base. The previous
+        // `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`
+        // set a ring width and offset but never a ring *colour*, so with
+        // the outline opted out the switch had no usable indicator either.
+        // GOL-2968.
+        className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
         style={{
           backgroundColor: connector.enabled
             ? "var(--accent-plum-500)"

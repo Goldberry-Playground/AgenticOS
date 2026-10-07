@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { formatAsOf } from "./as-of";
 
 /**
  * Dusk-indigo console chrome shared by every per-tab vista. Renders the
@@ -18,25 +19,27 @@ export interface VistaShellProps {
    * Defaults to `'gold'` (the original KpiVista appearance).
    */
   accent?: "gold" | "copper" | "amber" | "pine" | "sage";
-  /** ISO time shown in the "Live · as of HH:MM:SS" indicator. */
-  asOf?: string;
+  /**
+   * Epoch-ms instant shown in the "Live · as of HH:MM:SS" indicator — normally
+   * the backing query's `dataUpdatedAt`. `0`/omitted means no fetch has
+   * resolved yet and renders an em-dash.
+   *
+   * GOL-3073: this used to be an ISO string with a `new Date()` fallback, and
+   * every caller passed `useMemo(() => new Date().toISOString(), [])`. Both
+   * read the clock during render, which the server and the client do at
+   * different instants — a hydration mismatch that made React regenerate the
+   * whole tree. See `./as-of.ts`.
+   */
+  asOfMs?: number | null;
   /** The 4 KPI tiles, typically `<KpiTile />` children. */
   children: ReactNode;
   /** The animated backdrop component (absolutely-positioned, full-bleed). */
   backdrop: ReactNode;
 }
 
-function formatTime(iso?: string): string {
-  const d = iso ? new Date(iso) : new Date();
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  const ss = d.getSeconds().toString().padStart(2, "0");
-  return `${hh}:${mm}:${ss}`;
-}
-
 export function VistaShell({
   accent = "gold",
-  asOf,
+  asOfMs,
   children,
   backdrop,
 }: VistaShellProps) {
@@ -46,7 +49,7 @@ export function VistaShell({
 
       <div className="vista-meta" aria-label="Live data indicator">
         <span className="live-dot" aria-hidden="true" />
-        <span>Live · as of {formatTime(asOf)}</span>
+        <span>Live · as of {formatAsOf(asOfMs)}</span>
       </div>
 
       <div className="horizon top" />
