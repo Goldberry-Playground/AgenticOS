@@ -79,6 +79,9 @@ plugin API (the same calls `deploy-plugin.sh` makes, minus the host SSH):
    `github-sync-plugin` is configured via [github-issue-sync.md].
 3. **disable → enable** — `POST /api/plugins/{id}/disable` then `…/enable` to
    force the worker `setup()` to re-run with the fresh config.
+4. **if a job `schedule` changed** — reset `next_run_at`, or the new cadence does
+   not start until the old one would next have fired. See
+   [Schedule-change trap](#schedule-change-trap-next_run_at-is-not-recomputed-gol-2844).
 
 > **Why CI does not run `deploy-plugin.sh` end-to-end:** the reinstall+config
 > step needs the Paperclip **board key** and plugin **service tokens**, which
@@ -177,6 +180,64 @@ If you must recover manually: `bash scripts/deploy-plugin.sh <plugin>` reinstall
 from `/paperclip/plugins/<plugin>` and re-applies config, then verify with
 `assert-plugin-versions.sh`.
 
+## Schedule-change trap: `next_run_at` is NOT recomputed (GOL-2844)
+
+If the manifest change touched a `jobs[].schedule`, the deploy is **not** done
+when the API reports the new cron. The host upserts `plugin_jobs.schedule` but
+leaves `plugin_jobs.next_run_at` at the value computed from the **old** cron —
+and the scheduler gates on `next_run_at`, not on the cron string. So the new
+cadence silently does not start until the *old* one would next have fired.
+
+Measured on prod 2026-09-30, finishing the `grove-content-drafter` nightly →
+`*/15 * * * *` bump ([#779]): both `GET /api/plugins/{id}` and
+`GET /api/plugins/{id}/jobs` read `*/15 * * * *` while `next_run_at` still said
+`2026-10-01T07:00:00Z` — eight more hours of exactly the nightly cadence the bump
+was meant to end. **None** of the host-API levers clear it:
+
+| Lever | Effect on `next_run_at` |
+| --- | --- |
+| `POST …/disable` then `…/enable` | untouched (schedule is re-read, row is not) |
+| `DELETE` + `POST /api/plugins/install` | untouched — the job row is upserted on `(plugin_id, job_key)`, so `created_at` and `next_run_at` both survive the reinstall |
+| `POST …/jobs/{jobId}/trigger` | untouched — an out-of-band run that writes neither `last_run_at` nor `next_run_at` |
+
+That reinstall row is worth reading twice: a `DELETE` + `install` does **not**
+give you a fresh job row, so "reinstall to fix the schedule" does not work.
+
+**Fix — one line, on the droplet:**
+
+```sh
+bash scripts/ops/reset-plugin-job-next-run.sh <pluginKey> <jobKey>
+# reset agenticos.grove-content-drafter content-draft-request was=2026-10-01T07:00:00Z now=…
+```
+
+It sets `next_run_at = now()`, so the host runs the job on its next tick and then
+recomputes `next_run_at` from the **current** cron itself — the host stays the
+only thing that parses cron. It writes only when `next_run_at` is further out
+than `--max-wait` (default 30 min), so it is safe to run twice and safe to run
+after any plugin deploy; a second run prints `ok` and changes nothing. Use
+`--dry-run` to see the intent first.
+
+One precondition: the job gets **one immediate catch-up run**, so it must be safe
+to run now. Both drafter jobs are (the request job dedupes against open issues by
+`pt#<product id>`). If a job is not, leave it and let it fire naturally — you are
+trading one stale interval for one unwanted run.
+
+Verify by watching the row actually move, not by re-reading the schedule:
+
+```sh
+BK="$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/paperclip_board_key')"
+curl -fsS -H "Authorization: Bearer $BK" http://localhost:3100/api/plugins/<id>/jobs \
+  | jq '.[] | {jobKey, schedule, nextRunAt, lastRunAt}'
+```
+
+`lastRunAt` must advance past the trigger, and `nextRunAt` must land on the new
+cron's next boundary. A `nextRunAt` more than one interval out means the reset
+did not take.
+
+Unit tests (no droplet, no Postgres — a fake `docker` answers the psql queries):
+`bash scripts/ops/test-reset-plugin-job-next-run.sh`. The SQL itself was verified
+against the live `plugins` / `plugin_jobs` schema.
+
 ## Adding a BRAND-NEW plugin (GOL-2423)
 
 A new plugin is not auto-discovered. Everything it needs now hangs off ONE list:
@@ -253,6 +314,7 @@ touch it; install is create-only; config save doesn't restart the worker.
 
 [GOL-166]: https://github.com/EngineeringMoonBear/AgenticOS/pull/281
 [GOL-296]: https://github.com/EngineeringMoonBear/AgenticOS/pull/255
+[#779]: https://github.com/Goldberry-Playground/AgenticOS/pull/779
 [`.github/workflows/recreate-paperclip-server.yml`]: ../../.github/workflows/recreate-paperclip-server.yml
 [github-issue-sync.md]: github-issue-sync.md
 [`scripts/plugin-registry.sh`]: ../../scripts/plugin-registry.sh

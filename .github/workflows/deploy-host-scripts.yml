@@ -187,3 +187,45 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+
+      # GOL-3125: converge the host systemd timers that ExecStart out of this
+      # clone. Installing one used to mean a human pasting a root line, because
+      # the installer wrote /etc/systemd/system directly — and no agent has root
+      # SSH to this droplet, which parked the whole ticket on Josh's inbox.
+      #
+      # It does not need root. cloud-init grants the deploy user
+      # `ALL=(ALL) NOPASSWD: /bin/systemctl` with NO argument restriction, and
+      # `systemctl link <absolute-path>` is the documented way to install a unit
+      # from outside the unit search path — systemd performs the /etc write
+      # itself. So the installer is privilege-adaptive and this step can simply
+      # run it over the deploy key we already have.
+      #
+      # Idempotent, so this is a no-op on every run after the first: the units
+      # are re-staged byte-identically, `link --force` is a no-op on an existing
+      # correct symlink, and `enable --now` on a live timer does nothing.
+      #
+      # Deliberately LAST, and deliberately FATAL on failure. Last, so a problem
+      # here can never prevent the clone refresh or the plugin-dist rebuild
+      # above from completing. Fatal, because a timer that silently fails to
+      # install is precisely the "nothing arms an agent PR unless someone
+      # remembers" failure this ticket exists to delete — a yellow warning
+      # nobody reads would reintroduce it one layer down.
+      #
+      # A transient broker blip does NOT fail this step: the installer enables
+      # the timer BEFORE its --dry-run self-verify and does not unwind on a
+      # dry-run failure (scripts/ci/merge-queue-arm-sweep.test.sh asserts both).
+      - name: Converge host systemd timers (GOL-3125 merge-queue arm sweep)
+        shell: bash
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "bash -lc 'set -euo pipefail; cd /opt/agenticos/repo && bash infra/scripts/install-merge-queue-arm-sweep.sh'" \
+            | tee arm-timer.log
+          {
+            echo "### merge-queue arm sweep timer (GOL-3125)"
+            echo '```'
+            grep -E '^(Privilege:|  (wrote|staged|linked)|.*already present and identical|NEXT|  ✅|  ⚠️)' arm-timer.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

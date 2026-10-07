@@ -1,6 +1,7 @@
 "use client";
 import { EkgSweep } from "./EkgSweep";
 import { useKpiData } from "@/lib/hooks/use-kpi-data";
+import { formatAsOf } from "./as-of";
 
 /**
  * Persistent KPI vista banner — the "dusk navigator's console" that sits
@@ -23,16 +24,8 @@ function formatDeltaCount(n: number): string {
   return `+${n}`;
 }
 
-function liveTimestamp(): string {
-  const d = new Date();
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  const ss = d.getSeconds().toString().padStart(2, "0");
-  return `${hh}:${mm}:${ss}`;
-}
-
 export function KpiVista() {
-  const { data } = useKpiData();
+  const { data, dataUpdatedAt } = useKpiData();
 
   const runsToday = data?.runsToday ?? null;
   const runs = data?.activeRuns ?? null;
@@ -45,7 +38,7 @@ export function KpiVista() {
 
       <div className="vista-meta" aria-label="Live data indicator">
         <span className="live-dot" aria-hidden="true" />
-        <span>Live · as of {liveTimestamp()}</span>
+        <span>Live · as of {formatAsOf(dataUpdatedAt)}</span>
       </div>
 
       <div className="horizon top" />
