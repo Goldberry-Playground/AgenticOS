@@ -77,3 +77,8 @@ docker-compose.override.yml
 # Python bytecode (stray audit-script compile artifacts — GOL-1907)
 __pycache__/
 *.pyc
+
+# Playwright run output (GOL-2997): `playwright test` writes these on every
+# local run and the HTML reporter opens them; neither belongs in the repo.
+test-results/
+playwright-report/

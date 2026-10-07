@@ -423,8 +423,12 @@
 }
 
 @layer base {
+  /* `outline-ring/50` (the shadcn default) halved the ring toward whatever sits
+     behind it, so any outline painted anywhere in the app inherited a colour
+     that measured 1.94-2.86:1 — under the WCAG 1.4.11 3:1 floor for a non-text
+     indicator — before the element had a say in it. Full opacity: GOL-2997. */
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -478,6 +482,21 @@
     outline-offset: var(--focus-ring-offset);
   }
 
+  /* The input group draws the border and the rounding; its inner control is
+     borderless, transparent and fills the group. So the group is what a
+     sighted keyboard user reads as "the field", and the indicator belongs on
+     it — the control itself opts out rather than painting a second ring
+     inside the first. GOL-2997. */
+  [data-slot="input-group"]:has(
+      [data-slot="input-group-control"]:focus-visible
+    ) {
+    outline: var(--focus-ring-width) solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  [data-slot="input-group"] [data-slot="input-group-control"]:focus-visible {
+    outline: none;
+  }
+
   /* Windows High Contrast / forced-colors: our palette is discarded, so
      defer to the system highlight colour rather than painting a ring the
      user's chosen scheme may render invisible. */
@@ -489,6 +508,11 @@
       [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"],
       [role="option"], [tabindex]:not([tabindex^="-"])
     ):focus-visible {
+      outline-color: Highlight;
+    }
+    [data-slot="input-group"]:has(
+        [data-slot="input-group-control"]:focus-visible
+      ) {
       outline-color: Highlight;
     }
   }

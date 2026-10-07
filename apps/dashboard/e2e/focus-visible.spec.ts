@@ -63,6 +63,8 @@ type Probe = {
   boxShadow: string;
   backdrop: string;
   contrast: number | null;
+  /** Where the ring was read from, when that is not the focused element. */
+  indicator?: string;
 };
 
 type ShellSnapshot = {
@@ -103,7 +105,13 @@ async function snapshotShell(
       const controls = Array.from(root.querySelectorAll(focusable)).filter(
         (el) => {
           const r = el.getBoundingClientRect();
-          return r.width > 0 && r.height > 0;
+          if (r.width === 0 || r.height === 0) return false;
+          // A roving tabindex is correct ARIA, not a defect: a tablist keeps
+          // exactly one trigger in the Tab order and moves between the rest
+          // with arrow keys. Counting the parked ones as "expected" would make
+          // this probe permanently short of its own target. They share the
+          // trigger's class list, so the one that is reachable covers them.
+          return (el as HTMLElement).tabIndex >= 0;
         },
       ) as HTMLElement[];
 
@@ -131,7 +139,33 @@ async function snapshotShell(
       const index = el ? controls.indexOf(el) : -1;
       if (!el || index === -1) return { keys, focused: null };
 
-      const cs = getComputedStyle(el);
+      /**
+       * A control may delegate its indicator to an ancestor: the input group
+       * draws the border and the rounding, and its inner control is borderless
+       * and transparent, so the group is what reads as "the field" and the ring
+       * belongs on it (GOL-2997). Read the outline from the nearest ancestor
+       * that paints one, and measure it against *that* element's backdrop.
+       */
+      const paintsRing = (n: HTMLElement) => {
+        const s = getComputedStyle(n);
+        return s.outlineStyle !== "none" && (parseFloat(s.outlineWidth) || 0) >= 2;
+      };
+      let ringEl: HTMLElement = el;
+      let indicator: string | undefined;
+      if (!paintsRing(el)) {
+        let up = el.parentElement;
+        for (let depth = 0; up && depth < 4; depth++, up = up.parentElement) {
+          if (paintsRing(up)) {
+            ringEl = up;
+            indicator =
+              up.getAttribute("data-slot") ||
+              up.tagName.toLowerCase();
+            break;
+          }
+        }
+      }
+
+      const cs = getComputedStyle(ringEl);
 
       /** sRGB relative luminance (WCAG 2.x). */
       const lum = (rgb: number[]) => {
@@ -153,7 +187,7 @@ async function snapshotShell(
       // `outline-offset` puts a gap of the nearest painted ancestor surface
       // between the control and the ring, so that surface is the colour the
       // ring is actually adjacent to.
-      let node: HTMLElement | null = el.parentElement;
+      let node: HTMLElement | null = ringEl.parentElement;
       let backdrop = "";
       while (node) {
         const bg = getComputedStyle(node).backgroundColor;
@@ -185,6 +219,7 @@ async function snapshotShell(
           boxShadow: cs.boxShadow,
           backdrop,
           contrast,
+          indicator,
         },
       };
     },
@@ -280,18 +315,41 @@ function driftMessage(scopeSelector: string, result: ProbeResult): string {
   return `\n${scopeSelector}: the focusable set changed — ${why}\n\nbefore: ${list(result.expected)}\nafter:  ${list(drift?.keys ?? [])}\n`;
 }
 
-/** A control is compliant when it paints a >=2px ring at >=3:1, or a shadow. */
+/**
+ * A control is compliant when it paints the shared outline at >=2px and >=3:1.
+ *
+ * GOL-2997 tightened this. It used to accept *any* non-empty `box-shadow` as a
+ * second way to pass, which is how `components/ui` sailed through: every
+ * shadcn-derived control carried `outline-none focus-visible:ring-3
+ * focus-visible:ring-ring/50`, so it reported a box-shadow, this function
+ * waved it past unmeasured, and the indicator it was actually painting
+ * measured 1.40-2.86:1. A ring is allowed to exist and still be unusable.
+ *
+ * A box-shadow ring cannot be measured the way an outline can: `box-shadow`
+ * with alpha composites over whatever is behind it, and what is behind it is
+ * the control's own fill, not the surface — `--color-primary` is the brand gold
+ * (#c9a227), so a gold ring abutting a primary Button is 1.27:1 no matter how
+ * opaque it is. So a shadow is reported as a failure that names the remedy
+ * rather than silently accepted.
+ */
 function verdict(p: Probe): string | null {
   if (!p.focusVisible) {
     return `${p.name}: :focus-visible did not match — probe reached it by means other than the keyboard`;
   }
+  const where = p.indicator ? ` (ring read from <${p.indicator}>)` : "";
   const hasOutline = p.outlineStyle !== "none" && p.outlineWidth >= 2;
-  const hasShadow = p.boxShadow !== "none" && p.boxShadow !== "";
-  if (!hasOutline && !hasShadow) {
-    return `${p.name}: NO focus indicator — outline:${p.outlineStyle} ${p.outlineWidth}px, box-shadow:${p.boxShadow} (WCAG 2.4.7)`;
+  if (!hasOutline) {
+    const shadow =
+      p.boxShadow !== "none" && p.boxShadow !== ""
+        ? ` It paints box-shadow:${p.boxShadow} instead; a shadow ring sits against the control's own fill, which this spec cannot measure and which is the brand gold on primary variants. Drop the hand-rolled \`outline-none\` + \`focus-visible:ring-*\` pair and let the shared rule in globals.css apply.`
+        : "";
+    return `${p.name}: NO measurable focus outline — outline:${p.outlineStyle} ${p.outlineWidth}px (WCAG 2.4.7).${shadow}`;
   }
-  if (hasOutline && p.contrast !== null && p.contrast < 3) {
-    return `${p.name}: focus ring ${p.outlineColor} is only ${p.contrast.toFixed(2)}:1 on ${p.backdrop} — WCAG 1.4.11 wants >=3:1`;
+  if (p.contrast === null) {
+    return `${p.name}: focus ring ${p.outlineColor} is not opaque, so its painted colour cannot be verified — WCAG 1.4.11 needs a measurable >=3:1`;
+  }
+  if (p.contrast < 3) {
+    return `${p.name}${where}: focus ring ${p.outlineColor} is only ${p.contrast.toFixed(2)}:1 on ${p.backdrop} — WCAG 1.4.11 wants >=3:1`;
   }
   return null;
 }
@@ -424,6 +482,66 @@ for (const theme of ["dark", "light"] as const) {
         `settings toggle ring ${probe.outlineColor} on ${probe.backdrop} — WCAG 1.4.11 wants >=3:1`,
       ).not.toBeNull();
       expect(probe.contrast ?? 0).toBeGreaterThanOrEqual(3);
+    });
+
+    /**
+     * GOL-2997. The `components/ui` primitives each opted out of the shared
+     * rule with their own `outline-none` + `focus-visible:ring-ring/50`, so
+     * they kept a ring that measured 1.40-2.86:1. Most of them are not mounted
+     * anywhere in the dashboard yet, so `/dev/ui-focus` is the surface that
+     * makes them probe-able: one section per surface token a control can land
+     * on, each tagged `data-focus-surface`, so a failure names both the control
+     * and the background its ring was measured against.
+     */
+    test("every components/ui control shows a visible ring on every surface", async ({
+      page,
+    }, testInfo) => {
+      await page.goto("/dev/ui-focus", { waitUntil: "load" });
+      await page.evaluate(() => document.fonts.ready);
+      await freezeTransitions(page);
+
+      const surfaces = await page
+        .locator("[data-focus-surface]")
+        .evaluateAll((els) =>
+          els.map((el) => el.getAttribute("data-focus-surface") as string),
+        );
+      // If the gallery 404s (UI_FOCUS_GALLERY unset) this is the failure that
+      // says so, rather than an empty pass.
+      expect(
+        surfaces.length,
+        "no [data-focus-surface] sections on /dev/ui-focus — is UI_FOCUS_GALLERY=1 set for the dev server?",
+      ).toBeGreaterThan(0);
+
+      const failures: string[] = [];
+      const report: Record<string, Probe[]> = {};
+
+      for (const surface of surfaces) {
+        const scope = `[data-focus-surface="${surface}"]`;
+        // Click the section heading first: each scope has to be tabbed from
+        // just above itself, or the 60-press ceiling is spent walking the
+        // sections before it.
+        await page.locator(`${scope} h2`).click();
+        const result = await probeFocusByTabbing(page, scope);
+        const { probes, expected } = result;
+        expect(result.drift, driftMessage(scope, result)).toBeNull();
+
+        report[surface] = probes;
+        expect(
+          probes.map((p) => p.name).sort(),
+          `Tab order did not reach every control inside ${surface}.\nexpected: ${expected.join("\n          ")}\nreached:  ${probes.map((p) => p.name).join("\n          ")}`,
+        ).toEqual([...expected].sort());
+
+        for (const problem of probes.map(verdict)) {
+          if (problem) failures.push(`on ${surface}: ${problem}`);
+        }
+      }
+
+      testInfo.attach(`components-ui-focus-${theme}.json`, {
+        body: JSON.stringify(report, null, 2),
+        contentType: "application/json",
+      });
+
+      expect(failures, `\n  - ${failures.join("\n  - ")}\n`).toEqual([]);
     });
   });
 }

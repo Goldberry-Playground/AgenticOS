@@ -63,6 +63,11 @@ export default defineConfig({
   webServer: {
     command: "pnpm dev",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI
+    reuseExistingServer: !process.env.CI,
+    // /dev/ui-focus is the focus-ring gallery for components/ui (GOL-2997).
+    // Most of those primitives are not mounted anywhere in the dashboard, so
+    // without a surface the guard would pass vacuously. The route 404s unless
+    // this is set, so it is not part of the shipped dashboard.
+    env: { UI_FOCUS_GALLERY: "1" }
   }
 });

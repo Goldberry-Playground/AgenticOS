@@ -16,9 +16,15 @@ function ScrollArea({
       className={cn("relative", className)}
       {...props}
     >
+      {/* The viewport is keyboard-focusable when it scrolls, so it takes the
+          shared `:focus-visible` outline from globals.css. The only override
+          is the offset: the viewport is `size-full`, so the default +2px would
+          be painted outside its own box and clipped by any ancestor that
+          scrolls or hides overflow. A negative offset draws it inside, where
+          the adjacent colour is still the surface behind the content. */}
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        className="size-full rounded-[inherit] focus-visible:-outline-offset-2"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
