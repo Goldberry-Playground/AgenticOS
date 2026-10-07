@@ -30,6 +30,38 @@ steps and failed requests.
 - Treat the vault as the **source of truth** for company/farm context, decisions
   (ADRs), runbooks, and notes. Check it *before* reaching for external sources.
 
+## Red CI / hanging deploy — check the vendor BEFORE you debug yourself
+
+- `cat /paperclip/ops/vendor-status.json` — current GitHub, DigitalOcean,
+  Cloudflare, Stripe and 1Password status, refreshed every 5 minutes. No
+  credential, no vault, no 1Password item. `overall` and `headline` are the
+  two-second answer; `degraded[]` names the component and the upstream incident.
+- Prefer that over re-deriving it. On 2026-10-05 a GitHub `Actions`
+  `degraded_performance` queued 13 runs, cancelled jobs before they ever got a
+  runner, and blocked auto-merge — and several agents each burned a heartbeat
+  diagnosing it independently.
+- If the snapshot is missing or stale, get a live answer:
+  `/opt/agenticos/repo/infra/scripts/vendor-status-guard.py read`.
+- When Actions is degraded the snapshot carries the triage rule inline
+  (`hints.github_actions`): `conclusion=cancelled` + **empty `runner_name`** +
+  `BlobNotFound` on the job logs means the job never ran a step — incident
+  debris, **not** a test failure. Do not "fix" the code. Your App token has no
+  `actions: write`, so cancel/rerun are `403`; the only re-trigger lever is
+  **close + reopen the PR**.
+- If every vendor is `operational`, it's your change.
+- Full detail: `docs/runbooks/vendor-status.md`.
+
+## Telling a human something is broken — there IS an ops channel
+
+- `DISCORD_OPS_WEBHOOK_URL` is in your environment and posts to Discord
+  `#paperclip-ops`. You do **not** need a 1Password vault for this (the service
+  account cannot read `Grove Infra`, which is where agents have historically
+  given up).
+- Use it for things a human needs to act on *now* — a third-party outage, a
+  stuck deploy, a guard that cannot self-heal. Not for progress updates: those
+  belong in the issue thread.
+- Never echo the URL, and never commit it.
+
 ## Company skills — external git sources are markdown-only
 
 - A skill imported from **`github` / `skills_sh` / `url` that ships a `scripts/`
@@ -47,6 +79,52 @@ steps and failed requests.
 
 - Claude agents run on the **Claude Max subscription** (`claude_local`, OAuth) —
   there is no Anthropic API key in this environment, and that is intentional.
+
+## Git identity — commit as yourself, not as your neighbour
+
+Your git identity is **asserted at commit time**. If a commit would be attributed to
+another agent, `git commit` stops with a message naming the mismatch, fixes the
+identity for you, and asks you to re-run the commit. Re-running it is the whole fix —
+there is nothing else to do.
+
+Why it exists: agent runs share one checkout per repo and fan out into linked
+worktrees, and `git config user.email` in a linked worktree writes the **common**
+`.git/config` — repo-local config is per-repository, not per-worktree. With several
+runs in flight, whoever set their identity last owns everybody's. A mis-attributed
+author silently defeats the PR-review self-review skip (GOL-2720 / GOL-2976): PR #806
+was written by Ada and committed as Terra, so Ada was handed her own code to review.
+The mirror case is worse — a real, independent reviewer dropped as a false
+self-review.
+
+- **Claim your identity in a new worktree** (optional; the hook does it for you on the
+  first commit):
+
+  ```sh
+  node /paperclip/agent-git/agent-identity.mjs claim
+  ```
+
+  It pins `user.name`/`user.email` to **this worktree** (`git config --worktree`,
+  which outranks the shared `.git/config` the checkout step writes) and
+  de-personalises a sibling agent's value left in the shared config.
+
+- **For a non-git tool that needs the identity in the environment:**
+
+  ```sh
+  eval "$(node /paperclip/agent-git/agent-identity.mjs export)"
+  ```
+
+- **Never** `git config --local user.email …` in a shared checkout. That is the bleed.
+  Use `claim`, or `git config --worktree …`.
+- Commits also carry your own `Co-authored-by:` trailer automatically — a bleed-proof
+  author signal written by your process, not read from `user.email`.
+- The assertion **fails safe**: it never blocks a human or CI (no
+  `$PAPERCLIP_AGENT_ID`), an agent missing from
+  `scripts/agent-git/agent-identities.json`, or an in-progress
+  merge/rebase/cherry-pick. Deliberately committing a patch authored by someone else?
+  `AGENT_GIT_IDENTITY_ASSERT=off` for that one command.
+- **New agent?** Add it to `scripts/agent-git/agent-identities.json`, and if it
+  reviews PRs, add the same name + email to the github-sync plugin config field
+  `prReviewAuthorIdentities` — an identity missing there defeats the self-review skip.
 
 ## GitHub — push + PR via the AgenticOS Developer App
 

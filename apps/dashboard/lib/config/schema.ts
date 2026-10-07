@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_MCP_SERVER_URL } from "@/lib/mcp-vault/port";
 
 /**
  * Fix 2: Path traversal prevention (VibeSec finding)
@@ -48,7 +49,7 @@ export const AgenticOSConfigSchema = z.object({
   projectRoots: z.array(ProjectRootSchema),
   vaultPath: absolutePath,
   hermesUrl: z.string().url().default("http://127.0.0.1:7600"),
-  mcpServerUrl: z.string().url().default("http://127.0.0.1:7610"),
+  mcpServerUrl: z.string().url().default(DEFAULT_MCP_SERVER_URL),
   modelDefaults: z.object({
     haiku: z.string(),
     sonnet: z.string(),
@@ -75,7 +76,7 @@ export const DEFAULT_CONFIG: AgenticOSConfig = {
   projectRoots: [],
   vaultPath: "~/Documents/Dev Projects/vault",
   hermesUrl: "http://127.0.0.1:7600",
-  mcpServerUrl: "http://127.0.0.1:7610",
+  mcpServerUrl: DEFAULT_MCP_SERVER_URL,
   modelDefaults: {
     haiku: "claude-haiku-4-5",
     sonnet: "claude-sonnet-4-7",

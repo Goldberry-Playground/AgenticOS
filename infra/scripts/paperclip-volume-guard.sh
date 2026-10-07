@@ -34,7 +34,11 @@
 #      if the container is down) → alert. This
 #      is the compensating control for silent backup failure until the
 #      server-side loud-failure fix ships (that fix is in /opt/paperclip, out of
-#      this repo's write boundary; tracked on GOL-1632). A dangling *.sql partial
+#      this repo's write boundary; tracked on GOL-1632).
+#      Since GOL-2858 there is a second control underneath it:
+#      paperclip-db-catchup.sh takes the dump itself, hourly, when the server's
+#      restart-reset interval has not. So a `backup-stale` page now means BOTH
+#      paths failed — see the alert text. A dangling *.sql partial
 #      (a dump that died mid-write) is folded in as context, not its own page, so
 #      leftover cleanup debt (board-gated on GOL-1631) never spams the channel.
 #
@@ -318,7 +322,7 @@ else
   if [ "${age_min}" -gt "${STALE_MIN}" ]; then
     ctx=""
     [ -n "${partial}" ] && ctx=" A partial dump ($(basename "${partial}")) exists — a dump died mid-write."
-    alert backup-stale ":rotating_light: **${HOSTNAME_SHORT}** Paperclip DB backup is STALE — newest completed dump is ${age_min}m old (expected every ${BACKUP_INTERVAL_MIN}m; threshold ${STALE_MIN}m). Backups may be failing silently.${ctx} Check paperclip-server logs (GOL-1632)."
+    alert backup-stale ":rotating_light: **${HOSTNAME_SHORT}** Paperclip DB backup is STALE — newest completed dump is ${age_min}m old (expected every ${BACKUP_INTERVAL_MIN}m; threshold ${STALE_MIN}m). BOTH paths have failed: the server's own interval AND the hourly catch-up timer (GOL-2858).${ctx} Check \`/var/log/agenticos/paperclip-db-catchup.log\` first — it says why it did not dump — then paperclip-server logs (GOL-1632)."
   fi
 fi
 

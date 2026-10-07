@@ -67,6 +67,83 @@ services):
       exec -T agenticos-db psql -U agenticos agenticos'
   ```
 
+### A2. Paperclip board DB — server dumps + catch-up timer ✅
+
+The board's own database (issues, comments, runs, agent config) is **not** the
+`agenticos` DB covered above. It is a separate database inside the same
+`agenticos-db` container, and its dumps are written by the Paperclip server
+itself — `PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES: "240"` in `docker-compose.yml` —
+to `<paperclip-data>/instances/*/data/backups/paperclip-<local-stamp>.sql.gz`,
+pruned by the instance's own `backupRetention` (GFS: 3 daily / 4 weekly / 1
+monthly) and shipped off-box by D2 below.
+
+**The flaw that makes a safety net necessary (GOL-2858).** That interval is
+in-process and armed at **process start**, re-armed from zero on every restart,
+with no catch-up for the run it missed. If restarts come closer together than the
+interval, the interval never matures and **the backup does not run at all** — not
+degraded, starved. Measured on 2026-09-30: seven paperclip-server restarts in
+11.3h (mean 1.6h apart) produced an **11h39m gap with no dump**, and nothing said
+so:
+
+- `GET /api/health` reported `databaseBackup: {status: "ok"}` throughout. It does
+  track dump age, but against its own `maxAgeHours: 26` — decoupled from the 240m
+  cadence, so it stays green for a whole day of starvation.
+- Nothing logs at ERROR. There is no failure to log: the job simply never fires,
+  so every failure-path alert stays quiet by construction.
+
+The scheduler lives in `/opt/paperclip` (the Paperclip platform), outside this
+repo's write boundary, so the correct fix — dump on boot when the newest dump is
+older than the interval — has to be made upstream. Until it is:
+
+- **`infra/scripts/paperclip-db-catchup.sh`** (systemd
+  `agenticos-paperclip-db-catchup.timer`, hourly at :50, `Persistent=true`) is
+  that same catch-up out of process. It is anchored to the wall clock, so a
+  paperclip-server restart cannot reset it, and a run missed while the box was
+  down fires on the next boot.
+- On every fire it compares the newest dump's age against
+  `PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES` (read from the running container) + 35m
+  slack. **Fresh → no-op**, so the server's own scheduler stays the primary path
+  and a healthy box pays one `stat` per hour. Stale → it takes the dump itself
+  with `pg_dump`, into the same directory with the same filename shape, so the
+  volume guard, the off-box shipper and the server's retention all pick it up
+  with no special casing. It prunes nothing.
+- Worst-case staleness therefore becomes `interval + 35m + 1h` (~5h20m at the
+  240m cadence) regardless of restart churn, instead of unbounded.
+
+**Format difference, and why it does not matter for restore.** A catch-up dump is
+plain `pg_dump` output (ends at `COMMIT;`); a server dump is hand-rolled
+schema+data SQL carrying `-- paperclip statement breakpoint <uuid>` markers and
+`SET LOCAL session_replication_role = replica`. Both restore with `psql`. The
+server's is written to apply **over** an existing database; the `pg_dump` one
+wants an **empty** target. Tell them apart without unpacking the whole file:
+
+```bash
+zcat paperclip-<stamp>.sql.gz | head -1
+# '-- Paperclip database backup'      → server dump  (applies over existing)
+# '-- PostgreSQL database dump'       → catch-up dump (restore into empty DB)
+```
+
+**Verifying the safety net (root, on the droplet):**
+
+```bash
+systemctl list-timers 'agenticos-paperclip-db-catchup.timer' --no-pager
+tail -20 /var/log/agenticos/paperclip-db-catchup.log
+# Force the decision without writing anything:
+DRY_RUN=1 STALE_MIN=0 /opt/agenticos/repo/infra/scripts/paperclip-db-catchup.sh
+```
+
+Knobs, all env-overridable: `STALE_MIN` (default interval + `SLACK_MIN`=35),
+`MAX_USE_PCT` (92 — refuses to add a dump above it, because a full volume is a
+worse outage than a stale dump), `HEADROOM_FACTOR` (2× the newest dump must be
+free), `MIN_DUMP_BYTES`. Offline harness:
+`bash scripts/ci/paperclip-db-catchup.test.sh` (gated by the CI "CI scripts"
+job).
+
+**Failure is already alerted.** The catch-up posts no webhook of its own: if it
+cannot produce a dump, the newest dump stays stale and
+`paperclip-volume-guard.sh` pages `backup-stale` to Discord within the hour. One
+voice per condition.
+
 ### B. OpenViking — pack API ⚠️ (automation pending one live check)
 
 OpenViking ships a native, app-consistent snapshot API:
@@ -191,6 +268,19 @@ the gate learned to look past trailing comments.
 Bare `*.sql` files are never candidates at all: a dump that has not reached the
 gzip step is still being written (these are the multi-GB orphans from GOL-1632).
 
+**Deploying a change to the shipper.** The unit's `ExecStart` points straight at
+`/opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py`, so refreshing
+the clone is the whole deploy — no re-install, no `daemon-reload`:
+
+```bash
+ssh agenticos-droplet 'cd /opt/agenticos/repo && git fetch origin && git checkout -B main origin/main'
+# optional: don't wait for the timer
+ssh -t agenticos-droplet 'sudo systemctl start paperclip-backup-offsite.service'
+```
+
+Re-run `install-disk-hygiene.sh` only when a *unit* file changes (schedule,
+`ExecStart`, a new timer), not when the script body does.
+
 **Idempotency.** Upload state is the bucket, never a local marker file — a
 marker would lie after a droplet rebuild, which is the exact scenario this job
 exists for. Each object is HEADed before upload and skipped when already present
@@ -202,6 +292,44 @@ at the same byte length; week/month coverage is resolved with one
 alert — throttled per reason (`REPAGE_MIN`, default 360m), and exits non-zero so
 systemd records it. A credential-less shipper pages rather than sitting quietly
 doing nothing.
+
+**Liveness beacon — "did the timer actually run?"** Alerting alone cannot answer
+that. The steady state of this job is *nothing new to upload*: it writes no
+object and pages nobody, which is byte-for-byte what a timer that never fired
+looks like. So every real run (including a no-op, and including one that
+*cannot* ship) overwrites one small JSON object:
+
+```
+s3://agenticos-backups/paperclip/_status/last-run.json
+```
+
+It sits outside the tier prefixes, so no lifecycle rule expires it and the
+tier-coverage listings never mistake it for a dump. `--dry-run` deliberately
+does **not** write it — otherwise the safe way to inspect the job would also be
+the one way to forge evidence that it ran.
+
+Turn it into a pass/fail answer from anywhere that has bucket **read** — an
+operator laptop, an agent box, CI. No droplet shell, no `systemctl`, and it
+still answers after the droplet is gone:
+
+```bash
+export SPACES_BACKUP_ACCESS_KEY_ID="$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_access_key_id')"
+export SPACES_BACKUP_SECRET_KEY="$(op read 'op://Goldberry Grove - Admin/AgenticOS Infra/backups_spaces_secret_key')"
+infra/scripts/paperclip-backup-offsite.py --status
+```
+
+Exit 0 means the last run completed, succeeded, and is younger than
+`--max-age-minutes` (default 90 — the timer is every 30, so that tolerates one
+missed run plus a slow upload). Exit 1 distinguishes the three ways this fails:
+the beacon is **absent** (the shipper has never completed a run against this
+bucket), **stale** (the timer stopped firing), or **fresh but failed** (it ran
+and could not ship — the state is quoted back at you).
+
+> Why this exists: on 2026-09-30 the timers were installed and firing, and
+> there was no way to confirm it from off the box — `ssh root@` is refused and
+> `deploy`'s sudo needs a password, so `journalctl -u …` was the only proof and
+> it was unreachable. Verifying a backup job should not require a shell on the
+> machine whose loss the job exists to survive.
 
 **Credentials.** `/opt/agenticos/.env`:
 
@@ -248,6 +376,17 @@ sudo systemctl start paperclip-backup-offsite.service
 journalctl -u paperclip-backup-offsite.service -n 30 --no-pager
 ```
 
+From an operator machine that is not on the box, the same two steps are:
+
+```bash
+# -t so sudo can prompt for deploy's password; `ssh root@` is refused (see
+# infra/README.md → "Getting root on a running box").
+ssh -t agenticos-droplet 'sudo systemctl start paperclip-backup-offsite.service'
+ssh agenticos-droplet 'journalctl -u paperclip-backup-offsite.service -n 30 --no-pager'
+```
+
+Or skip the droplet entirely and read the beacon: `--status`, above.
+
 This is a DO **bucket-scoped** Spaces key (`agenticos-backups-rw`), `readwrite`
 on `agenticos-backups` and **nothing else** — it cannot reach
 `agenticos-tfstate`, `grove-tf-state`, `grove-odoo-backups`, or any Grove
@@ -261,8 +400,33 @@ recoverable from Terraform state with
 
 ```bash
 cd infra/terraform/backup-bucket
-op run --env-file=.env.op -- terraform plan     # expect: no changes
+op run --env-file=.env.op -- terraform plan
 ```
+
+> **Check the live bucket, not the plan.** Retention here is enforced by the
+> bucket, so the bucket's own lifecycle configuration is the truth. Read back
+> 2026-09-30 with `GET /?lifecycle`:
+>
+> | rule | prefix | effect |
+> | --- | --- | --- |
+> | `expire-daily` | `paperclip/daily/` | expire at 7 days |
+> | `expire-weekly` | `paperclip/weekly/` | expire at 60 days |
+> | `expire-monthly` | `paperclip/monthly/` | expire at 400 days |
+> | `abort-incomplete-multipart` | *(whole bucket)* | abort stalled uploads at 7 days, **no** object expiration |
+>
+> Note what is *absent*: no rule matches `paperclip/_status/`, so the liveness
+> beacon never expires. Reproduce with:
+>
+> ```bash
+> # Needs the account-wide plumbing key: a bucket-scoped key gets 403 on
+> # bucket-configuration reads, which is least privilege working as intended.
+> # The secret's 1Password field label has a TRAILING SPACE, so it is read by
+> # field id — same reason .env.op references it that way.
+> export AWS_ACCESS_KEY_ID="$(op read 'op://Goldberry Grove - Admin/Grove Infra/spaces_bootstrap_access_key_id')"
+> export AWS_SECRET_ACCESS_KEY="$(op read 'op://Goldberry Grove - Admin/Grove Infra/f6upwbtfs7jo7f4avwe6kivcwu')"
+> aws --endpoint-url https://nyc3.digitaloceanspaces.com \
+>     s3api get-bucket-lifecycle-configuration --bucket agenticos-backups
+> ```
 
 #### Restoring from an off-box copy
 
@@ -283,9 +447,37 @@ aws --endpoint-url https://nyc3.digitaloceanspaces.com \
 infra/scripts/paperclip-backup-offsite.py --verify-restore --scratch-dir /tmp/restore
 
 # 4. Restore into the Paperclip database.
+# NB the coordinates: there is no `paperclip-db` container and no `paperclip`
+# role — the Paperclip database is a database INSIDE agenticos-db, owned by the
+# `agenticos` role (docker-compose.yml: DATABASE_URL=...@agenticos-db/paperclip).
 gunzip < paperclip-<UTC>.sql.gz | \
-  ssh deploy@$DROPLET 'docker exec -i paperclip-db psql -U paperclip paperclip'
+  ssh deploy@$DROPLET 'docker compose -f /opt/agenticos/docker-compose.yml \
+    exec -T agenticos-db psql -U agenticos paperclip'
 ```
+
+### Is the off-box shipper actually running?
+
+`--status` reads the liveness beacon back (design: "Liveness beacon", above) and
+turns it into a pass/fail answer. It needs bucket **read** and nothing else:
+
+```bash
+infra/scripts/paperclip-backup-offsite.py --status
+```
+
+It tells four states apart that the Discord alerting cannot:
+
+| `--status` says | means | next step |
+| --- | --- | --- |
+| `has never completed a run` (beacon 404) | the unit has never run to completion against this bucket | `ssh -t agenticos-droplet 'sudo systemctl status paperclip-backup-offsite.timer'` |
+| `the timer is not firing` | it ran once and stopped — timer disabled, or the box is down | same, plus `systemctl list-timers` |
+| `state="error"` + the message | it is firing and failing; the reason is quoted back | fix the reason, then `sudo systemctl start …` |
+| `off-box shipper is running` | healthy | also read `newest_local_dump_age_min` (below) |
+
+That last row matters on its own. The beacon carries the age of the newest dump
+**on the volume**, so a starved or dead backup *scheduler* is visible off-box
+even when the shipper itself is perfectly healthy — the shipper can only ship
+what the server produces, and "shipped everything there was" is not the same
+claim as "the database is being backed up".
 
 No `aws` CLI on hand? The shipper needs none — it signs SigV4 with the Python
 standard library, so `--verify-restore` alone will fetch and validate the newest
@@ -322,7 +514,7 @@ Record the date + result here:
 | Date | Postgres | OpenViking | Vault | Notes |
 |------|----------|------------|-------|-------|
 | 2026-06-06 | ✅ restored to scratch pgvector (119 tasks, 2 calls, 2 sessions) | ✅ `unzip -t` OK; `files/user/deploy/memories/*` + manifest present | — | Drilled the **Mac off-site replica** (`~/AgenticOS-Backups`); both artifacts were the **unattended 04:00/04:30 timer runs** — so this also proved timer → dump → Syncthing off-site → restore end-to-end |
-| 2026-09-30 | ✅ **off-box Spaces copy** drilled end-to-end: uploaded `paperclip-20260930-073020.sql.gz` (310,145,905 B) to all three tiers, downloaded it back from `s3://agenticos-backups/paperclip/daily/`, gzip CRC ok, trailing `COMMIT;` present, statement parse 123 CREATE TABLE / 76 COPY / 312 CREATE INDEX / 366 ALTER TABLE | — | — | GOL-2769. This is the **Paperclip** DB, a different store from the 2026-06-06 row's `agenticos` DB. Reproduce with `infra/scripts/paperclip-backup-offsite.py --verify-restore` |
+| 2026-09-30 | ✅ **off-box Spaces copy** drilled end-to-end: uploaded `paperclip-20260930-073020.sql.gz` (310,145,905 B) to all three tiers, downloaded it back from `s3://agenticos-backups/paperclip/daily/`, gzip CRC ok, trailing `COMMIT;` present, statement parse 123 CREATE TABLE / 76 COPY / 312 CREATE INDEX / 366 ALTER TABLE | — | — | GOL-2769. This is the **Paperclip** DB, a different store from the 2026-06-06 row's `agenticos` DB. Reproduce with `infra/scripts/paperclip-backup-offsite.py --verify-restore`. Re-run at 22:58Z after the droplet's timers went live — identical statement counts, so the drill covers the deployed path, not just the backfill. Off-box inventory at that point: 8 daily + 3 weekly (2026W36/W39/W40) + 1 monthly (2026-09) = 12 objects, exactly matching the 8 dumps on the volume. Live lifecycle rules read back correct (7d / 60d / 400d) |
 
 ## Rotating `AGENTICOS_DB_PASSWORD` on an existing Droplet
 

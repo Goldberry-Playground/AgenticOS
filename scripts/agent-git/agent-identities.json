@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Agent UUID -> canonical git commit identity (GOL-2986).",
+    "The UUID is the agent's Paperclip id, surfaced to every agent run as",
+    "$PAPERCLIP_AGENT_ID. agent-identity.mjs uses this map to claim a per-worktree",
+    "git identity and to assert at commit time that the acting agent is the commit",
+    "author -- the git author facet is what the PR-review self-review guard reads",
+    "(prReviewAuthorIdentities / packages/github-sync-plugin/src/pr-review.ts).",
+    "Convention: <first-name>@goldberrygrove.farm, name = the agent's board name.",
+    "KEEP `name`/`email` IN SYNC with the github-sync plugin config field",
+    "prReviewAuthorIdentities for any agent that is also a PR reviewer (ada, iris) --",
+    "a name/email that is not in that list defeats the self-review skip.",
+    "An agent id that is absent here fails SAFE: no assertion, no claim, commit",
+    "proceeds (see docs/agent-house-rules.md).",
+    "`neutral` is the non-agent identity a shared .git/config is reset to when it is",
+    "found carrying some agent's address: it must stay a real, resolvable identity",
+    "(an empty one makes `git commit` die with 128 before any hook can help)."
+  ],
+  "neutral": { "name": "AgenticOS Developer", "email": "agenticos-developer[bot]@users.noreply.github.com" },
+  "agents": {
+    "72f97c75-99e9-48e5-94ff-d1bd0c6edb1a": { "name": "Engineering - Ada", "email": "ada@goldberrygrove.farm" },
+    "0f58aac8-dbf7-4af7-bab7-944b067d01af": { "name": "Frontend - Iris", "email": "iris@goldberrygrove.farm" },
+    "ecb7b6ec-3c2a-4509-9bac-4ad33c07d03f": { "name": "DevOps - Terra", "email": "terra@goldberrygrove.farm" },
+    "f1a80667-80fc-4109-8d30-27b234632db4": { "name": "CEO - Rick", "email": "rick@goldberrygrove.farm" },
+    "ad52fc6c-71a0-4b7b-9e1e-11f63a960132": { "name": "CFO - Penny", "email": "penny@goldberrygrove.farm" },
+    "c629faf1-cb50-4b7b-b766-3d68f71d54ed": { "name": "CMO - Sora", "email": "sora@goldberrygrove.farm" },
+    "4b217745-8280-487f-8b32-84ab57f776cf": { "name": "Logistics - Otto", "email": "otto@goldberrygrove.farm" }
+  }
+}

@@ -12,7 +12,12 @@
 # systemctl/ufw, and the account password is locked). Run it as root:
 #
 #   • from the DigitalOcean web Console (logged in as root), or
-#   • ssh root@<droplet>  (Terraform SSH key is on root), then: bash "$0"
+#   • ssh -t agenticos-droplet 'sudo bash /opt/agenticos/repo/infra/scripts/install-drift-guard.sh'
+#       -t is required: deploy's sudo is NOPASSWD only for systemctl/ufw, so
+#       `sudo bash` prompts for a password and needs a TTY to read it.
+#
+#   NOT `ssh root@<droplet>`: root's authorized_keys carries only the Terraform
+#   provisioning key, so an operator's own key is refused (Josh, 2026-09-30).
 #
 # The .service runs as User=deploy (repo owner → no git "dubious ownership", and
 # the same fetch context deploy-host-scripts.yml's reset uses). Idempotent — safe
@@ -22,7 +27,8 @@ set -euo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "ERROR: must run as root (writes /etc/systemd/system)." >&2
-  echo "  → DO web Console as root, or 'ssh root@<droplet>', then: bash $0" >&2
+  echo "  → ssh -t agenticos-droplet 'sudo bash $0'  (sudo needs a TTY for the" >&2
+  echo "    password; root@ key auth is refused), or the DO web Console as root." >&2
   exit 1
 fi
 

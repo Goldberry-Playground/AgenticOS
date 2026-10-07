@@ -315,6 +315,57 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # paperclip-db-catchup (GOL-2858): the two units above watch that dumps are
+  # written and ship them off-box — this one makes sure they EXIST. The Paperclip
+  # server arms its dump as an in-process interval at PROCESS START and re-arms it
+  # from zero on every restart with no catch-up for the run it missed, so when
+  # restarts come closer together than the interval the interval never matures and
+  # the backup does not run at all (2026-09-30: 7 restarts in 11.3h, an 11h39m gap,
+  # /api/health still "ok"). That scheduler is in /opt/paperclip, outside this
+  # repo; this timer is the same catch-up out of process — wall-clock anchored so a
+  # paperclip-server restart cannot reset it, Persistent=true so a run missed while
+  # the box was down fires on boot, and a no-op whenever the newest dump is fresh.
+  - path: /etc/systemd/system/agenticos-paperclip-db-catchup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS Paperclip DB catch-up dump (restart-immune backup safety net; GOL-2858)
+      After=network-online.target docker.service
+      Wants=network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/paperclip-db-catchup.sh'
+      # A dump of this database takes ~5 minutes at 300M; cap the pathological
+      # case well above that so a wedged pg_dump cannot hold the single-flight
+      # lock until the next fire.
+      TimeoutStartSec=45min
+      StandardOutput=append:/var/log/agenticos/paperclip-db-catchup.log
+      StandardError=append:/var/log/agenticos/paperclip-db-catchup.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-paperclip-db-catchup.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Hourly check that a Paperclip DB dump actually happened (GOL-2858)
+
+      [Timer]
+      # :50 — clear of the volume guard (:20) and the off-box shipper (:05/:35),
+      # so a catch-up dump is written well before the next shipper run sees it.
+      OnCalendar=*-*-* *:50:00
+      Persistent=true
+      RandomizedDelaySec=120
+      Unit=agenticos-paperclip-db-catchup.service
+
+      [Install]
+      WantedBy=timers.target
+
   # worktree reaper (GOL-1632 / #765): agents create a per-issue
   # .wt-<issue>-<repo> worktree inside the shared project checkouts, each with
   # its own ~1GB node_modules, and nothing ever reclaimed them — 31 abandoned
@@ -385,6 +436,55 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  # merge-queue arming sweep (GOL-3125): GOL-3118 measured that auto-merge
+  # inherits the identity of whoever ARMED it, so arming an agent PR as the App
+  # makes every later merge-queue enqueue healthy. It shipped the tool but
+  # nothing called it — an agent PR was armed only if an agent remembered, and a
+  # forgotten PR builds a merge group no `merge_group` workflow runs on, which
+  # (the queue being sequential) stalls every healthy entry behind it. This
+  # cannot be a GitHub Actions workflow: a workflow has only GITHUB_TOKEN, and
+  # arming as `github-actions` rebuilds the same dead group, while minting
+  # another identity in Actions would need the App private key in Actions
+  # secrets (declined, ADR-0001). gh-token-broker runs on this box, so the
+  # sweep mints a short-lived repo-scoped App token per run — no new secret.
+  # User=root: it reads the chmod-600 /opt/agenticos/secrets/gh-broker-client.key
+  # (group-reading it to `deploy` would permanently widen who can mint App
+  # tokens here) and docker-inspects the broker, which publishes no ports.
+  # Keep in sync with infra/scripts/install-merge-queue-arm-sweep.sh.
+  - path: /etc/systemd/system/agenticos-merge-queue-arm.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS merge-queue arming sweep (arm auto-merge as the agent App so no agent PR builds a dead merge group)
+      After=network-online.target docker.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/merge-queue-arm-sweep.sh'
+      StandardOutput=append:/var/log/agenticos/merge-queue-arm.log
+      StandardError=append:/var/log/agenticos/merge-queue-arm.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-merge-queue-arm.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run the AgenticOS merge-queue arming sweep every 5 minutes
+
+      [Timer]
+      OnCalendar=*:0/5
+      Persistent=true
+      RandomizedDelaySec=60
+      Unit=agenticos-merge-queue-arm.service
+
+      [Install]
+      WantedBy=timers.target
+
   - path: /etc/systemd/system/agenticos-host-clone-drift.timer
     permissions: "0644"
     content: |
@@ -396,6 +496,97 @@ write_files:
       Persistent=true
       RandomizedDelaySec=300
       Unit=agenticos-host-clone-drift.service
+
+      [Install]
+      WantedBy=timers.target
+
+  # vendor-status guard (GOL-3021): observability for the things we do NOT run.
+  # Every 5 min it reads the public GitHub/DO/Cloudflare/Stripe/1Password status
+  # APIs, writes a snapshot onto the paperclip-data volume (so in-container
+  # agents can answer "is this me or is this GitHub?" with one credential-free
+  # read at /paperclip/ops/vendor-status.json), and posts to the Discord ops
+  # webhook ONLY on a transition into or out of degradation.
+  # Root because the snapshot lands under /var/lib/docker/volumes (0710 root).
+  # Deliberately NOT a GitHub Actions schedule: the main thing it watches is
+  # Actions, and on 2026-10-05 scheduled runs were among those that never got a
+  # runner. Keep in sync with infra/scripts/install-vendor-status.sh.
+  - path: /etc/systemd/system/agenticos-vendor-status.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS vendor-status guard (GitHub/DO/Cloudflare/Stripe/1Password -> snapshot + Discord on transition)
+      After=network-online.target docker.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      User=root
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/vendor-status-guard.py poll'
+      StandardOutput=append:/var/log/agenticos/vendor-status.log
+      StandardError=append:/var/log/agenticos/vendor-status.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-vendor-status.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Poll vendor status every 5 minutes (GOL-3021)
+
+      [Timer]
+      OnCalendar=*:0/5
+      Persistent=true
+      RandomizedDelaySec=60
+      Unit=agenticos-vendor-status.service
+
+      [Install]
+      WantedBy=timers.target
+
+  # --- pid-pressure guard (GOL-3002). paperclip-server is capped at
+  # pids_limit: 2048 and runs every agent as a subprocess. Because the image
+  # entrypoint `exec gosu node`s the server into PID 1, and libuv reaps only the
+  # pids it spawned (never waitpid(-1)), orphaned grandchildren of agent runs
+  # became permanent zombies — 1,691 of them by 2026-10-05, exhausting the cap
+  # (pids.events max=542) and failing 60+ runs with `spawn … EAGAIN`. `init: true`
+  # on the service (docker-compose.yml) is the FIX; this is the DETECTION layer,
+  # so the same class of leak can never run silent for 4.8 days again. Read-only:
+  # it inspects the pids cgroup and /proc and posts to Discord — it never kills or
+  # recreates anything (a recreate re-arms the DB backup interval, GOL-1632 /
+  # GOL-2858, which is not a timer's call to make). Runs as User=deploy, which is
+  # in the docker group. Keep in sync with
+  # infra/scripts/install-pid-pressure-guard.sh.
+  - path: /etc/systemd/system/agenticos-pid-pressure.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS pid-pressure guard (paperclip-server pids cgroup + zombie count -> Discord)
+      After=network-online.target docker.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      User=deploy
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/pid-pressure-guard.sh'
+      StandardOutput=append:/var/log/agenticos/pid-pressure.log
+      StandardError=append:/var/log/agenticos/pid-pressure.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-pid-pressure.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run AgenticOS pid-pressure guard every 30 min
+
+      [Timer]
+      OnBootSec=10min
+      OnUnitActiveSec=30min
+      RandomizedDelaySec=120
+      Unit=agenticos-pid-pressure.service
 
       [Install]
       WantedBy=timers.target
@@ -570,6 +761,21 @@ runcmd:
   # deploy-paperclip-server.yml workflow (git checkout <tag> + rebuild); this pin
   # is the source of truth for a fresh (re)provision.
   - sudo -u deploy git clone --branch agenticos-v0.2.1 --depth 1 https://github.com/EngineeringMoonBear/Paperclip-AgenticOS.git /opt/paperclip
+
+  # --- Patch the Paperclip fork build context (GOL-3005) ---
+  # The fork is under a different GitHub owner that the agenticos-developer App
+  # is not installed on, so agent automation cannot open a PR against it. Core
+  # server fixes therefore land as reviewed patches in this repo under
+  # infra/paperclip-patches/ and are applied to the build context before the
+  # `docker compose up -d` further down builds the paperclip-server image.
+  #
+  # This must stay in lockstep with deploy-paperclip-server.yml, which applies
+  # the same patches with the same script on a live box — otherwise a reprovision
+  # would silently ship an UNPATCHED server and reintroduce whatever the patches
+  # fix. The script is all-or-nothing and exits non-zero on a patch that no
+  # longer applies against the pin above, which fails provisioning loudly rather
+  # than booting a half-patched image.
+  - sudo -u deploy bash /opt/agenticos/repo/infra/scripts/apply-paperclip-patches.sh /opt/paperclip /opt/agenticos/repo/infra/paperclip-patches
 
   # --- AgenticOS docker-compose (telemetry DB + Ollama + OpenViking + Paperclip).
   #
@@ -835,7 +1041,7 @@ runcmd:
   # --- Disk hygiene (GOL-131): weekly docker reclaim + daily disk-guard ---
   # Ensure the reclaim scripts are executable, apply the journald cap now
   # (config alone only bounds FUTURE growth), then enable the timers.
-  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py /opt/agenticos/repo/infra/scripts/worktree-reaper.sh /opt/agenticos/repo/scripts/ops/reap-stale-worktrees.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/docker-prune.sh /opt/agenticos/repo/infra/scripts/disk-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-volume-guard.sh /opt/agenticos/repo/infra/scripts/paperclip-backup-offsite.py /opt/agenticos/repo/infra/scripts/paperclip-db-catchup.sh /opt/agenticos/repo/infra/scripts/worktree-reaper.sh /opt/agenticos/repo/scripts/ops/reap-stale-worktrees.sh
   - systemctl restart systemd-journald
   - journalctl --vacuum-size=200M || true
   - systemctl enable --now agenticos-docker-prune.timer
@@ -844,13 +1050,30 @@ runcmd:
   - systemctl enable --now agenticos-paperclip-volume-guard.timer
   # off-box copies of every completed Paperclip dump (GOL-2769)
   - systemctl enable --now agenticos-paperclip-backup-offsite.timer
+  # hourly catch-up for the dump the server's restart-reset interval missed (GOL-2858)
+  - systemctl enable --now agenticos-paperclip-db-catchup.timer
   # nightly abandoned-worktree reclaim (GOL-1632 / #765)
   - systemctl enable --now agenticos-worktree-reaper.timer
+  # vendor-status guard (GOL-3021): 5-minutely vendor status -> snapshot + Discord
+  - chmod +x /opt/agenticos/repo/infra/scripts/vendor-status-guard.py
+  - systemctl enable --now agenticos-vendor-status.timer
 
   # --- Host-clone drift-guard (GOL-1976): read-only detection that the on-box
   # clone the host timers run from has drifted from origin/main. ---
   - chmod +x /opt/agenticos/repo/infra/scripts/host-clone-drift-guard.sh
   - systemctl enable --now agenticos-host-clone-drift.timer
+
+  # --- merge-queue arming sweep (GOL-3125): arm auto-merge as the agent App on
+  # every eligible open agent PR, every 5 min, so no forgotten PR wedges the
+  # sequential merge queue. ARM_UNAPPROVED=1 / never ARM_PROTECTED=1. ---
+  - chmod +x /opt/agenticos/repo/infra/scripts/merge-queue-arm-sweep.sh
+  - chmod +x /opt/agenticos/repo/infra/scripts/vendored/merge-queue-arm-automerge.sh
+  - systemctl enable --now agenticos-merge-queue-arm.timer
+
+  # --- pid-pressure guard (GOL-3002): detection layer for the paperclip-server
+  # pid/zombie leak that `init: true` in docker-compose.yml fixes. ---
+  - chmod +x /opt/agenticos/repo/infra/scripts/pid-pressure-guard.sh
+  - systemctl enable --now agenticos-pid-pressure.timer
 
   # --- Unattended security upgrades ---
   - echo 'APT::Periodic::Unattended-Upgrade "1";' > /etc/apt/apt.conf.d/20auto-upgrades

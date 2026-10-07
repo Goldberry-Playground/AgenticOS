@@ -514,9 +514,11 @@ export class GitHubClient {
 
   /**
    * List a PR's commit authors (GOL-2720 self-review guard). Returns each commit's
-   * author name/email plus GitHub login so the caller can tell whether a would-be
-   * reviewer also WROTE the PR — all agent PRs share one App opener login, so the
-   * git commit author (name/email) is the only signal that discriminates them.
+   * author name/email, GitHub login, and full message so the caller can tell whether
+   * a would-be reviewer also WROTE the PR — all agent PRs share one App opener login,
+   * so the git commit author (name/email) plus the message's `Co-authored-by:`
+   * trailers (GOL-2976 — bleed-proof when a shared worktree mis-set `user.email`)
+   * are the signals that discriminate them.
    *
    * Single page at 100 commits (GitHub caps `pulls/{n}/commits` at 250 across
    * pages; a PR with >100 commits is vanishingly rare here). `truncated` reports
@@ -527,7 +529,7 @@ export class GitHubClient {
   async listPullCommitAuthors(
     repo: string,
     num: number,
-  ): Promise<Result<{ authors: Array<{ email: string; name: string; login: string }>; truncated: boolean }>> {
+  ): Promise<Result<{ authors: Array<{ email: string; name: string; login: string; message: string }>; truncated: boolean }>> {
     const PER_PAGE = 100;
     const res = await this.request<Array<Record<string, any>>>(
       "GET",
@@ -536,10 +538,14 @@ export class GitHubClient {
     );
     if (!res.ok) return res;
     const batch = Array.isArray(res.data) ? res.data : [];
+    // `commit.message` carries the `Co-authored-by:` trailers the ACTING agent
+    // wrote (GOL-2976) — a bleed-proof author signal when the git author facets
+    // were mis-attributed by a shared-worktree `user.email` bleed.
     const authors = batch.map((c) => ({
       email: String(c?.commit?.author?.email ?? ""),
       name: String(c?.commit?.author?.name ?? ""),
       login: String(c?.author?.login ?? ""),
+      message: String(c?.commit?.message ?? ""),
     }));
     return { ok: true, data: { authors, truncated: batch.length >= PER_PAGE } };
   }

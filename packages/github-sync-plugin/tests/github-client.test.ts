@@ -609,10 +609,15 @@ describe("GitHubClient cache-invalidation on 401 (GOL-1425)", () => {
 });
 
 describe("GitHubClient.listPullCommitAuthors (GOL-2720 self-review guard)", () => {
-  it("GETs the PR commits endpoint and extracts author name/email/login per commit", async () => {
+  it("GETs the PR commits endpoint and extracts author name/email/login/message per commit", async () => {
     const fetchMock = mockFetch([
       {
-        commit: { author: { name: "Frontend - Iris", email: "iris@goldberrygrove.farm" } },
+        // Author facets bled to Terra's worktree identity; the real author is in
+        // the Co-authored-by trailer the acting agent wrote (GOL-2976).
+        commit: {
+          author: { name: "DevOps - Terra", email: "terra@goldberrygrove.farm" },
+          message: "fix(ui): tidy\n\nCo-authored-by: Frontend - Iris <iris@goldberrygrove.farm>",
+        },
         author: { login: "agenticos-developer[bot]" },
       },
       {
@@ -629,8 +634,13 @@ describe("GitHubClient.listPullCommitAuthors (GOL-2720 self-review guard)", () =
     if (res.ok) {
       expect(res.data.truncated).toBe(false);
       expect(res.data.authors).toEqual([
-        { name: "Frontend - Iris", email: "iris@goldberrygrove.farm", login: "agenticos-developer[bot]" },
-        { name: "Frontend - Iris", email: "iris@goldberrygrove.farm", login: "" },
+        {
+          name: "DevOps - Terra",
+          email: "terra@goldberrygrove.farm",
+          login: "agenticos-developer[bot]",
+          message: "fix(ui): tidy\n\nCo-authored-by: Frontend - Iris <iris@goldberrygrove.farm>",
+        },
+        { name: "Frontend - Iris", email: "iris@goldberrygrove.farm", login: "", message: "" },
       ]);
     }
     const [url] = fetchMock.mock.calls[0];
