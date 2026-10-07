@@ -13,6 +13,13 @@
 # testing
 /coverage
 
+# playwright (`playwright test` writes both; neither was ignored, so a local
+# E2E run left untracked output sitting in `git status` waiting to be staged)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # next.js
 /.next/
 /out/
