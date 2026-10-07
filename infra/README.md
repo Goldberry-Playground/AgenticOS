@@ -378,20 +378,42 @@ live inline in the cloud-init template (single source of truth — same pattern 
 the curator units). Installing the units needs **root** — on a running box the
 `deploy` user can't write `/etc/systemd/system` (its sudo is `NOPASSWD` only for
 `systemctl`/`ufw`, and the account password is locked). Get root via the
-DigitalOcean web **Console**, or `ssh root@$DROPLET` (your Terraform SSH key is
-on root). Then a one-liner does it:
+DigitalOcean web **Console**, or `sudo` over an interactive `deploy` session
+(see [Getting root on a running box](#getting-root-on-a-running-box) — direct
+`ssh root@` is **refused** on this droplet). Then a one-liner does it:
 
 ```bash
 # 1. Refresh the repo clone so the scripts are present (as deploy)
-ssh deploy@$DROPLET 'cd /opt/agenticos/repo && git fetch origin && git checkout -B main origin/main'
+ssh agenticos-droplet 'cd /opt/agenticos/repo && git fetch origin && git checkout -B main origin/main'
 
-# 2. As ROOT (console or ssh root@): install + enable both timers
-bash /opt/agenticos/repo/infra/scripts/install-backup-timers.sh
+# 2. Install + enable both timers, as root. -t so sudo can prompt for a password.
+ssh -t agenticos-droplet 'sudo bash /opt/agenticos/repo/infra/scripts/install-backup-timers.sh'
 
 # 3. Smoke-test as deploy (not root)
-ssh deploy@$DROPLET '/opt/agenticos/repo/infra/scripts/pg-backup.sh && \
+ssh agenticos-droplet '/opt/agenticos/repo/infra/scripts/pg-backup.sh && \
   /opt/agenticos/repo/infra/scripts/viking-backup.sh && ls -lh /opt/backups'
 ```
+
+### Getting root on a running box
+
+`root` SSH is **refused** on agenticos-droplet — the Terraform key is on root in
+the cloud-init template, but the live box rejects it, so any runbook step that
+says `ssh root@$DROPLET` cannot be followed as written. Two ways in that do work
+(verified 2026-09-30 by Josh):
+
+```bash
+# Preferred: sudo over an interactive deploy session. -t allocates a TTY so the
+# sudo password prompt is visible; without it sudo fails with "no tty present".
+ssh -t agenticos-droplet 'sudo <command>'
+
+# Fallback when SSH itself is the problem: the DigitalOcean web Console, which
+# lands you on a root shell.
+```
+
+`deploy`'s sudo is NOPASSWD for `systemctl`/`ufw` only — anything else (writing
+`/etc/systemd/system`, reading `/var/lib/docker/volumes/...`) prompts for
+`deploy`'s password, hence `-t`. `agenticos-droplet` is the SSH config alias;
+`deploy@<ip>` works the same way.
 
 `install-backup-timers.sh` is idempotent (writes the four units, reloads,
 enables) and keeps its unit definitions in sync with the inline copies in the
@@ -482,13 +504,14 @@ install as root (same access model as the backup timers):
 
 ```bash
 # 1. Refresh the repo clone so the scripts are present (as deploy)
-ssh deploy@$DROPLET 'cd /opt/agenticos/repo && git fetch origin && git checkout -B main origin/main'
+ssh agenticos-droplet 'cd /opt/agenticos/repo && git fetch origin && git checkout -B main origin/main'
 
-# 2. As ROOT (console or ssh root@): install units + journald cap + logrotate
-bash /opt/agenticos/repo/infra/scripts/install-disk-hygiene.sh
+# 2. Install units + journald cap + logrotate, as root (see "Getting root on a
+#    running box" — ssh root@ is refused; -t so sudo can prompt).
+ssh -t agenticos-droplet 'sudo bash /opt/agenticos/repo/infra/scripts/install-disk-hygiene.sh'
 
 # 3. Smoke-test reclaim + confirm root FS under ~70%
-ssh deploy@$DROPLET '/opt/agenticos/repo/infra/scripts/docker-prune.sh && df -h /'
+ssh agenticos-droplet '/opt/agenticos/repo/infra/scripts/docker-prune.sh && df -h /'
 ```
 
 `install-disk-hygiene.sh` is idempotent and keeps its unit/config bodies in sync

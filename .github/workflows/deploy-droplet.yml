@@ -90,6 +90,28 @@ jobs:
              docker run --rm --privileged -e HOST=/host -v /:/host alpine:3 \
                sh /host/opt/agenticos/infra/scripts/ensure-swap.sh'
 
+      # GOL-3002: paperclip-server now runs with `init: true` (docker's tini as
+      # PID 1) so orphaned agent-run grandchildren get reaped instead of piling
+      # up as zombies against pids_limit. `--init` needs /usr/bin/docker-init in
+      # the engine; it has shipped with docker-ce since 17.05, but if it were
+      # ever missing, container CREATE fails — and because the next step
+      # force-recreates (stop old, then create new), that would leave the board
+      # DOWN rather than merely un-upgraded. So prove the engine supports --init
+      # on a throwaway container FIRST, and fail the deploy here if it does not.
+      # Cheap (one alpine run) and idempotent.
+      - name: Assert engine supports --init (GOL-3002)
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" '
+            set -euo pipefail
+            if ! docker run --rm --init alpine:3 true; then
+              echo "::error::docker engine does not support --init (missing docker-init?) — refusing to recreate paperclip-server with init: true" >&2
+              exit 1
+            fi
+            echo "engine supports --init"'
+
       - name: Rebuild vault-server + reload plugins on paperclip-server
         env:
           HOST: ${{ secrets.DROPLET_HOST }}

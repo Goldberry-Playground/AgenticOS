@@ -30,13 +30,26 @@ guardrails added to prevent recurrence and how to finish applying them.
 ## Finish-up steps
 
 ### Existing Droplet swap (one-shot, root)
+
+`ssh root@…` is **refused** on agenticos-droplet — root's `authorized_keys`
+holds only the Terraform provisioning key, not an operator's (Josh,
+2026-09-30). Use `sudo` over SSH with `-t` (a TTY, so `deploy`'s sudo password
+prompt can be answered) or the DigitalOcean web Console. See
+`infra/README.md` → "Getting root on a running box".
+
+`-t` and a heredoc cannot be combined: with a pty allocated, the here-document
+arrives on the same stream sudo reads the password from, so sudo eats the first
+line of the script. Stage the script, then run it under `-t`:
+
 ```bash
-ssh root@$DROPLET <<'EOF'
+ssh agenticos-droplet 'cat > /tmp/swap-setup.sh' <<'EOF'
+set -euo pipefail
 test -f /swapfile || (fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile)
 grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 sysctl -w vm.swappiness=10 && echo 'vm.swappiness=10' > /etc/sysctl.d/99-swap.conf
 free -h && swapon --show
 EOF
+ssh -t agenticos-droplet 'sudo bash /tmp/swap-setup.sh; rm -f /tmp/swap-setup.sh'
 ```
 
 ### Apply the alert policies

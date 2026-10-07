@@ -18,6 +18,7 @@ import {
   isActionablePrAction,
   isNullBodyStatusError,
   isSelfAuthored,
+  parseCoAuthorTrailers,
   parseGithubPrEvent,
   prReviewMarker,
   REQUIRED_REVIEWER,
@@ -310,6 +311,33 @@ describe("self-review guard (GOL-2720)", () => {
     });
   });
 
+  describe("parseCoAuthorTrailers (GOL-2976)", () => {
+    it("extracts name + email from Co-authored-by trailers (key case-insensitive)", () => {
+      const trailers = parseCoAuthorTrailers(
+        [
+          "fix(dashboard): reflow header",
+          "",
+          "Co-authored-by: Ada <ada@goldberrygrove.farm>",
+          "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+        ].join("\n"),
+      );
+      expect(trailers).toEqual([
+        { name: "Ada", email: "ada@goldberrygrove.farm" },
+        { name: "Claude Opus 5 (1M context)", email: "noreply@anthropic.com" },
+      ]);
+    });
+    it("tolerates a trailer with only a name or only an email, and empty input", () => {
+      expect(parseCoAuthorTrailers("Co-authored-by: ada-engineer[bot]")).toEqual([
+        { name: "ada-engineer[bot]", email: "" },
+      ]);
+      expect(parseCoAuthorTrailers("Co-authored-by: <ada@goldberrygrove.farm>")).toEqual([
+        { name: "", email: "ada@goldberrygrove.farm" },
+      ]);
+      expect(parseCoAuthorTrailers(undefined)).toEqual([]);
+      expect(parseCoAuthorTrailers("no trailers here")).toEqual([]);
+    });
+  });
+
   describe("isSelfAuthored", () => {
     const signals = collectAuthorSignals([
       { email: "iris@goldberrygrove.farm", name: "Frontend - Iris", login: "" },
@@ -323,6 +351,86 @@ describe("self-review guard (GOL-2720)", () => {
     it("is false when no identities are configured (guard inert)", () => {
       expect(isSelfAuthored("iris", undefined, signals)).toBe(false);
       expect(isSelfAuthored("iris", {}, signals)).toBe(false);
+    });
+
+    // --- GOL-2976: shared-worktree git identity bleed regression -----------------
+    // The implementing agent commits in a worktree whose git `user.email` belongs to
+    // a sibling agent, so the git author facets are mis-attributed. The agent's own
+    // `Co-authored-by:` trailer (written by its process, not from `user.email`) still
+    // identifies the real author and must defeat the bleed.
+    it("detects the real author from a Co-authored-by trailer when user.email bled", () => {
+      const bled = collectAuthorSignals([
+        {
+          // Worktree carried Terra's identity — author facets are mis-attributed.
+          email: "terra@goldberrygrove.farm",
+          name: "DevOps - Terra",
+          login: "agenticos-developer[bot]",
+          // But the acting agent (Iris) stamped her own trailer.
+          message: "fix(ui): tidy header\n\nCo-authored-by: Frontend - Iris <iris@goldberrygrove.farm>",
+        },
+      ]);
+      expect(isSelfAuthored("iris", identities, bled)).toBe(true);
+    });
+    it("does not treat the bled sibling identity as the reviewer's own authorship", () => {
+      // Ada is NOT an author here (Iris implemented); the bled Terra facets must not
+      // make Ada look like an author either.
+      const bled = collectAuthorSignals([
+        {
+          email: "terra@goldberrygrove.farm",
+          name: "DevOps - Terra",
+          login: "agenticos-developer[bot]",
+          message: "fix(ui): tidy header\n\nCo-authored-by: Frontend - Iris <iris@goldberrygrove.farm>",
+        },
+      ]);
+      expect(isSelfAuthored("ada", identities, bled)).toBe(false);
+    });
+    it("shared model/Paperclip trailers never match an agent-specific identity", () => {
+      const signals = collectAuthorSignals([
+        {
+          email: "terra@goldberrygrove.farm",
+          name: "DevOps - Terra",
+          login: "",
+          message:
+            "chore: bump\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>\nCo-authored-by: Paperclip <noreply@paperclip.ing>",
+        },
+      ]);
+      expect(isSelfAuthored("ada", identities, signals)).toBe(false);
+      expect(isSelfAuthored("iris", identities, signals)).toBe(false);
+    });
+  });
+
+  // End-to-end of the bleed regression through the actual skip decision (GOL-2976).
+  // Realistic topology from PR #806: the real author's worktree carried a THIRD
+  // agent's git identity (Terra, who is not a reviewer), so the git author facets
+  // point at nobody relevant. Without the trailer the guard reads author=∅ → treats
+  // the required reviewer as independent → leaves the real author (Iris) to review
+  // her own frontend code. The acting agent's `Co-authored-by:` trailer restores the
+  // real author so her supplementary twin is correctly skipped.
+  //
+  // NOTE (coordination): a bleed that mis-attributes the git author TO the REQUIRED
+  // reviewer (Ada) is NOT fixable here — trailer parsing only ADDS author signals, it
+  // cannot prove a git-author signal is false (a real co-author looks identical). That
+  // false-positive direction is closed by Terra's commit-time identity assertion
+  // (GOL-2976 fix #1); this guard is the defence-in-depth for the bleed-AWAY case.
+  describe("identity-bleed skip decision (GOL-2976)", () => {
+    const reviewers: ReviewerAssignment[] = [
+      { reviewer: "ada", agentId: ADA },
+      { reviewer: "iris", agentId: IRIS },
+    ];
+    const bledToThirdAgent = collectAuthorSignals([
+      {
+        email: "terra@goldberrygrove.farm", // bled — worktree carried Terra's identity
+        name: "DevOps - Terra",
+        login: "agenticos-developer[bot]",
+        message: "feat(ui): new widget\n\nCo-authored-by: Frontend - Iris <iris@goldberrygrove.farm>",
+      },
+    ]);
+    it("skips Iris (real author) even though the git author facets say Terra", () => {
+      const { toReview, skipped } = filterSelfAuthoredReviewers(reviewers, (r) =>
+        isSelfAuthored(r, identities, bledToThirdAgent),
+      );
+      expect(toReview.map((r) => r.reviewer)).toEqual(["ada"]);
+      expect(skipped).toEqual([{ reviewer: "iris", coveredBy: REQUIRED_REVIEWER }]);
     });
   });
 

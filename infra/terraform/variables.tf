@@ -177,10 +177,15 @@ variable "alert_slack" {
 
 # ── GOL-252: GitHub Actions CI secrets (see github-ci-secrets.tf) ───────────
 
+# GOL-3078: the default was "EngineeringMoonBear/AgenticOS" -- the PRE-TRANSFER
+# owner. This value also feeds `provider "github" { owner = ... }`, so every
+# GitHub resource in this module (including the rulesets in
+# github-branch-protection.tf) was addressing a stale owner that now resolves
+# only via a 301 redirect. Repointed to the live org.
 variable "github_ci_secrets_repo" {
-  description = "owner/name of the repo whose GitHub Actions secrets this module manages. Its Actions secrets receive DO_MONITORING_TOKEN for the Tier 2A rightsize advisor."
+  description = "owner/name of the repo whose GitHub Actions secrets this module manages, AND the source of `provider \"github\"`'s owner for every GitHub resource here. Its Actions secrets receive DO_MONITORING_TOKEN for the Tier 2A rightsize advisor."
   type        = string
-  default     = "EngineeringMoonBear/AgenticOS"
+  default     = "Goldberry-Playground/AgenticOS"
 }
 
 variable "github_ci_token" {
