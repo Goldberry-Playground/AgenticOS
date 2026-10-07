@@ -1,5 +1,4 @@
 "use client";
-import { useMemo } from "react";
 import { VistaShell } from "./VistaShell";
 import { KpiTile } from "./KpiTile";
 import { LatencyOscilloscopeBackdrop } from "./backdrops/LatencyOscilloscopeBackdrop";
@@ -30,8 +29,7 @@ function median(values: number[]): number | null {
 }
 
 export function HealthVista() {
-  const nowIso = useMemo(() => new Date().toISOString(), []);
-  const { data, isLoading } = useHealthServices();
+  const { data, isLoading, dataUpdatedAt } = useHealthServices();
 
   const services = data?.services ?? null;
   const up = services?.filter((s) => s.ok) ?? [];
@@ -46,7 +44,7 @@ export function HealthVista() {
   return (
     <VistaShell
       accent="pine"
-      asOf={nowIso}
+      asOfMs={dataUpdatedAt}
       backdrop={<LatencyOscilloscopeBackdrop />}
     >
       <KpiTile
