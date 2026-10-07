@@ -570,9 +570,10 @@
      drift out of date when a chip's label grows. `margin-left: auto` on the
      right cluster keeps it flush right on one row and on two. */
   flex-wrap: wrap;
-  row-gap: 10px;
   padding: 14px 28px;
-  gap: 24px;
+  /* row column — `gap` is the shorthand, so a separate `row-gap` declared
+     before it was silently reset to 24px. */
+  gap: 10px 24px;
   max-width: 1600px;
   margin: 0 auto;
 }
