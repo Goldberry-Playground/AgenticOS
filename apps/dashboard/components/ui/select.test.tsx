@@ -41,10 +41,18 @@ describe("Select", () => {
     expect(chevron!.getAttribute("aria-hidden")).toBe("true");
   });
 
-  it("keeps a visible focus ring", () => {
+  // GOL-2997. The select used to hand-roll `outline-none` +
+  // `focus-visible:ring-3 focus-visible:ring-ring/50`, which opted out of the
+  // shared GOL-2968 indicator and replaced it with one at 50% alpha — 1.94:1
+  // against `--surface-recessed` in light mode, under the WCAG 1.4.11 3:1
+  // floor. The ring now comes from the `:focus-visible` rule in globals.css,
+  // so the thing worth asserting here is that the opt-out has not come back.
+  // jsdom cannot measure the painted colour; `e2e/focus-visible.spec.ts` does.
+  it("does not opt out of the shared focus ring", () => {
     const cls = renderSelect().container.querySelector("select")!.className;
-    expect(cls).toContain("focus-visible:ring-3");
-    expect(cls).toContain("focus-visible:border-ring");
+    expect(cls).not.toMatch(/(^|[\s:])outline-none/);
+    expect(cls).not.toContain("focus-visible:ring");
+    expect(cls).not.toContain("focus-visible:border-ring");
   });
 
   it("forwards props and merges caller classes", () => {

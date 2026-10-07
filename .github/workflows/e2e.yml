@@ -4,6 +4,15 @@ name: E2E
 # under `apps/dashboard/**` (or shared packages / lockfile) change, so doc-only
 # and infra-only PRs don't burn ~5 minutes on irrelevant browser tests.
 # Self-skips until a `playwright.config.*` exists in the dashboard app.
+#
+# GOL-3080: `paths:` is NOT supported on `merge_group`, so the queue leg below
+# would otherwise re-run on EVERY entry and ignore the filter this workflow
+# declares for itself (~91s of the ~437 runner-seconds a queue entry costs).
+# The `preflight` job re-applies the same list via
+# scripts/ci/merge-group-paths.sh — which fails OPEN on any ambiguity — so the
+# merge-commit gate is kept, just made conditional rather than dropped. Keep
+# the two pattern lists in sync; scripts/ci/merge-group-paths.test.sh asserts
+# the behaviour of this exact set.
 
 on:
   merge_group:
@@ -36,8 +45,34 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has_pw: ${{ steps.check.outputs.has_pw }}
+      paths_hit: ${{ steps.paths.outputs.hit }}
     steps:
       - uses: actions/checkout@v7
+      - id: paths
+        name: Does this entry touch the E2E paths?
+        # On pull_request/push GitHub already applied `paths:`, so those events
+        # short-circuit to true; only `merge_group` needs the filter re-applied.
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$EVENT" != 'merge_group' ]; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hit=$(bash scripts/ci/merge-group-paths.sh --base "$BASE_SHA" --head "$HEAD_SHA" \
+            --pattern 'apps/dashboard/**' \
+            --pattern 'packages/**' \
+            --pattern 'pnpm-lock.yaml' \
+            --pattern 'package.json' \
+            --pattern 'turbo.json' \
+            --pattern '.github/workflows/e2e.yml')
+          echo "hit=$hit" >> "$GITHUB_OUTPUT"
+          if [ "$hit" != 'true' ]; then
+            echo "::notice::Queue entry touches none of the E2E paths — skipping E2E."
+          fi
       - id: check
         # hashFiles() can only be called inside a step, not in a job-level if:
         # Skip not just when config is missing, but when no .spec/.test files
@@ -64,7 +99,7 @@ jobs:
   playwright:
     name: Playwright
     needs: preflight
-    if: needs.preflight.outputs.has_pw == 'true'
+    if: needs.preflight.outputs.has_pw == 'true' && needs.preflight.outputs.paths_hit == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

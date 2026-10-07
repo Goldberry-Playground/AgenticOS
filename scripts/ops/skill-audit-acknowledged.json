@@ -1,0 +1,33 @@
+{
+  "$comment": [
+    "GOL-2994 — expiring acknowledgements for degraded-skill findings we cannot fix in place.",
+    "",
+    "The normal way to silence a false positive is the `<!-- skill-audit-ignore: path -->`",
+    "marker in the skill's own SKILL.md, which keeps the opt-out next to the thing it",
+    "describes. That lane is unavailable for a skill installed `editable:false` (vendored",
+    "or bundled code): its body cannot be annotated, so a true finding against upstream",
+    "would red the weekly audit every Monday forever. A control that cries wolf on a",
+    "known, accepted condition is a control people learn to mute.",
+    "",
+    "So: an acknowledgement is an out-of-band, reviewed, EXPIRING record. Rules enforced",
+    "by scripts/ops/audit-company-skills.mjs (see audit-company-skills.test.mjs):",
+    "  - honoured ONLY when the skill is `editable:false`. An editable skill must use the",
+    "    in-body marker; an entry here for one is REJECTED and the finding still reds.",
+    "  - past `expires` it stops suppressing and the finding reds again, loudly. Renewing",
+    "    is a deliberate re-review, not a default.",
+    "  - every entry needs `issue` and `reason`, so the next reader knows who accepted it.",
+    "  - the report always prints acknowledged, expired, rejected and stale entries. A",
+    "    suppression nobody can see is a suppression nobody will revisit.",
+    "",
+    "`expires` is ISO `YYYY-MM-DD`, interpreted as end of that UTC day."
+  ],
+  "acknowledgements": [
+    {
+      "skillKey": "paperclipai/paperclip/paperclip",
+      "path": "scripts/paperclip-issue-update.sh",
+      "expires": "2027-01-06",
+      "issue": "GOL-3030",
+      "reason": "True positive against upstream, not against us: the bundled `paperclip` skill's SKILL.md (line ~130) tells every agent to run this script, and the package does not ship it. The skill is installed `editable:false`, so the body cannot be annotated honest and we cannot add the file. Mitigated for our agents by the company skill `paperclip-board-writes`, which ships a working copy and documents the substitution. Re-review at expiry: if a newer `paperclip` package ships the script, delete this entry; if it still does not, renew and re-escalate upstream."
+    }
+  ]
+}

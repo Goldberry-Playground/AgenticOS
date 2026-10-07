@@ -39,8 +39,7 @@ function Select({
       <select
         data-slot="select"
         className={cn(
-          "h-11 w-full min-w-0 truncate appearance-none rounded-lg border border-border-strong bg-surface-muted pl-2.5 pr-9 text-base text-text transition-colors outline-none",
-          "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          "h-11 w-full min-w-0 truncate appearance-none rounded-lg border border-border-strong bg-surface-muted pl-2.5 pr-9 text-base text-text transition-colors",
           "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
           "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
           "sm:h-8 sm:text-sm",

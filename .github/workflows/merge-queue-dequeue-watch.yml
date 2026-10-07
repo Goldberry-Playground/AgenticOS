@@ -1,0 +1,98 @@
+# Silent merge-queue dequeue watch — GOL-3079 (detection gap from GOL-3051).
+#
+# When the merge queue drops an entry there is no failure signal anywhere: no
+# check-run turns red, so ci-failure-router has nothing to route, and the PR
+# reverts to `open` + `APPROVED` + `CLEAN` — it looks perfect. The only trace is
+# a `removed_from_merge_queue` event in the PR timeline, which nothing read. The
+# next agent to look therefore concluded "approved and green, just needs
+# merging", re-enqueued, and burned another full `merge_group` fan-out under the
+# very runner saturation that caused the drop. This reads that timeline.
+#
+# CRITICAL DESIGN, same as missing-checks-sweep.yml: this runs on `schedule` +
+# `workflow_dispatch`, NOT on `pull_request` or `merge_group`. A dequeue destroys
+# the merge group, so a merge_group-triggered detector would be destroyed
+# alongside the thing it is meant to report. It is a cheap, API-only sweep; it
+# never checks out or runs PR code.
+#
+# The preflight step is load-bearing. `gh ... | grep || echo none` reports a
+# cheerful all-clear when the tool is missing, which is the same class of
+# invisible failure this workflow exists to end. So before the live sweep runs,
+# `--self-test` replays PR #814's captured timeline and asserts the
+# known-positive (exactly one alert, 31m50s dwell, `CI` still queued). If the
+# detector is broken the job goes RED instead of reporting zero dequeues.
+name: Merge-queue dequeue watch
+
+on:
+  schedule:
+    - cron: "4,19,34,49 * * * *" # every 15 min, offset off the top-of-hour herd
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Detect and print alerts but post nothing.
+        type: boolean
+        required: false
+        default: false
+      verify-delivery:
+        description: >-
+          Post a labelled self-test message to the ops webhook and report which
+          channel it landed in, then stop. Run this after any secret rotation —
+          an alerter with a stale webhook is worse than none.
+        type: boolean
+        required: false
+        default: false
+      lookback-hours:
+        description: Only consider open PRs updated this recently.
+        required: false
+        default: "24"
+
+permissions:
+  contents: read # checkout the detector + its fixture
+  pull-requests: read # list open PRs on main
+  actions: read # merge_group workflow runs and their jobs
+  issues: write # the sticky PR comment that is both the alert and the dedupe store
+
+concurrency:
+  group: merge-queue-dequeue-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Detect silent merge-queue dequeues
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # Known-positive first. A detector that cannot reproduce the failure it
+      # was written for must not be trusted to report its absence.
+      - name: Preflight — replay PR #814 and assert the known-positive
+        run: node scripts/ci/merge-queue-dequeue-watch.mjs --self-test
+
+      - name: Verify the ops webhook delivery path
+        if: ${{ inputs.verify-delivery }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node scripts/ci/merge-queue-dequeue-watch.mjs --verify-delivery
+
+      - name: Sweep open PRs for silent dequeues
+        if: ${{ !inputs.verify-delivery }}
+        env:
+          # Least privilege: the ambient job token does every PR/run/jobs read
+          # and writes the sticky comment. It CANNOT read rulesets, so the queue
+          # timeout used for cause attribution comes from the admin token when
+          # one is configured, and is otherwise reported as unknown rather than
+          # guessed. The declared value in infra/terraform is NOT a substitute:
+          # it still says 60 while live is 90 (GOL-3051 / GOL-3078 drift), so
+          # reading it would produce a confidently wrong attribution.
+          GITHUB_TOKEN: ${{ github.token }}
+          MQ_RULESET_TOKEN: ${{ secrets.REQUIRED_CHECKS_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          MQ_BASE_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+          MQ_LOOKBACK_HOURS: ${{ inputs.lookback-hours || '24' }}
+          MQ_DEQUEUE_DRY_RUN: ${{ inputs.dry-run && '1' || '' }}
+        run: node scripts/ci/merge-queue-dequeue-watch.mjs

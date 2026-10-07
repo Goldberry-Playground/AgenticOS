@@ -1,0 +1,476 @@
+{
+  "_source": "Live capture 2026-10-05 of Goldberry-Playground/AgenticOS PR #814 (GOL-3051 / GOL-3079).",
+  "repo": "Goldberry-Playground/AgenticOS",
+  "prNumber": 814,
+  "prTitle": "fix(ui): give the Global Filter chip a visible keyboard focus ring (GOL-2968)",
+  "prUrl": "https://github.com/Goldberry-Playground/AgenticOS/pull/814",
+  "queueTimeoutMinutesAtTheTime": 30,
+  "timeline": [
+    {
+      "id": 32543143227,
+      "event": "added_to_merge_queue",
+      "created_at": "2026-10-05T20:37:27Z"
+    },
+    {
+      "id": 32545045960,
+      "event": "removed_from_merge_queue",
+      "created_at": "2026-10-05T21:09:17Z"
+    },
+    {
+      "id": 32553266059,
+      "event": "added_to_merge_queue",
+      "created_at": "2026-10-05T23:26:11Z"
+    },
+    {
+      "id": 32553427691,
+      "event": "removed_from_merge_queue",
+      "created_at": "2026-10-05T23:29:21Z"
+    },
+    {
+      "id": 32553427629,
+      "event": "merged",
+      "created_at": "2026-10-05T23:29:22Z"
+    },
+    {
+      "id": 32553427721,
+      "event": "closed",
+      "created_at": "2026-10-05T23:29:22Z"
+    }
+  ],
+  "mergeGroupRuns": [
+    {
+      "id": 37370916482,
+      "name": "Agent-review merge-queue mirror",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:21:27Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916482",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916634,
+      "name": "CI",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:36:58Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916634",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916500,
+      "name": "CodeQL",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:33:47Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916500",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916487,
+      "name": "Config freeze",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:26:47Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916487",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916451,
+      "name": "E2E",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:33:29Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916451",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916651,
+      "name": "Required-checks audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:31:53Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916651",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916489,
+      "name": "Security",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:23:15Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916489",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916460,
+      "name": "decompose-test",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:15:39Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916460",
+      "event": "merge_group"
+    },
+    {
+      "id": 37370916498,
+      "name": "fix touches a test",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T20:37:45Z",
+      "updated_at": "2026-10-05T21:21:37Z",
+      "created_at": "2026-10-05T20:37:45Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37370916498",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388504167,
+      "name": "Agent-review merge-queue mirror",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:26:39Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388504167",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388504027,
+      "name": "CI",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:28:50Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388504027",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388504701,
+      "name": "CodeQL",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:28:00Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388504701",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388504057,
+      "name": "Config freeze",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:27:12Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388504057",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388504343,
+      "name": "E2E",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:28:20Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388504343",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388503939,
+      "name": "Required-checks audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:26:44Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388503939",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388504160,
+      "name": "decompose-test",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:26:43Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388504160",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388504264,
+      "name": "fix touches a test",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:30Z",
+      "updated_at": "2026-10-05T23:26:36Z",
+      "created_at": "2026-10-05T23:26:30Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388504264",
+      "event": "merge_group"
+    },
+    {
+      "id": 37388505215,
+      "name": "Security",
+      "status": "completed",
+      "conclusion": "success",
+      "run_started_at": "2026-10-05T23:26:31Z",
+      "updated_at": "2026-10-05T23:26:45Z",
+      "created_at": "2026-10-05T23:26:31Z",
+      "head_branch": "gh-readonly-queue/main/pr-814-889e9f17a0794759e61b2e7e5929853362c85c1b",
+      "html_url": "https://github.com/Goldberry-Playground/AgenticOS/actions/runs/37388505215",
+      "event": "merge_group"
+    }
+  ],
+  "jobsByRunId": {
+    "37370916489": [
+      {
+        "id": 111967528474,
+        "name": "actionlint",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:19:38Z",
+        "completed_at": "2026-10-05T21:19:46Z"
+      },
+      {
+        "id": 111967528792,
+        "name": "markdownlint",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:23:02Z",
+        "completed_at": "2026-10-05T21:23:08Z"
+      },
+      {
+        "id": 111967528839,
+        "name": "gitleaks",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:23:05Z",
+        "completed_at": "2026-10-05T21:23:14Z"
+      },
+      {
+        "id": 111967530648,
+        "name": "Detect package manifest",
+        "status": "completed",
+        "conclusion": "skipped",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T20:37:46Z",
+        "completed_at": "2026-10-05T20:37:45Z"
+      },
+      {
+        "id": 111967530876,
+        "name": "Dependency review",
+        "status": "completed",
+        "conclusion": "skipped",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T20:37:46Z",
+        "completed_at": "2026-10-05T20:37:46Z"
+      }
+    ],
+    "37370916451": [
+      {
+        "id": 111967528353,
+        "name": "Detect Playwright config",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:23:36Z",
+        "completed_at": "2026-10-05T21:23:42Z"
+      },
+      {
+        "id": 111983314503,
+        "name": "Playwright",
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-05T21:23:42Z",
+        "started_at": "2026-10-05T21:31:34Z",
+        "completed_at": "2026-10-05T21:33:29Z"
+      }
+    ],
+    "37370916487": [
+      {
+        "id": 111967528379,
+        "name": "Config freeze",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:26:43Z",
+        "completed_at": "2026-10-05T21:26:46Z"
+      }
+    ],
+    "37370916500": [
+      {
+        "id": 111967528613,
+        "name": "Detect JS/TS sources",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:17:43Z",
+        "completed_at": "2026-10-05T21:17:48Z"
+      },
+      {
+        "id": 111981206318,
+        "name": "Analyze (javascript-typescript)",
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-05T21:17:49Z",
+        "started_at": "2026-10-05T21:32:02Z",
+        "completed_at": "2026-10-05T21:33:46Z"
+      }
+    ],
+    "37370916634": [
+      {
+        "id": 111967529286,
+        "name": "CI scripts",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:27:52Z",
+        "completed_at": "2026-10-05T21:28:15Z"
+      },
+      {
+        "id": 111967529381,
+        "name": "Deploy guardrails",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:26:49Z",
+        "completed_at": "2026-10-05T21:26:54Z"
+      },
+      {
+        "id": 111967529394,
+        "name": "Detect monorepo",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:26:57Z",
+        "completed_at": "2026-10-05T21:27:03Z"
+      },
+      {
+        "id": 111984576464,
+        "name": "Typecheck",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T21:27:03Z",
+        "started_at": "2026-10-05T21:32:32Z",
+        "completed_at": "2026-10-05T21:33:13Z"
+      },
+      {
+        "id": 111984576480,
+        "name": "Lint",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T21:27:03Z",
+        "started_at": "2026-10-05T21:32:48Z",
+        "completed_at": "2026-10-05T21:33:21Z"
+      },
+      {
+        "id": 111987116484,
+        "name": "Unit tests",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T21:33:21Z",
+        "started_at": "2026-10-05T21:35:26Z",
+        "completed_at": "2026-10-05T21:36:34Z"
+      },
+      {
+        "id": 111987116668,
+        "name": "Build",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T21:33:21Z",
+        "started_at": "2026-10-05T21:36:13Z",
+        "completed_at": "2026-10-05T21:36:58Z"
+      }
+    ],
+    "37370916482": [
+      {
+        "id": 111967528398,
+        "name": "Mirror agent-review onto the queue commit",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:21:20Z",
+        "completed_at": "2026-10-05T21:21:26Z"
+      }
+    ],
+    "37370916460": [
+      {
+        "id": 111967527819,
+        "name": "test",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:15:28Z",
+        "completed_at": "2026-10-05T21:15:38Z"
+      }
+    ],
+    "37370916651": [
+      {
+        "id": 111967529057,
+        "name": "Required-checks audit",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:31:45Z",
+        "completed_at": "2026-10-05T21:31:52Z"
+      },
+      {
+        "id": 111967530456,
+        "name": "Reconcile declared vs live required checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T20:37:46Z",
+        "completed_at": "2026-10-05T20:37:46Z"
+      }
+    ],
+    "37370916498": [
+      {
+        "id": 111967528373,
+        "name": "fix touches a test",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-05T20:37:46Z",
+        "started_at": "2026-10-05T21:21:32Z",
+        "completed_at": "2026-10-05T21:21:36Z"
+      }
+    ]
+  }
+}
