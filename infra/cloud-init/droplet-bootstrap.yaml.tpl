@@ -444,6 +444,53 @@ write_files:
       [Install]
       WantedBy=timers.target
 
+  # --- pid-pressure guard (GOL-3002). paperclip-server is capped at
+  # pids_limit: 2048 and runs every agent as a subprocess. Because the image
+  # entrypoint `exec gosu node`s the server into PID 1, and libuv reaps only the
+  # pids it spawned (never waitpid(-1)), orphaned grandchildren of agent runs
+  # became permanent zombies — 1,691 of them by 2026-10-05, exhausting the cap
+  # (pids.events max=542) and failing 60+ runs with `spawn … EAGAIN`. `init: true`
+  # on the service (docker-compose.yml) is the FIX; this is the DETECTION layer,
+  # so the same class of leak can never run silent for 4.8 days again. Read-only:
+  # it inspects the pids cgroup and /proc and posts to Discord — it never kills or
+  # recreates anything (a recreate re-arms the DB backup interval, GOL-1632 /
+  # GOL-2858, which is not a timer's call to make). Runs as User=deploy, which is
+  # in the docker group. Keep in sync with
+  # infra/scripts/install-pid-pressure-guard.sh.
+  - path: /etc/systemd/system/agenticos-pid-pressure.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=AgenticOS pid-pressure guard (paperclip-server pids cgroup + zombie count -> Discord)
+      After=network-online.target docker.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      User=deploy
+      WorkingDirectory=/opt/agenticos/repo
+      ExecStart=/bin/bash -lc '/opt/agenticos/repo/infra/scripts/pid-pressure-guard.sh'
+      StandardOutput=append:/var/log/agenticos/pid-pressure.log
+      StandardError=append:/var/log/agenticos/pid-pressure.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/agenticos-pid-pressure.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run AgenticOS pid-pressure guard every 30 min
+
+      [Timer]
+      OnBootSec=10min
+      OnUnitActiveSec=30min
+      RandomizedDelaySec=120
+      Unit=agenticos-pid-pressure.service
+
+      [Install]
+      WantedBy=timers.target
+
   # journald cap: bound /var/log/journal so it never balloons the root FS.
   - path: /etc/systemd/journald.conf.d/10-agenticos-cap.conf
     permissions: "0644"
@@ -614,6 +661,21 @@ runcmd:
   # deploy-paperclip-server.yml workflow (git checkout <tag> + rebuild); this pin
   # is the source of truth for a fresh (re)provision.
   - sudo -u deploy git clone --branch agenticos-v0.2.1 --depth 1 https://github.com/EngineeringMoonBear/Paperclip-AgenticOS.git /opt/paperclip
+
+  # --- Patch the Paperclip fork build context (GOL-3005) ---
+  # The fork is under a different GitHub owner that the agenticos-developer App
+  # is not installed on, so agent automation cannot open a PR against it. Core
+  # server fixes therefore land as reviewed patches in this repo under
+  # infra/paperclip-patches/ and are applied to the build context before the
+  # `docker compose up -d` further down builds the paperclip-server image.
+  #
+  # This must stay in lockstep with deploy-paperclip-server.yml, which applies
+  # the same patches with the same script on a live box — otherwise a reprovision
+  # would silently ship an UNPATCHED server and reintroduce whatever the patches
+  # fix. The script is all-or-nothing and exits non-zero on a patch that no
+  # longer applies against the pin above, which fails provisioning loudly rather
+  # than booting a half-patched image.
+  - sudo -u deploy bash /opt/agenticos/repo/infra/scripts/apply-paperclip-patches.sh /opt/paperclip /opt/agenticos/repo/infra/paperclip-patches
 
   # --- AgenticOS docker-compose (telemetry DB + Ollama + OpenViking + Paperclip).
   #
@@ -898,6 +960,11 @@ runcmd:
   # clone the host timers run from has drifted from origin/main. ---
   - chmod +x /opt/agenticos/repo/infra/scripts/host-clone-drift-guard.sh
   - systemctl enable --now agenticos-host-clone-drift.timer
+
+  # --- pid-pressure guard (GOL-3002): detection layer for the paperclip-server
+  # pid/zombie leak that `init: true` in docker-compose.yml fixes. ---
+  - chmod +x /opt/agenticos/repo/infra/scripts/pid-pressure-guard.sh
+  - systemctl enable --now agenticos-pid-pressure.timer
 
   # --- Unattended security upgrades ---
   - echo 'APT::Periodic::Unattended-Upgrade "1";' > /etc/apt/apt.conf.d/20auto-upgrades
