@@ -21,7 +21,7 @@
 #
 # Usage:
 #   scripts/ci/automerge-explain.sh <pr-number> <kind> <reason>
-#     kind: gate | carveout | maintainer-carveout
+#     kind: gate | carveout | maintainer-carveout | maintainer-awaiting-review
 #   env: REPO=owner/name (required), GH_TOKEN (required for a real post)
 #
 # Idempotency: every comment carries an HTML marker `<!-- automerge-declined:
@@ -70,6 +70,11 @@ case "$KIND" in
     ;;
   carveout|maintainer-carveout)
     NEXT=$'**What happens next: nothing, unless a human acts.** The bot deliberately withholds its approval\nwhen a PR touches a protected path, so that a workflow / CI / Terraform change gets real human\neyes instead of an automatic stamp.\n\nA CODEOWNER for the listed path(s) has to review and approve this PR and then merge it by hand.\nNote that a `github-actions[bot]` approval could not satisfy this anyway: `main-branch-protection`\nrequires **code-owner** review, and the bot is not a code owner.'
+    ;;
+  maintainer-awaiting-review)
+    # GOL-3225: maintainer-authored PR on a protected path. Not a dead end any
+    # more: it unblocks itself when the agent reviewer signs off on this head.
+    NEXT=$'**What unblocks it: waiting on `agent-review/ada`.** Protected paths still get a real review, and for a\nmaintainer-authored PR that review is the agent reviewer\'s (the author cannot approve his own PR).\nOnce `agent-review/ada` is **success on the current head SHA**, `github-actions[bot]` approves\nautomatically. Auto-merge stays off; the maintainer merges when ready. Pushing a new commit\ndismisses the approval, and the new head needs a fresh sign-off.'
     ;;
   *)
     echo "automerge-explain: unknown kind '$KIND'; not posting." >&2

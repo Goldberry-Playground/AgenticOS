@@ -72,6 +72,16 @@ touching a CODEOWNERS path (`.github/**`, `infra/**`, `scripts/ci/**`, …) need
 a human CODEOWNER regardless — and `auto-approve.yml` deliberately withholds its
 approval on those paths rather than stamping a useless one.
 
+**Maintainer-authored exception (GOL-3225).** When the PR's author *is* the
+maintainer (Josh), nobody else can approve it, which deadlocked AgenticOS#867.
+For those PRs only, the bot approves a protected-path change once
+`agent-review/*` (Ada) is `success` **on the current head SHA**, and never
+before. Until then the PR carries a "waiting on `agent-review/ada`" comment.
+Auto-merge stays off. This clears the "1 approving review" rule. It still can't
+satisfy `require_code_owner_review` when the author is the only code owner,
+because GitHub won't count an author's own ownership, so that part depends on
+the ruleset (see GOL-3225).
+
 ### If auto-merge declines, the PR now says so
 
 A PR can be fully green — all checks passing, `agent-review/*` = success — and

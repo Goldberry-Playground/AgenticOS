@@ -160,9 +160,9 @@ jobs:
           # the other side: GitHub blocks approving your own PR. We clear it by
           # approving as github-actions[bot] (a DISTINCT identity, so no
           # self-approval), but deliberately do NOT enable auto-merge — the human
-          # keeps control of WHEN it merges. The Tier-0 protected-paths carve-out
-          # still applies; only the agent-review sign-off gate (for bot authors)
-          # is skipped. Match a bare login ONLY (never "app/<login>"): the agent
+          # keeps control of WHEN it merges. Unprotected paths need nothing more;
+          # protected paths additionally need agent-review/* success on the
+          # current head (GOL-3225, below). Match a bare login ONLY (never "app/<login>"): the agent
           # App is handled by automerge-gate.mjs below. (GOL-1372 / GOL-1322)
           MAINTAINERS="EngineeringMoonBear"
           MAINT_AUTHOR=$(gh pr view "$PR" --repo "$REPO" --json author -q '.author.login')
@@ -170,19 +170,39 @@ jobs:
             if [ "$MAINT_AUTHOR" = "$m" ]; then
               echo "PR #$PR author '$MAINT_AUTHOR' is a trusted maintainer; clearing the review gate (approve only, no auto-merge)."
               PR_FILES=$(gh pr view "$PR" --repo "$REPO" --json files -q '.files[].path')
-              if ! REASON=$(PR_FILES="$PR_FILES" node scripts/ci/protected-paths-carveout.mjs); then
-                echo "PR #$PR not auto-approved: $REASON"
-                bash scripts/ci/automerge-explain.sh "$PR" maintainer-carveout "$REASON"
+              # GOL-3225 (the #867 deadlock): a protected-path maintainer PR is
+              # no longer withheld outright — the only human who could approve
+              # it is its author. Instead it is approved once agent-review/* is
+              # success on the CURRENT head SHA (GOL-2372 rule: agent-review/ada
+              # = maintainer PR approval). Read ONCE, no poll: the check_run
+              # trigger above re-fires this workflow when the review flips to
+              # success, and dismiss_stale_reviews_on_push drops the approval
+              # if the head moves afterwards. Decision + tests live in
+              # scripts/ci/maintainer-approve-gate.mjs (fail-closed).
+              HEAD_SHA=$(gh pr view "$PR" --repo "$REPO" --json headRefOid -q '.headRefOid')
+              AGENT_REVIEW_STATE=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" \
+                -q '[.check_runs[] | select(.name | startswith("agent-review/"))]
+                     | if length==0 then "absent"
+                       elif any(.[]; .status=="completed" and .conclusion=="success") then "success"
+                       elif all(.[]; .status=="completed") then "completed-not-success"
+                       else "pending" end' || echo unknown)
+              echo "agent-review/* on $HEAD_SHA: $AGENT_REVIEW_STATE"
+              if ! REASON=$(PR_FILES="$PR_FILES" AGENT_REVIEW_STATE="$AGENT_REVIEW_STATE" \
+                    node scripts/ci/maintainer-approve-gate.mjs); then
+                echo "PR #$PR not auto-approved yet: $REASON"
+                bash scripts/ci/automerge-explain.sh "$PR" maintainer-awaiting-review "$REASON"
                 exit 0
               fi
-              echo "carve-out passed: no protected path touched"
+              echo "maintainer gate passed: $REASON"
+              # Bound to HEAD_SHA (a 40-hex SHA, safe to interpolate) so a stale
+              # approval on an older head is never mistaken for this one.
               ALREADY=$(gh api "repos/$REPO/pulls/$PR/reviews" \
-                -q '[.[] | select(.user.login=="github-actions[bot]" and .state=="APPROVED")] | length')
+                -q "[.[] | select(.user.login==\"github-actions[bot]\" and .state==\"APPROVED\" and .commit_id==\"$HEAD_SHA\")] | length")
               if [ "${ALREADY:-0}" -gt 0 ]; then
-                echo "PR #$PR already approved by github-actions[bot]."
+                echo "PR #$PR already approved by github-actions[bot] on $HEAD_SHA."
               else
                 gh pr review "$PR" --repo "$REPO" --approve --body \
-                  "Auto-approved by github-actions[bot]: trusted maintainer PR, review gate cleared. This identity is distinct from the PR author, so it satisfies any review requirement without self-approval. Required status checks still gate the merge; the maintainer decides when to merge (no auto-merge). (GOL-1207 parity / GOL-1938)"
+                  "Auto-approved by github-actions[bot]: trusted maintainer PR, review gate cleared ($REASON). This identity is distinct from the PR author, so it satisfies the required-review count without self-approval. Required status checks still gate the merge; the maintainer decides when to merge (no auto-merge). (GOL-1207 parity / GOL-1938 / GOL-3225)"
               fi
               exit 0
             fi
