@@ -64,6 +64,11 @@
   --warning-border:      #4a3500;
 
   --error:               #f87171;
+  /* Bare-foreground use of the error red — invalid-field borders and error
+     copy. Same split as --warning-fg above and for the same reason: --error
+     is tuned for the dark surfaces (4.82-7.02:1) and is only 2.25-2.77:1 on
+     the light ones, so .light re-points this. GOL-3044. */
+  --error-fg:            var(--error);
   --error-bg:            #2a0f0f;
   --error-border:        #5a1e1e;
 
@@ -262,6 +267,15 @@
   --warning-fg:          var(--accent-gold-600);
   --error-bg:            #fef0f0;
   --error-border:        #f8c4c4;
+  /* Light-mode error foreground. #f87171 measures 2.25-2.77:1 on these
+     surfaces — under the 3:1 WCAG 1.4.11 floor for a non-text indicator and
+     well under 4.5:1 for the error copy itself. #b5333a is the SAME red:
+     OKLCh hue 22.3deg and chroma 0.166 frozen from #f87171, lightness moved
+     0.71 -> 0.52 (the GOL-2979 method — move L, never the hue, or the palette
+     drifts off-brand). Measures 4.88 on --surface-recessed, 5.09 on
+     --surface-header, 5.10 on --surface-elevated, 5.41 on --error-bg, 5.47 on
+     --ink and 6.00 on the #fff --surface. GOL-3044. */
+  --error-fg:            #b5333a;
   --info-bg:             #eef5ff;
   --info-border:         #b8d4f8;
 
@@ -378,6 +392,7 @@
   --color-warning-bg:      var(--warning-bg);
   --color-warning-border:  var(--warning-border);
   --color-error:           var(--error);
+  --color-error-fg:        var(--error-fg);
   --color-error-bg:        var(--error-bg);
   --color-error-border:    var(--error-border);
   --color-info:            var(--info);

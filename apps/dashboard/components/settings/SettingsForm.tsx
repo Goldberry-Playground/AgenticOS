@@ -4,6 +4,7 @@ import React, { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { PlusIcon, XIcon, FolderIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { AgenticOSConfig, ProjectRoot, ConnectorConfig } from "@/lib/config/schema";
@@ -151,23 +152,35 @@ export function SettingsForm({ initialConfig }: Props) {
       {/* ── Vault Path ────────────────────────────────────────── */}
       <section>
         <SectionHeader title="Vault Path" />
-        <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-          Path to your Obsidian vault. Tilde (~) is expanded to your home directory.
-        </p>
-        <div className="flex gap-2 items-center">
-          <Input
-            value={config.vaultPath}
-            onChange={(e) =>
-              setConfig((prev) => ({ ...prev, vaultPath: e.target.value }))
-            }
-            placeholder="~/Documents/vault"
-            className="flex-1 font-mono text-sm"
-          />
-          <FolderPickerButton />
-        </div>
-        {errors["vaultPath"] && (
-          <FieldError message={errors["vaultPath"]} />
-        )}
+        {/* The hint and the error are both the Field's business now: it owns
+            the ids and hands the control its `aria-describedby`, so the input
+            is described by the hint at rest and by the hint *and* the error
+            when invalid. The label is sr-only because the section <h2> above
+            already names this field for sighted readers — but the input had no
+            accessible name at all before. GOL-3044. */}
+        <Field
+          id="vaultPath"
+          label="Vault path"
+          labelClassName="sr-only"
+          description="Path to your Obsidian vault. Tilde (~) is expanded to your home directory."
+          error={errors["vaultPath"]}
+          className="gap-2"
+        >
+          {(control) => (
+            <div className="flex gap-2 items-center">
+              <Input
+                {...control}
+                value={config.vaultPath}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, vaultPath: e.target.value }))
+                }
+                placeholder="~/Documents/vault"
+                className="flex-1 font-mono text-sm"
+              />
+              <FolderPickerButton />
+            </div>
+          )}
+        </Field>
       </section>
 
       {/* ── Model Defaults ────────────────────────────────────── */}
@@ -230,14 +243,6 @@ function SectionHeader({ title }: { title: string }) {
     >
       {title}
     </h2>
-  );
-}
-
-function FieldError({ message }: { message: string }) {
-  return (
-    <p className="text-xs mt-1" style={{ color: "var(--error)" }}>
-      {message}
-    </p>
   );
 }
 
@@ -304,8 +309,14 @@ function ProjectRootRow({ root, index, onUpdate, onRemove, error }: ProjectRootR
       className="flex flex-col gap-2 p-3 rounded-lg border"
       style={{ borderColor: "var(--border-brand)", backgroundColor: "var(--surface)" }}
     >
+      <Field
+        id={`project-root-${index}-path`}
+        error={error}
+      >
+        {(control) => (
       <div className="flex gap-2 items-center">
         <Input
+          {...control}
           value={root.path}
           onChange={(e) => onUpdate(index, "path", e.target.value)}
           placeholder="~/Dev Projects/my-project"
@@ -328,6 +339,8 @@ function ProjectRootRow({ root, index, onUpdate, onRemove, error }: ProjectRootR
           <XIcon size={14} aria-hidden="true" />
         </button>
       </div>
+        )}
+      </Field>
       <div className="flex items-center gap-2">
         <label
           className="text-xs shrink-0"
@@ -349,7 +362,6 @@ function ProjectRootRow({ root, index, onUpdate, onRemove, error }: ProjectRootR
           aria-label={`Project root ${index + 1} tags`}
         />
       </div>
-      {error && <FieldError message={error} />}
     </div>
   );
 }

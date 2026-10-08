@@ -41,7 +41,7 @@ function Select({
         className={cn(
           "h-11 w-full min-w-0 truncate appearance-none rounded-lg border border-border-strong bg-surface-muted pl-2.5 pr-9 text-base text-text transition-colors",
           "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-          "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
+          "aria-invalid:border-2 aria-invalid:border-error-fg",
           "sm:h-8 sm:text-sm",
           className
         )}

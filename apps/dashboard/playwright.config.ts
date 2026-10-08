@@ -33,7 +33,10 @@ export default defineConfig({
       // focus-visible (GOL-2968) is in this lane too: below 768px the header
       // swaps its 5 tab links for a dropdown button, so the mobile Tab order
       // is a different set of controls than the desktop lane probes.
-      testMatch: /(viewport-overflow|focus-visible)\.spec\.ts/,
+      // aria-invalid (GOL-3044) likewise: the gallery's valid/invalid pair is
+      // a 2-column grid on desktop and stacks below `sm`, and a field's error
+      // row is the thing most likely to be clipped or crowded out there.
+      testMatch: /(viewport-overflow|focus-visible|aria-invalid)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },
@@ -64,10 +67,11 @@ export default defineConfig({
     command: "pnpm dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
-    // /dev/ui-focus is the focus-ring gallery for components/ui (GOL-2997).
-    // Most of those primitives are not mounted anywhere in the dashboard, so
-    // without a surface the guard would pass vacuously. The route 404s unless
-    // this is set, so it is not part of the shipped dashboard.
+    // /dev/ui-focus is the focus-ring + error-state gallery for components/ui
+    // (GOL-2997, GOL-3044). Most of those primitives are not mounted anywhere
+    // in the dashboard, so without a surface the guards would pass vacuously.
+    // The route 404s unless this is set, so it is not part of the shipped
+    // dashboard.
     env: { UI_FOCUS_GALLERY: "1" }
   }
 });
