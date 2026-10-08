@@ -9,13 +9,21 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
 /**
- * The group draws the field's border and rounding; the inner control is
- * borderless and transparent. So the *group* carries the invalid edge
+ * The group draws the field: the border, the rounding, and (GOL-2997) the
+ * focus ring, while its inner control is borderless and transparent.
+ *
+ * That border is `border-field-line`, not `border-input`: `--color-input` is
+ * `var(--surface-muted)`, so the edge used to be painted in the colour of the
+ * surface behind it — 1.00:1 on an inset zone, 1.05-1.38:1 elsewhere, in both
+ * themes. An unfocused field had no perceivable boundary, which is a WCAG
+ * 1.4.11 failure and a Gestalt one: with no edge there is no common region, so
+ * the addon and the input did not read as one control (GOL-3045).
+ *
+ * The same division of labour carries the invalid edge: the *group* paints it
  * (`has-[[data-slot][aria-invalid=true]]:border-2`) and the control explicitly
  * opts out with `aria-invalid:border-0` — without that opt-out the Input/
  * Textarea primitive would paint a second 2px error border inside the first,
- * because a variant utility outranks the plain `border-0` at rest. Same
- * division of labour as the focus outline in `app/globals.css`. GOL-3044.
+ * because a variant utility outranks the plain `border-0` at rest. GOL-3044.
  */
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -23,7 +31,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="input-group"
       role="group"
       className={cn(
-        "group/input-group relative flex h-8 w-full min-w-0 items-center rounded-lg border border-input transition-colors in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-disabled:bg-input/50 has-disabled:opacity-50 has-[[data-slot][aria-invalid=true]]:border-2 has-[[data-slot][aria-invalid=true]]:border-error-fg has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto dark:bg-input/30 dark:has-disabled:bg-input/80 has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5",
+        "group/input-group relative flex h-8 w-full min-w-0 items-center rounded-lg border border-field-line transition-colors in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-disabled:bg-input/50 has-disabled:opacity-50 has-[[data-slot][aria-invalid=true]]:border-2 has-[[data-slot][aria-invalid=true]]:border-error-fg has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto dark:bg-input/30 dark:has-disabled:bg-input/80 has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5",
         className
       )}
       {...props}
@@ -31,8 +39,17 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/**
+ * The addon is content inside the field (a prefix, a unit, a search icon), so
+ * it takes `text-text-secondary` rather than the primitive layer's usual
+ * `text-muted-foreground` — same reason the Select chevron does. `--text-muted`
+ * is 2.51-3.27:1, under the 3:1 floor for a meaningful icon, and it would now
+ * sit *dimmer* than the field's own placeholder, inverting the hierarchy: a
+ * hint should never out-weigh a value. `--text-secondary` is 9.15:1 dark /
+ * 7.03:1 light (GOL-3045).
+ */
 const inputGroupAddonVariants = cva(
-  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
+  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-text-secondary select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
   {
     variants: {
       align: {
