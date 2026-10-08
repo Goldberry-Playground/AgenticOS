@@ -118,6 +118,19 @@ jq '. + [{user:{login:"EngineeringMoonBear"},body:"why is this stuck? <!-- autom
 [ "$(n_comments)" = 2 ] && check 0 "bot still explained despite the human quote" \
                         || check 1 "bot still explained despite the human quote (got $(n_comments))"
 
+echo "case 5b: maintainer-awaiting-review names what unblocks it (GOL-3225)"
+echo '[]' >"$FAKE_COMMENTS"
+"$SCRIPT" 867 maintainer-awaiting-review "protected path(s) touched (.github/workflows/deploy-paperclip-server.yml) — waiting on agent-review/ada" >/dev/null
+[ "$(count_marker '<!-- automerge-declined:maintainer-awaiting-review -->')" = 1 ] \
+  && check 0 "carries the maintainer-awaiting-review marker" || check 1 "carries the maintainer-awaiting-review marker"
+AWAIT=$(jq -r '.[0].body' "$FAKE_COMMENTS")
+grep -qF 'waiting on `agent-review/ada`' <<<"$AWAIT" \
+  && check 0 "body says it is waiting on agent-review/ada" || check 1 "body says it is waiting on agent-review/ada"
+grep -qF "success on the current head SHA" <<<"$AWAIT" \
+  && check 0 "body says the sign-off is head-SHA bound" || check 1 "body says the sign-off is head-SHA bound"
+"$SCRIPT" 867 maintainer-awaiting-review "re-fire" >/dev/null
+[ "$(n_comments)" = 1 ] && check 0 "maintainer-awaiting-review is idempotent" || check 1 "maintainer-awaiting-review is idempotent"
+
 echo "case 6: failure modes are non-fatal and post nothing"
 echo '[]' >"$FAKE_COMMENTS"
 "$SCRIPT" 772 not-a-kind "x" >/dev/null 2>&1
