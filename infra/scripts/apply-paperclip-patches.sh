@@ -2,9 +2,9 @@
 # Apply this repo's Paperclip fork patches to a /opt/paperclip-style build
 # context, before `docker compose build paperclip-server`.
 #
-# Why patches at all: paperclip-server builds from a clone of
-# EngineeringMoonBear/Paperclip-AgenticOS, a repo under a different owner that
-# our GitHub App is not installed on — so agent automation cannot PR it. See
+# Why patches at all: paperclip-server builds from a pinned tag of
+# Goldberry-Playground/Paperclip-AgenticOS. A fix that has to ship before it is
+# upstreamed and tagged can be staged here as a patch. See
 # infra/paperclip-patches/README.md for the convention and the exit plan.
 #
 # Contract:
