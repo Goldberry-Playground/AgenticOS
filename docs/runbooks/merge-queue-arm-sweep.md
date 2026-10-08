@@ -206,10 +206,20 @@ Last line is the summary: `done: mode=apply armed=N failed_repos=M`.
 | `merge-queue arm sweep had failures in: <repos>` | a repo's sweep exited non-zero | read the log block for that repo; a single PR GitHub refuses to arm is already non-fatal to the others |
 | `vendor drift: … is now <sha> but AgenticOS vendors <sha>` | grove-sites changed the canonical sweep | re-vendor into `infra/scripts/vendored/` and bump `CANONICAL_SHA256` in the wrapper + `vendored/README.md` |
 | `no longer matches its pin … edited in place` | someone edited the vendored copy | revert the edit, or re-vendor and bump the pin |
+| `… is back in sync with …@main` | the drift above resolved | none: this is the all-clear |
 
 Both drift alerts are **advisory**: the timer keeps arming with the vendored
 copy. A drift check that could stop the timer would reintroduce the exact
 "nothing arms the PR" failure this ticket exists to delete.
+
+Drift alerts fire on **transitions**, not on every tick (GOL-3226). The wrapper
+records the last state it posted in
+`/var/lib/agenticos/merge-queue-arm/drift.state`, and posts once on entering
+drift, once more if grove-sites `main` moves again while still drifted, once on
+an in-place edit, and once as an all-clear when it is back in sync. Unresolved
+drift gets a reminder every 24h (`DRIFT_REALERT_SECONDS`, `0` = never). Every
+tick still logs its drift line to `merge-queue-arm.log`. `--dry-run` never posts
+or records drift. To force a re-alert, delete the state file.
 
 ## Turning it off
 

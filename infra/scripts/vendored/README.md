@@ -37,8 +37,9 @@ GOL-3125 had to pick one. Vendoring won on three counts:
 So the drift check is a **run-time** guard instead, on the
 `host-clone-drift-guard.sh` model: the wrapper mints a broker token it already
 needs, compares this file's `sha256` to grove-sites `main`, and posts to the ops
-Discord webhook on mismatch — while continuing to run the vendored copy. Drift is
-loud, and the timer never stops arming because of it.
+Discord webhook when the drift state changes (entering drift, a new upstream sha,
+back in sync; GOL-3226), while continuing to run the vendored copy. Drift is
+loud without repeating every tick, and the timer never stops arming because of it.
 
 ### Why `vendored/` and not `vendor/`
 

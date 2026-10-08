@@ -15,8 +15,11 @@
 #      ARM_PROTECTED=0, REPO=<that repo> and --apply,
 #   3. --dry-run drops --apply (and nothing else),
 #   4. an unreachable broker fails loudly (exit 1) + alerts, and sweeps nothing,
-#   5. vendor drift WARNs + alerts but still runs the sweep (a drift check that
-#      could stop the timer would reintroduce the bug this ticket deletes),
+#   5. vendor drift WARNs but still runs the sweep (a drift check that could
+#      stop the timer would reintroduce the bug this ticket deletes), and alerts
+#      on TRANSITIONS only (GOL-3226): N drifted ticks = 1 post, a new remote sha
+#      = 1 more, back in sync = 1 all-clear, 24h unresolved = 1 reminder, and
+#      --dry-run never posts or records,
 #   6. one failing repo does not stop the others, and the run exits 1,
 #   7. the installer's unit bodies == cloud-init's inline unit bodies,
 #   11. the installer installs WITHOUT root, via `systemctl link` under the
@@ -106,6 +109,7 @@ printf 'DISCORD_OPS_WEBHOOK_URL=https://discord.example/api/webhooks/1/x\n' >"$W
 # and the real wrapper's SWEEP default to the real vendored copy.)
 cp "$WORK/fake-sweep.sh" "$WORK/remote-in-sync.sh"
 { cat "$WORK/fake-sweep.sh"; echo "# drifted"; } >"$WORK/remote-drifted.sh"
+: >"$WORK/empty-remote"   # a 0-byte fetch = "could not read grove-sites"
 
 VENDOR_SHA="$(sha256sum "$WORK/fake-sweep.sh" | cut -d' ' -f1)"
 
@@ -122,6 +126,7 @@ run_wrapper() { # extra env as KEY=VAL..., then flags after `--`
   # docker-inspect resolution under test and quietly pass test 4.
   PATH="$BIN:$PATH" env -u GH_TOKEN_BROKER_URL -u GH_BROKER_API_KEY_FILE \
     -u ARM_PROTECTED -u ARM_UNAPPROVED -u TARGET_REPOS -u SKIP_DRIFT_CHECK \
+    -u DRIFT_REALERT_SECONDS -u DRIFT_NOW \
     REPO_DIR="$WORK" \
     ENV_FILE="$WORK/.env" \
     BROKER_KEY_FILE="$WORK/secrets/gh-broker-client.key" \
@@ -131,6 +136,7 @@ run_wrapper() { # extra env as KEY=VAL..., then flags after `--`
     FAKE_CURL_LOG="$WORK/curl.log" \
     FAKE_DISCORD_LOG="$WORK/discord.log" \
     FAKE_REMOTE_FILE="$WORK/remote-in-sync.sh" \
+    DRIFT_STATE_FILE="$WORK/drift.state" \
     "${envs[@]}" \
     bash "$WRAPPER" "${flags[@]+"${flags[@]}"}" >"$WORK/out.txt" 2>&1
   RC=$?
@@ -173,18 +179,91 @@ check "no repo swept" "$(wc -l <"$WORK/sweep.log" | tr -d ' ')" "0"
 check "alerted once" "$(wc -l <"$WORK/discord.log" | tr -d ' ')" "1"
 grep -q 'NOT being armed' "$WORK/discord.log" && ok "alert says PRs are not being armed" || bad "alert text unhelpful"
 
-echo "== 5. vendor drift warns but still sweeps"
-run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted.sh"
+echo "== 5. vendor drift warns but still sweeps — and alerts on transitions only"
+# A second drifted canonical copy: grove-sites@main moving AGAIN while we are
+# still behind must re-alert, because the first alert named the old sha.
+{ cat "$WORK/fake-sweep.sh"; echo "# drifted again"; } >"$WORK/remote-drifted-2.sh"
+posts() { wc -l <"$WORK/discord.log" | tr -d ' '; }
+rm -f "$WORK/drift.state"
+T0=1700000000
+
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted.sh" DRIFT_NOW=$T0
 check "exits 0 anyway" "$RC" "0"
 check "repo still swept" "$(wc -l <"$WORK/sweep.log" | tr -d ' ')" "1"
 grep -q 'vendor drift' "$WORK/out.txt" && ok "logs the drift" || bad "drift not logged"
-grep -q 'vendor drift' "$WORK/discord.log" && ok "alerts the drift" || bad "drift not alerted"
+grep -q 'vendor drift' "$WORK/discord.log" && ok "entering drift alerts" || bad "drift not alerted"
+check "entering drift = exactly 1 post" "$(posts)" "1"
+
+TOTAL=0; LOGGED=0
+for i in 1 2 3 4 5; do
+  run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted.sh" DRIFT_NOW=$(( T0 + i*300 ))
+  TOTAL=$(( TOTAL + $(posts) ))
+  grep -q 'vendor drift' "$WORK/out.txt" && LOGGED=$(( LOGGED + 1 ))
+done
+check "5 more drifted ticks, same remote sha = 0 more posts" "$TOTAL" "0"
+check "...but every tick still logs the drift" "$LOGGED" "5"
+
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted-2.sh" DRIFT_NOW=$(( T0 + 2000 ))
+check "new remote sha while drifted = 1 post" "$(posts)" "1"
+NEW_SHA="$(sha256sum "$WORK/remote-drifted-2.sh" | cut -c1-12)"
+grep -q "$NEW_SHA" "$WORK/discord.log" && ok "re-alert names the new remote sha" || bad "re-alert missing $NEW_SHA"
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted-2.sh" DRIFT_NOW=$(( T0 + 2300 ))
+check "...and is not repeated next tick" "$(posts)" "0"
+
+# A tick that can't read grove-sites knows nothing about drift: no post, and it
+# must not forget the drift either (else the next readable tick re-alerts).
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/empty-remote" DRIFT_NOW=$(( T0 + 2600 ))
+check "unreadable canonical copy = 0 posts" "$(posts)" "0"
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted-2.sh" DRIFT_NOW=$(( T0 + 2900 ))
+check "...and the drift state survives it" "$(posts)" "0"
+
+# 24h of the same unresolved drift -> one reminder, then quiet again.
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted-2.sh" DRIFT_NOW=$(( T0 + 2000 + 86400 ))
+check "24h unresolved = 1 reminder" "$(posts)" "1"
+grep -q 'still unresolved' "$WORK/discord.log" && ok "reminder says it is a reminder" || bad "reminder text unclear"
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted-2.sh" DRIFT_NOW=$(( T0 + 2300 + 86400 ))
+check "...and the reminder clock resets" "$(posts)" "0"
+
+# --dry-run (the installer's self-check, run as a user that can't write the
+# state dir) previews the transition but neither posts nor records it.
+run_wrapper TARGET_REPOS="o/a" DRIFT_NOW=$(( T0 + 90000 )) -- --dry-run
+check "dry-run back in sync = 0 posts" "$(posts)" "0"
+grep -q 'not recorded, not posted' "$WORK/out.txt" && ok "dry-run says it would transition" || bad "dry-run silent about transition"
+grep -q '^key=drift:' "$WORK/drift.state" && ok "dry-run left the state alone" || bad "dry-run wrote state: $(cat "$WORK/drift.state")"
+
+run_wrapper TARGET_REPOS="o/a" DRIFT_NOW=$(( T0 + 90300 ))
+check "back in sync = exactly 1 all-clear" "$(posts)" "1"
+grep -q 'back in sync' "$WORK/discord.log" && ok "all-clear says so" || bad "all-clear text wrong: $(cat "$WORK/discord.log")"
+TOTAL=0
+for i in 1 2 3; do
+  run_wrapper TARGET_REPOS="o/a" DRIFT_NOW=$(( T0 + 90300 + i*300 + 86400 ))
+  TOTAL=$(( TOTAL + $(posts) ))
+done
+check "in-sync ticks (even 24h later) = 0 posts" "$TOTAL" "0"
+
+rm -f "$WORK/drift.state"
+run_wrapper TARGET_REPOS="o/a"
+check "fresh install already in sync = 0 posts (no spurious all-clear)" "$(posts)" "0"
+
+# An unwritable state file must fail LOUD (per-tick alerts), never silent.
+run_wrapper TARGET_REPOS="o/a" FAKE_REMOTE_FILE="$WORK/remote-drifted.sh" DRIFT_STATE_FILE=/dev/null/nope/drift.state
+check "unwritable state: still exits 0" "$RC" "0"
+check "unwritable state: still alerts" "$(posts)" "1"
+grep -q 'could not write' "$WORK/out.txt" && ok "unwritable state is logged" || bad "unwritable state not logged"
 
 echo "== 5b. an edited-in-place vendored copy is caught without a network read"
+rm -f "$WORK/drift.state"
 run_wrapper TARGET_REPOS="o/a" CANONICAL_SHA256=0000000000000000000000000000000000000000000000000000000000000000
 check "exits 0 anyway" "$RC" "0"
 grep -q 'edited in place' "$WORK/out.txt" && ok "names the in-place edit" || bad "in-place edit not reported"
 check "no contents fetch attempted" "$(grep -c contents "$WORK/curl.log" || true)" "0"
+check "in-place edit = 1 post" "$(posts)" "1"
+run_wrapper TARGET_REPOS="o/a" CANONICAL_SHA256=0000000000000000000000000000000000000000000000000000000000000000
+check "...not repeated next tick" "$(posts)" "0"
+grep -q 'edited in place' "$WORK/out.txt" && ok "...but still logged" || bad "in-place edit not logged on repeat"
+run_wrapper TARGET_REPOS="o/a"
+check "re-pinned = 1 all-clear" "$(posts)" "1"
+rm -f "$WORK/drift.state"
 
 echo "== 6. one failing repo does not stop the rest"
 run_wrapper TARGET_REPOS="o/a o/b o/c" FAKE_SWEEP_FAIL_REPO=o/b
