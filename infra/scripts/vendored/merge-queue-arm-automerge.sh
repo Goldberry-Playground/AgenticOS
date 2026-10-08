@@ -211,7 +211,23 @@ fi
 # One JSON object per line: {"number","action","reason","id","headRefOid"}.
 # Passed through the environment, not a pipe -- a heredoc-sourced program takes
 # over stdin, so piped data would never reach it.
-DECISIONS="$(APP_LOGIN="$APP_LOGIN" APP_AUTHOR_LOGIN="${APP_AUTHOR_LOGIN:-$APP_LOGIN}" ARM_UNAPPROVED="$ARM_UNAPPROVED" ARM_PROTECTED="$ARM_PROTECTED" CARVEOUT="$CARVEOUT" GRAPH_JSON="$GRAPH" python3 <<'PYEOF'
+#
+# `env VAR=...`, not a bare `VAR=... cmd` assignment prefix. A prefix list
+# whose LATER assignment expands an EARLIER-assigned name in the same list
+# is SC2097/SC2098 -- here `APP_AUTHOR_LOGIN=` read `$APP_LOGIN`, which the
+# forked process sees but the prefix list does not. The intent is exactly
+# what the linter cannot prove -- read the outer value, scope the assignment
+# to the forked python3 -- so say it with `env` rather than suppress the
+# warning. Keep this form byte-identical in every repo that carries a copy
+# of this script (GOL-3160): it was found downstream, in a repo that lints
+# scripts/, long after it was authored here.
+#
+# (Do not start a comment line in this file with the word ShellCheck in
+# lower case: the linter parses `# shellcheck...` as a DIRECTIVE and
+# SC1073s on the rest of the sentence, which swallows the whole file. That
+# is how this very comment went red once, in odoocker PR #861.)
+APP_AUTHOR_LOGIN="${APP_AUTHOR_LOGIN:-$APP_LOGIN}"
+DECISIONS="$(env APP_LOGIN="$APP_LOGIN" APP_AUTHOR_LOGIN="$APP_AUTHOR_LOGIN" ARM_UNAPPROVED="$ARM_UNAPPROVED" ARM_PROTECTED="$ARM_PROTECTED" CARVEOUT="$CARVEOUT" GRAPH_JSON="$GRAPH" python3 <<'PYEOF'
 import json, os, subprocess
 
 app = os.environ["APP_LOGIN"]
