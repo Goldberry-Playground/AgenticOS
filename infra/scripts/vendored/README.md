@@ -13,8 +13,8 @@ pin in the consuming wrapper.
 | | |
 |---|---|
 | Canonical | `Goldberry-Playground/grove-sites` → `scripts/ci/merge-queue-arm-automerge.sh` @ `main` |
-| Vendored at | commit `99d1913a82e3a44f003e8798a3316649b77bdd6b` (2026-10-06) |
-| `sha256` | `ffef3372fd14a7bc19640795e198524cee9e24de719cee2d3fe7ef500d38f2f1` |
+| Vendored at | commit `70a01e5ed8f06e0b468ec821ca223929542349f0` (2026-10-06) |
+| `sha256` | `66c23d2e4db717a123782baa0469435d2263d30d172a8da67f621447c69afbf1` |
 | Consumer | `infra/scripts/merge-queue-arm-sweep.sh` (host wrapper, run by `agenticos-merge-queue-arm.timer`) |
 | Ticket | GOL-3125 (vehicle) / GOL-3118 (the mechanism it implements) |
 

@@ -69,7 +69,7 @@ SKIP_DRIFT_CHECK="${SKIP_DRIFT_CHECK:-0}"
 
 # Pin: sha256 of grove-sites scripts/ci/merge-queue-arm-automerge.sh at the
 # commit vendor/README.md records. Advisory only — see drift_check().
-CANONICAL_SHA256="${CANONICAL_SHA256:-ffef3372fd14a7bc19640795e198524cee9e24de719cee2d3fe7ef500d38f2f1}"
+CANONICAL_SHA256="${CANONICAL_SHA256:-66c23d2e4db717a123782baa0469435d2263d30d172a8da67f621447c69afbf1}"
 CANONICAL_REPO="${CANONICAL_REPO:-Goldberry-Playground/grove-sites}"
 CANONICAL_PATH="${CANONICAL_PATH:-scripts/ci/merge-queue-arm-automerge.sh}"
 
