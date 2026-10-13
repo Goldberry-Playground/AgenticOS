@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
-    "mdast-util-from-markdown": "^2.0.2",
+    "mdast-util-from-markdown": "^2.1.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
