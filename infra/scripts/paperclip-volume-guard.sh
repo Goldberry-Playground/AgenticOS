@@ -16,8 +16,9 @@
 # This guard closes both gaps with independent, throttled checks that page the
 # Discord ops webhook BEFORE either becomes an outage:
 #
-#   1. HEADROOM — df of the paperclip-data mountpoint. At/above WARN_PCT
-#      (default 80) → alert.
+#   1. HEADROOM — df of the paperclip-data mountpoint and of the root FS.
+#      Posts when the level changes across WARN_PCT (85) / CRIT_PCT (92),
+#      with the biggest directories inside the volume (GOL-3255).
 #
 #   1b. BOUNDED RECLAIM — alerting alone was not enough. On 2026-09-30 the
 #      volume hit 90% again carrying 8.4G of dumps, and 2.9G of that was two
@@ -54,7 +55,7 @@
 # (DISCORD_OPS_WEBHOOK_URL), same as disk-guard.sh.
 set -euo pipefail
 
-WARN_PCT="${WARN_PCT:-80}"
+WARN_PCT="${WARN_PCT:-85}"
 # Staleness threshold tracks the server's actual backup cadence
 # (PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES, read from the running container) plus
 # 35m slack — the historical 95 default was 60m hourly + 35. If the container
@@ -116,10 +117,11 @@ post_discord() { # $1 = message
     log "DISCORD_OPS_WEBHOOK_URL unset — skipping webhook" >&2
     return 0
   fi
+  POSTED=0
   curl -fsS -m 15 -H 'Content-Type: application/json' \
     -d "$(jq -n --arg c "$1" '{content:$c}')" \
     "${url}" >/dev/null 2>&1 \
-    && log "posted to Discord ops webhook" \
+    && { POSTED=1; log "posted to Discord ops webhook"; } \
     || log "WARN webhook post failed" >&2
 }
 
@@ -155,12 +157,89 @@ if [ -z "${MOUNT}" ] || [ ! -d "${MOUNT}" ]; then
 fi
 log "paperclip-data mountpoint: ${MOUNT}"
 
-# --- Check 1: volume headroom ---
+# --- Check 1: headroom, alerted on TRANSITIONS, with what is inside (GOL-3255) ---
+# On this droplet the volume is a directory on the root FS, so "volume full" and
+# "root FS full" are the same event. The 2026-10-08 fill reached 97% and killed
+# a deploy, and the only signals were Docker-centric (disk-guard, disk-reclaim
+# freed 0 B) — none said WHAT was growing. So this check:
+#   * takes the worse of the root FS and the volume's FS,
+#   * maps it to a level: ok < WARN_PCT <= warn < CRIT_PCT <= crit,
+#   * posts ONLY when the level changes (up or down, like GOL-3226's vendor
+#     guard), so a sustained 86% is one message, not one every REPAGE_MIN,
+#   * and puts the biggest directories INSIDE paperclip-data in the message.
+# The level is kept in STATE_DIR (persistent, unlike the /run stamps), so a
+# reboot does not re-announce a level we already announced.
+CRIT_PCT="${CRIT_PCT:-92}"
+STATE_DIR="${STATE_DIR:-/var/lib/agenticos/volume-guard}"
+TOP_N="${TOP_N:-8}"
+mkdir -p "${STATE_DIR}" 2>/dev/null || true
+
 USE_PCT="$(df --output=pcent "${MOUNT}" | tail -1 | tr -dc '0-9')"
 AVAIL_H="$(df -h --output=avail "${MOUNT}" | tail -1 | tr -d ' ')"
-log "paperclip-data FS at ${USE_PCT}% (avail ${AVAIL_H}; warn ${WARN_PCT}%)"
-if [ "${USE_PCT:-0}" -ge "${WARN_PCT}" ]; then
-  alert headroom ":warning: **${HOSTNAME_SHORT}** paperclip-data volume at **${USE_PCT}%** (avail ${AVAIL_H}, warn >=${WARN_PCT}%). DB dumps + server.log live here. The bounded reclaim (check 1b) engages at >=${RECLAIM_PCT}%; if this keeps firing, tighten `backupRetention` in the Paperclip instance settings (GOL-1632)."
+ROOT_PCT="$(df --output=pcent "${ROOT_FS:-/}" | tail -1 | tr -dc '0-9')"
+WORST_PCT=$(( ${USE_PCT:-0} > ${ROOT_PCT:-0} ? ${USE_PCT:-0} : ${ROOT_PCT:-0} ))
+log "paperclip-data FS at ${USE_PCT}% (avail ${AVAIL_H}); root FS at ${ROOT_PCT}%; warn ${WARN_PCT}% crit ${CRIT_PCT}%"
+
+level_of() { # $1 = pct
+  if [ "$1" -ge "${CRIT_PCT}" ]; then echo crit
+  elif [ "$1" -ge "${WARN_PCT}" ]; then echo warn
+  else echo ok; fi
+}
+
+# Biggest directories inside the volume, at most 4 levels down, with a parent
+# dropped when its children already explain it (so the list says
+# `.../data/run-logs 3.3G`, not `instances 16G` + `instances/default 16G` + …).
+top_consumers() {
+  timeout 300 du -xm --max-depth=4 "${MOUNT}" 2>/dev/null | python3 -c '
+import sys
+root, n = sys.argv[1].rstrip("/"), int(sys.argv[2])
+rows = []
+for line in sys.stdin:
+    mb, _, p = line.rstrip("\n").partition("\t")
+    if p.rstrip("/") != root and mb.isdigit():
+        rows.append((int(mb), p[len(root):] or "/"))
+rows.sort(reverse=True)
+# A parent is "explained" (dropped) when one direct child holds >=60% of it,
+# or its children together hold >=90% and the biggest is >=25% -- which keeps
+# a dir of many similar small children (e.g. /work) as ONE line.
+explained = set()
+for mb, p in rows:
+    kids = [cmb for cmb, c in rows if c.startswith(p.rstrip("/") + "/")
+            and "/" not in c[len(p.rstrip("/")) + 1:]]
+    if kids and (max(kids) * 10 >= mb * 6
+                 or (sum(kids) * 10 >= mb * 9 and max(kids) * 4 >= mb)):
+        explained.add(p)
+out = [(mb, p) for mb, p in rows if p not in explained][:n]
+for mb, p in out:
+    print(f"• `{p}` {mb/1024:.1f}G" if mb >= 1024 else f"• `{p}` {mb}M")
+' "${MOUNT}" "${TOP_N}" || true
+}
+
+LEVEL="$(level_of "${WORST_PCT}")"
+PREV="$(cat "${STATE_DIR}/level" 2>/dev/null || echo ok)"
+log "headroom level ${PREV} -> ${LEVEL}"
+if [ "${LEVEL}" != "${PREV}" ]; then
+  case "${LEVEL}" in
+    crit) icon=":rotating_light:"; what="is at **${WORST_PCT}%** (>=${CRIT_PCT}%). A paperclip-server deploy needs ~15G free and will fail" ;;
+    warn) icon=":warning:"; what="is at **${WORST_PCT}%** (>=${WARN_PCT}%)" ;;
+    ok)   icon=":white_check_mark:"; what="is back under ${WARN_PCT}% (**${WORST_PCT}%**)" ;;
+  esac
+  msg="${icon} **${HOSTNAME_SHORT}** disk ${what}, avail ${AVAIL_H} (was ${PREV})."
+  if [ "${LEVEL}" != ok ]; then
+    top="$(top_consumers)"
+    msg="${msg}
+Biggest inside paperclip-data:
+${top:-• (du timed out)}
+Nightly retention (worktree-reaper.sh) removes finished worktrees and ages run-logs; Docker objects are disk-reclaim.yml's job (GOL-3255)."
+  fi
+  if [ "${DRY_RUN}" = "1" ]; then
+    log "DRY_RUN would post: ${msg}"
+  else
+    post_discord "${msg}"
+    # Only remember the level once it was actually announced; a failed (or
+    # unconfigured) webhook retries on the next hourly run.
+    [ "${POSTED:-0}" = 1 ] && { echo "${LEVEL}" > "${STATE_DIR}/level" 2>/dev/null || true; }
+  fi
 fi
 
 # --- Check 1b: bounded reclaim (engages AFTER the headroom warning) ---

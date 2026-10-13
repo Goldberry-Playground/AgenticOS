@@ -89,6 +89,29 @@ jobs:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
 
+      - name: Pre-flight — enough free disk for the image rebuild
+        # GOL-3255: the v0.2.2 deploy (run 37851571182) died with `no space left
+        # on device` while unpacking the new image layers at 97% root FS, AFTER
+        # /opt/paperclip had already moved. Fail here, before anything on the box
+        # changes, with a message that says what to do. A rebuild needs room for
+        # a second full image plus its build cache next to the running one.
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+          MIN_FREE_GB: '15'
+        run: |
+          set -euo pipefail
+          # /var/lib/docker is where the layers land; on this droplet it is the
+          # root FS, but ask for the right path in case it is ever split out.
+          free_gb=$(ssh -n -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            'df -BG --output=avail /var/lib/docker 2>/dev/null || df -BG --output=avail /' \
+            | tail -1 | tr -dc '0-9')
+          echo "free on the droplet: ${free_gb}G (need >= ${MIN_FREE_GB}G)"
+          if [ "${free_gb:-0}" -lt "${MIN_FREE_GB}" ]; then
+            echo "::error::Only ${free_gb}G free on the droplet; a paperclip-server rebuild needs about ${MIN_FREE_GB}G. Nothing was changed. Reclaim space first: run disk-reclaim.yml for Docker objects, then check the paperclip-data top consumers in the latest paperclip-volume-guard Discord alert (worktrees under /paperclip/work, run-logs, backups). See GOL-3255."
+            exit 1
+          fi
+
       - name: Ship Paperclip fork patches to the Droplet
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
