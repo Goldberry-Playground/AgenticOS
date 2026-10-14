@@ -72,7 +72,7 @@ describe("withScopeRetry", () => {
       .mockRejectedValueOnce(scopeError())
       .mockRejectedValueOnce(scopeError())
       .mockResolvedValue(["issue"]);
-    await expect(withScopeRetry("issues.list", fn, h.opts)).resolves.toEqual(["issue"]);
+    await expect(withScopeRetry("issues.list", fn, { ...h.opts, attempts: 3 })).resolves.toEqual(["issue"]);
     expect(fn).toHaveBeenCalledTimes(3);
     // Backoff actually happened — a retry that hammers with no wait cannot win,
     // because the competing dispatch has to settle first.
@@ -119,15 +119,16 @@ describe("withScopeRetry", () => {
     );
   });
 
-  it("caps the backoff and keeps the whole budget far under the 5-minute runJob timeout", async () => {
+  it("defaults to ONE short retry — a long budget cannot beat a 15-minute scope hold (GOL-3352)", async () => {
     const h = harness();
     const fn = vi.fn().mockRejectedValue(scopeError());
     await expect(withScopeRetry("issues.list", fn, h.opts)).rejects.toThrow(/invocation scope/);
-    // Default schedule: 7 attempts, doubling from 250ms, capped at 8s.
-    expect(fn).toHaveBeenCalledTimes(7);
-    expect(h.sleeps).toEqual([250, 500, 1000, 2000, 4000, 8000]);
-    const total = h.sleeps.reduce((a, b) => a + b, 0);
-    expect(total).toBeLessThan(60_000);
+    // Default schedule: 2 attempts, one 250ms wait. The GOL-2927 schedule
+    // (7 attempts, ~16s) rescued 1 tick in 563 against the host's 15-minute
+    // notification TTL while burning 16s of every failing tick; the covering
+    // path is now the event-driven sweep, so this is a grace, not a fix.
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(h.sleeps).toEqual([250]);
   });
 
   it("jitters the delays so two colliding scope-less jobs do not re-collide in lockstep", async () => {
@@ -162,6 +163,28 @@ describe("worker.ts host-port wiring (static)", () => {
     const wrapped = src.match(new RegExp(RETRY_WRAP + String.raw`ctx\.issues\.\w+\(`, "g")) ?? [];
     expect(total.length).toBe(8); // the 8 host calls behind IssuePort
     expect(wrapped.length, "an unwrapped ctx.issues.* call would be rejected by the host mid-job").toBe(total.length);
+  });
+
+  it("runs the sweep from inside the issue.comment.created handler, after processReply (GOL-3352)", () => {
+    // The structural fix: the event handler is the only dispatch that carries an
+    // invocation scope, so the sweep must run there too. Losing this call (or
+    // moving it ahead of processReply, which is the fast path) would silently
+    // reinstate the 15-minute scope hold as a ~20% tick loss.
+    const handler = src.slice(src.indexOf('ctx.events.on("issue.comment.created"'));
+    expect(handler).not.toBe("");
+    const reply = handler.indexOf("processReply(");
+    const sweep = handler.indexOf("sweepGate.run(() => runSweep(");
+    expect(reply).toBeGreaterThan(-1);
+    expect(sweep).toBeGreaterThan(reply);
+    expect(handler).toContain('"content-drafter: event sweep complete"');
+  });
+
+  it("treats an exhausted scope retry in the scheduled sweep as skipped, not failed (GOL-3352)", () => {
+    const job = src.slice(src.indexOf('ctx.jobs.register("content-draft-sweep"'), src.indexOf('ctx.events.on("issue.comment.created"'));
+    expect(job).toContain("isInvocationScopeError(err)");
+    expect(job).toContain('"content-draft-sweep skipped: invocation scope held by a concurrent event');
+    // Anything that is NOT the scope denial must still surface as a job failure.
+    expect(job).toMatch(/if \(!isInvocationScopeError\(err\)\) throw err;/);
   });
 
   it("routes every company-scoped ctx.state.* call through retry()", () => {
