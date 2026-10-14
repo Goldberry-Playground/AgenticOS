@@ -10,7 +10,9 @@
 #                                              server's restart-reset interval
 #                                              never got round to; GOL-2858)
 #   - agenticos-worktree-reaper.service/.timer (nightly reap of abandoned agent
-#                                              worktrees; GOL-1632 / #765)
+#                                              worktrees; GOL-1632 / #765. Also
+#                                              carries the GOL-3255 retentions
+#                                              and the GOL-3321 on-box dump cap)
 #   - journald cap                            (SystemMaxUse=200M drop-in + vacuum)
 #   - logrotate                               (container + /var/log/agenticos logs
 #                                              + paperclip server.log; GOL-1632)
@@ -404,5 +406,5 @@ echo "  DRY_RUN=1 STALE_MIN=0 ${REPO}/infra/scripts/paperclip-db-catchup.sh  # f
 echo "  ${REPO}/infra/scripts/paperclip-db-catchup.sh                        # no-op unless a dump is overdue"
 echo "  WARN_PCT=0 STALE_MIN=0 REPAGE_MIN=0 STATE_DIR=\$(mktemp -d) ${REPO}/infra/scripts/paperclip-volume-guard.sh   # force both alert paths (headroom posts on level CHANGE, so use a scratch STATE_DIR)"
 echo "  DRY_RUN=1 RECLAIM_PCT=0 ${REPO}/infra/scripts/paperclip-volume-guard.sh   # show what the reclaim WOULD delete (deletes nothing)"
-echo "  DRY_RUN=1 ${REPO}/infra/scripts/worktree-reaper.sh   # list reapable worktrees + run-log retention (deletes nothing)"
+echo "  DRY_RUN=1 ${REPO}/infra/scripts/worktree-reaper.sh   # list reapable worktrees + run-log + on-box dump retention (deletes nothing)"
 echo "  df -h /                                  # confirm root FS under ~70%"
