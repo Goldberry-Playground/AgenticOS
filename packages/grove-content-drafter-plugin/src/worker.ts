@@ -4,7 +4,8 @@ import { OdooClient } from "./odoo-client.js";
 import { runRequestBatch } from "./request.js";
 import { processReply, type ReceiveDeps } from "./receive.js";
 import { runSweep } from "./sweep.js";
-import { withScopeRetry } from "./scope-retry.js";
+import { SweepGate } from "./sweep-gate.js";
+import { isInvocationScopeError, withScopeRetry } from "./scope-retry.js";
 import type { DrafterConfig, IssuePort, IssueLike, RequestState, StatePort } from "./ports.js";
 
 /**
@@ -62,11 +63,12 @@ function toIssueLike(i: {
  * Adapt the host `ctx.issues` onto the company-bound {@link IssuePort}.
  *
  * Every call here is company-scoped, which is exactly the set the host's
- * invocation-scope gate fails CLOSED on when a scheduled job races a concurrent
- * `onEvent` dispatch (GOL-2927). They are therefore all wrapped in
- * {@link withScopeRetry}, writes included — the denial is a pre-flight gate, so a
- * denied write performed no work and a retry cannot double-post. See
- * `scope-retry.ts` for the full derivation.
+ * invocation-scope gate fails CLOSED on for a scheduled job while any delivered
+ * `onEvent` holds a scope — 15 minutes per event (GOL-2927 → GOL-3352). They are
+ * all wrapped in {@link withScopeRetry} as a short grace, writes included — the
+ * denial is a pre-flight gate, so a denied write performed no work and a retry
+ * cannot double-post. The structural fix lives in `setup()`: the sweep also runs
+ * inside the event handler, which does hold a scope. See `scope-retry.ts`.
  */
 function makeIssuePort(ctx: PluginContext, cfg: DrafterConfig): IssuePort {
   const companyId = cfg.companyId;
@@ -228,21 +230,56 @@ const plugin = definePlugin({
       ctx.logger.info("content-draft-request complete", summary as unknown as Record<string, unknown>);
     });
 
+    // One gate for both sweep entry points (GOL-3352): at most one sweep runs,
+    // at most one more waits. processReply is idempotent, so overlap would be
+    // safe — just a pointless doubling of host round-trips.
+    const sweepGate = new SweepGate();
+
     // Phase 2b — sweep: backstop the event + handle reply timeouts.
+    //
+    // This dispatch carries NO invocation scope, so the host denies every
+    // company-scoped call in it for 15 minutes after each delivered comment
+    // event (the TTL on `notify()`'s registerInvocation — GOL-3352). That is not
+    // a failure to retry through: the event that holds the scope runs a scoped
+    // sweep of its own below. Busy windows are, by definition, windows with
+    // events, each of which now sweeps; quiet windows never collide. So an
+    // exhausted scope retry here is logged and treated as "skipped — covered".
     ctx.jobs.register("content-draft-sweep", async () => {
       const wired = wire(ctx, readConfig(await ctx.config.get()));
       if (!wired) return;
-      const summary = await runSweep({ ...wired.receive, now: new Date() });
-      ctx.logger.info("content-draft-sweep complete", summary as unknown as Record<string, unknown>);
+      let gated;
+      try {
+        gated = await sweepGate.run(() => runSweep({ ...wired.receive, now: new Date() }));
+      } catch (err) {
+        if (!isInvocationScopeError(err)) throw err;
+        ctx.logger.warn(
+          "content-draft-sweep skipped: invocation scope held by a concurrent event; the event sweep covers this window",
+          { error: err instanceof Error ? err.message : String(err) },
+        );
+        return;
+      }
+      if (gated.outcome === "coalesced") {
+        ctx.logger.info("content-draft-sweep coalesced into a sweep already in flight");
+        return;
+      }
+      ctx.logger.info("content-draft-sweep complete", gated.result as unknown as Record<string, unknown>);
     });
 
     // Phase 2 — receive: fast path on the drafting agent's reply. Company-wide
     // (comment events carry no reliable projectId); routed in-handler by state.
+    //
+    // This is the one dispatch the host DOES scope (deriveInvocationScope handles
+    // onEvent), and the SDK runs the handler inside an AsyncLocalStorage holding
+    // that invocation, so every host call awaited from here is stamped with it —
+    // including a full sweep. Running the sweep here is what makes the scheduled
+    // job's scope denial a no-op (GOL-3352): the very event that steals the
+    // scope is the one that covers the window.
     ctx.events.on("issue.comment.created", async (event) => {
+      const issueId = resolveIssueId(event);
+      if (!issueId) return;
+      let wired: Wired | null;
       try {
-        const issueId = resolveIssueId(event);
-        if (!issueId) return;
-        const wired = wire(ctx, readConfig(await ctx.config.get()));
+        wired = wire(ctx, readConfig(await ctx.config.get()));
         if (!wired) return;
         const outcome = await processReply({ ...wired.receive, now: new Date() }, issueId);
         if (outcome.status !== "ignored" && outcome.status !== "waiting") {
@@ -250,6 +287,23 @@ const plugin = definePlugin({
         }
       } catch (err) {
         ctx.logger.error("content-drafter reply handler failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return;
+      }
+      try {
+        const gated = await sweepGate.run(() => runSweep({ ...wired.receive, now: new Date() }));
+        if (gated.outcome === "coalesced") {
+          ctx.logger.info("content-drafter: event sweep coalesced into a sweep already in flight", { issueId });
+          return;
+        }
+        ctx.logger.info("content-drafter: event sweep complete", {
+          issueId,
+          ...(gated.result as unknown as Record<string, unknown>),
+        });
+      } catch (err) {
+        ctx.logger.error("content-drafter: event sweep failed", {
+          issueId,
           error: err instanceof Error ? err.message : String(err),
         });
       }

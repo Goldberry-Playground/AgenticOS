@@ -7,11 +7,18 @@
  *      gives up and marks the request blocked so it never hangs forever.
  *
  * Per-issue failures are isolated and counted in {@link SweepSummary.errors}
- * rather than aborting the tick (GOL-2927). The host-side invocation-scope
- * denial that used to drop ~20% of busy-window ticks outright is handled one
- * level down, in the port wrappers in `worker.ts` — see `scope-retry.ts`.
+ * rather than aborting the tick (GOL-2927).
+ *
+ * Since GOL-3352 the sweep runs from two places: the scheduled
+ * `content-draft-sweep` job (scope-less, so the host denies it for 15 min after
+ * every delivered event — see `scope-retry.ts`) and from inside every
+ * `issue.comment.created` handler, which DOES carry a valid scope. A per-issue
+ * invocation-scope denial inside a scheduled sweep is therefore not an error:
+ * the event that holds the scope is itself running a covering sweep. Those are
+ * counted in {@link SweepSummary.scopeDenied}, separately from real errors.
  */
 import { processReply, type ReceiveDeps } from "./receive.js";
+import { isInvocationScopeError } from "./scope-retry.js";
 
 export interface SweepSummary {
   scanned: number;
@@ -26,13 +33,30 @@ export interface SweepSummary {
    * (GOL-2927). A persistently non-zero count is the signal to look.
    */
   errors: number;
+  /**
+   * Issues skipped because the host denied a company-scoped call for lack of
+   * an invocation scope (GOL-3352). Only a scope-less *scheduled* sweep can see
+   * this, and only while a delivered event holds the scope — and that event's
+   * handler runs its own scoped sweep, so these issues are covered, not lost.
+   * Kept out of `errors` so `errors > 0` still means "something real broke".
+   */
+  scopeDenied: number;
 }
 
 const HOUR_MS = 60 * 60 * 1000;
 
 export async function runSweep(deps: ReceiveDeps, listLimit = 100): Promise<SweepSummary> {
   const { issues, state, cfg, now, logger } = deps;
-  const summary: SweepSummary = { scanned: 0, drafted: 0, invalid: 0, rePinged: 0, gaveUp: 0, waiting: 0, errors: 0 };
+  const summary: SweepSummary = {
+    scanned: 0,
+    drafted: 0,
+    invalid: 0,
+    rePinged: 0,
+    gaveUp: 0,
+    waiting: 0,
+    errors: 0,
+    scopeDenied: 0,
+  };
 
   const owned = await issues.listOwnRequests(listLimit);
   for (const issue of owned) {
@@ -43,6 +67,15 @@ export async function runSweep(deps: ReceiveDeps, listLimit = 100): Promise<Swee
     try {
       await sweepOne(deps, issue, summary);
     } catch (err) {
+      if (isInvocationScopeError(err)) {
+        // A delivered event stole the scope mid-sweep. Its handler runs a scoped
+        // sweep of its own (GOL-3352), so this issue is covered — not an error.
+        summary.scopeDenied++;
+        logger?.warn?.("content-drafter: sweep skipped an issue — invocation scope held by a concurrent event; the event sweep covers it", {
+          issueId: issue.id,
+        });
+        continue;
+      }
       summary.errors++;
       logger?.warn?.("content-drafter: sweep skipped an issue after an error", {
         issueId: issue.id,

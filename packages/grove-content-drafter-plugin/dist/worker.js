@@ -40599,16 +40599,83 @@ async function processReply(deps, issueId) {
   return { status: "drafted", dryRun: false, productId: req.productId, filledFactCount: applied.data.filledFactCount };
 }
 
+// src/scope-retry.ts
+var DEFAULT_ATTEMPTS = 2;
+var DEFAULT_BASE_DELAY_MS = 250;
+var DEFAULT_MAX_DELAY_MS = 8e3;
+var defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function isInvocationScopeError(err) {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (!msg.includes("invocation scope")) return false;
+  return msg.includes("missing") || msg.includes("expired") || msg.includes("unknown");
+}
+function delayFor(attempt, opts, random) {
+  const raw = Math.min(opts.baseDelayMs * 2 ** attempt, opts.maxDelayMs);
+  const jitter = 0.75 + random() * 0.5;
+  return Math.round(raw * jitter);
+}
+async function withScopeRetry(label2, fn, opts = {}) {
+  const attempts = Math.max(1, opts.attempts ?? DEFAULT_ATTEMPTS);
+  const baseDelayMs = opts.baseDelayMs ?? DEFAULT_BASE_DELAY_MS;
+  const maxDelayMs = opts.maxDelayMs ?? DEFAULT_MAX_DELAY_MS;
+  const sleep = opts.sleep ?? defaultSleep;
+  const random = opts.random ?? Math.random;
+  let waitedMs = 0;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const result = await fn();
+      if (attempt > 0) {
+        opts.logger?.info?.("content-drafter: host call recovered after invocation-scope retry", {
+          label: label2,
+          attempt: attempt + 1,
+          waitedMs
+        });
+      }
+      return result;
+    } catch (err) {
+      if (!isInvocationScopeError(err) || attempt >= attempts - 1) {
+        if (isInvocationScopeError(err)) {
+          opts.logger?.warn?.("content-drafter: invocation-scope retry budget exhausted", {
+            label: label2,
+            attempts,
+            waitedMs
+          });
+        }
+        throw err;
+      }
+      const ms = delayFor(attempt, { baseDelayMs, maxDelayMs }, random);
+      waitedMs += ms;
+      await sleep(ms);
+    }
+  }
+}
+
 // src/sweep.ts
 var HOUR_MS = 60 * 60 * 1e3;
 async function runSweep(deps, listLimit = 100) {
   const { issues, state, cfg, now, logger } = deps;
-  const summary = { scanned: 0, drafted: 0, invalid: 0, rePinged: 0, gaveUp: 0, waiting: 0, errors: 0 };
+  const summary = {
+    scanned: 0,
+    drafted: 0,
+    invalid: 0,
+    rePinged: 0,
+    gaveUp: 0,
+    waiting: 0,
+    errors: 0,
+    scopeDenied: 0
+  };
   const owned = await issues.listOwnRequests(listLimit);
   for (const issue2 of owned) {
     try {
       await sweepOne(deps, issue2, summary);
     } catch (err) {
+      if (isInvocationScopeError(err)) {
+        summary.scopeDenied++;
+        logger?.warn?.("content-drafter: sweep skipped an issue \u2014 invocation scope held by a concurrent event; the event sweep covers it", {
+          issueId: issue2.id
+        });
+        continue;
+      }
       summary.errors++;
       logger?.warn?.("content-drafter: sweep skipped an issue after an error", {
         issueId: issue2.id,
@@ -40661,56 +40728,30 @@ async function sweepOne(deps, issue2, summary) {
   }
 }
 
-// src/scope-retry.ts
-var DEFAULT_ATTEMPTS = 7;
-var DEFAULT_BASE_DELAY_MS = 250;
-var DEFAULT_MAX_DELAY_MS = 8e3;
-var defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-function isInvocationScopeError(err) {
-  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  if (!msg.includes("invocation scope")) return false;
-  return msg.includes("missing") || msg.includes("expired") || msg.includes("unknown");
-}
-function delayFor(attempt, opts, random) {
-  const raw = Math.min(opts.baseDelayMs * 2 ** attempt, opts.maxDelayMs);
-  const jitter = 0.75 + random() * 0.5;
-  return Math.round(raw * jitter);
-}
-async function withScopeRetry(label2, fn, opts = {}) {
-  const attempts = Math.max(1, opts.attempts ?? DEFAULT_ATTEMPTS);
-  const baseDelayMs = opts.baseDelayMs ?? DEFAULT_BASE_DELAY_MS;
-  const maxDelayMs = opts.maxDelayMs ?? DEFAULT_MAX_DELAY_MS;
-  const sleep = opts.sleep ?? defaultSleep;
-  const random = opts.random ?? Math.random;
-  let waitedMs = 0;
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const result = await fn();
-      if (attempt > 0) {
-        opts.logger?.info?.("content-drafter: host call recovered after invocation-scope retry", {
-          label: label2,
-          attempt: attempt + 1,
-          waitedMs
-        });
-      }
-      return result;
-    } catch (err) {
-      if (!isInvocationScopeError(err) || attempt >= attempts - 1) {
-        if (isInvocationScopeError(err)) {
-          opts.logger?.warn?.("content-drafter: invocation-scope retry budget exhausted", {
-            label: label2,
-            attempts,
-            waitedMs
-          });
-        }
-        throw err;
-      }
-      const ms = delayFor(attempt, { baseDelayMs, maxDelayMs }, random);
-      waitedMs += ms;
-      await sleep(ms);
-    }
+// src/sweep-gate.ts
+var SweepGate = class {
+  tail = Promise.resolve();
+  /** Runs accepted (queued or executing) that have not finished yet. */
+  outstanding = 0;
+  /** True while a sweep is executing or waiting to execute. */
+  get busy() {
+    return this.outstanding > 0;
   }
-}
+  async run(fn) {
+    if (this.outstanding >= 2) return { outcome: "coalesced" };
+    this.outstanding++;
+    const prev = this.tail;
+    const run = prev.catch(() => void 0).then(async () => {
+      try {
+        return await fn();
+      } finally {
+        this.outstanding--;
+      }
+    });
+    this.tail = run;
+    return { outcome: "ran", result: await run };
+  }
+};
 
 // src/worker.ts
 var ORIGIN_KIND = "plugin:agenticos.grove-content-drafter";
@@ -40882,17 +40923,33 @@ var plugin = definePlugin({
       });
       ctx.logger.info("content-draft-request complete", summary);
     });
+    const sweepGate = new SweepGate();
     ctx.jobs.register("content-draft-sweep", async () => {
       const wired = wire(ctx, readConfig(await ctx.config.get()));
       if (!wired) return;
-      const summary = await runSweep({ ...wired.receive, now: /* @__PURE__ */ new Date() });
-      ctx.logger.info("content-draft-sweep complete", summary);
+      let gated;
+      try {
+        gated = await sweepGate.run(() => runSweep({ ...wired.receive, now: /* @__PURE__ */ new Date() }));
+      } catch (err) {
+        if (!isInvocationScopeError(err)) throw err;
+        ctx.logger.warn(
+          "content-draft-sweep skipped: invocation scope held by a concurrent event; the event sweep covers this window",
+          { error: err instanceof Error ? err.message : String(err) }
+        );
+        return;
+      }
+      if (gated.outcome === "coalesced") {
+        ctx.logger.info("content-draft-sweep coalesced into a sweep already in flight");
+        return;
+      }
+      ctx.logger.info("content-draft-sweep complete", gated.result);
     });
     ctx.events.on("issue.comment.created", async (event) => {
+      const issueId = resolveIssueId(event);
+      if (!issueId) return;
+      let wired;
       try {
-        const issueId = resolveIssueId(event);
-        if (!issueId) return;
-        const wired = wire(ctx, readConfig(await ctx.config.get()));
+        wired = wire(ctx, readConfig(await ctx.config.get()));
         if (!wired) return;
         const outcome = await processReply({ ...wired.receive, now: /* @__PURE__ */ new Date() }, issueId);
         if (outcome.status !== "ignored" && outcome.status !== "waiting") {
@@ -40900,6 +40957,23 @@ var plugin = definePlugin({
         }
       } catch (err) {
         ctx.logger.error("content-drafter reply handler failed", {
+          error: err instanceof Error ? err.message : String(err)
+        });
+        return;
+      }
+      try {
+        const gated = await sweepGate.run(() => runSweep({ ...wired.receive, now: /* @__PURE__ */ new Date() }));
+        if (gated.outcome === "coalesced") {
+          ctx.logger.info("content-drafter: event sweep coalesced into a sweep already in flight", { issueId });
+          return;
+        }
+        ctx.logger.info("content-drafter: event sweep complete", {
+          issueId,
+          ...gated.result
+        });
+      } catch (err) {
+        ctx.logger.error("content-drafter: event sweep failed", {
+          issueId,
           error: err instanceof Error ? err.message : String(err)
         });
       }
