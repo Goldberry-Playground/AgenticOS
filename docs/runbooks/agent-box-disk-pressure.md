@@ -53,7 +53,11 @@ git -C <parent-repo> rev-parse --verify refs/heads/<branch>
 `--apply` pass to `/var/log/agenticos/worktree-reaper.log` (rotated weekly by
 the existing `/var/log/agenticos/*.log` rule). The unattended run uses
 `MIN_AGE_HOURS=48` rather than the script's own 24h default, to give an
-idle-but-not-dead agent a second full day.
+idle-but-not-dead agent a second full day. The same run also drives the
+GOL-3255 janitors (finished `gol<N>-wt` worktrees, run-log gzip/delete) and,
+host-side, the GOL-3321 on-box Paperclip dump cap (keep newest 6, delete only
+what the run itself verified off-box — see
+`docs/runbooks/backup-and-recovery.md` → "On-box retention").
 
 ```bash
 systemctl list-timers agenticos-worktree-reaper.timer --no-pager   # next fire

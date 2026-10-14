@@ -486,6 +486,40 @@ off-box dump with no extra tooling.
 > **Restoring is destructive.** Restore into a scratch database first and
 > compare row counts before pointing the live server at anything.
 
+#### On-box retention — what stays on the droplet (GOL-3321)
+
+The droplet is not a backup location, so once the off-box copy is proven the
+on-box dumps only buy a fast local restore. `infra/scripts/paperclip-backup-retention.py`
+keeps the newest **6** (~24h at the 4h cadence) and deletes older dumps **only
+when the same run has verified** them off-box. It rides the nightly
+`agenticos-worktree-reaper.timer` (03:40) as a host-side janitor, dry-run then
+`--apply`, isolated from the other janitors.
+
+Fail-closed, in this order — any miss means **nothing is deleted** that night:
+
+| check | source |
+| --- | --- |
+| shipper beacon exists, `state=ok`, completed < 90 min ago | `paperclip/_status/last-run.json` |
+| bucket listing succeeds | `ListObjectsV2` under `paperclip/` |
+| every dump older than 24h but inside the 7d daily lifecycle has a **size-matching** object in some tier | the listing |
+| per file: the candidate itself has a size-matching object | the listing |
+
+A dump past the daily lifecycle that was not its week's/month's representative
+has no off-box copy by design; it is **kept** (reported as single-copy), never
+a reason to block. A blocked night posts to ops Discord **once per state
+change** and an all-clear on recovery (state in
+`/var/lib/agenticos/backup-retention/state`), so a week-long fault pages once.
+The bucket is never written by this script.
+
+```bash
+# What tonight would do (deletes nothing, posts nothing, records nothing):
+/opt/agenticos/repo/infra/scripts/paperclip-backup-retention.py --dry-run
+# Why it did or did not prune:
+grep 'backup-retention' /var/log/agenticos/worktree-reaper.log | tail -20
+# Keep more on-box for a while (unit env, no code change):
+BACKUP_KEEP_NEWEST=12 /opt/agenticos/repo/infra/scripts/worktree-reaper.sh
+```
+
 #### Where this does NOT help
 
 - It is a copy of the **dumps**, not of the running database. RPO is the
