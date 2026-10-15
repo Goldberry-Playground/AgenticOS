@@ -16,6 +16,8 @@ import {
 import {
   handleIssueCreated,
   handleIssueUpdated,
+  isTerminalStatus,
+  pushIssueState,
   resolveMirrorClosureStatus,
   type SyncDeps,
 } from "./sync.js";
@@ -37,9 +39,11 @@ import {
   filterSelfAuthoredReviewers,
   isActionablePrAction,
   isNullBodyStatusError,
+  isPrClosureAction,
   isSelfAuthored,
   parseGithubPrEvent,
   REQUIRED_REVIEWER,
+  resolveReviewTwinClosureStatus,
   shortSha,
   type GithubPrEvent,
   type ReviewerAssignment,
@@ -47,11 +51,22 @@ import {
   type Reviewer,
   type SelfReviewDecision,
 } from "./pr-review.js";
-import { getReviewRecord, upsertReviewRecord, listReviewRecordsUpdatedSince } from "./pr-review-store.js";
+import {
+  getReviewRecord,
+  upsertReviewRecord,
+  listReviewRecordsUpdatedSince,
+  type PrReviewRow,
+} from "./pr-review-store.js";
 import { handleReviewSignoff } from "./pr-signoff.js";
 import { runMirrorReconcile, buildReconcilePing } from "./reconcile.js";
 import { runSignoffReconcile } from "./signoff-reconcile.js";
 import { runInboundCloseReconcile, buildInboundCloseReconcilePing } from "./inbound-close-reconcile.js";
+import {
+  runOutboundCloseReconcile,
+  buildOutboundCloseReconcilePing,
+  type OutboundCloseDriveOutcome,
+} from "./outbound-close-reconcile.js";
+import { runPrCloseReconcile, buildPrCloseReconcilePing, type TwinRetireOutcome } from "./pr-close-reconcile.js";
 import { runInboundCreateReconcile, buildInboundCreateReconcilePing } from "./inbound-create-reconcile.js";
 import { recordHeartbeat, getHeartbeat, heartbeatAgeMs, HEARTBEAT_STALE_MS } from "./heartbeat.js";
 import { bootWithRetry } from "./boot.js";
@@ -117,6 +132,25 @@ const INBOUND_CLOSE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 /** Page cap per repo per run (100/page) — bounds a large repo's scan; a hit sets
  *  `truncated` and the freshest closes (sort=updated desc) are scanned first. */
 const INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
+
+/**
+ * Outbound-close reconcile leg (GOL-3374), run inside the inbound-close job: page
+ * cap for each repo's OPEN issue list. The open set is small (tens of issues) and,
+ * unlike the inbound leg, it is deliberately NOT `since`-bounded — a failed
+ * outbound PATCH never touched the GitHub issue's `updated_at`, so a recency
+ * filter would hide exactly the issues this leg exists to heal.
+ */
+const OUTBOUND_CLOSE_RECONCILE_MAX_PAGES = 2;
+
+/**
+ * PR-close reconcile leg (GOL-3374), run inside the signoff-reconcile job. Its
+ * own, longer lookback: a PR commonly merges days after its last `synchronize`,
+ * and a review row's `updated_at` only moves on review activity — the 3-day
+ * sign-off window would age a stranded twin out before its PR closed. Cheap: a
+ * terminal twin (the common case) is one status read and no GitHub call.
+ */
+const PR_CLOSE_RECONCILE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const PR_CLOSE_RECONCILE_ROW_CAP = 300;
 
 /**
  * Inbound-create reconcile sweep (GOL-1413): how far back to look for GitHub-side
@@ -1088,6 +1122,85 @@ function captureInvocationScope(): InvocationScopeRunner {
   return AsyncResource.bind(<T>(fn: () => Promise<T>): Promise<T> => fn());
 }
 
+/**
+ * Retire one review twin for a PR that merged/closed (GOL-3374). Reads the twin
+ * (REST fallback on scope-expiry — webhook AND cron callers), applies
+ * resolveReviewTwinClosureStatus, writes the terminal status. Shared verbatim by
+ * the `pull_request closed` webhook (handlePrClosure) and the hourly
+ * pr-close-reconcile sweep so both apply one matrix.
+ */
+async function retireReviewTwin(
+  ctx: PluginContext,
+  cfg: GithubSyncConfig,
+  row: PrReviewRow,
+  merged: boolean,
+): Promise<TwinRetireOutcome> {
+  const companyId = cfg.companyId!;
+  const issue: Issue | null = await withRestFallback(
+    restFallbackDeps(ctx, cfg),
+    "pr-close.get",
+    () => ctx.issues.get(row.paperclipIssueId, companyId),
+    async (rest) => (await rest.getIssue(row.paperclipIssueId)) as Issue | null,
+  );
+  if (!issue) {
+    ctx.logger.warn("pr close: review twin not readable; skipping", {
+      repo: row.githubRepo,
+      prNumber: row.prNumber,
+      reviewer: row.reviewer,
+      issueId: row.paperclipIssueId,
+    });
+    return "unreadable";
+  }
+  const target = resolveReviewTwinClosureStatus(merged, issue.status);
+  if (!target) return "in-sync";
+  await withRestFallback(
+    restFallbackDeps(ctx, cfg),
+    "pr-close.update",
+    async () => {
+      await ctx.issues.update(issue.id, { status: target }, companyId);
+    },
+    async (rest) => {
+      await rest.updateIssue(issue.id, { status: target });
+    },
+  );
+  ctx.logger.info("pr close: retired review twin", {
+    repo: row.githubRepo,
+    prNumber: row.prNumber,
+    reviewer: row.reviewer,
+    issueId: issue.id,
+    from: issue.status,
+    to: target,
+    merged,
+  });
+  return "retired";
+}
+
+/**
+ * `pull_request` `closed` → retire every review twin of that PR (GOL-3374). Rows
+ * are keyed by the webhook's case-sensitive `repository.full_name` (GOL-2395), which
+ * is exactly `ev.repo`. No Discord ping: a retired twin is routine lifecycle, and
+ * the sweep pings only when it had to heal a dropped delivery.
+ */
+async function handlePrClosure(ctx: PluginContext, cfg: GithubSyncConfig, ev: GithubPrEvent): Promise<void> {
+  if (!cfg.companyId) {
+    ctx.logger.error("pr close: companyId not configured — cannot retire review twins");
+    return;
+  }
+  const reviewers: Reviewer[] = ["ada", "iris"];
+  const outcomes: Record<string, TwinRetireOutcome> = {};
+  for (const reviewer of reviewers) {
+    const row = await getReviewRecord(ctx.db, ev.repo, ev.number, reviewer);
+    if (!row) continue;
+    outcomes[reviewer] = await retireReviewTwin(ctx, cfg, row, ev.merged);
+  }
+  ctx.logger.info("pr close: review twins processed", {
+    repo: ev.repo,
+    number: ev.number,
+    merged: ev.merged,
+    outcomes,
+  });
+}
+
 async function handlePrInbound(
   ctx: PluginContext,
   cfg: GithubSyncConfig,
@@ -1114,6 +1227,13 @@ async function handlePrInbound(
   const ev = parseGithubPrEvent(input.parsedBody ?? safeJson(input.rawBody));
   if (!ev) {
     ctx.logger.warn("pr webhook: unparseable/invalid pull_request payload");
+    return;
+  }
+  // GOL-3374: a closing PR retires its review twins (merged → done, else cancelled).
+  // Checked BEFORE the draft skip — a draft can be closed too, and its twins (from a
+  // pre-draft window) must not outlive it.
+  if (isPrClosureAction(ev.action)) {
+    await handlePrClosure(ctx, cfg, ev);
     return;
   }
   if (ev.draft) {
@@ -1444,6 +1564,7 @@ export async function driveSweepReview(
     url: pr.url,
     before: "",
     after: "",
+    merged: false,
   };
   const frontendPaths = cfg.prReviewFrontendPaths?.length
     ? cfg.prReviewFrontendPaths
@@ -1907,6 +2028,19 @@ const plugin = definePlugin({
           if (wantPing(cfg, kind)) await postOpsPing(ctx, cfg.opsWebhookUrl, content);
         },
         resolveRepoClient,
+        // GOL-3374: a failed outbound GitHub push lands in github_sync_error (queryable
+        // after server.log rotates). No ping here — the hourly outbound-close sweep
+        // heals it and pages on the heal count.
+        recordFailure: async (scope, detail, context) => {
+          try {
+            await recordError(ctx.db, { occurredAt: new Date().toISOString(), scope, detail, context });
+          } catch (writeErr) {
+            ctx.logger.warn("failed to persist outbound push failure to github_sync_error", {
+              scope,
+              error: writeErr instanceof Error ? writeErr.message : String(writeErr),
+            });
+          }
+        },
       });
 
       ctx.logger.info("bridge active", {
@@ -2029,6 +2163,37 @@ const plugin = definePlugin({
       } catch (err) {
         await recordSwallowedFailure(ctx, cfg, "signoff-reconcile job failed", err, {});
       }
+
+      // PR-close leg (GOL-3374): retire review twins whose PR merged/closed but whose
+      // `pull_request closed` delivery never reached handlePrClosure. Same rows, own
+      // (longer) window; a terminal twin is a one-read skip.
+      try {
+        if (!cfg.companyId) return;
+        const companyId = cfg.companyId;
+        const sinceIso = new Date(Date.now() - PR_CLOSE_RECONCILE_WINDOW_MS).toISOString();
+        const summary = await runPrCloseReconcile({
+          companyId,
+          sinceIso,
+          limit: PR_CLOSE_RECONCILE_ROW_CAP,
+          listRows: (since, limit) => listReviewRecordsUpdatedSince(ctx.db, since, limit),
+          getIssueStatus: async (issueId, cId) => (await signoffDeps.getIssue(issueId, cId))?.status ?? null,
+          getPull: async (repoSlug, prNumber) => {
+            const resolved = resolveRepoClient(repoSlug);
+            if (!resolved) return { ok: false, error: "repo not bridged" };
+            const res = await resolved.github.getPull(resolved.repo, prNumber);
+            if (!res.ok) return { ok: false, error: res.error };
+            return { ok: true, state: res.data.state, merged: res.data.merged };
+          },
+          retireTwin: ({ row, merged }) => retireReviewTwin(ctx, cfg, row, merged),
+          logger: ctx.logger,
+        });
+        ctx.logger.info("pr-close-reconcile complete", summary as unknown as Record<string, unknown>);
+        if (summary.retired > 0 || summary.failed > 0) {
+          if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildPrCloseReconcilePing(summary));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "pr-close-reconcile job failed", err, {});
+      }
     });
 
     // Inbound-close reconcile sweep (GOL-1206): the polling inbound leg of closure
@@ -2089,6 +2254,55 @@ const plugin = definePlugin({
         }
       } catch (err) {
         await recordSwallowedFailure(ctx, cfg, "inbound-close-reconcile job failed", err, {});
+      }
+
+      // Outbound-close leg (GOL-3374): the Paperclip → GitHub close that every other
+      // direction's sweep already had. Lists each repo's OPEN issues (not `since`-
+      // bounded: a failed PATCH never touched GitHub's updated_at) and pushes
+      // `state: closed` for any whose twin is terminal. A non-zero heal count is the
+      // drift guard — it means the event leg dropped a close this hour.
+      try {
+        if (!cfg.companyId) return;
+        const companyId = cfg.companyId;
+        const summary = await runOutboundCloseReconcile({
+          repoSlugs: Array.from(clientsBySlug.keys()),
+          listOpenIssues: async (repoSlug) => {
+            const entry = clientsBySlug.get(repoSlug);
+            if (!entry) return { ok: false, error: "no client for repo" };
+            const res = await entry.github.listIssues(entry.repo, {
+              state: "open",
+              maxPages: OUTBOUND_CLOSE_RECONCILE_MAX_PAGES,
+            });
+            if (!res.ok) return { ok: false, error: res.error };
+            return { ok: true, issues: res.data.issues.map((i) => ({ number: i.number })), truncated: res.data.truncated };
+          },
+          driveClose: async ({ repoSlug, number }): Promise<OutboundCloseDriveOutcome> => {
+            const mapping = await getByRepoNumber(ctx.db, repoSlug, number);
+            if (!mapping) return "unmapped";
+            const issue: Issue | null = await withRestFallback(
+              restFallbackDeps(ctx, cfg),
+              "outbound-close.get",
+              () => ctx.issues.get(mapping.paperclipIssueId, companyId),
+              async (rest) => (await rest.getIssue(mapping.paperclipIssueId)) as Issue | null,
+            );
+            if (!issue) return "unreadable";
+            if (!isTerminalStatus(issue.status)) return "twin-open";
+            // Any bridge's deps carries the global resolveRepoClient + recordFailure;
+            // pushIssueState resolves the row's own repo through it.
+            const deps = (issue.projectId && depsByProject.get(issue.projectId)) || signoffDeps;
+            // Full-slug row key so resolution hits the right bridge even for a bare-name
+            // (Paperclip-origin) row — repoSlug is the bridge's own `owner/repo`.
+            return pushIssueState(deps, { ...mapping, githubRepo: repoSlug }, issue);
+          },
+          logger: ctx.logger,
+        });
+        ctx.logger.info("outbound-close-reconcile complete", summary as unknown as Record<string, unknown>);
+        if (summary.pushed > 0 || summary.failed > 0) {
+          if (wantPing(cfg, "outcome"))
+            await postOpsPing(ctx, cfg.opsWebhookUrl, buildOutboundCloseReconcilePing(summary));
+        }
+      } catch (err) {
+        await recordSwallowedFailure(ctx, cfg, "outbound-close-reconcile job failed", err, {});
       }
     });
 

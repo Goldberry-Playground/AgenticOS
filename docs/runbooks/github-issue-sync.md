@@ -100,6 +100,62 @@ lookup silently misses every outbound-created issue.
 (the GitHub twin, not `GOL-N`) plus a `Paperclip: GOL-N` trace line — see
 `docs/agent-house-rules.md`.
 
+### Outbound close — the leg that was missing, and how to audit drift (GOL-3374)
+
+Three outbound gaps let the board and GitHub drift apart silently until a human
+reconciled 106 issues by hand (2026-10-14, third sync gap of the quarter):
+
+1. **GitHub-born twins never closed on GitHub.** Inbound-origin mapping rows store
+   `github_repo` as the webhook's `repository.full_name`; `handleIssueUpdated`
+   handed that to `GitHubClient.updateIssue`, which builds `/repos/${org}/${repo}`
+   → `/repos/Org/Org/repo/…`. Deterministic, status-less failure. Fixed by
+   `resolveMappingTarget` (sync.ts): a full-slug row resolves through the per-bridge
+   client registry to its bare repo.
+2. **A merged/closed PR never touched its review twins.** `closed` was an ignored
+   `pull_request` action. Now `handlePrClosure` (webhook) + the hourly
+   `pr-close-reconcile` leg (inside the `signoff-reconcile` job) retire twins:
+   merged → `done`, closed-unmerged → `cancelled`, terminal twin → no-op.
+3. **Paperclip-origin closes were fire-and-forget.** One `issue.updated` → one
+   GitHub PATCH; a failure was a `logger.error` in a 7-day-rotated server.log and
+   `mirror-reconcile` skips terminal issues, so nothing retried (22 closes lost in
+   one 60 s burst on 2026-10-05). Now: failures land in `github_sync_error`
+   (`scope = issue.updated.push`), the 422 "closed by another request" race is
+   treated as in-sync, and the hourly `outbound-close-reconcile` leg (inside the
+   `inbound-close-reconcile` job) lists each repo's OPEN issues and pushes
+   `state: closed` for any whose twin is terminal — a non-zero heal count 🔁-pings
+   ops and means the event leg dropped a close that hour.
+
+**Drift audit (run any time; both should be empty on a healthy fleet).**
+
+```sql
+-- A. terminal twin whose outbound push never landed after the close
+--    (candidate dropped closes; confirm against GitHub state)
+select m.github_repo, m.github_issue_number, i.identifier, i.status, m.origin
+  from plugin_github_sync_40eceaaa3a.github_sync_mapping m
+  join issues i on i.id::text = m.paperclip_issue_id
+ where i.status in ('done','cancelled')
+   and coalesce(i.completed_at, i.cancelled_at) > m.last_synced_at::timestamptz + interval '2 minutes'
+ order by 1, 2;
+
+-- B. review twins still live — cross-check each PR's state on GitHub
+select r.github_repo, r.pr_number, r.reviewer, i.identifier, i.status
+  from plugin_github_sync_40eceaaa3a.github_pr_review r
+  join issues i on i.id::text = r.paperclip_issue_id
+ where i.status not in ('done','cancelled');
+
+-- C. what the outbound push has been failing on (durable since GOL-3374)
+select occurred_at, scope, detail, context->>'resolvedRepo' repo, context->>'githubIssueNumber' n
+  from plugin_github_sync_40eceaaa3a.github_sync_error
+ where scope in ('issue.updated.push','outbound-close-reconcile.push')
+ order by occurred_at desc limit 50;
+```
+
+Then compare A against `GET /repos/{owner}/{repo}/issues?state=open` and B
+against `GET /repos/{owner}/{repo}/pulls/{n}` — the sweeps do exactly this hourly,
+so a persistent non-empty result means a sweep is failing (check
+`inbound-close-reconcile complete` / `signoff-reconcile complete` log lines and
+`github_sync_error` for `*-reconcile job failed`).
+
 ## Setup
 
 ### 1. Deploy the plugin (automatic)

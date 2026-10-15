@@ -40587,6 +40587,16 @@ _Synced from ${ref}._
 ${paperclipMarker(issue2.id)}`;
   return `${description}${footer}`;
 }
+function resolveMappingTarget(deps, mapping) {
+  if (!mapping.githubRepo.includes("/")) return { github: deps.github, repo: mapping.githubRepo };
+  const resolved = deps.resolveRepoClient?.(mapping.githubRepo);
+  if (resolved) return resolved;
+  return { github: deps.github, repo: bareRepoName(mapping.githubRepo) };
+}
+function isClosedByAnotherRequest(res) {
+  if (res.ok || res.status !== 422) return false;
+  return (res.errors ?? []).some((e) => /closed by another request/i.test(e.message ?? ""));
+}
 async function handleIssueCreated(deps, input2) {
   const { db, github, config: config2, logger, getIssue } = deps;
   const existing = await getByPaperclipId(db, input2.issueId);
@@ -40647,7 +40657,7 @@ async function handleIssueCreated(deps, input2) {
   });
 }
 async function handleIssueUpdated(deps, input2) {
-  const { db, github, config: config2, logger, getIssue } = deps;
+  const { db, logger, getIssue } = deps;
   const mapping = await getByPaperclipId(db, input2.issueId);
   if (!mapping) {
     logger.info("issue.updated: not mapped; ignoring", { issueId: input2.issueId });
@@ -40663,8 +40673,9 @@ async function handleIssueUpdated(deps, input2) {
     body: buildGithubBody(issue2),
     state: statusToGithubState(issue2.status)
   };
-  let updated = await github.updateIssue(
-    mapping.githubRepo,
+  const target = resolveMappingTarget(deps, mapping);
+  let updated = await target.github.updateIssue(
+    target.repo,
     mapping.githubIssueNumber,
     fullPatch
   );
@@ -40684,22 +40695,34 @@ async function handleIssueUpdated(deps, input2) {
         rejectedFields: [...rejected],
         githubErrors: updated.errors
       });
-      updated = await github.updateIssue(
-        mapping.githubRepo,
+      updated = await target.github.updateIssue(
+        target.repo,
         mapping.githubIssueNumber,
         sanitized
       );
     }
   }
+  if (!updated.ok && fullPatch.state === "closed" && isClosedByAnotherRequest(updated)) {
+    logger.info("issue.updated: GitHub issue already closed by a concurrent push; in sync", {
+      issueId: issue2.id,
+      githubRepo: target.repo,
+      githubIssueNumber: mapping.githubIssueNumber
+    });
+    await upsert(db, { ...mapping, lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    return;
+  }
   if (!updated.ok) {
-    logger.error("issue.updated: failed to update GitHub issue", {
+    const context = {
       issueId: issue2.id,
       githubRepo: mapping.githubRepo,
+      resolvedRepo: target.repo,
       githubIssueNumber: mapping.githubIssueNumber,
-      error: updated.error,
+      state: fullPatch.state,
       githubStatus: updated.status,
       githubErrors: updated.errors
-    });
+    };
+    logger.error("issue.updated: failed to update GitHub issue", { ...context, error: updated.error });
+    await deps.recordFailure?.("issue.updated.push", updated.error || "GitHub update failed", context);
     return;
   }
   const next = { ...mapping, lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString() };
@@ -40710,6 +40733,34 @@ async function handleIssueUpdated(deps, input2) {
     githubIssueNumber: mapping.githubIssueNumber,
     state: statusToGithubState(issue2.status)
   });
+}
+async function pushIssueState(deps, mapping, issue2) {
+  const { db, logger } = deps;
+  const target = resolveMappingTarget(deps, mapping);
+  const state = statusToGithubState(issue2.status);
+  const res = await target.github.updateIssue(target.repo, mapping.githubIssueNumber, { state });
+  if (!res.ok && !(state === "closed" && isClosedByAnotherRequest(res))) {
+    const context = {
+      issueId: issue2.id,
+      githubRepo: mapping.githubRepo,
+      resolvedRepo: target.repo,
+      githubIssueNumber: mapping.githubIssueNumber,
+      state,
+      githubStatus: res.status,
+      githubErrors: res.errors
+    };
+    logger.error("outbound-close-reconcile: failed to push issue state to GitHub", { ...context, error: res.error });
+    await deps.recordFailure?.("outbound-close-reconcile.push", res.error || "GitHub update failed", context);
+    return "failed";
+  }
+  await upsert(db, { ...mapping, lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString() });
+  logger.info("outbound-close-reconcile: pushed issue state to GitHub", {
+    issueId: issue2.id,
+    githubRepo: target.repo,
+    githubIssueNumber: mapping.githubIssueNumber,
+    state
+  });
+  return "pushed";
 }
 
 // src/routing.ts
@@ -40753,6 +40804,14 @@ var CHECK_CONTEXT = {
 };
 var REVIEWER_NAME = { ada: "Ada", iris: "Iris" };
 var PR_ACTIONS = ["opened", "reopened", "ready_for_review", "synchronize"];
+var PR_CLOSE_ACTIONS = ["closed"];
+function isPrClosureAction(action) {
+  return PR_CLOSE_ACTIONS.includes(action);
+}
+function resolveReviewTwinClosureStatus(merged, currentStatus) {
+  if (currentStatus === "done" || currentStatus === "cancelled") return null;
+  return merged ? "done" : "cancelled";
+}
 var DEFAULT_FRONTEND_PATHS = ["apps/dashboard/**", "**/*.tsx", "**/*.css"];
 function isActionablePrAction(action) {
   return PR_ACTIONS.includes(action);
@@ -40779,7 +40838,8 @@ function parseGithubPrEvent(raw) {
     headSha,
     url: typeof pr.html_url === "string" ? pr.html_url : "",
     before: typeof o.before === "string" ? o.before : "",
-    after: typeof o.after === "string" ? o.after : ""
+    after: typeof o.after === "string" ? o.after : "",
+    merged: pr.merged === true || typeof pr.merged_at === "string"
   };
 }
 function shortSha(sha) {
@@ -41361,6 +41421,137 @@ async function runInboundCloseReconcile(input2) {
 }
 function buildInboundCloseReconcilePing(s) {
   return `\u{1F501} inbound-close-reconcile: propagated ${s.propagated} GitHub close(s) \u2192 Paperclip, pruned ${s.pruned} orphaned mapping(s), ${s.failed} failed (scanned ${s.scanned})`;
+}
+
+// src/outbound-close-reconcile.ts
+async function runOutboundCloseReconcile(input2) {
+  const summary = {
+    scanned: 0,
+    pushed: 0,
+    skippedUnmapped: 0,
+    skippedTwinOpen: 0,
+    failed: 0,
+    reposFailed: 0,
+    truncated: false
+  };
+  for (const repoSlug of input2.repoSlugs) {
+    const listed = await input2.listOpenIssues(repoSlug);
+    if (!listed.ok) {
+      summary.reposFailed++;
+      input2.logger.warn("outbound-close-reconcile: open-issue list failed; skipping repo this run", {
+        repo: repoSlug,
+        error: listed.error
+      });
+      continue;
+    }
+    if (listed.truncated) summary.truncated = true;
+    for (const issue2 of listed.issues) {
+      summary.scanned++;
+      try {
+        const outcome = await input2.driveClose({ repoSlug, number: issue2.number });
+        switch (outcome) {
+          case "pushed":
+            summary.pushed++;
+            input2.logger.info("outbound-close-reconcile: healed a dropped close", {
+              repo: repoSlug,
+              number: issue2.number
+            });
+            break;
+          case "twin-open":
+            summary.skippedTwinOpen++;
+            break;
+          case "unmapped":
+            summary.skippedUnmapped++;
+            break;
+          case "unreadable":
+          case "failed":
+            summary.failed++;
+            break;
+        }
+      } catch (err) {
+        summary.failed++;
+        input2.logger.warn("outbound-close-reconcile: close drive failed; continuing sweep", {
+          repo: repoSlug,
+          number: issue2.number,
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
+    }
+  }
+  return summary;
+}
+function buildOutboundCloseReconcilePing(s) {
+  return `\u{1F501} outbound-close-reconcile: closed ${s.pushed} GitHub issue(s) whose Paperclip twin was already terminal (dropped outbound close healed), ${s.failed} failed (scanned ${s.scanned} open)`;
+}
+
+// src/pr-close-reconcile.ts
+async function runPrCloseReconcile(input2) {
+  const summary = { scanned: 0, retired: 0, skippedTerminal: 0, skippedOpenPr: 0, failed: 0 };
+  const rows = await input2.listRows(input2.sinceIso, input2.limit);
+  const pullCache = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    summary.scanned++;
+    const status = await input2.getIssueStatus(row.paperclipIssueId, input2.companyId);
+    if (status === null) {
+      summary.failed++;
+      continue;
+    }
+    if (status === "done" || status === "cancelled") {
+      summary.skippedTerminal++;
+      continue;
+    }
+    const prKey = `${row.githubRepo}#${row.prNumber}`;
+    let pull = pullCache.get(prKey);
+    if (pull === void 0) {
+      pull = await input2.getPull(row.githubRepo, row.prNumber);
+      pullCache.set(prKey, pull);
+    }
+    if (!pull.ok) {
+      summary.failed++;
+      input2.logger.warn("pr-close-reconcile: PR read failed; retrying next sweep", {
+        repo: row.githubRepo,
+        prNumber: row.prNumber,
+        error: pull.error
+      });
+      continue;
+    }
+    if (pull.state !== "closed") {
+      summary.skippedOpenPr++;
+      continue;
+    }
+    try {
+      const outcome = await input2.retireTwin({ row, merged: pull.merged });
+      switch (outcome) {
+        case "retired":
+          summary.retired++;
+          input2.logger.info("pr-close-reconcile: retired a stranded review twin", {
+            repo: row.githubRepo,
+            prNumber: row.prNumber,
+            reviewer: row.reviewer,
+            merged: pull.merged
+          });
+          break;
+        case "in-sync":
+          summary.skippedTerminal++;
+          break;
+        case "unreadable":
+          summary.failed++;
+          break;
+      }
+    } catch (err) {
+      summary.failed++;
+      input2.logger.warn("pr-close-reconcile: twin retire failed; continuing sweep", {
+        repo: row.githubRepo,
+        prNumber: row.prNumber,
+        reviewer: row.reviewer,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+  }
+  return summary;
+}
+function buildPrCloseReconcilePing(s) {
+  return `\u{1F501} pr-close-reconcile: retired ${s.retired} review twin(s) of merged/closed PRs (dropped \`pull_request closed\` healed), ${s.failed} failed (scanned ${s.scanned})`;
 }
 
 // src/inbound-create-reconcile.ts
@@ -42743,6 +42934,9 @@ var SIGNOFF_RECONCILE_WINDOW_MS = 3 * 24 * 60 * 60 * 1e3;
 var SIGNOFF_RECONCILE_ROW_CAP = 200;
 var INBOUND_CLOSE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
 var INBOUND_CLOSE_RECONCILE_MAX_PAGES = 5;
+var OUTBOUND_CLOSE_RECONCILE_MAX_PAGES = 2;
+var PR_CLOSE_RECONCILE_WINDOW_MS = 30 * 24 * 60 * 60 * 1e3;
+var PR_CLOSE_RECONCILE_ROW_CAP = 300;
 var INBOUND_CREATE_RECONCILE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
 var INBOUND_CREATE_RECONCILE_MAX_PAGES = 5;
 var PR_REVIEW_RECONCILE_MAX_PAGES = 3;
@@ -43206,6 +43400,65 @@ function makeBridgeGithubClient(cfg, bridge) {
 function captureInvocationScope() {
   return AsyncResource.bind((fn) => fn());
 }
+async function retireReviewTwin(ctx, cfg, row, merged) {
+  const companyId = cfg.companyId;
+  const issue2 = await withRestFallback(
+    restFallbackDeps(ctx, cfg),
+    "pr-close.get",
+    () => ctx.issues.get(row.paperclipIssueId, companyId),
+    async (rest) => await rest.getIssue(row.paperclipIssueId)
+  );
+  if (!issue2) {
+    ctx.logger.warn("pr close: review twin not readable; skipping", {
+      repo: row.githubRepo,
+      prNumber: row.prNumber,
+      reviewer: row.reviewer,
+      issueId: row.paperclipIssueId
+    });
+    return "unreadable";
+  }
+  const target = resolveReviewTwinClosureStatus(merged, issue2.status);
+  if (!target) return "in-sync";
+  await withRestFallback(
+    restFallbackDeps(ctx, cfg),
+    "pr-close.update",
+    async () => {
+      await ctx.issues.update(issue2.id, { status: target }, companyId);
+    },
+    async (rest) => {
+      await rest.updateIssue(issue2.id, { status: target });
+    }
+  );
+  ctx.logger.info("pr close: retired review twin", {
+    repo: row.githubRepo,
+    prNumber: row.prNumber,
+    reviewer: row.reviewer,
+    issueId: issue2.id,
+    from: issue2.status,
+    to: target,
+    merged
+  });
+  return "retired";
+}
+async function handlePrClosure(ctx, cfg, ev) {
+  if (!cfg.companyId) {
+    ctx.logger.error("pr close: companyId not configured \u2014 cannot retire review twins");
+    return;
+  }
+  const reviewers = ["ada", "iris"];
+  const outcomes = {};
+  for (const reviewer of reviewers) {
+    const row = await getReviewRecord(ctx.db, ev.repo, ev.number, reviewer);
+    if (!row) continue;
+    outcomes[reviewer] = await retireReviewTwin(ctx, cfg, row, ev.merged);
+  }
+  ctx.logger.info("pr close: review twins processed", {
+    repo: ev.repo,
+    number: ev.number,
+    merged: ev.merged,
+    outcomes
+  });
+}
 async function handlePrInbound(ctx, cfg, input2) {
   if (!cfg.appWebhookSecret) {
     throw new WebhookRejection("rejected_config", "pr webhook: no appWebhookSecret configured");
@@ -43221,6 +43474,10 @@ async function handlePrInbound(ctx, cfg, input2) {
   const ev = parseGithubPrEvent(input2.parsedBody ?? safeJson(input2.rawBody));
   if (!ev) {
     ctx.logger.warn("pr webhook: unparseable/invalid pull_request payload");
+    return;
+  }
+  if (isPrClosureAction(ev.action)) {
+    await handlePrClosure(ctx, cfg, ev);
     return;
   }
   if (ev.draft) {
@@ -43454,7 +43711,8 @@ async function driveSweepReview(ctx, cfg, repoSlug, pr) {
     headSha: pr.headSha,
     url: pr.url,
     before: "",
-    after: ""
+    after: "",
+    merged: false
   };
   const frontendPaths = cfg.prReviewFrontendPaths?.length ? cfg.prReviewFrontendPaths : DEFAULT_FRONTEND_PATHS;
   const reviewers = [
@@ -43792,7 +44050,20 @@ var plugin = definePlugin({
             postOpsPing: async (content, kind = "outcome") => {
               if (wantPing(cfg, kind)) await postOpsPing(ctx, cfg.opsWebhookUrl, content);
             },
-            resolveRepoClient
+            resolveRepoClient,
+            // GOL-3374: a failed outbound GitHub push lands in github_sync_error (queryable
+            // after server.log rotates). No ping here — the hourly outbound-close sweep
+            // heals it and pages on the heal count.
+            recordFailure: async (scope, detail, context) => {
+              try {
+                await recordError(ctx.db, { occurredAt: (/* @__PURE__ */ new Date()).toISOString(), scope, detail, context });
+              } catch (writeErr) {
+                ctx.logger.warn("failed to persist outbound push failure to github_sync_error", {
+                  scope,
+                  error: writeErr instanceof Error ? writeErr.message : String(writeErr)
+                });
+              }
+            }
           });
           ctx.logger.info("bridge active", {
             repo: `${bridge.githubOrg}/${bridge.githubRepo}`,
@@ -43882,6 +44153,33 @@ var plugin = definePlugin({
           } catch (err) {
             await recordSwallowedFailure(ctx, cfg, "signoff-reconcile job failed", err, {});
           }
+          try {
+            if (!cfg.companyId) return;
+            const companyId = cfg.companyId;
+            const sinceIso = new Date(Date.now() - PR_CLOSE_RECONCILE_WINDOW_MS).toISOString();
+            const summary = await runPrCloseReconcile({
+              companyId,
+              sinceIso,
+              limit: PR_CLOSE_RECONCILE_ROW_CAP,
+              listRows: (since, limit) => listReviewRecordsUpdatedSince(ctx.db, since, limit),
+              getIssueStatus: async (issueId, cId) => (await signoffDeps.getIssue(issueId, cId))?.status ?? null,
+              getPull: async (repoSlug, prNumber) => {
+                const resolved = resolveRepoClient(repoSlug);
+                if (!resolved) return { ok: false, error: "repo not bridged" };
+                const res = await resolved.github.getPull(resolved.repo, prNumber);
+                if (!res.ok) return { ok: false, error: res.error };
+                return { ok: true, state: res.data.state, merged: res.data.merged };
+              },
+              retireTwin: ({ row, merged }) => retireReviewTwin(ctx, cfg, row, merged),
+              logger: ctx.logger
+            });
+            ctx.logger.info("pr-close-reconcile complete", summary);
+            if (summary.retired > 0 || summary.failed > 0) {
+              if (wantPing(cfg, "outcome")) await postOpsPing(ctx, cfg.opsWebhookUrl, buildPrCloseReconcilePing(summary));
+            }
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "pr-close-reconcile job failed", err, {});
+          }
         });
         ctx.jobs.register("inbound-close-reconcile", async () => {
           try {
@@ -43925,6 +44223,45 @@ var plugin = definePlugin({
             }
           } catch (err) {
             await recordSwallowedFailure(ctx, cfg, "inbound-close-reconcile job failed", err, {});
+          }
+          try {
+            if (!cfg.companyId) return;
+            const companyId = cfg.companyId;
+            const summary = await runOutboundCloseReconcile({
+              repoSlugs: Array.from(clientsBySlug.keys()),
+              listOpenIssues: async (repoSlug) => {
+                const entry = clientsBySlug.get(repoSlug);
+                if (!entry) return { ok: false, error: "no client for repo" };
+                const res = await entry.github.listIssues(entry.repo, {
+                  state: "open",
+                  maxPages: OUTBOUND_CLOSE_RECONCILE_MAX_PAGES
+                });
+                if (!res.ok) return { ok: false, error: res.error };
+                return { ok: true, issues: res.data.issues.map((i) => ({ number: i.number })), truncated: res.data.truncated };
+              },
+              driveClose: async ({ repoSlug, number: number4 }) => {
+                const mapping = await getByRepoNumber(ctx.db, repoSlug, number4);
+                if (!mapping) return "unmapped";
+                const issue2 = await withRestFallback(
+                  restFallbackDeps(ctx, cfg),
+                  "outbound-close.get",
+                  () => ctx.issues.get(mapping.paperclipIssueId, companyId),
+                  async (rest) => await rest.getIssue(mapping.paperclipIssueId)
+                );
+                if (!issue2) return "unreadable";
+                if (!isTerminalStatus(issue2.status)) return "twin-open";
+                const deps = issue2.projectId && depsByProject.get(issue2.projectId) || signoffDeps;
+                return pushIssueState(deps, { ...mapping, githubRepo: repoSlug }, issue2);
+              },
+              logger: ctx.logger
+            });
+            ctx.logger.info("outbound-close-reconcile complete", summary);
+            if (summary.pushed > 0 || summary.failed > 0) {
+              if (wantPing(cfg, "outcome"))
+                await postOpsPing(ctx, cfg.opsWebhookUrl, buildOutboundCloseReconcilePing(summary));
+            }
+          } catch (err) {
+            await recordSwallowedFailure(ctx, cfg, "outbound-close-reconcile job failed", err, {});
           }
         });
         ctx.jobs.register("inbound-create-reconcile", async () => {
