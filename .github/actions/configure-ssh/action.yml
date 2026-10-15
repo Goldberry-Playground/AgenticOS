@@ -1,7 +1,9 @@
 name: Configure SSH
 description: >-
   Write the droplet deploy key and pin its host key into known_hosts, retrying
-  the keyscan so a slow response doesn't fail the whole deploy.
+  the keyscan so a slow response doesn't fail the whole deploy. Optionally joins
+  the runner to the tailnet first and routes SSH to the droplet's tailnet
+  address, because the public :22 is fenced to operator IPs (GOL-2569).
 
 inputs:
   deploy-key:
@@ -14,16 +16,67 @@ inputs:
     description: Where to write the private key.
     required: false
     default: ~/.ssh/deploy_key
+  # ---- Tailnet path (GOL-3412) ------------------------------------------------
+  # Since 2026-10-15 `grove-agent-plane-fw` (GOL-2569) admits tcp/22 on the
+  # droplet's PUBLIC address only from admin_ip_cidrs. GitHub-hosted runners
+  # egress from ~7,000 Azure CIDRs, so a keyscan/ssh of secrets.DROPLET_HOST
+  # from a runner now times out. Static allow-listing is impossible (DO firewall
+  # rule limits) and punching ephemeral holes would need a firewall-mutating DO
+  # token in Actions secrets plus Terraform drift on the managed firewall. So
+  # the runner joins the tailnet as an ephemeral `tag:ci` node instead and SSHes
+  # to the droplet's tailnet address; the public fence is untouched.
+  #
+  # All three are OPTIONAL and the step is a no-op when any is empty, so this
+  # action is byte-for-byte the old behaviour until the secrets exist
+  # (docs/runbooks/ci-ssh-over-tailnet.md has the one-time setup).
+  ts-oauth-client-id:
+    description: >-
+      Tailscale OAuth client id with the `auth_keys` write scope and tag:ci
+      (secrets.TS_OAUTH_CLIENT_ID). Empty = do not join the tailnet.
+    required: false
+    default: ""
+  ts-oauth-secret:
+    description: Tailscale OAuth client secret (secrets.TS_OAUTH_SECRET).
+    required: false
+    default: ""
+  tailnet-host:
+    description: >-
+      The droplet's tailnet IPv4 (100.x.y.z) or MagicDNS name
+      (secrets.DROPLET_TAILNET_HOST). When set together with the OAuth client,
+      `host` is aliased to it in ~/.ssh/config so every `ssh user@$DROPLET_HOST`
+      in the calling workflow transparently connects over the tailnet.
+    required: false
+    default: ""
+  ts-tags:
+    description: Tailscale tag(s) for the ephemeral runner node.
+    required: false
+    default: tag:ci
 
 runs:
   using: composite
   steps:
+    # Ephemeral tailnet node (GOL-3412). The action removes the node on job
+    # completion; `tag:ci` keeps it inside the ACL grant for the agent plane
+    # only. Pinned by SHA (v4.2.0). Skipped entirely until the secrets exist.
+    - name: Join the tailnet (only when TS_OAUTH_* + DROPLET_TAILNET_HOST are set)
+      if: ${{ inputs.ts-oauth-client-id != '' && inputs.ts-oauth-secret != '' && inputs.tailnet-host != '' }}
+      uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+      with:
+        oauth-client-id: ${{ inputs.ts-oauth-client-id }}
+        oauth-secret: ${{ inputs.ts-oauth-secret }}
+        tags: ${{ inputs.ts-tags }}
+        version: 1.94.2
+        # Fail here, with a clear name, rather than 75s later in the keyscan.
+        ping: ${{ inputs.tailnet-host }}
+
     - name: Write deploy key and scan host key
       shell: bash
       env:
         DEPLOY_KEY: ${{ inputs.deploy-key }}
         HOST: ${{ inputs.host }}
         KEY_PATH: ${{ inputs.key-path }}
+        TAILNET_HOST: ${{ inputs.tailnet-host }}
+        TS_ENABLED: ${{ inputs.ts-oauth-client-id != '' && inputs.ts-oauth-secret != '' && inputs.tailnet-host != '' }}
       run: |
         set -euo pipefail
 
@@ -31,6 +84,18 @@ runs:
         mkdir -p ~/.ssh "$(dirname "$key_path")"
         printf '%s\n' "$DEPLOY_KEY" > "$key_path"
         chmod 600 "$key_path"
+
+        # Tailnet routing (GOL-3412): alias the public host to the tailnet
+        # address so callers keep `ssh "$USER@$HOST"` unchanged. OpenSSH looks
+        # the host key up by the resolved HostName, so the keyscan below must
+        # target the tailnet address too — hence scan_host.
+        scan_host="$HOST"
+        if [ "$TS_ENABLED" = "true" ]; then
+          umask 077
+          printf 'Host %s\n  HostName %s\n' "$HOST" "$TAILNET_HOST" >> ~/.ssh/config
+          scan_host="$TAILNET_HOST"
+          echo "Routing ssh to $HOST over the tailnet (public :22 is fenced, GOL-2569)."
+        fi
 
         # ssh-keyscan defaults to a 5s timeout and every deploy workflow ran it
         # bare under `bash -e`, so one slow reply aborted the run with a naked
@@ -41,7 +106,7 @@ runs:
         scan_out="$(mktemp)"
         scan_err="$(mktemp)"
         for attempt in 1 2 3 4 5; do
-          if ssh-keyscan -T 15 -H "$HOST" > "$scan_out" 2> "$scan_err" && [ -s "$scan_out" ]; then
+          if ssh-keyscan -T 15 -H "$scan_host" > "$scan_out" 2> "$scan_err" && [ -s "$scan_out" ]; then
             cat "$scan_out" >> ~/.ssh/known_hosts
             echo "Host key pinned on attempt ${attempt}/5."
             exit 0
@@ -53,5 +118,9 @@ runs:
           sleep $(( attempt * 5 ))
         done
 
-        echo "::error title=ssh-keyscan failed::No host key from the droplet after 5 attempts (~75s). The droplet is likely down or unreachable from this runner — check the DigitalOcean console before re-running."
+        if [ "$TS_ENABLED" = "true" ]; then
+          echo "::error title=ssh-keyscan failed::No host key from the droplet's tailnet address after 5 attempts (~75s). Check the tailnet ACL grant (tag:ci -> agent plane :22), that tailscaled is up on the droplet, and that DROPLET_TAILNET_HOST is its current tailnet address."
+        else
+          echo "::error title=ssh-keyscan failed::No host key from the droplet after 5 attempts (~75s). Since 2026-10-15 the public :22 is fenced to operator IPs (grove-agent-plane-fw, GOL-2569), so a runner CANNOT reach it directly: set TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET / DROPLET_TAILNET_HOST (docs/runbooks/ci-ssh-over-tailnet.md). If those are set and this still fails, the droplet is likely down — check the DigitalOcean console."
+        fi
         exit 1

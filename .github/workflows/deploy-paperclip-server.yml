@@ -88,6 +88,10 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          # GOL-3412: route over the tailnet once these exist (empty = unchanged).
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tailnet-host: ${{ secrets.DROPLET_TAILNET_HOST }}
 
       - name: Pre-flight — enough free disk for the image rebuild
         # GOL-3255: the v0.2.2 deploy (run 37851571182) died with `no space left
