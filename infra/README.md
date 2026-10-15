@@ -47,6 +47,10 @@ Two independent surfaces, two deploy paths:
   `DROPLET_USER`. The deploy key is a dedicated, passwordless ed25519 key whose public
   half is in the Droplet's `deploy@` `authorized_keys` — separate from the operator's
   interactive key.
+  Since 2026-10-15 the droplet's public `:22` is fenced to operator IPs
+  (`grove-agent-plane-fw`, GOL-2569), so runners reach it **over the tailnet**: also
+  set `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `DROPLET_TAILNET_HOST` — see
+  `docs/runbooks/ci-ssh-over-tailnet.md` (GOL-3412).
 
 ## Cost
 

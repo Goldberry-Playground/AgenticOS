@@ -51,6 +51,10 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          # GOL-3412: route over the tailnet once these exist (empty = unchanged).
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tailnet-host: ${{ secrets.DROPLET_TAILNET_HOST }}
 
       - name: Ship committed tree to Droplet
         env:
