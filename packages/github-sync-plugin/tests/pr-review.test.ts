@@ -17,11 +17,13 @@ import {
   globToRegExp,
   isActionablePrAction,
   isNullBodyStatusError,
+  isPrClosureAction,
   isSelfAuthored,
   parseCoAuthorTrailers,
   parseGithubPrEvent,
   prReviewMarker,
   REQUIRED_REVIEWER,
+  resolveReviewTwinClosureStatus,
   shortSha,
   type GithubPrEvent,
   type ReviewerAssignment,
@@ -56,6 +58,7 @@ describe("parseGithubPrEvent", () => {
       url: "https://github.com/Goldberry-Playground/AgenticOS/pull/260",
       before: "",
       after: "",
+      merged: false,
     });
   });
 
@@ -475,5 +478,34 @@ describe("self-review guard (GOL-2720)", () => {
       expect(ping).toContain("self-review skipped");
       expect(ping).toContain("iris (author) → covered by ada");
     });
+  });
+});
+
+// --- GOL-3374: closing PRs retire their review twins ---
+
+describe("PR closure (GOL-3374)", () => {
+  it("parses `merged` from pull_request.merged or merged_at on a closed delivery", () => {
+    expect(parseGithubPrEvent(prEvent({ action: "closed" }, { merged: true }))?.merged).toBe(true);
+    expect(parseGithubPrEvent(prEvent({ action: "closed" }, { merged_at: "2026-10-14T00:00:00Z" }))?.merged).toBe(true);
+    expect(parseGithubPrEvent(prEvent({ action: "closed" }, { merged: false, merged_at: null }))?.merged).toBe(false);
+  });
+
+  it("`closed` is a closure action and stays OUT of the review-creating action set", () => {
+    expect(isPrClosureAction("closed")).toBe(true);
+    expect(isActionablePrAction("closed")).toBe(false);
+    for (const a of ["opened", "reopened", "ready_for_review", "synchronize", "edited", "labeled"]) {
+      expect(isPrClosureAction(a)).toBe(false);
+    }
+  });
+
+  it("resolveReviewTwinClosureStatus: merged → done, closed-unmerged → cancelled, terminal twin → null (loop guard)", () => {
+    expect(resolveReviewTwinClosureStatus(true, "in_review")).toBe("done");
+    expect(resolveReviewTwinClosureStatus(true, "blocked")).toBe("done");
+    expect(resolveReviewTwinClosureStatus(true, "todo")).toBe("done");
+    expect(resolveReviewTwinClosureStatus(false, "in_review")).toBe("cancelled");
+    expect(resolveReviewTwinClosureStatus(false, "in_progress")).toBe("cancelled");
+    expect(resolveReviewTwinClosureStatus(true, "done")).toBeNull();
+    expect(resolveReviewTwinClosureStatus(false, "done")).toBeNull();
+    expect(resolveReviewTwinClosureStatus(true, "cancelled")).toBeNull();
   });
 });

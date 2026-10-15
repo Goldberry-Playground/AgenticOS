@@ -8,6 +8,9 @@ import {
   buildGithubBody,
   handleIssueCreated,
   handleIssueUpdated,
+  isClosedByAnotherRequest,
+  pushIssueState,
+  resolveMappingTarget,
   type SyncDeps,
   type SyncConfig,
   type SyncLogger,
@@ -370,5 +373,187 @@ describe("handleIssueUpdated", () => {
 
     expect(updateIssue).not.toHaveBeenCalled();
     expect(getIssue).not.toHaveBeenCalled();
+  });
+});
+
+// --- GOL-3374: outbound close on inbound-origin (full-slug) rows + durable failures ---
+
+describe("resolveMappingTarget / outbound push on full-slug rows (GOL-3374)", () => {
+  const fakeIssueRes = (state: "open" | "closed") => ({
+    ok: true,
+    data: { number: 891, title: "", body: "", state, htmlUrl: "", labels: [] },
+  });
+
+  it("routes a `owner/repo` (inbound-origin) row through resolveRepoClient with the bare repo", async () => {
+    const db = makeFakeDb();
+    await upsert(db, {
+      paperclipIssueId: "pi-slug",
+      githubRepo: "Goldberry-Playground/odoocker-goldberrygrove",
+      githubIssueNumber: 891,
+      lastSyncedAt: "2026-01-01T00:00:00Z",
+      origin: "github",
+    });
+    const wrongClientUpdate = vi.fn();
+    const bridgeUpdate = vi.fn().mockResolvedValue(fakeIssueRes("closed"));
+    const deps: SyncDeps = {
+      db,
+      github: makeGithub({ updateIssue: wrongClientUpdate }),
+      config: CONFIG,
+      logger: silentLogger,
+      getIssue: async () => makeIssue({ id: "pi-slug", status: "done" }),
+      resolveRepoClient: (slug) =>
+        slug === "Goldberry-Playground/odoocker-goldberrygrove"
+          ? { github: makeGithub({ updateIssue: bridgeUpdate }), repo: "odoocker-goldberrygrove" }
+          : null,
+    };
+
+    await handleIssueUpdated(deps, { issueId: "pi-slug", companyId: "co-1" });
+
+    // The deps-level client (the project's LAST bridge) is never used for a slug row.
+    expect(wrongClientUpdate).not.toHaveBeenCalled();
+    expect(bridgeUpdate).toHaveBeenCalledTimes(1);
+    const [repo, num, payload] = bridgeUpdate.mock.calls[0];
+    expect(repo).toBe("odoocker-goldberrygrove"); // bare — NOT `Org/Org/repo`
+    expect(num).toBe(891);
+    expect(payload.state).toBe("closed");
+    expect((await getByPaperclipId(db, "pi-slug"))?.lastSyncedAt).not.toBe("2026-01-01T00:00:00Z");
+  });
+
+  it("falls back to the bare tail of a lowercased slug when no resolver is wired", async () => {
+    const db = makeFakeDb();
+    await upsert(db, {
+      paperclipIssueId: "pi-lc",
+      githubRepo: "goldberry-playground/grove-sites",
+      githubIssueNumber: 495,
+      lastSyncedAt: "2026-01-01T00:00:00Z",
+      origin: "github",
+    });
+    const updateIssue = vi.fn().mockResolvedValue(fakeIssueRes("closed"));
+    const deps: SyncDeps = {
+      db,
+      github: makeGithub({ updateIssue }),
+      config: CONFIG,
+      logger: silentLogger,
+      getIssue: async () => makeIssue({ id: "pi-lc", status: "cancelled" }),
+    };
+    await handleIssueUpdated(deps, { issueId: "pi-lc", companyId: "co-1" });
+    expect(updateIssue.mock.calls[0][0]).toBe("grove-sites");
+    expect(resolveMappingTarget({ github: deps.github }, { githubRepo: "a/b/c-repo" }).repo).toBe("c-repo");
+    expect(resolveMappingTarget({ github: deps.github }, { githubRepo: "bare" }).repo).toBe("bare");
+  });
+
+  it("treats GitHub's 422 `closed by another request` on a close as in-sync (no failure record)", async () => {
+    const db = makeFakeDb();
+    await upsert(db, {
+      paperclipIssueId: "pi-race",
+      githubRepo: "target-repo",
+      githubIssueNumber: 641,
+      lastSyncedAt: "2026-01-01T00:00:00Z",
+      origin: "paperclip",
+    });
+    const updateIssue = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      error: "Validation Failed",
+      errors: [{ resource: "Issue", code: "custom", message: "This issue was closed by another request. Reload it and try again." }],
+    });
+    const recordFailure = vi.fn().mockResolvedValue(undefined);
+    const deps: SyncDeps = {
+      db,
+      github: makeGithub({ updateIssue }),
+      config: CONFIG,
+      logger: silentLogger,
+      getIssue: async () => makeIssue({ id: "pi-race", status: "done" }),
+      recordFailure,
+    };
+    await handleIssueUpdated(deps, { issueId: "pi-race", companyId: "co-1" });
+    expect(updateIssue).toHaveBeenCalledTimes(1); // no sanitized retry: errors[] names no field
+    expect(recordFailure).not.toHaveBeenCalled();
+    expect((await getByPaperclipId(db, "pi-race"))?.lastSyncedAt).not.toBe("2026-01-01T00:00:00Z");
+    expect(isClosedByAnotherRequest({ ok: false, status: 422, errors: [{ message: "closed by another request" }] })).toBe(true);
+    expect(isClosedByAnotherRequest({ ok: false, status: 422, errors: [{ field: "state", code: "invalid" }] })).toBe(false);
+    expect(isClosedByAnotherRequest({ ok: false, status: 403 })).toBe(false);
+  });
+
+  it("records a real push failure durably and leaves last_synced_at untouched", async () => {
+    const db = makeFakeDb();
+    await upsert(db, {
+      paperclipIssueId: "pi-fail",
+      githubRepo: "target-repo",
+      githubIssueNumber: 7,
+      lastSyncedAt: "2026-01-01T00:00:00Z",
+      origin: "paperclip",
+    });
+    const updateIssue = vi.fn().mockResolvedValue({ ok: false, status: 403, error: "secondary rate limit" });
+    const recordFailure = vi.fn().mockResolvedValue(undefined);
+    const deps: SyncDeps = {
+      db,
+      github: makeGithub({ updateIssue }),
+      config: CONFIG,
+      logger: silentLogger,
+      getIssue: async () => makeIssue({ id: "pi-fail", status: "done" }),
+      recordFailure,
+    };
+    await handleIssueUpdated(deps, { issueId: "pi-fail", companyId: "co-1" });
+    expect(recordFailure).toHaveBeenCalledTimes(1);
+    const [scope, detail, context] = recordFailure.mock.calls[0];
+    expect(scope).toBe("issue.updated.push");
+    expect(detail).toBe("secondary rate limit");
+    expect(context).toMatchObject({ githubIssueNumber: 7, githubStatus: 403, state: "closed" });
+    expect((await getByPaperclipId(db, "pi-fail"))?.lastSyncedAt).toBe("2026-01-01T00:00:00Z");
+  });
+});
+
+describe("pushIssueState (outbound-close reconcile push)", () => {
+  it("sends ONLY `state` — no title/body churn — and bumps last_synced_at", async () => {
+    const db = makeFakeDb();
+    const mapping: MappingRow = {
+      paperclipIssueId: "pi-st",
+      githubRepo: "Goldberry-Playground/grove-sites",
+      githubIssueNumber: 487,
+      lastSyncedAt: "2026-01-01T00:00:00Z",
+      origin: "github",
+    };
+    await upsert(db, mapping);
+    const updateIssue = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { number: 487, title: "", body: "", state: "closed", htmlUrl: "", labels: [] },
+    });
+    const deps: SyncDeps = {
+      db,
+      github: makeGithub({}),
+      config: CONFIG,
+      logger: silentLogger,
+      getIssue: async () => null,
+      resolveRepoClient: () => ({ github: makeGithub({ updateIssue }), repo: "grove-sites" }),
+    };
+    const out = await pushIssueState(deps, mapping, { id: "pi-st", status: "done" });
+    expect(out).toBe("pushed");
+    expect(updateIssue).toHaveBeenCalledWith("grove-sites", 487, { state: "closed" });
+    expect((await getByPaperclipId(db, "pi-st"))?.lastSyncedAt).not.toBe("2026-01-01T00:00:00Z");
+  });
+
+  it("reports `failed` and records it when GitHub rejects the state push", async () => {
+    const db = makeFakeDb();
+    const mapping: MappingRow = {
+      paperclipIssueId: "pi-sf",
+      githubRepo: "target-repo",
+      githubIssueNumber: 9,
+      lastSyncedAt: "2026-01-01T00:00:00Z",
+      origin: "paperclip",
+    };
+    await upsert(db, mapping);
+    const recordFailure = vi.fn().mockResolvedValue(undefined);
+    const deps: SyncDeps = {
+      db,
+      github: makeGithub({ updateIssue: vi.fn().mockResolvedValue({ ok: false, status: 404, error: "Not Found" }) }),
+      config: CONFIG,
+      logger: silentLogger,
+      getIssue: async () => null,
+      recordFailure,
+    };
+    expect(await pushIssueState(deps, mapping, { id: "pi-sf", status: "cancelled" })).toBe("failed");
+    expect(recordFailure).toHaveBeenCalledWith("outbound-close-reconcile.push", "Not Found", expect.objectContaining({ githubStatus: 404 }));
+    expect((await getByPaperclipId(db, "pi-sf"))?.lastSyncedAt).toBe("2026-01-01T00:00:00Z");
   });
 });
