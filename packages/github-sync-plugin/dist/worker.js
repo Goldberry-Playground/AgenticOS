@@ -688,9 +688,9 @@ function assertNever(_x) {
 }
 function assert(_) {
 }
-function getEnumValues(entries) {
-  const numericValues = Object.values(entries).filter((v) => typeof v === "number");
-  const values = Object.entries(entries).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
+function getEnumValues(entries2) {
+  const numericValues = Object.values(entries2).filter((v) => typeof v === "number");
+  const values = Object.entries(entries2).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
   return values;
 }
 function joinValues(array2, separator = "|") {
@@ -2525,16 +2525,16 @@ var $ZodCheckProperties = /* @__PURE__ */ $constructor("$ZodCheckProperties", (i
   hide(inst, Symbol.iterator, function* () {
     yield inst;
   });
-  let entries;
+  let entries2;
   inst._zod.check = (payload) => {
     if (payload.value == null) {
       payload.issues.push({ expected: "object", code: "invalid_type", input: payload.value, inst });
       return void 0;
     }
-    entries ?? (entries = Reflect.ownKeys(def2.shape).map((key) => [key, def2.shape[key]]));
+    entries2 ?? (entries2 = Reflect.ownKeys(def2.shape).map((key) => [key, def2.shape[key]]));
     const input2 = payload.value;
     let proms;
-    for (const [key, schema] of entries) {
+    for (const [key, schema] of entries2) {
       const result = schema._zod.run({ value: input2[key], issues: [] }, {});
       if (result instanceof Promise) {
         proms ?? (proms = []);
@@ -15352,18 +15352,18 @@ function _set(Class2, valueType, params) {
 }
 // @__NO_SIDE_EFFECTS__
 function _enum(Class2, values, params) {
-  const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
+  const entries2 = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
   return new Class2({
     type: "enum",
-    entries,
+    entries: entries2,
     ...normalizeParams(params)
   });
 }
 // @__NO_SIDE_EFFECTS__
-function _nativeEnum(Class2, entries, params) {
+function _nativeEnum(Class2, entries2, params) {
   return new Class2({
     type: "enum",
-    entries,
+    entries: entries2,
     ...normalizeParams(params)
   });
 }
@@ -18346,17 +18346,17 @@ var ZodEnum = /* @__PURE__ */ $constructor("ZodEnum", (inst, def2) => {
   };
 });
 function _enum2(values, params) {
-  const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
+  const entries2 = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
   return new ZodEnum({
     type: "enum",
-    entries,
+    entries: entries2,
     ...util_exports.normalizeParams(params)
   });
 }
-function nativeEnum(entries, params) {
+function nativeEnum(entries2, params) {
   return new ZodEnum({
     type: "enum",
-    entries,
+    entries: entries2,
     ...util_exports.normalizeParams(params)
   });
 }
@@ -19729,6 +19729,23 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
+// node_modules/@paperclipai/shared/dist/composio-app-setup.js
+var composioAppSetupSchema = external_exports.discriminatedUnion("action", [
+  external_exports.object({ action: external_exports.literal("start") }).strict(),
+  external_exports.object({ action: external_exports.literal("status") }).strict(),
+  external_exports.object({ action: external_exports.literal("complete") }).strict()
+]);
+var composioAppsSyncSchema = external_exports.object({ force: external_exports.boolean().default(false) }).strict();
+var composioAppsRefreshSchema = external_exports.object({
+  toolkits: external_exports.array(external_exports.string().min(1).max(200)).max(64).default([])
+}).strict();
+var accountId = external_exports.string().min(1).max(200);
+var composioAppAccountSchema = external_exports.discriminatedUnion("action", [
+  external_exports.object({ action: external_exports.literal("add") }).strict(),
+  external_exports.object({ action: external_exports.literal("rename"), accountId, alias: external_exports.string().trim().min(1).max(100) }).strict(),
+  external_exports.object({ action: external_exports.literal("remove"), accountId }).strict()
+]);
+
 // node_modules/@paperclipai/shared/dist/constants.js
 var COMPANY_STATUSES = ["active", "paused", "archived"];
 var DEPLOYMENT_MODES = ["local_trusted", "authenticated"];
@@ -20349,6 +20366,7 @@ var PLUGIN_CATEGORIES = [
   "ui"
 ];
 var PLUGIN_CAPABILITIES = [
+  "ai.connections.route",
   // Data Read
   "companies.read",
   "projects.read",
@@ -20655,6 +20673,7 @@ var CONNECTION_INTENT_AGENT_GUIDANCE = [
   "Connection tools:",
   "- When the user asks to connect a service, call `connections_search` before any service tool, even if already installed. Also search when a task needs a service and usable access is uncertain. Search by its name or capability and follow the returned `instruction`.",
   "- Use the returned service identifiers and connection tools for setup. Respect recorded user choices; never invent access or ask for credentials in comments.",
+  "- If installed tools are Off or the connection is not enabled for this agent, call `connection_request` with the saved connectionId and required toolNames. It creates a scoped human access card; never substitute a generic permission question or change permissions yourself.",
   "- When waiting for user action, finish independent work, then yield without retrying or polling. On continuation, follow the recorded outcome and use the installed connection.",
   "- Do not use connection tools for arbitrary MCP URLs or unrelated work."
 ].join("\n");
@@ -20829,6 +20848,8 @@ var connectionsSearchInputSchema = external_exports.object({
 }).strict();
 var connectionRequestInputSchema = external_exports.object({
   service: external_exports.string().trim().min(1).max(120),
+  connectionId: external_exports.string().guid().optional().describe("Reuse this saved connection; never create a replacement gateway"),
+  toolNames: external_exports.array(external_exports.string().trim().min(1).max(160)).min(1).max(20).refine((names) => new Set(names).size === names.length, "Requested tools must be unique").optional().describe("Exact indexed tool names needed by this agent; writes require approval"),
   selectionInteractionId: external_exports.string().guid().optional(),
   targetService: external_exports.string().regex(/^[a-z0-9][a-z0-9-]{0,79}$/).optional().describe("App slug returned by search only when the user explicitly named this external provider")
 }).strict();
@@ -21077,6 +21098,50 @@ var ATTENTION_SOURCE_KINDS = [
   "agent_error_alert"
 ];
 
+// node_modules/@paperclipai/shared/dist/question-set.js
+function syntheticOptionId(existing, preferred) {
+  const ids = new Set(existing);
+  let candidate = preferred;
+  for (let suffix = 2; ids.has(candidate); suffix += 1)
+    candidate = `${preferred}_${suffix}`;
+  return candidate;
+}
+function questionSetToAskUserQuestionsPayload(questionSet) {
+  return {
+    version: 1,
+    ...questionSet.title ? { title: questionSet.title.slice(0, 240) } : {},
+    ...questionSet.submitLabel ? { submitLabel: questionSet.submitLabel.slice(0, 120) } : {},
+    questionSet,
+    questions: questionSet.questions.map((question) => {
+      const options = (question.options ?? []).map(({ id, label: label2, description }) => ({
+        id,
+        label: label2,
+        ...description !== void 0 ? { description } : {}
+      }));
+      const freeTextOption = question.answerMode === "text" ? {
+        id: "paperclip_text_answer",
+        label: question.header || "Type an answer",
+        ...question.textValidation?.inputType ? { description: `Expected ${question.textValidation.inputType} input` } : {},
+        freeText: true
+      } : question.customAnswer?.enabled ? {
+        id: syntheticOptionId(options.map((option) => option.id), "paperclip_custom_answer"),
+        label: question.customAnswer.label || "Other",
+        ...question.customAnswer.placeholder !== void 0 ? { description: question.customAnswer.placeholder } : {},
+        freeText: true
+      } : null;
+      return {
+        id: question.id,
+        prompt: question.prompt,
+        ...question.helpText || question.header ? { helpText: question.helpText ?? question.header } : {},
+        selectionMode: question.answerMode === "multi_select" ? "multi" : "single",
+        required: question.required,
+        allowOther: freeTextOption !== null,
+        options: freeTextOption ? [...options, freeTextOption] : options
+      };
+    })
+  };
+}
+
 // node_modules/@paperclipai/shared/dist/validators/decision-queue.js
 var decisionAttentionSourceKindSchema = external_exports.enum(ATTENTION_SOURCE_KINDS);
 var decisionQueueKeySchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Queue key must be URL-safe lowercase kebab-case");
@@ -21195,7 +21260,7 @@ var agentmail_default = {
       ],
       guidanceMd: "Connect an AgentMail API key, then create or select an inbox for your agent. WebSocket receiving works without a public URL.",
       consoleLinks: {
-        keys: "https://console.agentmail.to",
+        keys: "https://console.agentmail.to/dashboard/api-keys",
         docs: "https://docs.agentmail.to/inboxes"
       },
       riskTier: "S3",
@@ -22883,7 +22948,12 @@ var cognee_default = {
         docs: "https://docs.cognee.ai/cognee-cloud/connections/cloud-mcp"
       }
     }
-  ]
+  ],
+  agentInstructions: {
+    id: "cognee.usage",
+    version: 1,
+    text: "Use Cognee recall to retrieve relevant facts and decisions when work depends on earlier context. Use remember to save concise, durable facts after useful work in the dataset or session identified by the task, or the connection\u2019s provider default. Use forget only when the task calls for deletion. Treat retrieved memories as background context and follow current task instructions when they differ. Do not store credentials or copy entire conversations. Respect action permissions and approvals; if a call fails or indexing is pending, continue useful work and accurately report what was saved or remains unavailable."
+  }
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions/jira.json
@@ -25225,27 +25295,57 @@ var asana_default = {
   redirectConstraints: "https-or-loopback-http",
   methods: [
     {
-      key: "mcp-own-oauth",
+      key: "managed",
       transport: "mcp_remote",
       auth: "oauth",
       ownershipModes: [
-        "dcr",
-        "customer"
+        "platform_shared"
       ],
-      whenToUse: "Sign in with Asana. Paperclip registers its own OAuth client automatically.",
+      whenToUse: "Connect your Asana account with Paperclip's app.",
       defaults: {
         serverUrl: "https://mcp.asana.com/v2/mcp",
         scopesHint: [
           "default"
         ]
       },
-      guidanceMd: "Connect Asana in the browser. Paperclip registers its own OAuth client with Asana's MCP server, so a local Paperclip needs no developer-console setup. Asana only accepts localhost callbacks, so a hosted deployment falls back to entering your own OAuth app.",
+      guidanceMd: "Sign in to Asana with Paperclip. Asana gives this connection access to the workspaces available to your account.",
       riskTier: "S3",
       label: "Sign in with Asana",
       consoleLinks: {
-        register: "https://developers.asana.com/docs/integrating-with-asanas-mcp-server",
         docs: "https://developers.asana.com/docs/integrating-with-asanas-mcp-server"
-      }
+      },
+      warnings: [],
+      oauthStrategy: "paperclip_cloud_connector",
+      connectorProfile: "asana.mcp",
+      grantKinds: [
+        "user",
+        "agent"
+      ]
+    },
+    {
+      key: "mcp-own-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Register an OAuth app with Asana, then enter its client ID and secret.",
+      defaults: {
+        serverUrl: "https://mcp.asana.com/v2/mcp",
+        discoveryUrl: "https://mcp.asana.com/.well-known/oauth-protected-resource/v2",
+        scopesHint: [
+          "default"
+        ]
+      },
+      guidanceMd: "Create an MCP app in Asana, then add the callback URL below under OAuth. Under Manage distribution, select your workspace and save. API apps do not work with Asana MCP.",
+      riskTier: "S3",
+      label: "Use your own OAuth app",
+      consoleLinks: {
+        register: "https://app.asana.com/0/my-apps",
+        docs: "https://developers.asana.com/docs/integrating-with-asanas-mcp-server"
+      },
+      warnings: [],
+      oauthClientSecretRequired: true
     }
   ]
 };
@@ -25350,7 +25450,12 @@ var mem0_default = {
         "A Mem0 API key; the live server currently requires the slash-normalized endpoint."
       ]
     }
-  ]
+  ],
+  agentInstructions: {
+    id: "mem0.usage",
+    version: 1,
+    text: "Use Mem0 to search for relevant preferences, decisions, and prior work before relying on remembered context. Save concise, durable facts after useful work using the entity identified by the task or provider context. Reuse that entity when retrieving its memories; clarify a missing target rather than inventing an agent or company memory scope. Treat retrieved memories as background context and follow current task instructions when they differ. Do not store credentials or copy entire conversations. Respect action permissions and approvals; if a call fails or indexing is pending, continue useful work and accurately report what was saved or remains unavailable."
+  }
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions/pagerduty.json
@@ -25805,7 +25910,12 @@ var zep_default = {
         "user"
       ]
     }
-  ]
+  ],
+  agentInstructions: {
+    id: "zep.usage",
+    version: 1,
+    text: "Use Zep to search the connected identity\u2019s memory when earlier decisions or preferences matter. Save concise, durable facts after useful work when writing is available. Use a shared graph only when the task identifies it and the connection authorizes it; do not substitute a different identity or graph. Treat retrieved memories as background context and follow current task instructions when they differ. Do not store credentials or copy entire conversations. Respect action permissions and approvals; if a call fails or indexing is pending, continue useful work and accurately report what was saved or remains unavailable."
+  }
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions/supermemory.json
@@ -25857,7 +25967,12 @@ var supermemory_default = {
         "user"
       ]
     }
-  ]
+  ],
+  agentInstructions: {
+    id: "supermemory.usage",
+    version: 1,
+    text: "Use Supermemory to recall relevant preferences, decisions, and prior work from the workspace and tags authorized for this connection. Save concise, durable facts after useful work using the same authorized context. Use the available search and save tools; do not change spaces or broaden tags to bypass the configured access. Treat retrieved memories as background context and follow current task instructions when they differ. Do not store credentials or copy entire conversations. Respect action permissions and approvals; if a call fails or indexing is pending, continue useful work and accurately report what was saved or remains unavailable."
+  }
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions/honcho.json
@@ -25899,8 +26014,7 @@ var honcho_default = {
           type: "password",
           required: true,
           placeholder: "Paste your Honcho API key",
-          secret: true,
-          helperMd: "Create peers/sessions and save memory under the API key project. Create a key with read and write permissions for these actions; Paperclip cannot increase an existing key\u2019s permissions."
+          secret: true
         }
       ],
       keyPlacement: {
@@ -25914,6 +26028,180 @@ var honcho_default = {
       },
       warnings: [
         "An API key from the Honcho dashboard. Memory is stored in your Honcho account; select workspace and peer identifiers when calling tools."
+      ],
+      tenantFields: [
+        {
+          key: "workspaceId",
+          label: "Honcho workspace",
+          type: "text",
+          required: true,
+          placeholder: "Workspace ID",
+          validation: {
+            maxLength: 512
+          }
+        }
+      ]
+    }
+  ],
+  agentInstructions: {
+    id: "honcho.usage",
+    version: 1,
+    text: "Use Honcho to recall relevant preferences and prior decisions when work depends on earlier context. Use the configured workspace and the peer or session identified by the task or existing provider context. Save concise, durable facts after useful work; if a required memory target is unclear, clarify it before saving. Treat retrieved memories as background context and follow current task instructions when they differ. Do not store credentials or copy entire conversations. Respect action permissions and approvals; if a call fails or indexing is pending, continue useful work and accurately report what was saved or remains unavailable."
+  }
+};
+
+// node_modules/@paperclipai/shared/dist/app-definitions/neon.json
+var neon_default = {
+  schemaVersion: 1,
+  slug: "neon",
+  name: "Neon",
+  description: "Manage Postgres projects and branches, run SQL, and inspect schemas in Neon.",
+  categories: [
+    "data"
+  ],
+  featured: false,
+  branding: {
+    logoUrl: "/brands/apps/neon.png"
+  },
+  urlPatterns: [
+    "https://mcp.neon.tech/*"
+  ],
+  docsUrl: "https://neon.com/docs/ai/neon-mcp-server",
+  redirectConstraints: "https-or-loopback-http",
+  methods: [
+    {
+      key: "mcp-oauth",
+      transport: "mcp_remote",
+      auth: "oauth",
+      ownershipModes: [
+        "dcr"
+      ],
+      whenToUse: "Use browser sign-in for the provider-hosted MCP server.",
+      defaults: {
+        serverUrl: "https://mcp.neon.tech/mcp",
+        scopesHint: [
+          "read",
+          "write"
+        ]
+      },
+      guidanceMd: "Connect Neon in the browser. Open Advanced to pin one project or enable read-only mode. Write tools start enabled and remain governed by Paperclip's action policies.",
+      riskTier: "S4",
+      label: "Sign in with Neon",
+      consoleLinks: {
+        docs: "https://neon.com/docs/ai/neon-mcp-server"
+      },
+      warnings: [
+        "A Neon account. The hosted server grants broad project and database management, so use a development project and review write actions before connecting production data.",
+        "Neon recommends its hosted server for development and testing. Review write and destructive actions before execution."
+      ],
+      tenantFields: [
+        {
+          key: "projectId",
+          label: "Pin to project ID",
+          type: "text",
+          advanced: true,
+          placeholder: "Optional Neon project ID",
+          helperMd: "Optional. Restrict this connection to one project. Copy the project ID from Neon Console \u2192 Project settings \u2192 General.",
+          validation: {
+            pattern: "^[a-z0-9-]+$",
+            maxLength: 64
+          },
+          transport: {
+            location: "query",
+            name: "projectId"
+          }
+        },
+        {
+          key: "readOnly",
+          label: "Read-only mode",
+          type: "checkbox",
+          defaultValue: false,
+          helperMd: "Enable this to limit SQL to SELECT queries and schema inspection.",
+          transport: {
+            location: "query",
+            name: "readonly",
+            format: "boolean",
+            omitFalse: true
+          },
+          advanced: true
+        }
+      ],
+      requiredResourceFilters: [
+        "project"
+      ]
+    },
+    {
+      key: "mcp-api-key",
+      transport: "mcp_remote",
+      auth: "api_key",
+      ownershipModes: [
+        "customer"
+      ],
+      whenToUse: "Use a restricted customer-owned key when browser sign-in is not suitable.",
+      defaults: {
+        serverUrl: "https://mcp.neon.tech/mcp"
+      },
+      guidanceMd: "Use a customer-created Neon API key. Prefer a project-scoped key for one development project; personal and organization keys reach every project they can access. Write tools start enabled and remain governed by Paperclip's action policies.",
+      riskTier: "S4",
+      label: "Use an API key",
+      credentialFields: [
+        {
+          key: "authorization",
+          label: "Neon API key",
+          type: "password",
+          required: true,
+          placeholder: "napi_... or neon_project_key_...",
+          secret: true,
+          helperMd: "Project, branch, compute, snapshot, SQL and schema changes within the key\u2019s reach. A project-scoped key limits access to one project with Editor rights; personal and organization keys reach every project they can access. Paperclip cannot increase an existing key\u2019s permissions."
+        }
+      ],
+      keyPlacement: {
+        location: "header",
+        name: "Authorization",
+        prefix: "Bearer "
+      },
+      consoleLinks: {
+        keys: "https://console.neon.tech/app/settings/api-keys",
+        docs: "https://neon.com/docs/ai/neon-mcp-server"
+      },
+      warnings: [
+        "A Neon account. The hosted server grants broad project and database management, so use a development project and review write actions before connecting production data.",
+        "Neon recommends its hosted server for development and testing. Review write and destructive actions before execution."
+      ],
+      tenantFields: [
+        {
+          key: "projectId",
+          label: "Pin to project ID",
+          type: "text",
+          advanced: true,
+          placeholder: "Optional Neon project ID",
+          helperMd: "Optional. Restrict this connection to one project. Copy the project ID from Neon Console \u2192 Project settings \u2192 General.",
+          validation: {
+            pattern: "^[a-z0-9-]+$",
+            maxLength: 64
+          },
+          transport: {
+            location: "query",
+            name: "projectId"
+          }
+        },
+        {
+          key: "readOnly",
+          label: "Read-only mode",
+          type: "checkbox",
+          defaultValue: false,
+          helperMd: "Enable this to limit SQL to SELECT queries and schema inspection.",
+          transport: {
+            location: "query",
+            name: "readonly",
+            format: "boolean",
+            omitFalse: true
+          },
+          advanced: true
+        }
+      ],
+      requiredResourceFilters: [
+        "project"
       ]
     }
   ]
@@ -27675,7 +27963,7 @@ var xai_default = {
 };
 
 // node_modules/@paperclipai/shared/dist/app-definitions.generated.js
-var APP_DEFINITIONS = [agentmail_default, zapier_default, arcade_default, executor_default, railway_default, github_default, github_code_review_bot_default, slack_default, microsoft_teams_default, imessage_photon_default, telegram_default, discord_default, notion_default, posthog_default, linear_default, context7_default, shopify_default, composio_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default, browser_use_cloud_default, cognee_default, jira_default, airtable_default, beehiiv_default, bitly_default, candid_default, cloudflare_default, cloudinary_default, coda_default, hugging_face_default, kernel_default, local_falcon_default, make_default, manufact_default, miro_default, netlify_default, oreilly_default, planetscale_default, resend_default, ticktick_default, todoist_default, webflow_default, wix_default, brex_default, clickhouse_default, egnyte_default, embat_default, mixpanel_default, postman_default, razorpay_default, sanity_default, stripe_default, supabase_default, ticket_tailor_default, asana_default, box_default, mem0_default, pagerduty_default, similarweb_default, xero_default, youcom_default, fireflies_default, zep_default, supermemory_default, honcho_default, gmail_default, google_drive_default, google_docs_default, google_sheets_default, google_slides_default, google_calendar_default, google_chat_default, google_people_default, google_workspace_search_default, openai_default, openrouter_default, xai_default];
+var APP_DEFINITIONS = [agentmail_default, zapier_default, arcade_default, executor_default, railway_default, github_default, github_code_review_bot_default, slack_default, microsoft_teams_default, imessage_photon_default, telegram_default, discord_default, notion_default, posthog_default, linear_default, context7_default, shopify_default, composio_default, oauth_generic_default, api_key_generic_default, sentry_default, vercel_default, anthropic_default, browser_use_cloud_default, cognee_default, jira_default, airtable_default, beehiiv_default, bitly_default, candid_default, cloudflare_default, cloudinary_default, coda_default, hugging_face_default, kernel_default, local_falcon_default, make_default, manufact_default, miro_default, netlify_default, oreilly_default, planetscale_default, resend_default, ticktick_default, todoist_default, webflow_default, wix_default, brex_default, clickhouse_default, egnyte_default, embat_default, mixpanel_default, postman_default, razorpay_default, sanity_default, stripe_default, supabase_default, ticket_tailor_default, asana_default, box_default, mem0_default, pagerduty_default, similarweb_default, xero_default, youcom_default, fireflies_default, zep_default, supermemory_default, honcho_default, neon_default, gmail_default, google_drive_default, google_docs_default, google_sheets_default, google_slides_default, google_calendar_default, google_chat_default, google_people_default, google_workspace_search_default, openai_default, openrouter_default, xai_default];
 
 // node_modules/@paperclipai/shared/dist/self-serve-mcp-research.json
 var self_serve_mcp_research_default = {
@@ -27733,7 +28021,8 @@ var self_serve_mcp_research_default = {
     { slug: "zomato", name: "Zomato", wave: "blocked", status: "blocked", docsUrl: "https://github.com/Zomato/mcp-server-manifest", serverUrl: "https://mcp-server.zomato.com/mcp", authMode: "provider_approval", prerequisite: "Zomato currently limits third-party clients and requires redirect-URI allowlisting.", riskTier: "S3" },
     { slug: "zep", name: "Zep", wave: 3, status: "self_serve", docsUrl: "https://help.getzep.com/memory-mcp-server", serverUrl: "https://api.getzep.com/mcp", authMode: "dcr_cimd", prerequisite: "A Zep project with Memory MCP enabled, available MCP seats, and Google Workspace or enterprise OIDC configured by its administrator. Project API keys do not authenticate Memory MCP.", riskTier: "S3" },
     { slug: "supermemory", name: "Supermemory", wave: 3, status: "self_serve", docsUrl: "https://supermemory.ai/docs/supermemory-mcp/mcp", serverUrl: "https://mcp.supermemory.ai/mcp", authMode: "dcr", prerequisite: "Sign in to Supermemory and select the spaces this connection may access. The hosted MCP uses OAuth, not a developer API key.", riskTier: "S3" },
-    { slug: "honcho", name: "Honcho", wave: 3, status: "self_serve", docsUrl: "https://honcho.dev/docs/v3/guides/integrations/mcp", serverUrl: "https://mcp.honcho.dev", authMode: "api_key", prerequisite: "An API key from the Honcho dashboard. Memory is stored in your Honcho account; select workspace and peer identifiers when calling tools.", riskTier: "S3" }
+    { slug: "honcho", name: "Honcho", wave: 3, status: "self_serve", docsUrl: "https://honcho.dev/docs/v3/guides/integrations/mcp", serverUrl: "https://mcp.honcho.dev", authMode: "api_key", prerequisite: "An API key from the Honcho dashboard. Memory is stored in your Honcho account; select workspace and peer identifiers when calling tools.", riskTier: "S3" },
+    { slug: "neon", name: "Neon", wave: 4, status: "self_serve", docsUrl: "https://neon.com/docs/ai/neon-mcp-server", serverUrl: "https://mcp.neon.tech/mcp", authMode: "dcr_or_api_key", prerequisite: "A Neon account. The hosted server grants broad project and database management, so use a development project and review write actions before connecting production data.", riskTier: "S4" }
   ]
 };
 
@@ -28183,6 +28472,22 @@ var writeStatusCardSummarySchema = external_exports.object({
   changeSummary: external_exports.string().trim().min(1).max(2e3),
   generationIssueId: external_exports.string().guid(),
   model: external_exports.string().trim().min(1).max(200).optional().nullable()
+});
+
+// node_modules/@paperclipai/shared/dist/connection-instructions.js
+var CONNECTION_INSTRUCTIONS_MAX_LENGTH = 2e3;
+var connectionInstructionTemplateSchema = external_exports.object({
+  id: external_exports.string().trim().min(1).max(160),
+  version: external_exports.number().int().positive(),
+  text: external_exports.string().trim().min(1).max(CONNECTION_INSTRUCTIONS_MAX_LENGTH)
+});
+var connectionAgentInstructionsSchema = external_exports.object({
+  enabled: external_exports.boolean(),
+  text: external_exports.string().trim().min(1).max(CONNECTION_INSTRUCTIONS_MAX_LENGTH),
+  template: external_exports.object({
+    id: external_exports.string().trim().min(1).max(160),
+    version: external_exports.number().int().positive()
+  }).optional()
 });
 
 // node_modules/@paperclipai/shared/dist/ai-connections.js
@@ -29120,8 +29425,18 @@ var connectionIntentBrandAssetSchema = external_exports.string().max(2048).refin
   }
 }, "Connection intent brand assets must be HTTPS URLs or local app brand paths");
 var connectionIntentPayloadSchema = external_exports.object({
+  accessRequest: external_exports.object({
+    connectionId: external_exports.string().guid(),
+    connectionName: external_exports.string().trim().min(1).max(160),
+    tools: external_exports.array(external_exports.object({
+      catalogEntryId: external_exports.string().guid(),
+      toolName: external_exports.string().trim().min(1).max(160),
+      versionHash: external_exports.string().min(1).max(256),
+      permission: external_exports.enum(["allowed", "ask_first"])
+    }).strict()).min(1).max(20).refine((tools) => new Set(tools.map((tool3) => tool3.catalogEntryId)).size === tools.length, "Requested tools must be unique")
+  }).strict().optional(),
   upstreamService: external_exports.object({ slug: external_exports.string().min(1).max(120), name: external_exports.string().min(1).max(160), selectionInteractionId: external_exports.string().guid().optional() }).strict().optional(),
-  purpose: external_exports.literal("ai").optional(),
+  purpose: external_exports.enum(["ai", "channel"]).optional(),
   version: external_exports.literal(1),
   serviceSlug: external_exports.string().trim().min(1).max(120),
   serviceName: external_exports.string().trim().min(1).max(160),
@@ -29327,7 +29642,7 @@ var paperclipQuestionSetPayloadSchema = external_exports.object({
     });
   }
 });
-var askUserQuestionsPayloadSchema = external_exports.object({
+var askUserQuestionsPayloadFields = {
   version: external_exports.literal(1),
   title: external_exports.string().trim().max(240).nullable().optional(),
   submitLabel: external_exports.string().trim().max(120).nullable().optional(),
@@ -29337,7 +29652,8 @@ var askUserQuestionsPayloadSchema = external_exports.object({
   questionSet: paperclipQuestionSetPayloadSchema.optional(),
   /** Stable correlation for draft handoff from a live runtime request. */
   runtimeRequestId: external_exports.string().trim().min(1).max(255).nullable().optional()
-}).superRefine((value, ctx) => {
+};
+var askUserQuestionsPayloadSchema = external_exports.object(askUserQuestionsPayloadFields).superRefine((value, ctx) => {
   const seenQuestionIds = /* @__PURE__ */ new Set();
   for (const [questionIndex, question] of value.questions.entries()) {
     if (seenQuestionIds.has(question.id)) {
@@ -29758,7 +30074,7 @@ var createIssueThreadInteractionCommon = {
   addresseeAgentId: external_exports.string().guid().nullable().optional(),
   addresseeUserId: external_exports.string().trim().min(1).nullable().optional()
 };
-var createAskUserQuestionsPayloadSchema = askUserQuestionsPayloadSchema.superRefine((value, ctx) => {
+var createLegacyAskUserQuestionsPayloadSchema = askUserQuestionsPayloadSchema.superRefine((value, ctx) => {
   if (!value.questionSet)
     return;
   const shown = new Set(value.questionSet.questions.map((question) => question.id));
@@ -29780,7 +30096,7 @@ var createAskUserQuestionsPayloadSchema = askUserQuestionsPayloadSchema.superRef
       path: ["questionSet", "questions", index, field2],
       message: `questionSet ${field2} must match the corresponding questions entry.`
     });
-    if (question.prompt !== storage.prompt)
+    if (question.prompt.trim() !== storage.prompt)
       mismatch("prompt");
     if (storage.required !== void 0 && question.required !== storage.required)
       mismatch("required");
@@ -29792,12 +30108,27 @@ var createAskUserQuestionsPayloadSchema = askUserQuestionsPayloadSchema.superRef
         mismatch("answerMode");
     } else {
       const choices = storage.options.filter((option) => !option.freeText);
-      const canonical = new Map((question.options ?? []).map((option) => [option.id, option.label]));
+      const canonical = new Map((question.options ?? []).map((option) => [option.id, option.label.trim()]));
       if (choices.length !== canonical.size || choices.some((option) => canonical.get(option.id) !== option.label))
         mismatch("options");
+      const allowsCustomAnswer = storage.allowOther === true || storage.options.some((option) => option.freeText);
+      if (Boolean(question.customAnswer?.enabled) !== allowsCustomAnswer)
+        mismatch("customAnswer");
     }
   }
 });
+var createAskUserQuestionsPayloadSchema = external_exports.union([
+  createLegacyAskUserQuestionsPayloadSchema,
+  external_exports.object({
+    ...askUserQuestionsPayloadFields,
+    // Do not discard an explicitly supplied conflicting compatibility form.
+    questions: external_exports.never().optional(),
+    questionSet: paperclipQuestionSetPayloadSchema
+  }).transform(({ questions: _questions, ...value }) => ({
+    ...questionSetToAskUserQuestionsPayload(value.questionSet),
+    ...value
+  })).pipe(createLegacyAskUserQuestionsPayloadSchema)
+]);
 var createIssueThreadInteractionSchema = external_exports.discriminatedUnion("kind", [
   external_exports.object({
     ...createIssueThreadInteractionCommon,
@@ -30962,6 +31293,7 @@ var pluginManifestV1Schema = external_exports.object({
   minimumHostVersion: external_exports.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/, "minimumHostVersion must follow semver (e.g. 1.0.0)").optional(),
   minimumPaperclipVersion: external_exports.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/, "minimumPaperclipVersion must follow semver (e.g. 1.0.0)").optional(),
   capabilities: external_exports.array(external_exports.enum(PLUGIN_CAPABILITIES)).min(1),
+  aiConnectionRouter: external_exports.object({ name: external_exports.string().trim().min(1).max(100), description: external_exports.string().trim().min(1).max(500) }).strict().optional(),
   entrypoints: external_exports.object({
     worker: external_exports.string().min(1),
     ui: external_exports.string().min(1).optional()
@@ -31000,6 +31332,9 @@ var pluginManifestV1Schema = external_exports.object({
       message: "minimumHostVersion and minimumPaperclipVersion must match when both are declared",
       path: ["minimumHostVersion"]
     });
+  }
+  if (manifest2.aiConnectionRouter && !manifest2.capabilities.includes("ai.connections.route")) {
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "ai.connections.route is required for aiConnectionRouter", path: ["capabilities"] });
   }
   if (manifest2.tools && manifest2.tools.length > 0) {
     if (!manifest2.capabilities.includes("agent.tools.register")) {
@@ -31460,6 +31795,7 @@ var createToolApplicationSchema = external_exports.object({
 });
 var updateToolApplicationSchema = createToolApplicationSchema.partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool application field is required" });
 var createToolConnectionSchema = external_exports.object({
+  agentInstructions: connectionAgentInstructionsSchema.nullable().optional(),
   applicationId: external_exports.string().guid().optional(),
   applicationName: external_exports.string().trim().min(1).max(160).optional(),
   name: external_exports.string().trim().min(1).max(160),
@@ -31621,6 +31957,7 @@ function rejectUnsafeHeaderCredentials(credentialValues, ctx, path2) {
   }
 }
 var connectToolAppSchema = external_exports.object({
+  agentInstructions: connectionAgentInstructionsSchema.nullable().optional(),
   galleryKey: external_exports.string().trim().min(1).max(120).optional(),
   connectionMethodKey: external_exports.string().trim().min(1).max(120).optional(),
   link: external_exports.string().trim().url().max(2e3).optional(),
@@ -31695,6 +32032,7 @@ var reconnectToolAppSchema = external_exports.object({
   credentialValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.string().min(1))
 });
 var finishToolAppSchema = external_exports.object({
+  agentInstructions: connectionAgentInstructionsSchema.nullable().optional(),
   /** Task setup adds access while preserving existing assignments and action policies. */
   preserveExistingAccess: external_exports.boolean().optional(),
   enabledCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).default([]),
@@ -32127,7 +32465,7 @@ var field = external_exports.object({ key: external_exports.string().min(1), lab
   if (v.hidden && v.defaultValue === void 0)
     c.addIssue({ code: "custom", message: "Hidden fields need defaults", path: ["defaultValue"] });
 });
-var connectionMethodDefSchema = external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1).optional(), purpose: external_exports.union([toolConnectionPurposeSchema, external_exports.literal("ai")]).optional(), provider: external_exports.enum(["slack", "github", "discord", "microsoft-teams", "telegram", "agentmail", "imessage-photon"]).optional(), transport: external_exports.union([toolConnectionTransportSchema, external_exports.literal("runtime_auth")]), ai: aiConnectionMetadataSchema.optional(), auth: external_exports.enum(["oauth", "api_key", "none"]), oauthStrategy: external_exports.enum(["paperclip_cloud_connector", "paperclip_id_connector"]).optional(), connectorProfile: external_exports.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/).optional(), capabilityProfile: external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1), description: external_exports.string().min(1).optional() }).optional(), grantKinds: external_exports.array(connectionGrantKindSchema).min(1).optional(), ownershipModes: external_exports.array(toolConnectionOwnershipSchema).min(1), whenToUse: external_exports.string().min(1), defaults: external_exports.object({ serverUrl: external_exports.string().url().optional(), serverUrlTemplate: external_exports.string().regex(/^https:\/\//).optional(), discoveryUrl: external_exports.string().url().nullable().optional(), serviceHost: external_exports.string().optional(), templateKey: external_exports.string().optional(), authorizationEndpoint: external_exports.string().url().optional(), tokenEndpoint: external_exports.string().url().optional(), metadataUrl: external_exports.string().url().optional(), scopesHint: external_exports.array(external_exports.string()).optional(), oauthAuthorizationParams: external_exports.object({ access_type: external_exports.literal("offline").optional(), prompt: external_exports.literal("consent").optional() }).optional(), toolArgumentDefaults: external_exports.record(external_exports.string(), external_exports.unknown()).optional() }).optional(), tenantFields: external_exports.array(field).optional(), extensionFields: external_exports.array(field).optional(), configRequirements: external_exports.object({ atLeastOneOf: external_exports.array(external_exports.string().min(1)).min(1).optional() }).optional(), credentialFields: external_exports.array(field).optional(), keyPlacement: external_exports.object({ location: external_exports.enum(["header", "query", "body_json", "env"]), name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }).optional(), credentialSources: external_exports.object({ vercelConnect: external_exports.object({ services: external_exports.array(external_exports.string().min(1)).min(1), principalModes: external_exports.array(external_exports.enum(["app", "user"])).min(1), scopes: external_exports.array(external_exports.string().min(1)).min(1), header: external_exports.object({ name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }) }).optional() }).optional(), guidanceMd: external_exports.string().min(1), consoleLinks: external_exports.object({ register: external_exports.string().url().optional(), keys: external_exports.string().url().optional(), settings: external_exports.string().url().optional(), docs: external_exports.string().url().optional() }).optional(), warnings: external_exports.array(external_exports.string()).optional(), variants: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), whenToUse: external_exports.string(), tenantFields: external_exports.array(field).optional() })).optional(), riskTier: external_exports.enum(["S1", "S2", "S3", "S4"]), requiredResourceFilters: external_exports.array(external_exports.string()).optional() }).superRefine((v, c) => {
+var connectionMethodDefSchema = external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1).optional(), purpose: external_exports.union([toolConnectionPurposeSchema, external_exports.literal("ai")]).optional(), provider: external_exports.enum(["slack", "github", "discord", "microsoft-teams", "telegram", "agentmail", "imessage-photon"]).optional(), transport: external_exports.union([toolConnectionTransportSchema, external_exports.literal("runtime_auth")]), ai: aiConnectionMetadataSchema.optional(), auth: external_exports.enum(["oauth", "api_key", "none"]), oauthStrategy: external_exports.enum(["paperclip_cloud_connector", "paperclip_id_connector"]).optional(), connectorProfile: external_exports.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/).optional(), oauthClientSecretRequired: external_exports.boolean().optional(), capabilityProfile: external_exports.object({ key: external_exports.string().min(1), label: external_exports.string().min(1), description: external_exports.string().min(1).optional() }).optional(), grantKinds: external_exports.array(connectionGrantKindSchema).min(1).optional(), ownershipModes: external_exports.array(toolConnectionOwnershipSchema).min(1), whenToUse: external_exports.string().min(1), defaults: external_exports.object({ serverUrl: external_exports.string().url().optional(), serverUrlTemplate: external_exports.string().regex(/^https:\/\//).optional(), discoveryUrl: external_exports.string().url().nullable().optional(), serviceHost: external_exports.string().optional(), templateKey: external_exports.string().optional(), authorizationEndpoint: external_exports.string().url().optional(), tokenEndpoint: external_exports.string().url().optional(), metadataUrl: external_exports.string().url().optional(), scopesHint: external_exports.array(external_exports.string()).optional(), oauthAuthorizationParams: external_exports.object({ access_type: external_exports.literal("offline").optional(), prompt: external_exports.literal("consent").optional() }).optional(), toolArgumentDefaults: external_exports.record(external_exports.string(), external_exports.unknown()).optional() }).optional(), tenantFields: external_exports.array(field).optional(), extensionFields: external_exports.array(field).optional(), configRequirements: external_exports.object({ atLeastOneOf: external_exports.array(external_exports.string().min(1)).min(1).optional() }).optional(), credentialFields: external_exports.array(field).optional(), keyPlacement: external_exports.object({ location: external_exports.enum(["header", "query", "body_json", "env"]), name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }).optional(), credentialSources: external_exports.object({ vercelConnect: external_exports.object({ services: external_exports.array(external_exports.string().min(1)).min(1), principalModes: external_exports.array(external_exports.enum(["app", "user"])).min(1), scopes: external_exports.array(external_exports.string().min(1)).min(1), header: external_exports.object({ name: external_exports.string().min(1), prefix: external_exports.string().nullable().optional() }) }).optional() }).optional(), guidanceMd: external_exports.string().min(1), consoleLinks: external_exports.object({ register: external_exports.string().url().optional(), keys: external_exports.string().url().optional(), settings: external_exports.string().url().optional(), docs: external_exports.string().url().optional() }).optional(), warnings: external_exports.array(external_exports.string()).optional(), variants: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), whenToUse: external_exports.string(), tenantFields: external_exports.array(field).optional() })).optional(), riskTier: external_exports.enum(["S1", "S2", "S3", "S4"]), requiredResourceFilters: external_exports.array(external_exports.string()).optional() }).superRefine((v, c) => {
   if (v.transport === "runtime_auth" !== Boolean(v.ai))
     c.addIssue({ code: "custom", message: "Runtime authentication requires AI metadata and AI metadata requires runtime_auth", path: ["ai"] });
   if (v.ai && !AI_CONNECTION_CAPABILITIES[v.ai.provider].methods[v.ai.method])
@@ -32163,7 +32501,16 @@ var connectionMethodDefSchema = external_exports.object({ key: external_exports.
     if (!keys.has(placeholder[1]))
       c.addIssue({ code: "custom", message: "Server URL template references an unknown field", path: ["defaults", "serverUrlTemplate"] });
 });
-var appDefinitionSchema = external_exports.object({ schemaVersion: external_exports.literal(1), slug: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: external_exports.string().min(1), description: external_exports.string().min(1), categories: external_exports.array(external_exports.enum(["ai", "analytics", "commerce", "communication", "content", "data", "developer", "productivity", "other"])).min(1), featured: external_exports.boolean().optional(), branding: external_exports.object({ logoUrl: appBrandAssetUrlSchema, darkLogoUrl: appBrandAssetUrlSchema.optional(), backgroundColor: external_exports.string().optional(), accentColor: external_exports.string().optional() }), urlPatterns: external_exports.array(external_exports.string()), docsUrl: external_exports.string().url().optional(), setupPrerequisite: external_exports.object({ title: external_exports.string().min(1), description: external_exports.string().min(1), steps: external_exports.array(external_exports.string().min(1)).min(1).optional(), actionLabel: external_exports.string().min(1), actionUrl: external_exports.string().url() }).optional(), redirectConstraints: external_exports.enum(["https-or-loopback-http"]).optional(), methods: external_exports.array(connectionMethodDefSchema).min(1), suggestable: external_exports.boolean().optional(), availability: external_exports.object({ available: external_exports.boolean(), reason: external_exports.string().optional(), robotEmail: external_exports.string().optional() }).optional(), ownershipAvailability: external_exports.object({ platform_shared: external_exports.boolean().optional(), platform_provisioned: external_exports.boolean().optional(), customer: external_exports.boolean().optional(), dcr: external_exports.boolean().optional() }).optional() });
+var appDefinitionSchema = external_exports.object({ agentInstructions: connectionInstructionTemplateSchema.optional(), aiConnectionRouter: external_exports.object({ pluginKey: external_exports.string().min(1) }).optional(), schemaVersion: external_exports.literal(1), slug: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: external_exports.string().min(1), description: external_exports.string().min(1), categories: external_exports.array(external_exports.enum(["ai", "analytics", "commerce", "communication", "content", "data", "developer", "productivity", "other"])).min(1), featured: external_exports.boolean().optional(), branding: external_exports.object({ logoUrl: appBrandAssetUrlSchema, darkLogoUrl: appBrandAssetUrlSchema.optional(), backgroundColor: external_exports.string().optional(), accentColor: external_exports.string().optional() }), urlPatterns: external_exports.array(external_exports.string()), docsUrl: external_exports.string().url().optional(), setupPrerequisite: external_exports.object({ title: external_exports.string().min(1), description: external_exports.string().min(1), steps: external_exports.array(external_exports.string().min(1)).min(1).optional(), actionLabel: external_exports.string().min(1), actionUrl: external_exports.string().url() }).optional(), redirectConstraints: external_exports.enum(["https-or-loopback-http"]).optional(), methods: external_exports.array(connectionMethodDefSchema), suggestable: external_exports.boolean().optional(), availability: external_exports.object({ available: external_exports.boolean(), reason: external_exports.string().optional(), robotEmail: external_exports.string().optional() }).optional(), ownershipAvailability: external_exports.object({ platform_shared: external_exports.boolean().optional(), platform_provisioned: external_exports.boolean().optional(), customer: external_exports.boolean().optional(), dcr: external_exports.boolean().optional() }).optional() }).superRefine((value, ctx) => {
+  if (value.aiConnectionRouter) {
+    if (value.methods.length !== 0)
+      ctx.addIssue({ code: "custom", message: "Pooled connectors use existing connections, not authentication methods", path: ["methods"] });
+    if (!value.categories.includes("ai"))
+      ctx.addIssue({ code: "custom", message: "Pooled connectors must use the AI category", path: ["categories"] });
+  } else if (value.methods.length === 0) {
+    ctx.addIssue({ code: "custom", message: "Connectors require at least one connection method", path: ["methods"] });
+  }
+});
 var appDefinitionsSchema = external_exports.array(appDefinitionSchema).superRefine((v, c) => {
   const s = /* @__PURE__ */ new Set();
   v.forEach((a, i) => {
@@ -32973,6 +33320,7 @@ var patchInstanceGeneralSettingsSchema = external_exports.object(shapeWithoutDef
 var instanceExperimentalSettingsSchema = external_exports.object({
   enableEnvironments: external_exports.boolean().default(false),
   enableNativeRunner: external_exports.boolean().default(true),
+  enableAiConnectionRouters: external_exports.boolean().default(false),
   enableManagedSandboxOnly: external_exports.boolean().default(false),
   enableIsolatedWorkspaces: external_exports.boolean().default(false),
   enableIsolatedWorkspacesByDefault: external_exports.boolean().default(false),
@@ -32982,6 +33330,7 @@ var instanceExperimentalSettingsSchema = external_exports.object({
   // always enabled; this remains accepted so older stored rows and managed
   // configs continue to load during upgrades.
   enableApps: external_exports.boolean().default(true),
+  enablePublicMcp: external_exports.boolean().default(false),
   enableChatConnectors: external_exports.boolean().default(false),
   // Compatibility only: old stored and managed values must still parse.
   enableMcpAggregators: external_exports.boolean().default(true),
@@ -32989,6 +33338,7 @@ var instanceExperimentalSettingsSchema = external_exports.object({
   enablePipelines: external_exports.boolean().default(false),
   enableCases: external_exports.boolean().default(false),
   enableAgentChat: external_exports.boolean().default(false),
+  enableCombinedInboxTasks: external_exports.boolean().default(false),
   enableConferenceRoomChat: external_exports.boolean().default(false),
   enableClassicTaskInterface: external_exports.boolean().default(false),
   enableIssuePlanDecompositions: external_exports.boolean().default(false),
@@ -33597,7 +33947,9 @@ var companySkillFileUpdateSchema = external_exports.object({
   path: external_exports.string().min(1),
   content: external_exports.string(),
   encoding: external_exports.enum(["utf8", "base64"]).optional(),
-  executable: external_exports.boolean().optional()
+  executable: external_exports.boolean().optional(),
+  expectedVersionId: external_exports.string().guid().nullable().optional(),
+  idempotencyKey: external_exports.string().min(1).max(240).optional()
 });
 var companySkillFileDeleteSchema = external_exports.object({
   path: external_exports.string().min(1),
@@ -34330,6 +34682,44 @@ var agentSkillSyncSchema = external_exports.object({
   desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema)
 });
 
+// node_modules/@paperclipai/shared/dist/ai-connection-router.js
+var aiConnectionRouterBindingSchema = external_exports.object({
+  mode: external_exports.literal("router"),
+  connectionId: external_exports.string().uuid()
+}).strict();
+var aiRuntimeConnectionBindingSchema = external_exports.union([aiConnectionBindingSchema, aiConnectionRouterBindingSchema]);
+var aiConnectionPoolMemberSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  binding: aiConnectionBindingSchema.refine((v) => v.mode !== "responsible_user", "Select an explicit account grant"),
+  profile: external_exports.object({
+    provider: external_exports.enum(["codex", "acpx", "opencode"]),
+    acpxAgent: external_exports.enum(["claude", "grok"]).optional(),
+    model: external_exports.string().trim().min(1).max(256),
+    effort: external_exports.string().trim().min(1).max(32).optional()
+  }).strict()
+}).strict();
+var aiConnectionPoolConfigSchema = external_exports.object({
+  name: external_exports.string().trim().min(1).max(160),
+  enabled: external_exports.boolean().default(false),
+  mode: external_exports.enum(["round_robin", "usage_aware"]).default("round_robin"),
+  thresholdPercent: external_exports.number().int().min(1).max(100).default(90),
+  members: external_exports.array(aiConnectionPoolMemberSchema).min(1).max(100)
+}).strict().superRefine((v, ctx) => {
+  const ids = /* @__PURE__ */ new Set();
+  const grants = /* @__PURE__ */ new Set();
+  const connections = /* @__PURE__ */ new Set();
+  for (const [index, member] of v.members.entries()) {
+    const grant = `${member.binding.connectionId}:${member.binding.grantId}`;
+    if (ids.has(member.id) || grants.has(grant) || connections.has(member.binding.connectionId))
+      ctx.addIssue({ code: "custom", path: ["members", index], message: "Duplicate pool member" });
+    ids.add(member.id);
+    grants.add(grant);
+    connections.add(member.binding.connectionId);
+    if (member.profile.provider === "acpx" && !member.profile.acpxAgent)
+      ctx.addIssue({ code: "custom", path: ["members", index, "profile"], message: "Choose an ACP harness" });
+  }
+});
+
 // node_modules/@paperclipai/shared/dist/validators/agent.js
 var agentPermissionsSchema = external_exports.object({
   // No schema default: the server derives the default (enabled unless the
@@ -34378,7 +34768,7 @@ var createAgentInstructionsBundleSchema = external_exports.object({
   })
 });
 var agentRuntimeConfigSchema = external_exports.object({
-  aiConnection: aiConnectionBindingSchema.optional(),
+  aiConnection: aiRuntimeConnectionBindingSchema.optional(),
   debug: external_exports.object({
     providerTrace: external_exports.literal("raw").optional()
   }).strict().optional()
@@ -34505,7 +34895,7 @@ var resetAgentSessionSchema = external_exports.object({
   taskKey: external_exports.string().min(1).optional().nullable()
 });
 var testAdapterEnvironmentSchema = external_exports.object({
-  aiConnection: aiConnectionBindingSchema.optional(),
+  aiConnection: aiRuntimeConnectionBindingSchema.optional(),
   /** Saved agent whose redacted environment entries are restored for this probe. */
   agentId: external_exports.string().guid().optional(),
   /** One-shot provider keys for a probe. Never persist these in agent config. */
@@ -34546,6 +34936,10 @@ var resolveAgentInstructionCandidateSchema = external_exports.object({
 }).strict();
 
 // node_modules/@paperclipai/shared/dist/validators/project.js
+var projectDiscoverySchema = external_exports.object({
+  limit: external_exports.number().int().min(1).max(50).default(50),
+  cursor: external_exports.string().uuid().transform((value) => value.toLowerCase()).optional()
+}).strict();
 var executionWorkspaceStrategySchema2 = external_exports.object({
   type: external_exports.enum(["project_primary", "git_worktree", "adapter_managed", "cloud_sandbox"]).optional(),
   baseRef: external_exports.string().optional().nullable(),
@@ -34731,6 +35125,8 @@ var companyArtifactGroupBySchema = external_exports.enum(["none", "task", "paren
 var companyArtifactsQuerySchema = external_exports.object({
   kind: external_exports.enum(["image", "video", "text", "document", "file", "all"]).optional().default("all"),
   projectId: external_exports.string().guid().optional(),
+  /** Only artifacts attributed to this agent (the `createdByAgent` on each result). */
+  agentId: external_exports.string().guid().optional(),
   q: external_exports.string().trim().max(COMPANY_ARTIFACTS_MAX_QUERY_LENGTH).optional(),
   groupBy: companyArtifactGroupBySchema.optional().default("none"),
   groupIssueId: external_exports.string().guid().optional(),
@@ -35374,6 +35770,10 @@ var runPresentationDecisionSchema = external_exports.object({
 // node_modules/@paperclipai/shared/dist/validators/email.js
 var address = external_exports.string().trim().email().max(320);
 var addresses = external_exports.array(address).max(50);
+var emailAddressCheckSchema = external_exports.object({
+  username: external_exports.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9._-]*$/).max(64),
+  domain: external_exports.string().trim().toLowerCase().max(253).regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/)
+}).strict();
 var emailEndpointSetupSchema = external_exports.object({
   assignedAgentId: external_exports.string().uuid(),
   applicationId: external_exports.string().uuid().optional(),
@@ -35724,6 +36124,13 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: false,
     selfHostedDefault: false
   },
+  enableAiConnectionRouters: {
+    title: "AI connection routers",
+    description: "Allow experimental plugin connections to choose task-pinned accounts and harnesses.",
+    tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
   enableNativeRunner: {
     title: "Paperclip Runner",
     description: "Allow explicitly configured local Codex, OpenCode, and qualified ACPX agents to use the experimental Rust Paperclip Runner, including authenticated sandbox ingress when required. Onboarding remains on legacy adapters.",
@@ -35776,9 +36183,16 @@ var INSTANCE_FEATURE_CATALOG = {
     cloudDefault: true,
     selfHostedDefault: true
   },
+  enablePublicMcp: {
+    title: "Assistant connections (MCP)",
+    description: "Let external assistants connect as a person to review work, delegate tasks, add feedback, and follow results.",
+    tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
   enableChatConnectors: {
     title: "Chat connectors",
-    description: "Show experimental chat connector setup and Board surfaces. Existing connections keep running when hidden; GitHub and other tool connectors are unaffected.",
+    description: "Show experimental chat connector setup and Board surfaces. Existing connections keep running when hidden; AgentMail, GitHub tools, and other tool connectors are unaffected.",
     tier: "managed",
     cloudDefault: false,
     selfHostedDefault: false
@@ -35813,7 +36227,14 @@ var INSTANCE_FEATURE_CATALOG = {
   },
   enableAgentChat: {
     title: "Agent Chat",
-    description: "Persistent task-backed conversations that clarify goals and hand work off to tasks.",
+    description: "Persistent task-backed conversations that clarify goals and hand work off to tasks. Chat leads the Work group with an agent rail, and each chat's side panel shows the agent's tasks and artifacts as cards.",
+    tier: "managed",
+    cloudDefault: false,
+    selfHostedDefault: false
+  },
+  enableCombinedInboxTasks: {
+    title: "Combined Inbox + Task List",
+    description: "Inbox becomes a set of views inside Tasks: one Tasks row in the nav carries the unread badge, and a Views menu reaches every inbox and task view.",
     tier: "managed",
     cloudDefault: false,
     selfHostedDefault: false
@@ -37858,6 +38279,1655 @@ var composio_search_catalog_default = {
   ]
 };
 
+// node_modules/@paperclipai/shared/dist/arcade-app-catalog.json
+var arcade_app_catalog_default = {
+  source: "https://docs.arcade.dev/en/resources/integrations",
+  verifiedAt: "2026-10-02",
+  apps: [
+    {
+      slug: "airtable",
+      toolkit: "airtable",
+      name: "Airtable",
+      logoUrl: "https://design-system.arcade.dev/icons/airtable.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/airtable",
+      aliases: [
+        "Airtable",
+        "airtable"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "airtable-api",
+      toolkit: "airtable-api",
+      name: "Airtable API",
+      logoUrl: "https://design-system.arcade.dev/icons/airtable.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/airtable-api",
+      aliases: [
+        "AirtableApi",
+        "airtable-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "apollo",
+      toolkit: "apollo",
+      name: "Apollo",
+      logoUrl: "https://design-system.arcade.dev/icons/apollo.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/apollo",
+      aliases: [
+        "Apollo",
+        "apollo"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "arcade-engine-api",
+      toolkit: "arcade-engine-api",
+      name: "Arcade Engine API",
+      logoUrl: "https://design-system.arcade.dev/icons/arcade.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations",
+      aliases: [
+        "ArcadeEngineApi",
+        "arcade-engine-api"
+      ],
+      category: "development"
+    },
+    {
+      slug: "asana",
+      toolkit: "asana",
+      name: "Asana",
+      logoUrl: "https://design-system.arcade.dev/icons/asana.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/asana",
+      aliases: [
+        "Asana",
+        "asana"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "asana-api",
+      toolkit: "asana-api",
+      name: "Asana API",
+      logoUrl: "https://design-system.arcade.dev/icons/asana.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/asana-api",
+      aliases: [
+        "AsanaApi",
+        "asana-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "ashby",
+      toolkit: "ashby",
+      name: "Ashby",
+      logoUrl: "https://design-system.arcade.dev/icons/ashby.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/ashby",
+      aliases: [
+        "Ashby",
+        "ashby"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "ashby-api",
+      toolkit: "ashby-api",
+      name: "Ashby API",
+      logoUrl: "https://design-system.arcade.dev/icons/ashby.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/ashby-api",
+      aliases: [
+        "AshbyApi",
+        "ashby-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "attio",
+      toolkit: "attio",
+      name: "Attio",
+      logoUrl: "https://design-system.arcade.dev/icons/attio.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/attio",
+      aliases: [
+        "Attio",
+        "attio"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "box-api",
+      toolkit: "box-api",
+      name: "Box API",
+      logoUrl: "https://design-system.arcade.dev/icons/box.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/box-api",
+      aliases: [
+        "BoxApi",
+        "box-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "brightdata",
+      toolkit: "brightdata",
+      name: "Bright Data",
+      logoUrl: "https://design-system.arcade.dev/icons/brightdata.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/brightdata",
+      aliases: [
+        "Brightdata",
+        "brightdata"
+      ],
+      category: "development"
+    },
+    {
+      slug: "calendly",
+      toolkit: "calendly",
+      name: "Calendly",
+      logoUrl: "https://design-system.arcade.dev/icons/calendly.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/calendly",
+      aliases: [
+        "Calendly",
+        "calendly"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "calendly-api",
+      toolkit: "calendly-api",
+      name: "Calendly API",
+      logoUrl: "https://design-system.arcade.dev/icons/calendly.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/calendly-api",
+      aliases: [
+        "CalendlyApi",
+        "calendly-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "clickhouse",
+      toolkit: "clickhouse",
+      name: "Clickhouse",
+      logoUrl: "https://design-system.arcade.dev/icons/clickhouse.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/databases/clickhouse",
+      aliases: [
+        "Clickhouse",
+        "clickhouse"
+      ],
+      category: "databases"
+    },
+    {
+      slug: "clickup",
+      toolkit: "clickup",
+      name: "ClickUp",
+      logoUrl: "https://design-system.arcade.dev/icons/clickup.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/clickup",
+      aliases: [
+        "ClickUp",
+        "clickup"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "clickup-api",
+      toolkit: "clickup-api",
+      name: "ClickUp API",
+      logoUrl: "https://design-system.arcade.dev/icons/clickup.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/clickup-api",
+      aliases: [
+        "ClickUpApi",
+        "clickup-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "closeio",
+      toolkit: "closeio",
+      name: "Close.io",
+      logoUrl: "https://design-system.arcade.dev/icons/closeio.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations",
+      aliases: [
+        "CloseIO",
+        "closeio"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "confluence",
+      toolkit: "confluence",
+      name: "Confluence",
+      logoUrl: "https://design-system.arcade.dev/icons/confluence.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/confluence",
+      aliases: [
+        "Confluence",
+        "confluence"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "cursor-agents",
+      toolkit: "cursor-agents",
+      name: "Cursor Agents",
+      logoUrl: "https://design-system.arcade.dev/icons/cursor.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/cursor-agents",
+      aliases: [
+        "CursorAgents",
+        "cursor-agents"
+      ],
+      category: "development"
+    },
+    {
+      slug: "cursor-agents-api",
+      toolkit: "cursor-agents-api",
+      name: "Cursor Agents API",
+      logoUrl: "https://design-system.arcade.dev/icons/cursor.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/cursor-agents-api",
+      aliases: [
+        "CursorAgentsApi",
+        "cursor-agents-api"
+      ],
+      category: "development"
+    },
+    {
+      slug: "customerio",
+      toolkit: "customerio",
+      name: "Customer.io",
+      logoUrl: "https://design-system.arcade.dev/icons/customerio.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/customerio",
+      aliases: [
+        "Customerio",
+        "customerio"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "customerio-api",
+      toolkit: "customerio-api",
+      name: "Customer.io API",
+      logoUrl: "https://design-system.arcade.dev/icons/customerio.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/customerio-api",
+      aliases: [
+        "CustomerioApi",
+        "customerio-api"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "customerio-pipelines-api",
+      toolkit: "customerio-pipelines-api",
+      name: "Customer.io Pipelines API",
+      logoUrl: "https://design-system.arcade.dev/icons/customerio.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/customerio-pipelines-api",
+      aliases: [
+        "CustomerioPipelinesApi",
+        "customerio-pipelines-api"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "customerio-track-api",
+      toolkit: "customerio-track-api",
+      name: "Customer.io Track API",
+      logoUrl: "https://design-system.arcade.dev/icons/customerio.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/customerio-track-api",
+      aliases: [
+        "CustomerioTrackApi",
+        "customerio-track-api"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "datadog",
+      toolkit: "datadog",
+      name: "Datadog",
+      logoUrl: "https://design-system.arcade.dev/icons/datadog.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/datadog",
+      aliases: [
+        "Datadog",
+        "datadog"
+      ],
+      category: "development"
+    },
+    {
+      slug: "datadog-api",
+      toolkit: "datadog-api",
+      name: "Datadog API",
+      logoUrl: "https://design-system.arcade.dev/icons/datadog.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/datadog-api",
+      aliases: [
+        "DatadogApi",
+        "datadog-api"
+      ],
+      category: "development"
+    },
+    {
+      slug: "daytona",
+      toolkit: "daytona",
+      name: "Daytona",
+      logoUrl: "https://design-system.arcade.dev/icons/daytona.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/daytona",
+      aliases: [
+        "Daytona",
+        "daytona"
+      ],
+      category: "development"
+    },
+    {
+      slug: "discord",
+      toolkit: "discord",
+      name: "Discord",
+      logoUrl: "https://design-system.arcade.dev/icons/discord.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations",
+      aliases: [
+        "Discord",
+        "discord"
+      ],
+      category: "social"
+    },
+    {
+      slug: "discord-bot",
+      toolkit: "discord-bot",
+      name: "Discord Bot",
+      logoUrl: "https://design-system.arcade.dev/icons/discord.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/discord-bot",
+      aliases: [
+        "DiscordBot",
+        "discord-bot"
+      ],
+      category: "social"
+    },
+    {
+      slug: "dropbox",
+      toolkit: "dropbox",
+      name: "Dropbox",
+      logoUrl: "https://design-system.arcade.dev/icons/dropbox.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/dropbox",
+      aliases: [
+        "Dropbox",
+        "dropbox"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "e2b",
+      toolkit: "e2b",
+      name: "E2B",
+      logoUrl: "https://design-system.arcade.dev/icons/e2b.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/e2b",
+      aliases: [
+        "E2b",
+        "e2b"
+      ],
+      category: "development"
+    },
+    {
+      slug: "exa-api",
+      toolkit: "exa-api",
+      name: "Exa API",
+      logoUrl: "https://design-system.arcade.dev/icons/exa.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/exa-api",
+      aliases: [
+        "ExaApi",
+        "exa-api"
+      ],
+      category: "search"
+    },
+    {
+      slug: "figma",
+      toolkit: "figma",
+      name: "Figma",
+      logoUrl: "https://design-system.arcade.dev/icons/figma.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/figma",
+      aliases: [
+        "Figma",
+        "figma"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "figma-api",
+      toolkit: "figma-api",
+      name: "Figma API",
+      logoUrl: "https://design-system.arcade.dev/icons/figma.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/figma-api",
+      aliases: [
+        "FigmaApi",
+        "figma-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "firecrawl",
+      toolkit: "firecrawl",
+      name: "Firecrawl",
+      logoUrl: "https://design-system.arcade.dev/icons/firecrawl.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/firecrawl",
+      aliases: [
+        "Firecrawl",
+        "firecrawl"
+      ],
+      category: "development"
+    },
+    {
+      slug: "fireflies",
+      toolkit: "fireflies",
+      name: "Fireflies",
+      logoUrl: "https://design-system.arcade.dev/icons/fireflies.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/fireflies",
+      aliases: [
+        "Fireflies",
+        "fireflies"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "fly-io",
+      toolkit: "fly-io",
+      name: "Fly.io",
+      logoUrl: "https://design-system.arcade.dev/icons/fly-io.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/fly-io",
+      aliases: [
+        "FlyIo",
+        "fly-io"
+      ],
+      category: "development"
+    },
+    {
+      slug: "forkable",
+      toolkit: "forkable",
+      name: "Forkable",
+      logoUrl: "https://design-system.arcade.dev/icons/forkable.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/forkable",
+      aliases: [
+        "Forkable",
+        "forkable"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "freshdesk",
+      toolkit: "freshdesk",
+      name: "Freshdesk",
+      logoUrl: "https://design-system.arcade.dev/icons/freshdesk.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/freshdesk",
+      aliases: [
+        "Freshdesk",
+        "freshdesk"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "freshservice",
+      toolkit: "freshservice",
+      name: "Freshservice",
+      logoUrl: "https://design-system.arcade.dev/icons/freshservice.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/freshservice",
+      aliases: [
+        "Freshservice",
+        "freshservice"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "freshservice-api",
+      toolkit: "freshservice-api",
+      name: "Freshservice API",
+      logoUrl: "https://design-system.arcade.dev/icons/freshservice.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/freshservice-api",
+      aliases: [
+        "FreshserviceApi",
+        "freshservice-api"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "github",
+      toolkit: "github",
+      name: "GitHub",
+      logoUrl: "https://design-system.arcade.dev/icons/github.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/github",
+      aliases: [
+        "Github",
+        "github"
+      ],
+      category: "development"
+    },
+    {
+      slug: "github-api",
+      toolkit: "github-api",
+      name: "GitHub API",
+      logoUrl: "https://design-system.arcade.dev/icons/github.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/github-api",
+      aliases: [
+        "GithubApi",
+        "github-api"
+      ],
+      category: "development"
+    },
+    {
+      slug: "glean",
+      toolkit: "glean",
+      name: "Glean",
+      logoUrl: "https://design-system.arcade.dev/icons/glean.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/glean",
+      aliases: [
+        "Glean",
+        "glean"
+      ],
+      category: "search"
+    },
+    {
+      slug: "gmail",
+      toolkit: "gmail",
+      name: "Gmail",
+      logoUrl: "https://design-system.arcade.dev/icons/gmail.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/gmail",
+      aliases: [
+        "Gmail",
+        "gmail"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "google-calendar",
+      toolkit: "google-calendar",
+      name: "Google Calendar",
+      logoUrl: "https://design-system.arcade.dev/icons/google-calendar.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/google-calendar",
+      aliases: [
+        "GoogleCalendar",
+        "google-calendar"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "google-contacts",
+      toolkit: "google-contacts",
+      name: "Google Contacts",
+      logoUrl: "https://design-system.arcade.dev/icons/google-contacts.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/google-contacts",
+      aliases: [
+        "GoogleContacts",
+        "google-contacts"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "google-docs",
+      toolkit: "google-docs",
+      name: "Google Docs",
+      logoUrl: "https://design-system.arcade.dev/icons/google-docs.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/google-docs",
+      aliases: [
+        "GoogleDocs",
+        "google-docs"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "google-drive",
+      toolkit: "google-drive",
+      name: "Google Drive",
+      logoUrl: "https://design-system.arcade.dev/icons/google-drive.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/google-drive",
+      aliases: [
+        "GoogleDrive",
+        "google-drive"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "google-finance",
+      toolkit: "google_finance",
+      name: "Google Finance",
+      logoUrl: "https://design-system.arcade.dev/icons/google-finance.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_finance",
+      aliases: [
+        "GoogleFinance",
+        "google_finance"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-flights",
+      toolkit: "google_flights",
+      name: "Google Flights",
+      logoUrl: "https://design-system.arcade.dev/icons/google-flights.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_flights",
+      aliases: [
+        "GoogleFlights",
+        "google_flights"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-forms",
+      toolkit: "google-forms",
+      name: "Google Forms",
+      logoUrl: "https://design-system.arcade.dev/icons/google-forms.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations",
+      aliases: [
+        "GoogleForms",
+        "google-forms"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "google-hotels",
+      toolkit: "google_hotels",
+      name: "Google Hotels",
+      logoUrl: "https://design-system.arcade.dev/icons/google-hotels.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_hotels",
+      aliases: [
+        "GoogleHotels",
+        "google_hotels"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-jobs",
+      toolkit: "google_jobs",
+      name: "Google Jobs",
+      logoUrl: "https://design-system.arcade.dev/icons/google-jobs.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_jobs",
+      aliases: [
+        "GoogleJobs",
+        "google_jobs"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-maps",
+      toolkit: "google_maps",
+      name: "Google Maps",
+      logoUrl: "https://design-system.arcade.dev/icons/google-maps.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_maps",
+      aliases: [
+        "GoogleMaps",
+        "google_maps"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-news",
+      toolkit: "google_news",
+      name: "Google News",
+      logoUrl: "https://design-system.arcade.dev/icons/google-news.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_news",
+      aliases: [
+        "GoogleNews",
+        "google_news"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-search",
+      toolkit: "google_search",
+      name: "Google Search",
+      logoUrl: "https://design-system.arcade.dev/icons/google-search.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_search",
+      aliases: [
+        "GoogleSearch",
+        "google_search"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-sheets",
+      toolkit: "google-sheets",
+      name: "Google Sheets",
+      logoUrl: "https://design-system.arcade.dev/icons/google-sheets.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/google-sheets",
+      aliases: [
+        "GoogleSheets",
+        "google-sheets"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "google-shopping",
+      toolkit: "google_shopping",
+      name: "Google Shopping",
+      logoUrl: "https://design-system.arcade.dev/icons/google-shopping.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/google_shopping",
+      aliases: [
+        "GoogleShopping",
+        "google_shopping"
+      ],
+      category: "search"
+    },
+    {
+      slug: "google-slides",
+      toolkit: "google-slides",
+      name: "Google Slides",
+      logoUrl: "https://design-system.arcade.dev/icons/google-slides.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/google-slides",
+      aliases: [
+        "GoogleSlides",
+        "google-slides"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "granola",
+      toolkit: "granola",
+      name: "Granola",
+      logoUrl: "https://design-system.arcade.dev/icons/granola.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/granola",
+      aliases: [
+        "Granola",
+        "granola"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "hubspot",
+      toolkit: "hubspot",
+      name: "HubSpot",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot",
+      aliases: [
+        "Hubspot",
+        "hubspot"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-automation-api",
+      toolkit: "hubspot-automation-api",
+      name: "HubSpot Automation API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-automation-api",
+      aliases: [
+        "HubspotAutomationApi",
+        "hubspot-automation-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-cms-api",
+      toolkit: "hubspot-cms-api",
+      name: "HubSpot CMS API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-cms-api",
+      aliases: [
+        "HubspotCmsApi",
+        "hubspot-cms-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-conversations-api",
+      toolkit: "hubspot-conversations-api",
+      name: "HubSpot Conversations API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-conversations-api",
+      aliases: [
+        "HubspotConversationsApi",
+        "hubspot-conversations-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-crm-api",
+      toolkit: "hubspot-crm-api",
+      name: "HubSpot CRM API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-crm-api",
+      aliases: [
+        "HubspotCrmApi",
+        "hubspot-crm-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-events-api",
+      toolkit: "hubspot-events-api",
+      name: "HubSpot Events API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-events-api",
+      aliases: [
+        "HubspotEventsApi",
+        "hubspot-events-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-marketing-api",
+      toolkit: "hubspot-marketing-api",
+      name: "HubSpot Marketing API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-marketing-api",
+      aliases: [
+        "HubspotMarketingApi",
+        "hubspot-marketing-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-meetings-api",
+      toolkit: "hubspot-meetings-api",
+      name: "HubSpot Meetings API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-meetings-api",
+      aliases: [
+        "HubspotMeetingsApi",
+        "hubspot-meetings-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "hubspot-users-api",
+      toolkit: "hubspot-users-api",
+      name: "HubSpot Users API",
+      logoUrl: "https://design-system.arcade.dev/icons/hubspot.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/hubspot-users-api",
+      aliases: [
+        "HubspotUsersApi",
+        "hubspot-users-api"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "imgflip",
+      toolkit: "imgflip",
+      name: "Imgflip",
+      logoUrl: "https://design-system.arcade.dev/icons/imgflip.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/entertainment/imgflip",
+      aliases: [
+        "Imgflip",
+        "imgflip"
+      ],
+      category: "entertainment"
+    },
+    {
+      slug: "insightly",
+      toolkit: "insightly",
+      name: "Insightly",
+      logoUrl: "https://design-system.arcade.dev/icons/insightly.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/insightly",
+      aliases: [
+        "Insightly",
+        "insightly"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "intercom-api",
+      toolkit: "intercom-api",
+      name: "Intercom API",
+      logoUrl: "https://design-system.arcade.dev/icons/intercom.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/intercom-api",
+      aliases: [
+        "IntercomApi",
+        "intercom-api"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "jira",
+      toolkit: "jira",
+      name: "Jira",
+      logoUrl: "https://design-system.arcade.dev/icons/jira.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/jira",
+      aliases: [
+        "Jira",
+        "jira"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "linear",
+      toolkit: "linear",
+      name: "Linear",
+      logoUrl: "https://design-system.arcade.dev/icons/linear.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/linear",
+      aliases: [
+        "Linear",
+        "linear"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "linkedin",
+      toolkit: "linkedin",
+      name: "LinkedIn",
+      logoUrl: "https://design-system.arcade.dev/icons/linkedin.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/linkedin",
+      aliases: [
+        "Linkedin",
+        "linkedin"
+      ],
+      category: "social"
+    },
+    {
+      slug: "luma-api",
+      toolkit: "luma-api",
+      name: "Luma API",
+      logoUrl: "https://design-system.arcade.dev/icons/luma.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/luma-api",
+      aliases: [
+        "LumaApi",
+        "luma-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "mailchimp-marketing-api",
+      toolkit: "mailchimp-marketing-api",
+      name: "Mailchimp API",
+      logoUrl: "https://design-system.arcade.dev/icons/mailchimp.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/mailchimp-marketing-api",
+      aliases: [
+        "MailchimpMarketingApi",
+        "mailchimp-marketing-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "math",
+      toolkit: "math",
+      name: "Math",
+      logoUrl: "https://design-system.arcade.dev/icons/math-toolkit.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/math",
+      aliases: [
+        "Math",
+        "math"
+      ],
+      category: "development"
+    },
+    {
+      slug: "microsoft-excel",
+      toolkit: "microsoft-excel",
+      name: "Microsoft Excel",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-excel.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-excel",
+      aliases: [
+        "MicrosoftExcel",
+        "microsoft-excel"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-onedrive",
+      toolkit: "microsoft-onedrive",
+      name: "Microsoft OneDrive",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-onedrive.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-onedrive",
+      aliases: [
+        "MicrosoftOnedrive",
+        "microsoft-onedrive"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-outlook-calendar",
+      toolkit: "microsoft-outlook-calendar",
+      name: "Microsoft Outlook Calendar",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-outlook-calendar.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-outlook-calendar",
+      aliases: [
+        "MicrosoftOutlookCalendar",
+        "microsoft-outlook-calendar"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-outlook-mail",
+      toolkit: "microsoft-outlook-mail",
+      name: "Microsoft Outlook Mail",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-outlook-mail.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-outlook-mail",
+      aliases: [
+        "MicrosoftOutlookMail",
+        "microsoft-outlook-mail"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-power-bi",
+      toolkit: "microsoft-power-bi",
+      name: "Microsoft Power BI",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-power-bi.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-power-bi",
+      aliases: [
+        "MicrosoftPowerBI",
+        "microsoft-power-bi"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-powerpoint",
+      toolkit: "microsoft-powerpoint",
+      name: "Microsoft PowerPoint",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-powerpoint.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-powerpoint",
+      aliases: [
+        "MicrosoftPowerpoint",
+        "microsoft-powerpoint"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-sharepoint",
+      toolkit: "microsoft-sharepoint",
+      name: "Microsoft SharePoint",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-sharepoint.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-sharepoint",
+      aliases: [
+        "MicrosoftSharePoint",
+        "microsoft-sharepoint"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-teams",
+      toolkit: "microsoft-teams",
+      name: "Microsoft Teams",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-teams.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/microsoft-teams",
+      aliases: [
+        "MicrosoftTeams",
+        "microsoft-teams"
+      ],
+      category: "social"
+    },
+    {
+      slug: "microsoft-users",
+      toolkit: "microsoft-users",
+      name: "Microsoft Users",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-users",
+      aliases: [
+        "MicrosoftUsers",
+        "microsoft-users"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "microsoft-word",
+      toolkit: "microsoft-word",
+      name: "Microsoft Word",
+      logoUrl: "https://design-system.arcade.dev/icons/microsoft-word.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/microsoft-word",
+      aliases: [
+        "MicrosoftWord",
+        "microsoft-word"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "miro-api",
+      toolkit: "miro-api",
+      name: "Miro API",
+      logoUrl: "https://design-system.arcade.dev/icons/miro.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/miro-api",
+      aliases: [
+        "MiroApi",
+        "miro-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "mixpanel",
+      toolkit: "mixpanel",
+      name: "Mixpanel",
+      logoUrl: "https://design-system.arcade.dev/icons/mixpanel.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/mixpanel",
+      aliases: [
+        "Mixpanel",
+        "mixpanel"
+      ],
+      category: "development"
+    },
+    {
+      slug: "mongodb",
+      toolkit: "mongodb",
+      name: "MongoDB",
+      logoUrl: "https://design-system.arcade.dev/icons/mongodb.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/databases/mongodb",
+      aliases: [
+        "MongoDB",
+        "mongodb"
+      ],
+      category: "databases"
+    },
+    {
+      slug: "nimble",
+      toolkit: "nimble",
+      name: "Nimble",
+      logoUrl: "https://docs.arcade.dev/images/partners/nimble.png",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/nimble",
+      aliases: [
+        "Nimble",
+        "nimble"
+      ],
+      category: "search"
+    },
+    {
+      slug: "notion",
+      toolkit: "notion",
+      name: "Notion",
+      logoUrl: "https://design-system.arcade.dev/icons/notion.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/notion",
+      aliases: [
+        "Notion",
+        "notion"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "obsidian",
+      toolkit: "obsidian",
+      name: "Obsidian",
+      logoUrl: "https://design-system.arcade.dev/icons/obsidian.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations",
+      aliases: [
+        "Obsidian",
+        "obsidian"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "pagerduty",
+      toolkit: "pagerduty",
+      name: "PagerDuty",
+      logoUrl: "https://design-system.arcade.dev/icons/pagerduty.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/pagerduty",
+      aliases: [
+        "PagerDuty",
+        "pagerduty"
+      ],
+      category: "development"
+    },
+    {
+      slug: "pagerduty-api",
+      toolkit: "pagerduty-api",
+      name: "PagerDuty API",
+      logoUrl: "https://design-system.arcade.dev/icons/pagerduty.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/pagerduty-api",
+      aliases: [
+        "PagerDutyApi",
+        "pagerduty-api"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "postgres",
+      toolkit: "postgres",
+      name: "Postgres",
+      logoUrl: "https://design-system.arcade.dev/icons/postgres.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/databases/postgres",
+      aliases: [
+        "Postgres",
+        "postgres"
+      ],
+      category: "databases"
+    },
+    {
+      slug: "posthog",
+      toolkit: "posthog",
+      name: "PostHog",
+      logoUrl: "https://design-system.arcade.dev/icons/posthog.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/posthog",
+      aliases: [
+        "Posthog",
+        "posthog"
+      ],
+      category: "development"
+    },
+    {
+      slug: "posthog-api",
+      toolkit: "posthog-api",
+      name: "PostHog API",
+      logoUrl: "https://design-system.arcade.dev/icons/posthog.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/posthog-api",
+      aliases: [
+        "PosthogApi",
+        "posthog-api"
+      ],
+      category: "development"
+    },
+    {
+      slug: "postman",
+      toolkit: "postman",
+      name: "Postman",
+      logoUrl: "https://design-system.arcade.dev/icons/postman.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/postman",
+      aliases: [
+        "Postman",
+        "postman"
+      ],
+      category: "development"
+    },
+    {
+      slug: "pylon",
+      toolkit: "pylon",
+      name: "Pylon",
+      logoUrl: "https://design-system.arcade.dev/icons/pylon.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/pylon",
+      aliases: [
+        "Pylon",
+        "pylon"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "pylon-api",
+      toolkit: "pylon-api",
+      name: "Pylon API",
+      logoUrl: "https://design-system.arcade.dev/icons/pylon.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/pylon-api",
+      aliases: [
+        "PylonApi",
+        "pylon-api"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "reddit",
+      toolkit: "reddit",
+      name: "Reddit",
+      logoUrl: "https://design-system.arcade.dev/icons/reddit.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/reddit",
+      aliases: [
+        "Reddit",
+        "reddit"
+      ],
+      category: "social"
+    },
+    {
+      slug: "resend",
+      toolkit: "resend",
+      name: "Resend",
+      logoUrl: "https://design-system.arcade.dev/icons/resend.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/resend",
+      aliases: [
+        "Resend",
+        "resend"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "salesforce",
+      toolkit: "salesforce",
+      name: "Salesforce",
+      logoUrl: "https://design-system.arcade.dev/icons/salesforce.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/sales/salesforce",
+      aliases: [
+        "Salesforce",
+        "salesforce"
+      ],
+      category: "sales"
+    },
+    {
+      slug: "servicenow",
+      toolkit: "servicenow",
+      name: "ServiceNow",
+      logoUrl: "https://design-system.arcade.dev/icons/servicenow.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/servicenow",
+      aliases: [
+        "ServiceNow",
+        "servicenow"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "slack",
+      toolkit: "slack",
+      name: "Slack",
+      logoUrl: "https://design-system.arcade.dev/icons/slack.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/slack",
+      aliases: [
+        "Slack",
+        "slack"
+      ],
+      category: "social"
+    },
+    {
+      slug: "slack-api",
+      toolkit: "slack-api",
+      name: "Slack API",
+      logoUrl: "https://design-system.arcade.dev/icons/slack.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/slack-api",
+      aliases: [
+        "SlackApi",
+        "slack-api"
+      ],
+      category: "social"
+    },
+    {
+      slug: "snowflake",
+      toolkit: "snowflake",
+      name: "Snowflake",
+      logoUrl: "https://design-system.arcade.dev/icons/snowflake.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/databases/snowflake",
+      aliases: [
+        "Snowflake",
+        "snowflake"
+      ],
+      category: "databases"
+    },
+    {
+      slug: "spotify",
+      toolkit: "spotify",
+      name: "Spotify",
+      logoUrl: "https://design-system.arcade.dev/icons/spotify.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/entertainment/spotify",
+      aliases: [
+        "Spotify",
+        "spotify"
+      ],
+      category: "entertainment"
+    },
+    {
+      slug: "squareup-api",
+      toolkit: "squareup-api",
+      name: "SquareUp API",
+      logoUrl: "https://design-system.arcade.dev/icons/square.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/squareup-api",
+      aliases: [
+        "SquareUpApi",
+        "squareup-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "stripe",
+      toolkit: "stripe",
+      name: "Stripe",
+      logoUrl: "https://design-system.arcade.dev/icons/stripe.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/payments/stripe",
+      aliases: [
+        "Stripe",
+        "stripe"
+      ],
+      category: "payments"
+    },
+    {
+      slug: "stripe-api",
+      toolkit: "stripe_api",
+      name: "Stripe API",
+      logoUrl: "https://design-system.arcade.dev/icons/stripe.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/payments/stripe_api",
+      aliases: [
+        "StripeApi",
+        "stripe_api"
+      ],
+      category: "payments"
+    },
+    {
+      slug: "tavily",
+      toolkit: "tavily",
+      name: "Tavily",
+      logoUrl: "https://docs.arcade.dev/images/partners/tavily.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/tavily",
+      aliases: [
+        "Tavily",
+        "tavily"
+      ],
+      category: "search"
+    },
+    {
+      slug: "telegram",
+      toolkit: "telegram",
+      name: "Telegram",
+      logoUrl: "https://design-system.arcade.dev/icons/telegram.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/telegram",
+      aliases: [
+        "Telegram",
+        "telegram"
+      ],
+      category: "social"
+    },
+    {
+      slug: "ticktick-api",
+      toolkit: "ticktick-api",
+      name: "TickTick API",
+      logoUrl: "https://design-system.arcade.dev/icons/ticktick.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/ticktick-api",
+      aliases: [
+        "TickTickApi",
+        "ticktick-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "trello-api",
+      toolkit: "trello-api",
+      name: "Trello API",
+      logoUrl: "https://design-system.arcade.dev/icons/trello.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/trello-api",
+      aliases: [
+        "TrelloApi",
+        "trello-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "twilio",
+      toolkit: "twilio",
+      name: "Twilio",
+      logoUrl: "https://design-system.arcade.dev/icons/twilio.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations",
+      aliases: [
+        "Twilio",
+        "twilio"
+      ],
+      category: "social"
+    },
+    {
+      slug: "twitch",
+      toolkit: "twitch",
+      name: "Twitch",
+      logoUrl: "https://design-system.arcade.dev/icons/twitch.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations",
+      aliases: [
+        "Twitch",
+        "twitch"
+      ],
+      category: "entertainment"
+    },
+    {
+      slug: "vercel",
+      toolkit: "vercel",
+      name: "Vercel",
+      logoUrl: "https://design-system.arcade.dev/icons/vercel.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/vercel",
+      aliases: [
+        "Vercel",
+        "vercel"
+      ],
+      category: "development"
+    },
+    {
+      slug: "vercel-api",
+      toolkit: "vercel-api",
+      name: "Vercel API",
+      logoUrl: "https://design-system.arcade.dev/icons/vercel.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/vercel-api",
+      aliases: [
+        "VercelApi",
+        "vercel-api"
+      ],
+      category: "development"
+    },
+    {
+      slug: "walmart",
+      toolkit: "walmart",
+      name: "Walmart",
+      logoUrl: "https://design-system.arcade.dev/icons/walmart.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/walmart",
+      aliases: [
+        "Walmart",
+        "walmart"
+      ],
+      category: "search"
+    },
+    {
+      slug: "weaviate-api",
+      toolkit: "weaviate-api",
+      name: "Weaviate API",
+      logoUrl: "https://design-system.arcade.dev/icons/weaviate.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/databases/weaviate-api",
+      aliases: [
+        "WeaviateApi",
+        "weaviate-api"
+      ],
+      category: "databases"
+    },
+    {
+      slug: "workday",
+      toolkit: "workday",
+      name: "Workday",
+      logoUrl: "https://design-system.arcade.dev/icons/workday.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/workday",
+      aliases: [
+        "Workday",
+        "workday"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "x",
+      toolkit: "x",
+      name: "X",
+      logoUrl: "https://design-system.arcade.dev/icons/x.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/x",
+      aliases: [
+        "X",
+        "x"
+      ],
+      category: "social"
+    },
+    {
+      slug: "xero-api",
+      toolkit: "xero-api",
+      name: "Xero API",
+      logoUrl: "https://design-system.arcade.dev/icons/xero.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/productivity/xero-api",
+      aliases: [
+        "XeroApi",
+        "xero-api"
+      ],
+      category: "productivity"
+    },
+    {
+      slug: "youtube",
+      toolkit: "youtube",
+      name: "Youtube",
+      logoUrl: "https://design-system.arcade.dev/icons/youtube.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/search/youtube",
+      aliases: [
+        "Youtube",
+        "youtube"
+      ],
+      category: "search"
+    },
+    {
+      slug: "yugabytedb",
+      toolkit: "yugabytedb",
+      name: "YugabyteDB",
+      logoUrl: "https://design-system.arcade.dev/icons/yugabytedb.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/databases/yugabytedb",
+      aliases: [
+        "YugabyteDB",
+        "yugabytedb"
+      ],
+      category: "databases"
+    },
+    {
+      slug: "zendesk",
+      toolkit: "zendesk",
+      name: "Zendesk",
+      logoUrl: "https://design-system.arcade.dev/icons/zendesk.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/customer-support/zendesk",
+      aliases: [
+        "Zendesk",
+        "zendesk"
+      ],
+      category: "customer-support"
+    },
+    {
+      slug: "zoho-books-api",
+      toolkit: "zoho-books-api",
+      name: "Zoho Books API",
+      logoUrl: "https://design-system.arcade.dev/icons/zoho-books.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/payments/zoho-books-api",
+      aliases: [
+        "ZohoBooksApi",
+        "zoho-books-api"
+      ],
+      category: "payments"
+    },
+    {
+      slug: "zoho-creator-api",
+      toolkit: "zoho-creator-api",
+      name: "Zoho Creator API",
+      logoUrl: "https://design-system.arcade.dev/icons/zoho-creator.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/development/zoho-creator-api",
+      aliases: [
+        "ZohoCreatorApi",
+        "zoho-creator-api"
+      ],
+      category: "development"
+    },
+    {
+      slug: "zoom",
+      toolkit: "zoom",
+      name: "Zoom",
+      logoUrl: "https://design-system.arcade.dev/icons/zoom.svg",
+      docsUrl: "https://docs.arcade.dev/en/resources/integrations/social-communication/zoom",
+      aliases: [
+        "Zoom",
+        "zoom"
+      ],
+      category: "social"
+    }
+  ]
+};
+
+// node_modules/@paperclipai/shared/dist/aggregator-app-catalog.js
+var SERVICE_IDENTITY_ALIASES = /* @__PURE__ */ new Map([
+  ["closeio", "close"],
+  ["microsoftexcel", "excel"],
+  ["microsoftonedrive", "onedrive"],
+  ["microsoftsharepoint", "sharepoint"],
+  ["squareup", "square"],
+  ["x", "twitter"]
+]);
+function aggregatorAppIdentity(value) {
+  const identity = value.toLowerCase().replace(/\s+(mcp|api)$/i, "").replace(/[^a-z0-9]/g, "");
+  return SERVICE_IDENTITY_ALIASES.get(identity) ?? identity;
+}
+var entries = /* @__PURE__ */ new Map();
+function add(name, slug, aliases, route) {
+  const identity = aggregatorAppIdentity(name);
+  const existing = entries.get(identity);
+  if (existing) {
+    existing.aliases = [.../* @__PURE__ */ new Set([...existing.aliases, name, slug, ...aliases])];
+    if (!existing.routes.some((candidate) => candidate.provider === route.provider)) {
+      existing.routes.push(route);
+    }
+    return;
+  }
+  entries.set(identity, { slug, name: name.replace(/\s+(MCP|API)$/i, ""), aliases, routes: [route] });
+}
+for (const [toolkit, name] of composio_search_catalog_default.toolkits) {
+  add(name, toolkit.replaceAll("_", "-").replace(/^-+/, ""), [toolkit], {
+    provider: "composio",
+    toolkit,
+    logoUrl: `https://logos.composio.dev/api/${toolkit}`,
+    docsUrl: `https://docs.composio.dev/toolkits/${toolkit}`
+  });
+}
+for (const app of arcade_app_catalog_default.apps) {
+  add(app.name, app.slug, app.aliases, {
+    provider: "arcade",
+    toolkit: app.toolkit,
+    logoUrl: app.logoUrl,
+    docsUrl: app.docsUrl
+  });
+}
+var AGGREGATOR_APP_CATALOG = [...entries.values()].sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }) || a.slug.localeCompare(b.slug));
+var COMPOSIO_APP_TOOLKITS = composio_search_catalog_default.toolkits.map(([toolkit]) => toolkit);
+
 // node_modules/@paperclipai/shared/dist/connection-search.js
 var STOP_WORDS = new Set("a an and are as at be by can connect connection connections do find for from get help i in is it me my need not of on or our please real service services so some that the their them there this to tool tools use want we with would you your".split(" "));
 var GENERIC_NAMES = /* @__PURE__ */ new Set([...STOP_WORDS, "contacts", "email"]);
@@ -38040,6 +40110,22 @@ for (const [toolkit, name] of composio_search_catalog_default.toolkits) {
     });
   }
 }
+for (const app of arcade_app_catalog_default.apps) {
+  const existing = AGGREGATOR_SUPPORT_INDEX.find((entry) => entry.slug === app.slug || aggregatorAppIdentity(entry.name) === aggregatorAppIdentity(app.name));
+  if (existing) {
+    existing.aliases = [.../* @__PURE__ */ new Set([...existing.aliases, app.slug, ...app.aliases])];
+    existing.providers = { ...existing.providers, arcade: arcade_app_catalog_default.verifiedAt };
+    existing.evidenceUrls = { ...existing.evidenceUrls, arcade: app.docsUrl };
+  } else {
+    AGGREGATOR_SUPPORT_INDEX.push({
+      slug: app.slug,
+      name: app.name,
+      aliases: app.aliases,
+      providers: { arcade: arcade_app_catalog_default.verifiedAt },
+      evidenceUrls: { arcade: app.docsUrl }
+    });
+  }
+}
 
 // node_modules/@paperclipai/shared/dist/browser-use.js
 var BROWSER_USE_IDLE_MS = 10 * 60 * 1e3;
@@ -38119,6 +40205,23 @@ var BROWSER_USE_TOOLS = [
   tool2("browser_sessions", "List only browser conversations owned by this task, agent and credential grant.", {}, [], true),
   tool2("browser_profiles", "List existing profiles explicitly allowed for this credential. Omit profileId for a fresh browser.", {}, [], true)
 ];
+
+// node_modules/@paperclipai/shared/dist/public-mcp.js
+var mcpConsentSchema = external_exports.object({
+  decision: external_exports.enum(["approve", "deny"]),
+  companyId: external_exports.string().uuid().optional(),
+  allowWrites: external_exports.boolean().default(false)
+}).strict();
+
+// node_modules/@paperclipai/shared/dist/aggregator-apps.js
+var aggregatorAppsSyncSchema = external_exports.object({ force: external_exports.boolean().default(false) }).strict();
+var aggregatorAppsRefreshSchema = external_exports.object({
+  toolkits: external_exports.array(external_exports.string().min(1).max(200)).max(64).default([])
+}).strict();
+var arcadeDiscoverySetupSchema = external_exports.object({
+  apiKey: external_exports.string().trim().min(1).max(8192),
+  userId: external_exports.string().trim().min(1).max(500)
+}).strict();
 
 // node_modules/@paperclipai/plugin-sdk/dist/environment-creation-cleanup.js
 var SCHEMA = "paperclip/environment-creation-cleanup/v1";
@@ -38344,8 +40447,8 @@ function canonicalize(value) {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalize).join(",")}]`;
   }
-  const entries = Object.entries(value).filter(([, v]) => v !== void 0).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, v]) => `${JSON.stringify(key)}:${canonicalize(v)}`);
-  return `{${entries.join(",")}}`;
+  const entries2 = Object.entries(value).filter(([, v]) => v !== void 0).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, v]) => `${JSON.stringify(key)}:${canonicalize(v)}`);
+  return `{${entries2.join(",")}}`;
 }
 function isWorkerEntrypoint(entry, moduleUrl) {
   const thisFile = realpathOrResolvedPath(fileURLToPath(moduleUrl));
@@ -39371,6 +41474,10 @@ function startWorkerRpcHost(options) {
         return handleExecuteTool(params);
       case "detectExternalObjects":
         return handleDetectExternalObjects(params);
+      case "routeAiConnection":
+        if (!plugin2.definition.onRouteAiConnection)
+          throw methodNotImplemented("routeAiConnection");
+        return plugin2.definition.onRouteAiConnection(params);
       case "resolveExternalObject":
         return handleResolveExternalObject(params);
       case "refreshExternalObjects":
@@ -39453,6 +41560,8 @@ function startWorkerRpcHost(options) {
       supportedMethods.push("handleApiRequest");
     if (plugin2.definition.onDetectExternalObjects)
       supportedMethods.push("detectExternalObjects");
+    if (plugin2.definition.onRouteAiConnection)
+      supportedMethods.push("routeAiConnection");
     if (plugin2.definition.onResolveExternalObject)
       supportedMethods.push("resolveExternalObject");
     if (plugin2.definition.onRefreshExternalObjects)
@@ -40846,22 +42955,22 @@ function parseCoAuthorTrailers(message2) {
 }
 function collectAuthorSignals(commits, prAuthorLogin) {
   const out = /* @__PURE__ */ new Set();
-  const add = (s) => {
+  const add2 = (s) => {
     if (s) {
       const n = normalizeAuthorSignal(s);
       if (n) out.add(n);
     }
   };
   for (const c of commits) {
-    add(c.email);
-    add(c.name);
-    add(c.login);
+    add2(c.email);
+    add2(c.name);
+    add2(c.login);
     for (const t of parseCoAuthorTrailers(c.message)) {
-      add(t.email);
-      add(t.name);
+      add2(t.email);
+      add2(t.name);
     }
   }
-  add(prAuthorLogin);
+  add2(prAuthorLogin);
   return out;
 }
 function isSelfAuthored(reviewer, identities, authorSignals) {
