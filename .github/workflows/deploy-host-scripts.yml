@@ -80,6 +80,7 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: Assert remote + pull /opt/agenticos/repo to origin/main
         # `shell: bash` (-eo pipefail) so the `| tee` below cannot mask an ssh failure.
@@ -229,3 +230,12 @@ jobs:
             grep -E '^(Privilege:|  (wrote|staged|linked)|.*already present and identical|NEXT|  ✅|  ⚠️)' arm-timer.log || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Revoke this runner from the agent-plane fence (GOL-3412)
+        # Pairs with the admit step inside configure-ssh. always(): a failed or
+        # cancelled job must still drop its /32 from grove-agent-plane-ci-fw.
+        if: always()
+        uses: ./.github/actions/agent-plane-fence
+        with:
+          mode: revoke
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

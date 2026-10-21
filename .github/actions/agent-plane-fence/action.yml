@@ -1,0 +1,67 @@
+name: Agent-plane fence
+description: >-
+  Admit this runner's public /32 on tcp/22 of the CI-owned DigitalOcean firewall
+  attached to the agent-plane droplet (mode=admit), or remove it again
+  (mode=revoke). The public :22 has been fenced to operator IPs since 2026-10-15
+  (grove-agent-plane-fw, GOL-2569), so GitHub-hosted runners cannot reach the
+  droplet without this (GOL-3412). The DO token is read from 1Password at run
+  time via the repo's service account, masked, and never written to disk — no
+  new repo secret. See docs/runbooks/ci-ssh-agent-plane-fence.md.
+
+inputs:
+  mode:
+    description: admit | revoke
+    required: true
+  op-service-account-token:
+    description: 1Password service-account token (secrets.OP_SERVICE_ACCOUNT_TOKEN).
+    required: true
+  do-token-ref:
+    description: >-
+      op:// reference to a DigitalOcean API token with firewall read+update
+      (and create, for the first run). Swap to a firewall-scoped token here when
+      one exists; nothing else changes.
+    required: false
+    default: "op://Goldberry Grove - Admin/Grove Infra/do_token"
+  droplet-name:
+    description: Droplet the CI firewall is attached to (resolved by name, like odoocker's agent-plane-fw.tf).
+    required: false
+    default: agenticos-droplet
+  firewall-name:
+    description: Name of the CI-owned firewall (created on first use, imported by odoocker Terraform afterwards).
+    required: false
+    default: grove-agent-plane-ci-fw
+  host:
+    description: Optional public host/IP to probe on tcp/22 after admitting (secrets.DROPLET_HOST).
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install 1Password CLI
+      uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
+
+    - name: Agent-plane fence (${{ inputs.mode }})
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.op-service-account-token }}
+        DO_TOKEN_REF: ${{ inputs.do-token-ref }}
+        DROPLET_NAME: ${{ inputs.droplet-name }}
+        FW_NAME: ${{ inputs.firewall-name }}
+        HOST: ${{ inputs.host }}
+      run: |
+        set -euo pipefail
+        if [ "$MODE" = revoke ] && [ -z "${AGENT_PLANE_CI_FW_ID:-}" ]; then
+          echo "No admission recorded in this job — nothing to revoke."
+          exit 0
+        fi
+        if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
+          echo "::error title=agent-plane-fence::OP_SERVICE_ACCOUNT_TOKEN is empty — cannot read the DO token from 1Password."
+          exit 1
+        fi
+        # Read at run time, mask, keep in the environment only (GOL-313 pattern).
+        DO_TOKEN="$(op read "$DO_TOKEN_REF")"
+        echo "::add-mask::${DO_TOKEN}"
+        export DO_TOKEN
+        bash "${{ github.action_path }}/fence.sh" "$MODE"

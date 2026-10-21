@@ -43,6 +43,7 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: Collector status + logs
         env:
@@ -68,3 +69,12 @@ jobs:
               docker logs --tail=100 otel-collector 2>&1 || echo "(no logs)"'
 
 # re-fire: verify collector post user:0:0 fix (GOL-313)
+
+      - name: Revoke this runner from the agent-plane fence (GOL-3412)
+        # Pairs with the admit step inside configure-ssh. always(): a failed or
+        # cancelled job must still drop its /32 from grove-agent-plane-ci-fw.
+        if: always()
+        uses: ./.github/actions/agent-plane-fence
+        with:
+          mode: revoke
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

@@ -63,6 +63,7 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: Audit every company skill library
         # `shell: bash` is load-bearing: GitHub's default for `run:` is
@@ -107,3 +108,12 @@ jobs:
             *) echo "::error::the skill audit could not complete (exit ${rc}) — this is NOT a clean result" ;;
           esac
           exit "$rc"
+
+      - name: Revoke this runner from the agent-plane fence (GOL-3412)
+        # Pairs with the admit step inside configure-ssh. always(): a failed or
+        # cancelled job must still drop its /32 from grove-agent-plane-ci-fw.
+        if: always()
+        uses: ./.github/actions/agent-plane-fence
+        with:
+          mode: revoke
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

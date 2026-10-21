@@ -51,6 +51,7 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: Ship committed tree to Droplet
         env:
@@ -268,3 +269,12 @@ jobs:
               echo "waiting for vault-server ($i)..."; sleep 3
             done
             echo "vault-server did not report healthy"; exit 1'
+
+      - name: Revoke this runner from the agent-plane fence (GOL-3412)
+        # Pairs with the admit step inside configure-ssh. always(): a failed or
+        # cancelled job must still drop its /32 from grove-agent-plane-ci-fw.
+        if: always()
+        uses: ./.github/actions/agent-plane-fence
+        with:
+          mode: revoke
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
