@@ -147,11 +147,12 @@ function authHeaders(ctx, extra = {}) {
   };
 }
 
-async function rest(ctx, method, path, body) {
+/** One JSON-bodied REST write (the only REST call this tool makes is the PR create). */
+async function restPost(ctx, path, body) {
   const res = await ctx.fetch(`${API}${path}`, {
-    method,
-    headers: authHeaders(ctx, body ? { "Content-Type": "application/json" } : {}),
-    body: body ? JSON.stringify(body) : undefined,
+    method: "POST",
+    headers: authHeaders(ctx, { "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(30_000),
   });
   const text = await res.text();
@@ -164,7 +165,7 @@ async function rest(ctx, method, path, body) {
     const errs = Array.isArray(json?.errors) && json.errors.length
       ? ` (${json.errors.map((e) => e?.message || e?.code || JSON.stringify(e)).join("; ")})`
       : "";
-    const err = new Error(`${method} ${path} -> ${res.status}${msg}${errs}`);
+    const err = new Error(`POST ${path} -> ${res.status}${msg}${errs}`);
     err.status = res.status;
     throw err;
   }
@@ -417,7 +418,7 @@ export async function armPullRequest(ctx, {
 
 /** Create the PR through the REST API (as the App). -> { number, url, draft } */
 export async function createPullRequest(ctx, { owner, name, head, base, title, body, draft }) {
-  const pr = await rest(ctx, "POST", `/repos/${owner}/${name}/pulls`, {
+  const pr = await restPost(ctx, `/repos/${owner}/${name}/pulls`, {
     title, head, base, body: body ?? "", draft: Boolean(draft),
   });
   return { number: pr.number, url: pr.html_url, draft: Boolean(pr.draft) };
