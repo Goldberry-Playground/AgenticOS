@@ -31,7 +31,7 @@ exists because of this timer.**
 
 | Path | Role |
 |---|---|
-| `infra/scripts/merge-queue-arm-sweep.sh` | host wrapper: resolves the broker, sweeps the three repos, drift-checks the vendor, alerts Discord |
+| `infra/scripts/merge-queue-arm-sweep.sh` | host wrapper: resolves the broker, sweeps the four repos (grove-sites, odoocker-goldberrygrove, grove-odoo-modules, AgenticOS), drift-checks the vendor, alerts Discord |
 | `infra/scripts/vendored/merge-queue-arm-automerge.sh` | byte-identical vendored copy of the grove-sites sweep (see `infra/scripts/vendored/README.md` for why vendored) |
 | `infra/scripts/install-merge-queue-arm-sweep.sh` | installer for an already-running box — **needs no root**, run by `deploy-host-scripts.yml` |
 | `infra/cloud-init/droplet-bootstrap.yaml.tpl` | the same unit bodies inline, so a rebuilt droplet keeps the timer |
