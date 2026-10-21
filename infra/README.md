@@ -50,8 +50,8 @@ Two independent surfaces, two deploy paths:
   Since 2026-10-15 the droplet's public `:22` is fenced to operator IPs
   (`grove-agent-plane-fw`, GOL-2569). Runners get through by admitting their own
   `/32` on the CI-owned `grove-agent-plane-ci-fw` for the length of the job
-  (`.github/actions/agent-plane-fence`, driven by `OP_SERVICE_ACCOUNT_TOKEN` — no
-  extra secret). See `docs/runbooks/ci-ssh-agent-plane-fence.md` (GOL-3412).
+  (`.github/actions/agent-plane-fence`, driven by `DO_FIREWALL_TOKEN`: a DO token
+  scoped to droplet:read + firewall read/update/create). See `docs/runbooks/ci-ssh-agent-plane-fence.md` (GOL-3412).
 
 ## Cost
 

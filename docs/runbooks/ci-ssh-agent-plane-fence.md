@@ -1,7 +1,8 @@
 # CI SSH through the agent-plane fence (GOL-3412)
 
-**Status:** live on merge. No new repo secret; the only credential involved is
-the one CI already holds (`OP_SERVICE_ACCOUNT_TOKEN`).
+**Status:** live once the one repo secret below exists (`DO_FIREWALL_TOKEN`).
+Until then every caller fails in `Configure SSH` exactly as before, with a
+message that names this runbook.
 
 ## What broke
 
@@ -28,13 +29,13 @@ after 5 attempts") on every run since the fence:
 
 ## How it works now
 
-`.github/actions/configure-ssh` takes an optional `op-service-account-token`.
-When set, before the keyscan it calls `.github/actions/agent-plane-fence` with
-`mode: admit`, which:
+`.github/actions/configure-ssh` takes an optional `do-token`
+(`secrets.DO_FIREWALL_TOKEN`). When set, before the keyscan it calls
+`.github/actions/agent-plane-fence` with `mode: admit`, which:
 
-1. reads the DigitalOcean token from 1Password at run time
-   (`op://Goldberry Grove - Admin/Grove Infra/do_token`), masks it, keeps it in
-   the step environment only (GOL-313 pattern, same as `resize-droplet.yml`);
+1. takes the DigitalOcean token from `do-token`, masks it, keeps it in the
+   step environment only (fallback: `op-service-account-token` + `op read`,
+   the GOL-313 pattern — dead as of 2026-10-21, see below);
 2. finds (or on first use **creates**) `grove-agent-plane-ci-fw`, a second DO
    cloud firewall attached to `agenticos-droplet` with no inbound rules and the
    same wide-open outbound as the main fence;
@@ -63,24 +64,43 @@ carries 5+ rules (stray /32s).
   reverted by any apply mid-deploy.
 - **Tailnet (#893, option B on GOL-3412)** — cleanest network story, but needs a
   new Tailscale OAuth client, an ACL edit and three new repo secrets, all
-  console steps. This path ships with zero new credentials; the two are not
+  console steps. This path needs one narrowly scoped DO token; the two are not
   exclusive, and #893 can land later on top of it.
 - **Self-hosted runner on the box** — the repo is public; GitHub advises against
   self-hosted runners on public repos.
 
-## Credential exposure (honest accounting)
+## One-time setup (Josh): the `DO_FIREWALL_TOKEN` repo secret
 
-`do_token` is the account-wide DigitalOcean token. CI already holds
-`OP_SERVICE_ACCOUNT_TOKEN`, whose service account can read that vault item, so
-reading it at run time adds **no** reach CI did not already have. To tighten,
-mint a token scoped to `firewall:read` + `firewall:update` (+ `firewall:create`
-until the firewall is codified), store it on the same 1Password item, and change
-the `do-token-ref` default in `.github/actions/agent-plane-fence/action.yml`.
-Nothing else changes.
+The first version of this fix read the account DO token through the repo's
+1Password service account, on the grounds that CI already held that reach. The
+first PR run (2026-10-21 10:46Z) proved otherwise: `op read` fails with
+`403 Forbidden (Service Account Deleted)`. The account behind
+`OP_SERVICE_ACCOUNT_TOKEN` is gone, which also means `resize-droplet.yml` and
+`sync-ci-secrets.yml` have been silently dead. So this path needs one secret of
+its own, and a narrow one is better than restoring vault-wide reach to a public
+repo's CI:
 
-Side finding during this incident: `do_token_scoped` on the same 1Password item
-(consumed by `resize-droplet.yml`) answers **401** on every endpoint — it is
-revoked or expired, and that workflow is silently broken. Tracked separately.
+1. DigitalOcean → API → Tokens → Generate New Token, **custom scopes**:
+   `droplet:read`, `firewall:read`, `firewall:update`, `firewall:create`
+   (create only so the action can rebuild `grove-agent-plane-ci-fw` if it is
+   ever deleted). No expiry, or a long one with a calendar note.
+2. Store it on the `Grove Infra` item in `Goldberry Grove - Admin` as
+   `do_token_firewall_ci` (so the December rotation batch sees it).
+3. Set the repo secret (the command prompts for the value; nothing lands in
+   shell history):
+   ```bash
+   gh secret set DO_FIREWALL_TOKEN --repo Goldberry-Playground/AgenticOS
+   ```
+
+What that token can do if it leaks: read droplets and add/remove rules on any
+firewall on the account — including opening a port to the world. It cannot
+touch droplets, volumes, Spaces, DNS or other tokens. That is the whole reach
+CI gets from this change.
+
+Side findings during this incident, tracked separately:
+- `do_token_scoped` on the same 1Password item answers **401** everywhere
+  (revoked/expired).
+- `OP_SERVICE_ACCOUNT_TOKEN` in this repo is a deleted service account (403).
 
 ## Follow-up: codify the CI firewall (odoocker)
 
@@ -105,16 +125,18 @@ Expected: `Admitting <ip>/32 on tcp/22 via grove-agent-plane-ci-fw`,
 and at the end `Revoked.`
 
 Local dry run of the script against the real account, with a non-routable
-TEST-NET address so nothing is actually admitted:
+TEST-NET address so nothing is actually admitted (passed 2026-10-21 10:45Z: it
+created `grove-agent-plane-ci-fw`, id `76ef6670-193e-4bbe-892e-6fec084aab9a`,
+admitted and revoked the test rule in 12 s):
 
 ```bash
-export DO_TOKEN="$(op read 'op://Goldberry Grove - Admin/Grove Infra/do_token')" RUNNER_CIDR=192.0.2.1/32 GITHUB_ENV=/tmp/fence.env && bash .github/actions/agent-plane-fence/fence.sh admit && set -a && . /tmp/fence.env && set +a && bash .github/actions/agent-plane-fence/fence.sh revoke
+export DO_TOKEN="$(op read 'op://Goldberry Grove - Admin/Grove Infra/do_token_firewall_ci')" RUNNER_CIDR=192.0.2.1/32 GITHUB_ENV=/tmp/fence.env && bash .github/actions/agent-plane-fence/fence.sh admit && set -a && . /tmp/fence.env && set +a && bash .github/actions/agent-plane-fence/fence.sh revoke
 ```
 
 ## Rollback
 
-Drop the `op-service-account-token:` line from a caller and it is the legacy
-keyscan-only path (which times out against the fence). Deleting
+Delete the `DO_FIREWALL_TOKEN` secret (or drop the `do-token:` line from a
+caller) and it is the legacy keyscan-only path (which times out against the fence). Deleting
 `grove-agent-plane-ci-fw` in the DO console removes every CI admission at once;
 the next admit recreates it empty.
 

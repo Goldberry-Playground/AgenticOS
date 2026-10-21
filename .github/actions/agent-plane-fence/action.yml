@@ -4,22 +4,37 @@ description: >-
   attached to the agent-plane droplet (mode=admit), or remove it again
   (mode=revoke). The public :22 has been fenced to operator IPs since 2026-10-15
   (grove-agent-plane-fw, GOL-2569), so GitHub-hosted runners cannot reach the
-  droplet without this (GOL-3412). The DO token is read from 1Password at run
-  time via the repo's service account, masked, and never written to disk — no
-  new repo secret. See docs/runbooks/ci-ssh-agent-plane-fence.md.
+  droplet without this (GOL-3412). The DO token comes from `do-token`
+  (secrets.DO_FIREWALL_TOKEN, scoped droplet:read + firewall:read/update) or,
+  when that is empty, is read from 1Password at run time via
+  `op-service-account-token`; either way it is masked and never written to
+  disk. See docs/runbooks/ci-ssh-agent-plane-fence.md.
 
 inputs:
   mode:
     description: admit | revoke
     required: true
+  do-token:
+    description: >-
+      DigitalOcean API token (secrets.DO_FIREWALL_TOKEN). Custom scopes:
+      droplet:read, firewall:read, firewall:update (+ firewall:create so the
+      action can recreate grove-agent-plane-ci-fw if it is ever deleted).
+      Preferred over the 1Password path below.
+    required: false
+    default: ""
   op-service-account-token:
-    description: 1Password service-account token (secrets.OP_SERVICE_ACCOUNT_TOKEN).
-    required: true
+    description: >-
+      1Password service-account token (secrets.OP_SERVICE_ACCOUNT_TOKEN) —
+      fallback used only when `do-token` is empty. NOTE 2026-10-21: the
+      account behind the repo's current OP_SERVICE_ACCOUNT_TOKEN has been
+      deleted (403 "Service Account Deleted"), so this path is dead until a new
+      service account exists.
+    required: false
+    default: ""
   do-token-ref:
     description: >-
-      op:// reference to a DigitalOcean API token with firewall read+update
-      (and create, for the first run). Swap to a firewall-scoped token here when
-      one exists; nothing else changes.
+      op:// reference read via the 1Password fallback: a DigitalOcean API token
+      with the scopes listed under `do-token`.
     required: false
     default: "op://Goldberry Grove - Admin/Grove Infra/do_token"
   droplet-name:
@@ -38,13 +53,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install 1Password CLI
+    - name: Install 1Password CLI (fallback path only)
+      if: ${{ inputs.do-token == '' && inputs.op-service-account-token != '' }}
       uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
 
     - name: Agent-plane fence (${{ inputs.mode }})
       shell: bash
       env:
         MODE: ${{ inputs.mode }}
+        DO_TOKEN_INPUT: ${{ inputs.do-token }}
         OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.op-service-account-token }}
         DO_TOKEN_REF: ${{ inputs.do-token-ref }}
         DROPLET_NAME: ${{ inputs.droplet-name }}
@@ -56,12 +73,15 @@ runs:
           echo "No admission recorded in this job — nothing to revoke."
           exit 0
         fi
-        if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
-          echo "::error title=agent-plane-fence::OP_SERVICE_ACCOUNT_TOKEN is empty — cannot read the DO token from 1Password."
+        if [ -n "${DO_TOKEN_INPUT:-}" ]; then
+          DO_TOKEN="$DO_TOKEN_INPUT"
+        elif [ -n "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
+          # Fallback: read at run time, mask, keep in the environment only (GOL-313 pattern).
+          DO_TOKEN="$(op read "$DO_TOKEN_REF")"
+        else
+          echo "::error title=agent-plane-fence::neither do-token (secrets.DO_FIREWALL_TOKEN) nor op-service-account-token is set — cannot admit this runner through the agent-plane fence (docs/runbooks/ci-ssh-agent-plane-fence.md)."
           exit 1
         fi
-        # Read at run time, mask, keep in the environment only (GOL-313 pattern).
-        DO_TOKEN="$(op read "$DO_TOKEN_REF")"
         echo "::add-mask::${DO_TOKEN}"
         export DO_TOKEN
         bash "${{ github.action_path }}/fence.sh" "$MODE"

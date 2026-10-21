@@ -68,6 +68,7 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          do-token: ${{ secrets.DO_FIREWALL_TOKEN }}
           op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: Reclaim host Docker space (system prune + builder prune, no volumes)
@@ -118,4 +119,5 @@ jobs:
         uses: ./.github/actions/agent-plane-fence
         with:
           mode: revoke
+          do-token: ${{ secrets.DO_FIREWALL_TOKEN }}
           op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

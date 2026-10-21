@@ -80,6 +80,7 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          do-token: ${{ secrets.DO_FIREWALL_TOKEN }}
           op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: Assert remote + pull /opt/agenticos/repo to origin/main
@@ -238,4 +239,5 @@ jobs:
         uses: ./.github/actions/agent-plane-fence
         with:
           mode: revoke
+          do-token: ${{ secrets.DO_FIREWALL_TOKEN }}
           op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
