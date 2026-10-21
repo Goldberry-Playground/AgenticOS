@@ -206,9 +206,13 @@ jobs:
       # are re-staged byte-identically, `link --force` is a no-op on an existing
       # correct symlink, and `enable --now` on a live timer does nothing.
       #
-      # Deliberately LAST, and deliberately FATAL on failure. Last, so a problem
-      # here can never prevent the clone refresh or the plugin-dist rebuild
-      # above from completing. Fatal, because a timer that silently fails to
+      # Deliberately LAST gated step, and deliberately FATAL on failure. Last,
+      # so a problem here can never prevent the clone refresh or the
+      # plugin-dist rebuild above from completing (the only step after it is
+      # the `if: always()` fence revoke, which runs regardless — and must come
+      # after this one because this one SSHes through the admitted /32;
+      # scripts/ci/merge-queue-arm-sweep.test.sh §12 enforces exactly that
+      # shape). Fatal, because a timer that silently fails to
       # install is precisely the "nothing arms an agent PR unless someone
       # remembers" failure this ticket exists to delete — a yellow warning
       # nobody reads would reintroduce it one layer down.

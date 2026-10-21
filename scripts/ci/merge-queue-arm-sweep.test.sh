@@ -535,15 +535,60 @@ grep -q 'bash infra/scripts/install-merge-queue-arm-sweep.sh' "$DEPLOY_WF" \
 # It has to be reachable: the push path filter must cover the installer itself.
 grep -q "infra/scripts/\*\*" "$DEPLOY_WF" \
   && ok "push path filter covers infra/scripts/**" || bad "installer changes would not trigger the deploy"
-# Last step, so it can never block the clone refresh / dist rebuild above it.
+# Last *gated* step, so it can never block the clone refresh / dist rebuild
+# above it. The only thing allowed after it is `if: always()` cleanup — the
+# GOL-3412 agent-plane fence revoke — which runs whether or not this step
+# failed, so the installer still gates nothing. (And the revoke MUST sit after
+# the installer: the installer SSHes through the /32 the revoke removes.)
 # `|| true` on both: with pipefail a missing match aborts the harness before the
 # summary, so the one failure that matters would take every later line with it.
+#
+# Prints the name of every `- name:` step after the installer line that does
+# NOT carry `if: always()`. Empty output = nothing after the installer can be
+# skipped on its failure.
+ungated_steps_after_installer() {
+  local wf="$1"
+  local inst
+  inst=$( { grep -n 'install-merge-queue-arm-sweep.sh' "$wf" || true; } | tail -n1 | cut -d: -f1)
+  awk -v inst="${inst:-0}" '
+    function flush() {
+      if (start > inst && !always) out = out (out ? ", " : "") name
+    }
+    /^      - name:/ { if (start) flush(); start = NR; name = $0; sub(/^      - name: */, "", name); always = 0; next }
+    start && /^ +if: *always\(\)/ { always = 1 }
+    END { if (start) flush(); print out }
+  ' "$wf"
+}
 INST_LINE=$( { grep -n 'install-merge-queue-arm-sweep.sh' "$DEPLOY_WF" || true; } | tail -n1 | cut -d: -f1)
 LAST_STEP=$( { grep -n '^      - name:' "$DEPLOY_WF" || true; } | tail -n1 | cut -d: -f1)
-if [ -n "$INST_LINE" ] && [ -n "$LAST_STEP" ] && [ "$INST_LINE" -gt "$LAST_STEP" ]; then
-  ok "timer convergence is the final step"
+UNGATED_AFTER=$(ungated_steps_after_installer "$DEPLOY_WF")
+if [ -n "$INST_LINE" ] && [ -n "$LAST_STEP" ] && [ -z "$UNGATED_AFTER" ]; then
+  ok "timer convergence is the final gated step (only if: always() cleanup follows it)"
 else
-  bad "timer convergence is not the last step (install=$INST_LINE last-step=$LAST_STEP)"
+  bad "timer convergence is not the last gated step (install=$INST_LINE last-step=$LAST_STEP ungated-after=${UNGATED_AFTER:-?})"
+fi
+# The check itself has to be able to fail: a trailing step WITHOUT always()
+# would reintroduce "installer failure skips X" one layer down, and a check
+# that cannot see it is the same yellow-warning-nobody-reads bug.
+FIXTURE_WF=$(mktemp)
+cat > "$FIXTURE_WF" <<'YML'
+jobs:
+  deploy:
+    steps:
+      - name: Converge host systemd timers
+        run: bash infra/scripts/install-merge-queue-arm-sweep.sh
+      - name: Revoke fence
+        if: always()
+        uses: ./.github/actions/agent-plane-fence
+      - name: Sneaky gated step
+        run: echo this only runs if the installer succeeded
+YML
+FIXTURE_OUT=$(ungated_steps_after_installer "$FIXTURE_WF")
+rm -f "$FIXTURE_WF"
+if [ "$FIXTURE_OUT" = "Sneaky gated step" ]; then
+  ok "an ungated step after the installer is detected (always() cleanup is not)"
+else
+  bad "trailing-step check is blind (fixture reported: '${FIXTURE_OUT}')"
 fi
 python3 -c "
 import sys
