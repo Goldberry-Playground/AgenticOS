@@ -35,6 +35,36 @@ const REVIEWER_NAME: Record<Reviewer, string> = { ada: "Ada", iris: "Iris" };
  */
 export const PR_ACTIONS: readonly string[] = ["opened", "reopened", "ready_for_review", "synchronize"];
 
+/**
+ * PR actions that END a review (GOL-3374). A merged or closed PR has nothing left
+ * to review, yet its Ada/Iris twins used to outlive it in `in_review`/`blocked`
+ * forever — `closed` was in the ignore set above and no sweep touched review
+ * twins, so ~50 merged PRs left stranded twins Josh retired by hand (10-14).
+ * The worker retires the twins instead: merged → `done`, closed-unmerged →
+ * `cancelled` (see resolveReviewTwinClosureStatus).
+ */
+export const PR_CLOSE_ACTIONS: readonly string[] = ["closed"];
+
+export function isPrClosureAction(action: string): boolean {
+  return PR_CLOSE_ACTIONS.includes(action);
+}
+
+/**
+ * Review-twin status to write when its PR closes, or null when nothing to do.
+ *  - twin already `done`/`cancelled` → null (loop guard / already retired)
+ *  - PR merged                        → `done`      (the work shipped)
+ *  - PR closed without merge          → `cancelled` (the review is moot)
+ * Pure so both the `pull_request closed` webhook and the hourly retire sweep
+ * apply the identical matrix.
+ */
+export function resolveReviewTwinClosureStatus(
+  merged: boolean,
+  currentStatus: string,
+): "done" | "cancelled" | null {
+  if (currentStatus === "done" || currentStatus === "cancelled") return null;
+  return merged ? "done" : "cancelled";
+}
+
 /** Default frontend globs (spec System 2 start set). Bridge config may override. */
 export const DEFAULT_FRONTEND_PATHS: readonly string[] = ["apps/dashboard/**", "**/*.tsx", "**/*.css"];
 
@@ -60,6 +90,8 @@ export interface GithubPrEvent {
   before: string;
   /** New head SHA on a `synchronize` delivery; "" on other actions. */
   after: string;
+  /** true when the PR was merged (meaningful on a `closed` delivery). */
+  merged: boolean;
 }
 
 /**
@@ -92,6 +124,7 @@ export function parseGithubPrEvent(raw: unknown): GithubPrEvent | null {
     url: typeof pr.html_url === "string" ? pr.html_url : "",
     before: typeof o.before === "string" ? o.before : "",
     after: typeof o.after === "string" ? o.after : "",
+    merged: pr.merged === true || typeof pr.merged_at === "string",
   };
 }
 

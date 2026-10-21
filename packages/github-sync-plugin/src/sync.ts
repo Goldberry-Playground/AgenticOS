@@ -1,6 +1,7 @@
 import type { Issue } from "@paperclipai/plugin-sdk";
-import type { GitHubClient, UpdateIssueInput } from "./github-client.js";
+import type { GitHubClient, GitHubFieldError, UpdateIssueInput } from "./github-client.js";
 import {
+  bareRepoName,
   getByPaperclipId,
   upsert,
   type MappingDb,
@@ -124,6 +125,56 @@ export interface SyncDeps {
    * repo name.
    */
   resolveRepoClient?: (repoSlug: string) => { github: GitHubClient; repo: string } | null;
+  /**
+   * Durable failure sink (GOL-3374). The outbound push used to report a failed
+   * GitHub PATCH ONLY via `logger.error`, which lives in a 7-day-rotated
+   * server.log — so the 2026-10-05 loss of 22 closes left no recoverable trace
+   * (`github_sync_error` had zero rows for the week). The worker wires this to
+   * `recordError` (no Discord ping: the hourly outbound-close sweep is the
+   * paging/healing layer). Optional so pure-sync callers/tests need not wire it.
+   */
+  recordFailure?: (scope: string, detail: string, context: Record<string, unknown>) => Promise<void>;
+}
+
+/**
+ * Resolve the GitHub client + BARE repo name to push a mapping row to (GOL-3374).
+ *
+ * Outbound (Paperclip-origin) rows store `github_repo` as the bare name from the
+ * bridge config (`grove-sites`). INBOUND (GitHub-origin) rows store the webhook's
+ * `repository.full_name` verbatim (`Goldberry-Playground/odoocker-goldberrygrove`,
+ * sometimes lowercased). `GitHubClient` builds `/repos/${org}/${repo}/…` from its
+ * `repo` argument, so handing it the full slug produced `/repos/Org/Org/repo/…`
+ * (and a broker mint for a repo literally named `Org/repo`): every board-side
+ * close of a GitHub-born twin failed, deterministically, with no HTTP status.
+ * A full slug resolves through the per-bridge client registry (the same
+ * `resolveRepoClient` the sign-off path uses, so a shared-project bridge pair
+ * lands on the right repo); without a resolver we fall back to the bare tail.
+ */
+export function resolveMappingTarget(
+  deps: Pick<SyncDeps, "github" | "resolveRepoClient">,
+  mapping: Pick<MappingRow, "githubRepo">,
+): { github: GitHubClient; repo: string } {
+  if (!mapping.githubRepo.includes("/")) return { github: deps.github, repo: mapping.githubRepo };
+  const resolved = deps.resolveRepoClient?.(mapping.githubRepo);
+  if (resolved) return resolved;
+  return { github: deps.github, repo: bareRepoName(mapping.githubRepo) };
+}
+
+/**
+ * GitHub's 422 for a `state: closed` PATCH that raced another close of the same
+ * issue ("This issue was closed by another request. Reload it and try again.").
+ * One Paperclip close emits two `issue.updated` events (status + completion
+ * metadata), so two outbound pushes race and one of them always draws this —
+ * ~50/day in server.log. The desired end state (closed) IS reached, so the
+ * caller treats it as in-sync rather than a failure (GOL-3374).
+ */
+export function isClosedByAnotherRequest(res: {
+  ok: boolean;
+  status?: number;
+  errors?: GitHubFieldError[];
+}): boolean {
+  if (res.ok || res.status !== 422) return false;
+  return (res.errors ?? []).some((e) => /closed by another request/i.test(e.message ?? ""));
 }
 
 /**
@@ -214,7 +265,7 @@ export async function handleIssueUpdated(
   deps: SyncDeps,
   input: { issueId: string; companyId: string },
 ): Promise<void> {
-  const { db, github, config, logger, getIssue } = deps;
+  const { db, logger, getIssue } = deps;
 
   const mapping = await getByPaperclipId(db, input.issueId);
   if (!mapping) {
@@ -233,8 +284,11 @@ export async function handleIssueUpdated(
     body: buildGithubBody(issue),
     state: statusToGithubState(issue.status),
   };
-  let updated = await github.updateIssue(
-    mapping.githubRepo,
+  // Resolve a full-slug (inbound-origin) row to its bridge client + bare repo
+  // (GOL-3374) — `github`/`mapping.githubRepo` alone mis-built the URL for those.
+  const target = resolveMappingTarget(deps, mapping);
+  let updated = await target.github.updateIssue(
+    target.repo,
     mapping.githubIssueNumber,
     fullPatch,
   );
@@ -264,23 +318,38 @@ export async function handleIssueUpdated(
         rejectedFields: [...rejected],
         githubErrors: updated.errors,
       });
-      updated = await github.updateIssue(
-        mapping.githubRepo,
+      updated = await target.github.updateIssue(
+        target.repo,
         mapping.githubIssueNumber,
         sanitized,
       );
     }
   }
 
+  if (!updated.ok && fullPatch.state === "closed" && isClosedByAnotherRequest(updated)) {
+    // The twin IS closed (a sibling event's push won the race) — in sync, not a failure.
+    logger.info("issue.updated: GitHub issue already closed by a concurrent push; in sync", {
+      issueId: issue.id,
+      githubRepo: target.repo,
+      githubIssueNumber: mapping.githubIssueNumber,
+    });
+    await upsert(db, { ...mapping, lastSyncedAt: new Date().toISOString() });
+    return;
+  }
+
   if (!updated.ok) {
-    logger.error("issue.updated: failed to update GitHub issue", {
+    const context = {
       issueId: issue.id,
       githubRepo: mapping.githubRepo,
+      resolvedRepo: target.repo,
       githubIssueNumber: mapping.githubIssueNumber,
-      error: updated.error,
+      state: fullPatch.state,
       githubStatus: updated.status,
       githubErrors: updated.errors,
-    });
+    };
+    logger.error("issue.updated: failed to update GitHub issue", { ...context, error: updated.error });
+    // Durable, queryable trace (GOL-3374) — server.log rotates in 7 days.
+    await deps.recordFailure?.("issue.updated.push", updated.error || "GitHub update failed", context);
     return;
   }
 
@@ -292,4 +361,45 @@ export async function handleIssueUpdated(
     githubIssueNumber: mapping.githubIssueNumber,
     state: statusToGithubState(issue.status),
   });
+}
+
+/**
+ * State-only outbound push for the hourly outbound-close reconcile sweep
+ * (GOL-3374). Unlike `handleIssueUpdated` it sends ONLY `state` — the sweep is
+ * healing a dropped close, not mirroring an edit, and re-pushing title/body
+ * hourly would churn GitHub issue bodies (inbound-origin twins carry the
+ * Paperclip-side description) for no reason. Same target resolution, same
+ * "closed by another request" tolerance, same durable failure sink.
+ */
+export async function pushIssueState(
+  deps: SyncDeps,
+  mapping: MappingRow,
+  issue: Pick<Issue, "id" | "status">,
+): Promise<"pushed" | "failed"> {
+  const { db, logger } = deps;
+  const target = resolveMappingTarget(deps, mapping);
+  const state = statusToGithubState(issue.status);
+  const res = await target.github.updateIssue(target.repo, mapping.githubIssueNumber, { state });
+  if (!res.ok && !(state === "closed" && isClosedByAnotherRequest(res))) {
+    const context = {
+      issueId: issue.id,
+      githubRepo: mapping.githubRepo,
+      resolvedRepo: target.repo,
+      githubIssueNumber: mapping.githubIssueNumber,
+      state,
+      githubStatus: res.status,
+      githubErrors: res.errors,
+    };
+    logger.error("outbound-close-reconcile: failed to push issue state to GitHub", { ...context, error: res.error });
+    await deps.recordFailure?.("outbound-close-reconcile.push", res.error || "GitHub update failed", context);
+    return "failed";
+  }
+  await upsert(db, { ...mapping, lastSyncedAt: new Date().toISOString() });
+  logger.info("outbound-close-reconcile: pushed issue state to GitHub", {
+    issueId: issue.id,
+    githubRepo: target.repo,
+    githubIssueNumber: mapping.githubIssueNumber,
+    state,
+  });
+  return "pushed";
 }
