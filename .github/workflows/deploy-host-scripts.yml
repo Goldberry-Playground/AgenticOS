@@ -63,6 +63,10 @@ permissions:
 concurrency:
   group: deploy-droplet
   cancel-in-progress: false
+  # queue: max — every sibling waits its turn. GitHub's default queue holds ONE
+  # pending run per group and a newer arrival CANCELS it, even with
+  # cancel-in-progress: false (docs/runbooks/droplet-deploy-lock.md).
+  queue: max
 
 jobs:
   deploy:
