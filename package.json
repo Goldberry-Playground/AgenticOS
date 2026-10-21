@@ -9,7 +9,7 @@
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "turbo": "^2.11.7"
+    "turbo": "^2.11.8"
   },
   "engines": {
     "node": "22.x"
