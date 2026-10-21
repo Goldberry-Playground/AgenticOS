@@ -14,10 +14,40 @@ inputs:
     description: Where to write the private key.
     required: false
     default: ~/.ssh/deploy_key
+  do-token:
+    description: >-
+      DigitalOcean API token (secrets.DO_FIREWALL_TOKEN; scopes droplet:read,
+      firewall:read, firewall:update, firewall:create). When set, this runner's
+      public /32 is admitted on tcp/22 through the CI-owned
+      `grove-agent-plane-ci-fw` before the keyscan (GOL-3412), because the
+      droplet's public :22 has been fenced to operator IPs since 2026-10-15
+      (grove-agent-plane-fw, GOL-2569). Callers MUST pair this with a final
+      `if: always()` step that runs `.github/actions/agent-plane-fence` with
+      `mode: revoke`. Empty (and no op-service-account-token) = legacy
+      behaviour (keyscan only), which times out against the fence.
+    required: false
+    default: ""
+  op-service-account-token:
+    description: >-
+      1Password service-account token (secrets.OP_SERVICE_ACCOUNT_TOKEN):
+      fallback source for the DO token when `do-token` is empty. Dead as of
+      2026-10-21 (the service account was deleted); kept so a restored account
+      works without a code change.
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
+    - name: Admit this runner through the agent-plane fence (GOL-3412)
+      if: ${{ inputs.do-token != '' || inputs.op-service-account-token != '' }}
+      uses: ./.github/actions/agent-plane-fence
+      with:
+        mode: admit
+        do-token: ${{ inputs.do-token }}
+        op-service-account-token: ${{ inputs.op-service-account-token }}
+        host: ${{ inputs.host }}
+
     - name: Write deploy key and scan host key
       shell: bash
       env:
@@ -53,5 +83,5 @@ runs:
           sleep $(( attempt * 5 ))
         done
 
-        echo "::error title=ssh-keyscan failed::No host key from the droplet after 5 attempts (~75s). The droplet is likely down or unreachable from this runner — check the DigitalOcean console before re-running."
+        echo "::error title=ssh-keyscan failed::No host key from the droplet after 5 attempts (~75s). Since 2026-10-15 the public :22 is fenced to operator IPs (grove-agent-plane-fw, GOL-2569): a runner only gets in when this action is given do-token (secrets.DO_FIREWALL_TOKEN) and the admit step above printed 'Admitting <ip>/32' (docs/runbooks/ci-ssh-agent-plane-fence.md). If it did and this still fails, the droplet is likely down — check the DigitalOcean console before re-running."
         exit 1

@@ -88,6 +88,8 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          do-token: ${{ secrets.DO_FIREWALL_TOKEN }}
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: Pre-flight — enough free disk for the image rebuild
         # GOL-3255: the v0.2.2 deploy (run 37851571182) died with `no space left
@@ -282,3 +284,13 @@ jobs:
               echo "paperclip-server /api/health OK"; exit 0
             fi
             echo "::error::paperclip-server /api/health not OK (see the wait step for logs)"; exit 1'
+
+      - name: Revoke this runner from the agent-plane fence (GOL-3412)
+        # Pairs with the admit step inside configure-ssh. always(): a failed or
+        # cancelled job must still drop its /32 from grove-agent-plane-ci-fw.
+        if: always()
+        uses: ./.github/actions/agent-plane-fence
+        with:
+          mode: revoke
+          do-token: ${{ secrets.DO_FIREWALL_TOKEN }}
+          op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
