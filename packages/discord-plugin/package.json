@@ -15,9 +15,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1149.0",
-    "@aws-sdk/s3-request-presigner": "^3.1149.0",
-    "@paperclipai/plugin-sdk": "2026.1005.0"
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/s3-request-presigner": "^3.1152.0",
+    "@paperclipai/plugin-sdk": "2026.1012.0"
   },
   "devDependencies": {
     "@agenticos/tsconfig": "workspace:*",
