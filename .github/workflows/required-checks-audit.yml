@@ -8,6 +8,10 @@
 #   static (PR + merge_group + push): parse workflows + .github/required-checks.json
 #     and assert every declared required context is produced by a job whose
 #     workflow lists `merge_group`. No token needed; runs on merge_group itself.
+#     Also asserts the needs-closure invariant (GOL-3360): every job in the
+#     transitive `needs:` of a required job is itself required — a red in a
+#     non-required upstream SKIPS the dependent, and a skipped job satisfies
+#     branch protection, so the gate would see neither failure.
 #   reconcile (weekly + manual): compare required-checks.json to live branch
 #     protection so the declared list can't silently drift from reality.
 #
@@ -22,6 +26,7 @@ on:
       - '.github/workflows/**'
       - '.github/required-checks.json'
       - '.github/scripts/audit-required-merge-group.py'
+      - '.github/scripts/audit-required-merge-group.test.py'
   merge_group:
   push:
     branches: [main]
@@ -51,7 +56,9 @@ jobs:
           python-version: '3.x'
       - name: Install PyYAML
         run: python3 -m pip install --quiet pyyaml
-      - name: Static audit (every required check reports on merge_group)
+      - name: Audit script unit tests (merge_group reporting + needs-closure)
+        run: python3 .github/scripts/audit-required-merge-group.test.py
+      - name: Static audit (every required check reports on merge_group; needs-closure)
         run: python3 .github/scripts/audit-required-merge-group.py
 
   reconcile:

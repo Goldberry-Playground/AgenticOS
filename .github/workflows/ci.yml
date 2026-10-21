@@ -23,26 +23,8 @@ env:
   NODE_VERSION: '22'
 
 jobs:
-  setup:
-    name: Detect monorepo
-    runs-on: ubuntu-latest
-    outputs:
-      has_package_json: ${{ steps.check.outputs.has_package_json }}
-    steps:
-      - uses: actions/checkout@v7
-      - id: check
-        run: |
-          if [ -f package.json ]; then
-            echo "has_package_json=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_package_json=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No package.json yet — Node CI jobs will skip until Task 1 merges."
-          fi
-
   lint:
     name: Lint
-    needs: setup
-    if: needs.setup.outputs.has_package_json == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -57,8 +39,6 @@ jobs:
 
   typecheck:
     name: Typecheck
-    needs: setup
-    if: needs.setup.outputs.has_package_json == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -73,8 +53,7 @@ jobs:
 
   test:
     name: Unit tests
-    needs: [setup, lint, typecheck]
-    if: needs.setup.outputs.has_package_json == 'true'
+    needs: [lint, typecheck]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -89,8 +68,7 @@ jobs:
 
   build:
     name: Build
-    needs: [setup, lint, typecheck]
-    if: needs.setup.outputs.has_package_json == 'true'
+    needs: [lint, typecheck]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
