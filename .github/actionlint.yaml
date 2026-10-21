@@ -1,0 +1,14 @@
+# actionlint configuration (read by both the local binary and the
+# rhysd/actionlint image that .github/workflows/security.yml runs).
+#
+# `concurrency.queue` (GitHub changelog 2026-05-07, "GitHub Actions concurrency
+# groups now allow larger queues") is not yet in actionlint's syntax table:
+# rhysd/actionlint#657 is open and the fix, rhysd/actionlint#654, is unmerged as
+# of 2026-10-21, so 1.7.7 (CI pin) through 1.7.12 (latest) reject the key. Ignore
+# exactly that one message, and only on the workflows that share the
+# `deploy-droplet` group (docs/runbooks/droplet-deploy-lock.md). Delete this
+# file once an actionlint release accepts `queue`.
+paths:
+  .github/workflows/{deploy-droplet,deploy-droplet-plugins,deploy-host-scripts,disk-reclaim,deploy-paperclip-server,recreate-paperclip-server,resize-droplet}.yml:
+    ignore:
+      - '^unexpected key "queue" for "concurrency" section\. expected one of "cancel-in-progress", "group"$'
