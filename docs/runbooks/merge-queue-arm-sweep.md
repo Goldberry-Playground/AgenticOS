@@ -3,6 +3,13 @@
 **Ticket:** GOL-3125 (this timer) · GOL-3118 (the mechanism) · GOL-2524 (the wedge)
 **Box:** `agenticos-droplet` (DO `572389418`, nyc1) · **Log:** `/var/log/agenticos/merge-queue-arm.log`
 
+> **The sweep is the backstop. Arming at PR-open time is the steady state.**
+> Agents open PRs with `scripts/agent-git/open-pr.mjs` (mounted at
+> `/paperclip/agent-git/open-pr.mjs`), which creates the PR as the App and arms
+> auto-merge in the same call, with the broker-minted token the agent already
+> holds. This timer exists for whatever that path misses. See
+> [Steady state vs. backstop](#steady-state-vs-backstop).
+
 ## What it does and why it has to be a timer
 
 GitHub never creates workflow runs for events triggered by the default
@@ -16,8 +23,9 @@ GOL-3118 measured the fix: **auto-merge inherits the identity of whoever armed
 it.** Arm a PR as the agent App and the enqueue GitHub performs later — even
 20 minutes later, once checks go green — carries the App identity and creates
 runs normally. It shipped `merge-queue-arm-automerge.sh`, but **nothing called
-it**: a PR was armed only if an agent remembered. This timer removes the
-remembering.
+it**: a PR was armed only if an agent remembered. This timer removed the
+remembering; `open-pr.mjs` then moved the arming to the moment the PR is
+opened, which is the only moment early enough (below).
 
 It cannot be a GitHub Actions workflow, by the exact rule above: a workflow has
 only `GITHUB_TOKEN`, and arming as `github-actions` rebuilds the same dead
@@ -40,7 +48,53 @@ exists because of this timer.**
 Cadence `OnCalendar=*:0/5` (every 5 min), `Persistent=true`,
 `RandomizedDelaySec=60`. The sweep is idempotent — it skips PRs already armed by
 the App — so a tick on a quiet queue costs one broker mint plus one GraphQL read
-per repo.
+per repo. In the steady state that is what every tick sees: `already armed by
+agenticos-developer` for each open agent PR, because `open-pr.mjs` got there
+first.
+
+## Steady state vs. backstop
+
+A five-minute cadence is **too slow to be the steady state**. On 2026-10-21
+odoocker-goldberrygrove #924 and #925 were opened, bot-approved and
+bot-enqueued by `auto-approve.yml` within about three minutes — before any
+tick saw them — and both built dead merge groups. The race is structural:
+the only arming that is guaranteed to beat `auto-approve.yml`'s enqueue is
+one made *before* the PR exists to the workflow, i.e. in the same breath as
+the create.
+
+So the steady state is **PR-open arming**, done by the thing that opens the PR:
+
+| Path | Role |
+|---|---|
+| `scripts/agent-git/open-pr.mjs` (`/paperclip/agent-git/open-pr.mjs` inside paperclip-server) | **steady state.** `create` opens the PR through the REST API as the App and immediately arms it (`enablePullRequestAutoMerge`, squash, `expectedHeadOid` pinned). `arm <owner>/<repo> <number>` arms a PR opened some other way, or a draft just marked ready. Token comes from `github-app-token.mjs` over the broker — no new secret. |
+| `docs/agent-house-rules.md` ("GitHub — push + PR") | the recipe agents follow; it is bind-mounted into every run, so this is how the steady state is delivered |
+| `scripts/ci/agent-git-open-pr.test.mjs` | offline harness (46 tests) for the helper's guardrails and CLI contract |
+| this timer | **backstop:** PRs opened without the helper, drafts a *human* marks ready (the agent is not there to run `arm`), an arm the helper could not make (broker blip, GitHub refusal), and the backlog drain |
+
+`open-pr.mjs` applies the same guardrails as the vendored sweep — App-authored
+only, no drafts, never re-arm someone else's, never a queued or conflicting PR,
+and never pre-arm an unapproved protected-path PR (the target repo's base-branch
+`scripts/ci/protected-paths-carveout.mjs`, fail-closed on any lookup it cannot
+trust) unless the board override `ARM_PROTECTED=1` is set in the agent's
+environment. That override is **honour-system on the agent side** — the host
+sweep's root wrapper refuses it outright, but a helper the agent runs can only
+read its own env — so it carries no enforcement, only the board's instruction
+not to set it; every required review and check still applies either way. It is
+deliberately **not** a `gh` wrapper and never fatal after a
+successful create: an arm skip or failure is reported on stderr and left to this
+timer, so a retrying agent can never open a duplicate PR.
+
+**Verifying the steady state on an agent PR:** the PR's timeline should carry an
+`AutoMergeEnabledEvent` whose `actor` is `agenticos-developer`, stamped within
+seconds of the PR's `createdAt` — not minutes, which would mean the sweep did it.
+
+```bash
+TOKEN=$(node /paperclip/agent-git/github-app-token.mjs token <owner>/<repo>)
+GH_TOKEN="$TOKEN" gh api graphql -f query='query{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){createdAt autoMergeRequest{enabledBy{login} enabledAt} timelineItems(itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT],first:10){nodes{__typename ... on AutoMergeEnabledEvent{createdAt actor{login}} ... on AddedToMergeQueueEvent{createdAt enqueuer{login}}}}}}}'
+```
+
+The eventual `AddedToMergeQueueEvent.enqueuer` should then read
+`agenticos-developer[bot]`, and its merge group should have runs.
 
 Delivery: `infra/scripts/**` and `scripts/**` both trigger
 `deploy-host-scripts.yml`, which is the **only** pipeline that `git reset --hard
@@ -228,5 +282,7 @@ systemctl disable --now agenticos-merge-queue-arm.timer   # deploy can do this (
 ```
 
 Nothing else depends on it. Disabling it does not un-arm already-armed PRs — it
-only stops new ones from being armed, which returns the queue to the GOL-3118
-state where an agent has to remember.
+only stops the backstop: PRs opened with `open-pr.mjs` are still armed at open
+time, but anything that path misses (a draft a human marks ready, a `gh pr
+create` without a follow-up `arm`, an arm GitHub refused) stays unarmed and
+will wedge the queue on its first enqueue.

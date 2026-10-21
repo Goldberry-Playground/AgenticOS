@@ -154,16 +154,41 @@ Goldberry-Playground, …).
     the `GOL-N` line keeps the board legible.
   - Use `Closes`/`Fixes`/`Resolves` (all merge-time keywords). One per issue the
     PR fully resolves; list several if it closes more than one.
-- **For `gh` or raw GitHub API calls**, mint a token for the **specific repo**
-  first (pass `owner/repo`, not just `owner`, so the token is scoped to that one
-  repo — least privilege):
+- **Open the PR with `open-pr.mjs`, which arms auto-merge as the App in the
+  same breath** (GOL-3118 / GOL-2524). `main` has a merge queue, and an enqueue
+  made by `auto-approve.yml`'s `GITHUB_TOKEN` builds a merge group that no
+  workflow ever runs on — the PR is ejected unmerged and the sequential queue
+  stalls behind it. Auto-merge inherits the identity of whoever *armed* it, so
+  arming at PR-open time with the App token you already hold makes the later
+  enqueue healthy. The 5-minute host sweep (`agenticos-merge-queue-arm.timer`)
+  is only the backstop: on 2026-10-21 two PRs were opened, bot-approved and
+  bot-enqueued inside 3 minutes, before any tick saw them, and both built dead
+  groups.
+  ```bash
+  # creates the PR via the API as the App, then arms it; prints the PR URL
+  node /paperclip/agent-git/open-pr.mjs create <owner>/<repo> \
+    --head <branch> --base main --title "…" --body-file pr-body.md   # or --body "…", add --draft for WIP
+  # opened it some other way (gh pr create / curl), or just marked a draft ready? arm it now:
+  node /paperclip/agent-git/open-pr.mjs arm <owner>/<repo> <number>
+  ```
+  It applies the sweep's guardrails itself: only App-authored PRs, never a
+  draft (arm after `gh pr ready`), never re-arm a PR someone else armed, and
+  never pre-arm an unapproved PR that touches the target repo's protected paths
+  (`scripts/ci/protected-paths-carveout.mjs` on the base branch) — a skip prints
+  its reason on stderr and the sweep remains the backstop. It bypasses no gate:
+  the PR still needs every required review and check before it merges. **Do not
+  arm auto-merge with `GH_TOKEN` from a workflow** — that is the identity that
+  causes the wedge.
+- **For other `gh` or raw GitHub API calls**, mint a token for the **specific
+  repo** first (pass `owner/repo`, not just `owner`, so the token is scoped to
+  that one repo — least privilege):
   ```bash
   TOKEN=$(node /paperclip/agent-git/github-app-token.mjs token <owner>/<repo>)
   # then, e.g.:
-  GH_TOKEN="$TOKEN" gh pr create --base main --head <branch> --title "…" --body "…"
+  GH_TOKEN="$TOKEN" gh pr view <number> --json mergeStateStatus,autoMergeRequest
   # or via the API directly:
   curl -sS -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
-    https://api.github.com/repos/<owner>/<repo>/pulls -d '{"title":"…","head":"<branch>","base":"main","body":"…"}'
+    https://api.github.com/repos/<owner>/<repo>/pulls/<number>
   ```
   `<owner>` is the org/user in the repo path (e.g. `Goldberry-Playground`,
   `EngineeringMoonBear`). Only use the bare `token <owner>` form for org-wide
