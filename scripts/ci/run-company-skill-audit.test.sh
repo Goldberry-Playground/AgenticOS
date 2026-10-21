@@ -33,7 +33,7 @@ AUDIT="$HERE/../ops/audit-company-skills.mjs"
 [ -f "$AUDIT" ] || { echo "FATAL: $AUDIT missing" >&2; exit 1; }
 
 WORK="$(mktemp -d)"
-trap 'p=$(cat "$WORK/pid" 2>/dev/null || true); [ -n "$p" ] && kill "$p" 2>/dev/null; rm -rf "$WORK"' EXIT
+trap 'p=$(cat "$WORK/pid" 2>/dev/null || true); [ -n "$p" ] && kill "$p" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
 failures=0
 check() { # check <name> <cond-exit> [detail]
@@ -141,7 +141,10 @@ start_server() { # start_server [companies-status] -> echoes port
 stop_server() {
   p="$(cat "$WORK/pid" 2>/dev/null || true)"
   [ -n "$p" ] && kill "$p" 2>/dev/null || true
-  : >"$WORK/port"
+  # Clear the pid too (plugin-api-env.test.sh does the same): the EXIT trap
+  # re-reads it, and under `set -e` a kill of an already-reaped server fails
+  # the trap -- "all checks passed" followed by exit 1 and a leaked $WORK.
+  : >"$WORK/pid"; : >"$WORK/port"
 }
 
 run_runner() { # run_runner <port> [args…] -> writes $WORK/out, echoes exit code
