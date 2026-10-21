@@ -49,7 +49,7 @@
 #   One repo:         TARGET_REPOS=Goldberry-Playground/grove-sites ... --dry-run
 #
 # Env:
-#   TARGET_REPOS          space-separated owner/name list (default: the three)
+#   TARGET_REPOS          space-separated owner/name list (default: the four)
 #   REPO_DIR              host clone              (default /opt/agenticos/repo)
 #   ENV_FILE              Discord webhook source  (default /opt/agenticos/.env)
 #   BROKER_KEY_FILE       broker client bearer    (default /opt/agenticos/secrets/gh-broker-client.key)
@@ -65,7 +65,7 @@ REPO_DIR="${REPO_DIR:-/opt/agenticos/repo}"
 ENV_FILE="${ENV_FILE:-/opt/agenticos/.env}"
 BROKER_KEY_FILE="${BROKER_KEY_FILE:-/opt/agenticos/secrets/gh-broker-client.key}"
 SWEEP="${SWEEP:-${REPO_DIR}/infra/scripts/vendored/merge-queue-arm-automerge.sh}"
-TARGET_REPOS="${TARGET_REPOS:-Goldberry-Playground/grove-sites Goldberry-Playground/odoocker-goldberrygrove Goldberry-Playground/AgenticOS}"
+TARGET_REPOS="${TARGET_REPOS:-Goldberry-Playground/grove-sites Goldberry-Playground/odoocker-goldberrygrove Goldberry-Playground/grove-odoo-modules Goldberry-Playground/AgenticOS}"
 BROKER_CONTAINER="${BROKER_CONTAINER:-gh-token-broker}"
 SKIP_DRIFT_CHECK="${SKIP_DRIFT_CHECK:-0}"
 

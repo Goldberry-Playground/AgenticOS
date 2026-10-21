@@ -73,6 +73,15 @@ touch a test, so the fixed behaviour can't silently regress.
     `merge_group`. A required check that is PR-only would leave the merge queue
     stuck at *"Expected — waiting for status"*; this turns that into a loud
     pre-merge error.
+  - **Needs-closure** (same static run, GOL-3360): asserts every job in the
+    transitive `needs:` of a required job is itself a required context. When
+    an upstream job fails, GitHub *skips* every dependent, and a skipped
+    check-run **satisfies** a required status check — so a red in a
+    non-required upstream makes the required dependent vanish silently and the
+    gate sees neither failure. The audit fails naming the exact upstream job;
+    the fix is to promote that upstream (manifest + live protection, in
+    lockstep) or drop the `needs:` edge. Unit tests:
+    `.github/scripts/audit-required-merge-group.test.py`.
   - **Reconcile** (weekly + manual): compares `required-checks.json` to live
     branch protection and fails on drift, so the declared list can't diverge
     from reality.
