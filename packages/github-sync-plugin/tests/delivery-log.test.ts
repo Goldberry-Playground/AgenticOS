@@ -5,6 +5,8 @@ import {
   failedDeliveryCount,
   deliveryCountSince,
   isFailedOutcome,
+  isDeliveryProcessed,
+  DuplicateDelivery,
   WebhookRejection,
   type DeliveryRow,
 } from "../src/delivery-log.js";
@@ -24,13 +26,20 @@ function makeDeliveryDb(): MappingDb & { rows: Array<Record<string, unknown>> } 
     rows,
     async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
       if (/count\(\*\)/i.test(sql)) {
-        // failedDeliveryCount adds `outcome <> 'processed'`; deliveryCountSince counts
-        // every outcome. Only apply the failed filter when the SQL asks for it.
-        const onlyFailed = /outcome <>/i.test(sql);
-        const pool = onlyFailed ? rows.filter((r) => r.outcome !== "processed") : rows;
+        // failedDeliveryCount adds `outcome NOT IN ('processed', 'duplicate')`;
+        // deliveryCountSince counts every outcome. Only apply the failed filter
+        // when the SQL asks for it.
+        const onlyFailed = /outcome NOT IN/i.test(sql);
+        const pool = onlyFailed
+          ? rows.filter((r) => r.outcome !== "processed" && r.outcome !== "duplicate")
+          : rows;
         const since = /occurred_at >=/i.test(sql) ? String(params?.[0]) : null;
         const n = since ? pool.filter((r) => String(r.occurred_at) >= since).length : pool.length;
         return [{ n }] as T[];
+      }
+      if (/WHERE delivery_guid = \$1 AND outcome = 'processed'/i.test(sql)) {
+        const hit = rows.some((r) => r.delivery_guid === params?.[0] && r.outcome === "processed");
+        return (hit ? [{ one: 1 }] : []) as T[];
       }
       if (/ORDER BY occurred_at DESC/i.test(sql)) {
         const limit = Number(params?.[0] ?? 50);
@@ -165,5 +174,36 @@ describe("WebhookRejection", () => {
   it("allows an explicit status hint", () => {
     const err = new WebhookRejection("invalid_payload", "bad body", 400);
     expect(err.httpStatus).toBe(400);
+  });
+});
+
+describe("replay guard (GOL-3588)", () => {
+  it("reports a GUID as processed only when it has a `processed` row", async () => {
+    const db = makeDeliveryDb();
+    await recordDelivery(db, row({ deliveryGuid: "guid-ok", outcome: "processed" }));
+    await recordDelivery(db, row({ deliveryGuid: "guid-failed", outcome: "failed_processing" }));
+    await recordDelivery(db, row({ deliveryGuid: "guid-bad-sig", outcome: "rejected_signature" }));
+    expect(await isDeliveryProcessed(db, "guid-ok")).toBe(true);
+    // A failed or rejected delivery must stay retryable: GitHub's manual
+    // "Redeliver" reuses the original GUID.
+    expect(await isDeliveryProcessed(db, "guid-failed")).toBe(false);
+    expect(await isDeliveryProcessed(db, "guid-bad-sig")).toBe(false);
+    expect(await isDeliveryProcessed(db, "guid-never-seen")).toBe(false);
+  });
+
+  it("does not count a dropped duplicate as a failed delivery", async () => {
+    const db = makeDeliveryDb();
+    await recordDelivery(db, row({ outcome: "processed" }));
+    await recordDelivery(db, row({ outcome: "duplicate" }));
+    expect(await failedDeliveryCount(db)).toBe(0);
+    expect(isFailedOutcome("duplicate")).toBe(false);
+    // ...but it still proves the ingress is alive for the dead-man.
+    expect(await deliveryCountSince(db, "2026-08-01T00:00:00.000Z")).toBe(2);
+  });
+
+  it("DuplicateDelivery carries the GUID", () => {
+    const err = new DuplicateDelivery("guid-x");
+    expect(err.deliveryGuid).toBe("guid-x");
+    expect(err).toBeInstanceOf(Error);
   });
 });
