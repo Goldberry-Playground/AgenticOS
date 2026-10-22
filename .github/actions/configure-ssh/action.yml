@@ -1,7 +1,9 @@
 name: Configure SSH
 description: >-
-  Write the droplet deploy key and pin its host key into known_hosts, retrying
-  the keyscan so a slow response doesn't fail the whole deploy.
+  Write the droplet deploy key and pin its host key into known_hosts. The pin
+  comes from the `known-hosts` input (vars.DROPLET_KNOWN_HOSTS) when set; only
+  when it is empty does this fall back to a retried ssh-keyscan (trust on
+  first use).
 
 inputs:
   deploy-key:
@@ -14,6 +16,15 @@ inputs:
     description: Where to write the private key.
     required: false
     default: ~/.ssh/deploy_key
+  known-hosts:
+    description: >-
+      Pinned known_hosts line(s) for the droplet (vars.DROPLET_KNOWN_HOSTS),
+      hashed form from `ssh-keyscan -H <host>` so the variable does not expose
+      the host. When set it is authoritative: no keyscan runs, and a mismatch
+      fails the connection instead of trusting whatever answered on :22
+      (GOL-3588). Empty = legacy keyscan TOFU, with a warning.
+    required: false
+    default: ""
   do-token:
     description: >-
       DigitalOcean API token (secrets.DO_FIREWALL_TOKEN; scopes droplet:read,
@@ -48,12 +59,13 @@ runs:
         op-service-account-token: ${{ inputs.op-service-account-token }}
         host: ${{ inputs.host }}
 
-    - name: Write deploy key and scan host key
+    - name: Write deploy key and pin host key
       shell: bash
       env:
         DEPLOY_KEY: ${{ inputs.deploy-key }}
         HOST: ${{ inputs.host }}
         KEY_PATH: ${{ inputs.key-path }}
+        KNOWN_HOSTS: ${{ inputs.known-hosts }}
       run: |
         set -euo pipefail
 
@@ -61,6 +73,22 @@ runs:
         mkdir -p ~/.ssh "$(dirname "$key_path")"
         printf '%s\n' "$DEPLOY_KEY" > "$key_path"
         chmod 600 "$key_path"
+
+        # Pinned path (GOL-3588): the host key is known in advance, so nothing
+        # that answers on :22 gets trusted just for answering. Check the pin
+        # actually covers HOST here, so a stale/mis-pasted variable fails with
+        # a clear message instead of a bare "Host key verification failed"
+        # several steps later.
+        if [ -n "$KNOWN_HOSTS" ]; then
+          printf '%s\n' "$KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          if ! ssh-keygen -F "$HOST" -f ~/.ssh/known_hosts > /dev/null; then
+            echo "::error title=Pinned host key does not match host::vars.DROPLET_KNOWN_HOSTS has no entry for the droplet host. Regenerate it with \`ssh-keyscan -H <host>\` from a trusted network and verify the fingerprint against the droplet console (\`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub\`)."
+            exit 1
+          fi
+          echo "Host key pinned from vars.DROPLET_KNOWN_HOSTS."
+          exit 0
+        fi
+        echo "::warning title=Host key not pinned::vars.DROPLET_KNOWN_HOSTS is unset; falling back to ssh-keyscan (trust on first use)."
 
         # ssh-keyscan defaults to a 5s timeout and every deploy workflow ran it
         # bare under `bash -e`, so one slow reply aborted the run with a naked

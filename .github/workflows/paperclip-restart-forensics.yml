@@ -62,6 +62,7 @@ jobs:
         with:
           deploy-key: ${{ secrets.DROPLET_SSH_KEY }}
           host: ${{ secrets.DROPLET_HOST }}
+          known-hosts: ${{ vars.DROPLET_KNOWN_HOSTS }}
           do-token: ${{ secrets.DO_FIREWALL_TOKEN }}
           op-service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
