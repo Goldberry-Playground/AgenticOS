@@ -40,33 +40,6 @@ vi.mock("@/lib/cost/db", () => ({
 import { GET } from "./route";
 
 // ---------------------------------------------------------------------------
-// Fixture helpers
-// ---------------------------------------------------------------------------
-
-function makeRun(overrides: Partial<Record<string, unknown>> = {}) {
-  const now = new Date();
-  const startedAt = new Date(now.getTime() - 10 * 60 * 1000).toISOString(); // 10 min ago
-  const finishedAt = new Date(now.getTime() - 5 * 60 * 1000).toISOString(); // 5 min ago
-  return {
-    id: "run-1",
-    companyId: "co-1",
-    agentId: "agent-1",
-    status: "running",
-    invocationSource: "timer",
-    triggerDetail: null,
-    startedAt,
-    finishedAt: null,
-    createdAt: startedAt,
-    livenessState: null,
-    livenessReason: null,
-    contextSnapshot: null,
-    resultJson: null,
-    _defaultFinishedAt: finishedAt,
-    ...overrides,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Tests — Hermes path (existing behaviour — must not regress)
 // ---------------------------------------------------------------------------
 

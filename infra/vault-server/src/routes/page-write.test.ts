@@ -64,4 +64,15 @@ describe("PUT /page", () => {
     });
     expect(res.statusCode).toBe(403);
   });
+
+  it("rejects a path that resolves to the allowed root itself", async () => {
+    const app = Fastify();
+    registerPageWriteRoute(app, cfg());
+    const res = await app.inject({
+      method: "PUT",
+      url: "/page",
+      payload: { path: "wiki/_meta/", content: "x" },
+    });
+    expect(res.statusCode).toBe(403);
+  });
 });
