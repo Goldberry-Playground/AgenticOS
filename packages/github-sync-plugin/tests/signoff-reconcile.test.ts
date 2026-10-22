@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { isSignoffCheckGreen, runSignoffReconcile, type SignoffReconcileInput } from "../src/signoff-reconcile.js";
 import type { PrReviewRow } from "../src/pr-review-store.js";
 import type { SyncLogger } from "../src/sync.js";

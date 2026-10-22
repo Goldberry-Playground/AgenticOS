@@ -44607,6 +44607,14 @@ async function deliveryCountSince(db, sinceIso) {
   const first = rows[0];
   return first ? Number(first.n) : 0;
 }
+async function isDeliveryProcessed(db, deliveryGuid) {
+  const rows = await db.query(
+    `SELECT 1 AS one FROM ${qualifiedTable4(db)}
+       WHERE delivery_guid = $1 AND outcome = 'processed' LIMIT 1`,
+    [deliveryGuid]
+  );
+  return rows.length > 0;
+}
 var WebhookRejection = class extends Error {
   constructor(outcome, message2, httpStatus = 401) {
     super(message2);
@@ -44616,6 +44624,14 @@ var WebhookRejection = class extends Error {
   }
   outcome;
   httpStatus;
+};
+var DuplicateDelivery = class extends Error {
+  constructor(deliveryGuid) {
+    super(`delivery ${deliveryGuid} already processed; replay dropped`);
+    this.deliveryGuid = deliveryGuid;
+    this.name = "DuplicateDelivery";
+  }
+  deliveryGuid;
 };
 
 // src/inbound-dead-man.ts
@@ -45243,6 +45259,20 @@ async function recordPipelineError(ctx, cfg, scope, detail, context = {}) {
   }
   await postThrottledOpsAlert(ctx, cfg, buildPipelineErrorPing(detail));
 }
+async function assertFreshDelivery(ctx, input2) {
+  const guid3 = getHeader(input2.headers, "x-github-delivery");
+  if (!guid3) return;
+  let seen = false;
+  try {
+    seen = await isDeliveryProcessed(ctx.db, guid3);
+  } catch (err) {
+    ctx.logger.warn("delivery replay check failed; processing anyway", {
+      endpointKey: input2.endpointKey,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
+  if (seen) throw new DuplicateDelivery(guid3);
+}
 async function safeRecordDelivery(ctx, input2, outcome, detail) {
   try {
     await recordDelivery(ctx.db, {
@@ -45376,6 +45406,7 @@ async function handleCustomInbound(ctx, cfg, input2, runInScope) {
   if (!verifyGithubSignature(input2.rawBody, cfg.inboundWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", "inbound webhook: signature verification failed");
   }
+  await assertFreshDelivery(ctx, input2);
   const payload = parseInboundPayload(input2.parsedBody ?? safeJson(input2.rawBody));
   if (!payload) {
     throw new WebhookRejection("invalid_payload", "inbound webhook: unparseable/invalid payload");
@@ -45461,6 +45492,7 @@ async function handleAppInbound(ctx, cfg, input2, runInScope) {
   if (!verifyGithubSignature(input2.rawBody, cfg.appWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", "app webhook: signature verification failed");
   }
+  await assertFreshDelivery(ctx, input2);
   const eventType = getHeader(input2.headers, "x-github-event");
   if (eventType && eventType !== "issues") {
     ctx.logger.info("app webhook: ignoring non-issues event", { eventType });
@@ -45575,6 +45607,7 @@ async function handlePrInbound(ctx, cfg, input2) {
   if (!verifyGithubSignature(input2.rawBody, cfg.appWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", "pr webhook: signature verification failed");
   }
+  await assertFreshDelivery(ctx, input2);
   const eventType = getHeader(input2.headers, "x-github-event");
   if (eventType && eventType !== "pull_request") {
     ctx.logger.info("pr webhook: ignoring non-pull_request event", { eventType });
@@ -45881,6 +45914,7 @@ async function handleCiCompletion(ctx, cfg, input2, eventType) {
   if (!verifyGithubSignature(input2.rawBody, cfg.appWebhookSecret, getHeader(input2.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", `ci webhook: signature verification failed (${eventType})`);
   }
+  await assertFreshDelivery(ctx, input2);
   const ev = parseCiCompletionEvent(input2.parsedBody ?? safeJson(input2.rawBody), eventType);
   if (!ev) {
     ctx.logger.warn("ci webhook: unparseable/invalid payload", { eventType });
@@ -46598,6 +46632,14 @@ var plugin = definePlugin({
       }
       await safeRecordDelivery(ctx, input2, "processed");
     } catch (err) {
+      if (err instanceof DuplicateDelivery) {
+        ctx.logger.info("inbound webhook: duplicate delivery dropped", {
+          endpointKey: input2.endpointKey,
+          deliveryGuid: err.deliveryGuid
+        });
+        await safeRecordDelivery(ctx, input2, "duplicate", err.message);
+        return;
+      }
       if (err instanceof WebhookRejection) {
         await safeRecordDelivery(ctx, input2, err.outcome, err.message);
         throw err;

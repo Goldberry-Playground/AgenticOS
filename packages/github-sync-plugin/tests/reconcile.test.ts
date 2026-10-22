@@ -228,7 +228,6 @@ describe("runMirrorReconcile", () => {
   });
 
   it("skips projects with no deps (bridge dropped at setup)", async () => {
-    const db = makeFakeDb();
     const s = await runMirrorReconcile({
       companyId: "co-1",
       projectIds: ["ghost-project"],

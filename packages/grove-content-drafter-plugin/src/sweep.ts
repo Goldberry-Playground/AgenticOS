@@ -31,7 +31,7 @@ export interface SweepSummary {
 const HOUR_MS = 60 * 60 * 1000;
 
 export async function runSweep(deps: ReceiveDeps, listLimit = 100): Promise<SweepSummary> {
-  const { issues, state, cfg, now, logger } = deps;
+  const { issues, logger } = deps;
   const summary: SweepSummary = { scanned: 0, drafted: 0, invalid: 0, rePinged: 0, gaveUp: 0, waiting: 0, errors: 0 };
 
   const owned = await issues.listOwnRequests(listLimit);

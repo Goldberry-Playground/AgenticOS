@@ -35,11 +35,17 @@ export type DeliveryOutcome =
   /** Signature verified but the body wasn't a usable event payload. */
   | "invalid_payload"
   /** Signature verified but a downstream write/enqueue threw. */
-  | "failed_processing";
+  | "failed_processing"
+  /**
+   * Signature verified, but this `X-GitHub-Delivery` GUID already has a
+   * `processed` row — a replay. Dropped with a 2xx without re-running the
+   * handler (GOL-3588). Not a failure: nothing went wrong on our side.
+   */
+  | "duplicate";
 
-/** A delivery outcome that is anything other than a clean `processed`. */
+/** A delivery outcome that is a rejection or a processing failure. */
 export function isFailedOutcome(outcome: DeliveryOutcome): boolean {
-  return outcome !== "processed";
+  return outcome !== "processed" && outcome !== "duplicate";
 }
 
 export interface DeliveryRow {
@@ -102,11 +108,11 @@ export async function failedDeliveryCount(db: MappingDb, sinceIso?: string): Pro
   const rows = sinceIso
     ? await db.query<{ n: number | string }>(
         `SELECT count(*) AS n FROM ${qualifiedTable(db)}
-           WHERE outcome <> 'processed' AND occurred_at >= $1`,
+           WHERE outcome NOT IN ('processed', 'duplicate') AND occurred_at >= $1`,
         [sinceIso],
       )
     : await db.query<{ n: number | string }>(
-        `SELECT count(*) AS n FROM ${qualifiedTable(db)} WHERE outcome <> 'processed'`,
+        `SELECT count(*) AS n FROM ${qualifiedTable(db)} WHERE outcome NOT IN ('processed', 'duplicate')`,
       );
   const first = rows[0];
   return first ? Number(first.n) : 0;
@@ -127,6 +133,21 @@ export async function deliveryCountSince(db: MappingDb, sinceIso: string): Promi
   );
   const first = rows[0];
   return first ? Number(first.n) : 0;
+}
+
+/**
+ * Has this `X-GitHub-Delivery` GUID already been PROCESSED (GOL-3588)? Only a
+ * `processed` row counts: GitHub's manual "Redeliver" reuses the original GUID,
+ * so a delivery that failed or was rejected must stay retryable. Backed by
+ * `github_sync_delivery_guid_idx` (migrations/008).
+ */
+export async function isDeliveryProcessed(db: MappingDb, deliveryGuid: string): Promise<boolean> {
+  const rows = await db.query<{ one: number }>(
+    `SELECT 1 AS one FROM ${qualifiedTable(db)}
+       WHERE delivery_guid = $1 AND outcome = 'processed' LIMIT 1`,
+    [deliveryGuid],
+  );
+  return rows.length > 0;
 }
 
 /** Most-recent deliveries first — the queryable per-delivery status view. */
@@ -163,11 +184,28 @@ export async function recentDeliveries(db: MappingDb, limit = 50): Promise<Deliv
  */
 export class WebhookRejection extends Error {
   constructor(
-    readonly outcome: Exclude<DeliveryOutcome, "processed" | "failed_processing">,
+    readonly outcome: Exclude<DeliveryOutcome, "processed" | "failed_processing" | "duplicate">,
     message: string,
     readonly httpStatus = 401,
   ) {
     super(message);
     this.name = "WebhookRejection";
+  }
+}
+
+/**
+ * A signature-verified delivery whose `X-GitHub-Delivery` GUID was already
+ * processed (GOL-3588). Thrown right after HMAC verification so the handler
+ * body never re-runs; `onWebhook` records outcome `duplicate` and returns
+ * normally (2xx) so GitHub does not keep retrying a replay.
+ *
+ * Limit: GitHub's HMAC covers the body only, not the GUID header, so this stops
+ * verbatim replays, not a replay with a forged fresh GUID. The handlers' own
+ * idempotency (repo+number dedupe, headSha no-op) remains the backstop.
+ */
+export class DuplicateDelivery extends Error {
+  constructor(readonly deliveryGuid: string) {
+    super(`delivery ${deliveryGuid} already processed; replay dropped`);
+    this.name = "DuplicateDelivery";
   }
 }

@@ -40,8 +40,6 @@ function shortId(id: string): string {
   return id.length > 12 ? id.slice(0, 12) : id;
 }
 
-const ROW_COLUMNS = "auto 1fr auto auto";
-
 const PlayIcon = (
   <svg
     viewBox="0 0 24 24"
