@@ -47,14 +47,24 @@ if [ -z "$WEBHOOK_URL" ] || [ -z "$SECRET" ]; then
   exit 0
 fi
 
-command -v openssl >/dev/null || { echo "FATAL: openssl not found" >&2; exit 2; }
+command -v node    >/dev/null || { echo "FATAL: node not found" >&2; exit 2; }
 command -v curl    >/dev/null || { echo "FATAL: curl not found" >&2; exit 2; }
 
 # Minimal, valid GitHub `ping` payload. Static bytes so the HMAC is exact.
 PAYLOAD='{"zen":"Keep it logically awesome.","hook_id":0,"deadman":"gol-1394"}'
-SIG="$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/^.*= //')"
+# HMAC in node with the key read from the ENVIRONMENT, not `openssl -hmac
+# "$SECRET"`: argv is world-readable via /proc/<pid>/cmdline and `ps` for the
+# life of the process; environ is not (GOL-3588).
+SIG="$(printf '%s' "$PAYLOAD" | HMAC_KEY="$SECRET" node -e '
+  const chunks = [];
+  process.stdin.on("data", (c) => chunks.push(c)).on("end", () => {
+    const h = require("crypto").createHmac("sha256", process.env.HMAC_KEY);
+    process.stdout.write(h.update(Buffer.concat(chunks)).digest("hex"));
+  });')"
 
 # Replicate a GitHub App delivery: X-GitHub-Event + HMAC, NO CF Access headers.
+# Fresh X-GitHub-Delivery per run: the plugin drops an already-processed GUID as
+# a replay (GOL-3588), which would turn this probe into a no-op after run one.
 # -s no progress, no -f (we must inspect non-2xx), no -L (a 302 IS the signal).
 HTTP_CODE="$(curl -s -o /tmp/deadman-body.$$ -w '%{http_code}' \
   --max-time "$TIMEOUT" \
@@ -62,7 +72,7 @@ HTTP_CODE="$(curl -s -o /tmp/deadman-body.$$ -w '%{http_code}' \
   -H 'Content-Type: application/json' \
   -H 'X-GitHub-Event: ping' \
   -H "X-Hub-Signature-256: sha256=${SIG}" \
-  -H 'X-GitHub-Delivery: deadman-gol1394-probe' \
+  -H "X-GitHub-Delivery: deadman-gol1394-probe-$(date -u +%Y%m%dT%H%M%SZ)-$$" \
   --data "$PAYLOAD" || echo "000")"
 BODY_SNIP="$(head -c 200 /tmp/deadman-body.$$ 2>/dev/null | tr '\n' ' ')"
 rm -f /tmp/deadman-body.$$

@@ -31,7 +31,15 @@ export function registerPageWriteRoute(app: FastifyInstance, config: Config): vo
         .code(403)
         .send({ error: `writes restricted to ${ALLOWED_PREFIX}` });
     }
-    const abs = path.join(config.vaultRoot, normalized);
+    // Containment check on the RESOLVED path, so the sink is provably inside
+    // the allowed subtree (also what CodeQL's js/path-injection recognises).
+    const allowedRoot = path.resolve(config.vaultRoot, ALLOWED_PREFIX);
+    const abs = path.resolve(config.vaultRoot, normalized);
+    if (!abs.startsWith(allowedRoot + path.sep)) {
+      return reply
+        .code(403)
+        .send({ error: `writes restricted to ${ALLOWED_PREFIX}` });
+    }
     await fs.mkdir(path.dirname(abs), { recursive: true });
     // Atomic write + world-readable (the soak's permission lesson).
     const tmp = `${abs}.tmp`;
