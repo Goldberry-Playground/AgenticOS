@@ -233,3 +233,22 @@ variable "ci_secrets" {
   sensitive   = true
   default     = {}
 }
+
+# ── GOL-3577: Grove Consult dashboard behind Cloudflare Access ───────────────
+
+variable "consult_domain" {
+  description = "Public hostname of the Grove Consult staff dashboard (grove-sites apps/consult on DO App Platform, odoocker production consult.tf). Its own Access app/policy, independent of the dashboard's and Paperclip's."
+  type        = string
+  default     = "consult.gatheringatthegrove.com"
+}
+
+variable "consult_staff_emails" {
+  description = "Google-SSO emails allowed through Cloudflare Access to the consult dashboard. Staff only -- clients never log in (spec: no client portal). Grow this list in a PR; a dashboard-added email is removed by the next apply."
+  type        = list(string)
+  default     = ["josh@goldberrygrove.farm"]
+
+  validation {
+    condition     = length(var.consult_staff_emails) > 0 && alltrue([for e in var.consult_staff_emails : can(regex("^[^@\\s]+@(goldberrygrove\\.farm|gatheringatthegrove\\.com|atthegrovenursery\\.com|woodworkingeorge\\.com)$", e))])
+    error_message = "consult_staff_emails must be non-empty and contain only addresses on a Grove brand domain (goldberrygrove.farm, gatheringatthegrove.com, atthegrovenursery.com, woodworkingeorge.com)."
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runDigest, paginateDigest } from "../src/digest/job.js";
+import { runDigest } from "../src/digest/job.js";
 import { renderMetaBlock, renderExtractionComment } from "../src/receipt-meta.js";
 import type { ReceiptMeta, ReceiptExtraction } from "../src/types.js";
 

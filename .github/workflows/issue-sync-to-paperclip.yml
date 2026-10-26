@@ -55,7 +55,15 @@ jobs:
             --arg body "${GH_BODY:-}" \
             --arg url "$GH_URL" \
             '{kind:"github_issue_opened", repo:$repo, number:$number, title:$title, body:$body, url:$url}')
-          SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$HMAC_SECRET" -hex | sed 's/^.*= //')
+          # HMAC in node with the key read from env (HMAC_SECRET above), not
+          # `openssl -hmac "$HMAC_SECRET"` — argv is visible in /proc/*/cmdline
+          # and `ps`; environ is not (GOL-3588).
+          SIG=$(printf '%s' "$PAYLOAD" | node -e '
+            const chunks = [];
+            process.stdin.on("data", (c) => chunks.push(c)).on("end", () => {
+              const h = require("crypto").createHmac("sha256", process.env.HMAC_SECRET);
+              process.stdout.write(h.update(Buffer.concat(chunks)).digest("hex"));
+            });')
           curl -fsS -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Hub-Signature-256: sha256=$SIG" \

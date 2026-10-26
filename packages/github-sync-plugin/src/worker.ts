@@ -84,7 +84,14 @@ import {
   OpsPingThrottle,
   withSuppressionNote,
 } from "./error-log.js";
-import { recordDelivery, deliveryCountSince, WebhookRejection, type DeliveryOutcome } from "./delivery-log.js";
+import {
+  recordDelivery,
+  deliveryCountSince,
+  isDeliveryProcessed,
+  DuplicateDelivery,
+  WebhookRejection,
+  type DeliveryOutcome,
+} from "./delivery-log.js";
 import { runInboundDeadMan, buildInboundDeadManPing } from "./inbound-dead-man.js";
 import {
   buildCiFixBody,
@@ -638,6 +645,27 @@ async function recordPipelineError(
 }
 
 /**
+ * Replay guard (GOL-3588): call immediately AFTER HMAC verification. Throws
+ * {@link DuplicateDelivery} when this `X-GitHub-Delivery` GUID already has a
+ * `processed` row. Fails OPEN on a lookup error — the handlers are idempotent,
+ * and dropping a genuine delivery on a DB blip is the worse failure.
+ */
+async function assertFreshDelivery(ctx: PluginContext, input: PluginWebhookInput): Promise<void> {
+  const guid = getHeader(input.headers, "x-github-delivery");
+  if (!guid) return;
+  let seen = false;
+  try {
+    seen = await isDeliveryProcessed(ctx.db, guid);
+  } catch (err) {
+    ctx.logger.warn("delivery replay check failed; processing anyway", {
+      endpointKey: input.endpointKey,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  if (seen) throw new DuplicateDelivery(guid);
+}
+
+/**
  * Best-effort per-delivery outcome record (GOL-1411). NEVER throws: recording a
  * delivery must not mask the outcome (or failure) it records, nor turn a clean
  * success into a 500 of its own. The Discord alert + `github_sync_error` row are
@@ -857,6 +885,7 @@ async function handleCustomInbound(
   if (!verifyGithubSignature(input.rawBody, cfg.inboundWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", "inbound webhook: signature verification failed");
   }
+  await assertFreshDelivery(ctx, input);
 
   const payload = parseInboundPayload(input.parsedBody ?? safeJson(input.rawBody));
   if (!payload) {
@@ -1011,6 +1040,7 @@ async function handleAppInbound(
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", "app webhook: signature verification failed");
   }
+  await assertFreshDelivery(ctx, input);
 
   // GitHub sets X-GitHub-Event; ignore anything but `issues`. Lenient if absent.
   const eventType = getHeader(input.headers, "x-github-event");
@@ -1216,6 +1246,7 @@ async function handlePrInbound(
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", "pr webhook: signature verification failed");
   }
+  await assertFreshDelivery(ctx, input);
 
   // GitHub sets X-GitHub-Event; ignore anything but `pull_request`. Lenient if absent.
   const eventType = getHeader(input.headers, "x-github-event");
@@ -1667,6 +1698,7 @@ async function handleCiCompletion(
   if (!verifyGithubSignature(input.rawBody, cfg.appWebhookSecret, getHeader(input.headers, "x-hub-signature-256"))) {
     throw new WebhookRejection("rejected_signature", `ci webhook: signature verification failed (${eventType})`);
   }
+  await assertFreshDelivery(ctx, input);
 
   const ev = parseCiCompletionEvent(input.parsedBody ?? safeJson(input.rawBody), eventType);
   if (!ev) {
@@ -2634,6 +2666,16 @@ const plugin = definePlugin({
       // outcome and RE-THROW so the host returns a non-2xx. The old code swallowed
       // every failure and let the host reply 200 — GitHub's delivery log stayed
       // green while inbound mirroring was dead (the ~20h-invisible 08-12 outage).
+      if (err instanceof DuplicateDelivery) {
+        // Verified replay of an already-processed GUID (GOL-3588): record it and
+        // return normally so the host 2xx's — a non-2xx would make GitHub retry.
+        ctx.logger.info("inbound webhook: duplicate delivery dropped", {
+          endpointKey: input.endpointKey,
+          deliveryGuid: err.deliveryGuid,
+        });
+        await safeRecordDelivery(ctx, input, "duplicate", err.message);
+        return;
+      }
       if (err instanceof WebhookRejection) {
         // Verification / config / payload rejection detected BEFORE any enqueue.
         // Record it (queryable) but do NOT page Discord — an unauthenticated probe

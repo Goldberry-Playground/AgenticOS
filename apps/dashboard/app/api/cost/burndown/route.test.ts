@@ -50,14 +50,6 @@ function makeRequest(range?: string) {
   return new Request(url.toString());
 }
 
-/** Build a stable ISO date string N days before today (UTC midnight). */
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - n);
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
-}
-
 // ---------------------------------------------------------------------------
 // Tests — Paperclip path (DASHBOARD_DATA_SOURCE=paperclip)
 // ---------------------------------------------------------------------------
