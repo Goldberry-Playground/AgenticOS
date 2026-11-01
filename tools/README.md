@@ -28,7 +28,7 @@ not a per-secret copy-paste that pulls in the org owner ([GOL-252], [GOL-145]).
    ```
    For **AgenticOS**, prefer Terraform (drift detection):
    ```bash
-   export TF_VAR_ci_secrets="$(tools/ci-secrets-tfvars.sh --repo EngineeringMoonBear/AgenticOS)"
+   export TF_VAR_ci_secrets="$(tools/ci-secrets-tfvars.sh --repo Goldberry-Playground/AgenticOS)"
    terraform -chdir=infra/terraform apply -var manage_github_ci_secrets=true
    ```
 
@@ -41,7 +41,7 @@ prints the reason (used for rows whose target repo has no write token, or whose
 | Repo | Write path | Status |
 |------|-----------|--------|
 | `Goldberry-Playground/grove-sites` | Grove Infra PAT (`op://…/Grove Infra/github_token`) | ✅ **self-serve now** — unblocks [GOL-145] |
-| `EngineeringMoonBear/AgenticOS` | — | ⛔ App token = **read-only** (`public-key`=200 but `PUT`=403); no write PAT. Gate stays off. |
+| `Goldberry-Playground/AgenticOS` | — | ⛔ App token = **read-only** (`public-key`=200 but `PUT`=403); no write PAT. Gate stays off. |
 | `Goldberry-Playground/odoocker` | — | ⛔ App not installed (401); no PAT access (404). |
 
 > **`public-key = 200` proves READ scope only — it does NOT imply write.** The GOL-342

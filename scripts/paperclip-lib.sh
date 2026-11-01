@@ -14,7 +14,7 @@ OP_VAULT="${OP_VAULT:-Goldberry Grove - Admin}"
 OP_FIELD_BOARD_KEY="${OP_FIELD_BOARD_KEY:-paperclip_board_key}"
 OP_FIELD_GITHUB="${OP_FIELD_GITHUB:-github_token}"
 OP_FIELD_OPENVIKING="${OP_FIELD_OPENVIKING:-openviking_root_api_key}"
-GITHUB_ORG="${GITHUB_ORG:-EngineeringMoonBear}"
+GITHUB_ORG="${GITHUB_ORG:-Goldberry-Playground}"
 
 pc_require_tools() {
   command -v op   >/dev/null || { echo "FATAL: 1Password CLI 'op' not found" >&2; exit 1; }

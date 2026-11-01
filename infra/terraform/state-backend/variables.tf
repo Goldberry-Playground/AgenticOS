@@ -37,7 +37,7 @@ variable "spaces_bootstrap_secret_key" {
 variable "github_secrets_repo" {
   description = "Repo (owner/name) that receives SPACES_ACCESS_KEY_ID + SPACES_SECRET_ACCESS_KEY as GH Actions secrets."
   type        = string
-  default     = "EngineeringMoonBear/AgenticOS"
+  default     = "Goldberry-Playground/AgenticOS"
 }
 
 variable "manage_github_secrets" {

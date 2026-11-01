@@ -126,7 +126,7 @@ echo "broker secret lines: $(grep -c '^GITHUB_APP_PRIVATE_KEY_B64=' secrets/gh-a
 docker compose up -d gh-token-broker
 docker compose up -d --force-recreate paperclip-server
 # verify: agents still mint (through the broker)
-docker compose exec -u node paperclip-server node /paperclip/agent-git/github-app-token.mjs token EngineeringMoonBear/AgenticOS   # → ghs_…
+docker compose exec -u node paperclip-server node /paperclip/agent-git/github-app-token.mjs token Goldberry-Playground/AgenticOS   # → ghs_…
 docker compose exec -u node paperclip-server sh -c 'printenv GITHUB_APP_PRIVATE_KEY_B64 >/dev/null && echo LEAK || echo "key absent ✓"'
 ```
 
@@ -149,7 +149,7 @@ the blast radius small:
 Paperclip builds every adapter/runtime subprocess env as
 `{ ...sanitize(process.env), ...adapterEnv, ...perAgentSecrets }` — per-agent
 secrets merge **after** the sanitized base. As of fork tag **`agenticos-v0.1.1`**
-(PR [Paperclip-AgenticOS#2](https://github.com/EngineeringMoonBear/Paperclip-AgenticOS/pull/2))
+(PR [Paperclip-AgenticOS#2](https://github.com/Goldberry-Playground/Paperclip-AgenticOS/pull/2))
 the sanitizer strips, from the base env handed to agents:
 
 - `PAPERCLIP_*` and `DATABASE_URL` (original behaviour)
