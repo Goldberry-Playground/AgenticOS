@@ -53,11 +53,11 @@ injected:
 ```sh
 # Mint a short-lived, repo-scoped broker token (contents: write) and fire the
 # recreate. No actions:write needed.
-TOKEN="$(node /paperclip/agent-git/github-app-token.mjs token EngineeringMoonBear/AgenticOS)"
+TOKEN="$(node /paperclip/agent-git/github-app-token.mjs token Goldberry-Playground/AgenticOS)"
 curl -fsS -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/EngineeringMoonBear/AgenticOS/dispatches \
+  https://api.github.com/repos/Goldberry-Playground/AgenticOS/dispatches \
   -d '{"event_type":"recreate-paperclip-server"}'
 # 204 No Content = accepted. Watch the run in Actions; it self-verifies mounts.
 ```
@@ -312,8 +312,8 @@ touch it; install is create-only; config save doesn't restart the worker.
 - `scripts/ci/plugin-registry-drift.test.mjs`, `scripts/ci/plugin-registry.test.sh`
   — the CI gates that keep the literal YAML/compose lists in lockstep.
 
-[GOL-166]: https://github.com/EngineeringMoonBear/AgenticOS/pull/281
-[GOL-296]: https://github.com/EngineeringMoonBear/AgenticOS/pull/255
+[GOL-166]: https://github.com/Goldberry-Playground/AgenticOS/pull/281
+[GOL-296]: https://github.com/Goldberry-Playground/AgenticOS/pull/255
 [#779]: https://github.com/Goldberry-Playground/AgenticOS/pull/779
 [`.github/workflows/recreate-paperclip-server.yml`]: ../../.github/workflows/recreate-paperclip-server.yml
 [github-issue-sync.md]: github-issue-sync.md

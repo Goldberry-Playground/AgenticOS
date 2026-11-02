@@ -12,7 +12,7 @@ Claude Max subscription; Codex/Ollama are optional) — see
   - VPC `agenticos-vpc` (region `nyc1` by default)
   - SSH key `agenticos-droplet-key`
   - Droplet `agenticos-droplet` (Ubuntu 24.04, `s-2vcpu-4gb`, in the VPC)
-  - App Platform app `agenticos-dashboard` tracking `EngineeringMoonBear/AgenticOS@main`
+  - App Platform app `agenticos-dashboard` tracking `Goldberry-Playground/AgenticOS@main`
 - **Tailscale**
   - Pre-authorized, single-use auth key tagged `tag:agenticos-droplet`
   - Droplet joins the tailnet automatically via cloud-init

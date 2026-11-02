@@ -70,7 +70,7 @@ variable "ssh_public_key_path" {
 variable "github_repo" {
   description = "owner/name of the GitHub repo to deploy on App Platform"
   type        = string
-  default     = "EngineeringMoonBear/AgenticOS"
+  default     = "Goldberry-Playground/AgenticOS"
 }
 
 variable "github_branch" {
@@ -224,7 +224,7 @@ variable "ci_secrets" {
     straight from the shared manifest so it is declared in one place only:
 
       export TF_VAR_ci_secrets="$(../../tools/ci-secrets-tfvars.sh \
-          --repo EngineeringMoonBear/AgenticOS)"
+          --repo Goldberry-Playground/AgenticOS)"
 
     The legacy `do_monitoring_token` var is merged in automatically (see
     github-ci-secrets.tf locals) so existing wiring keeps working.
