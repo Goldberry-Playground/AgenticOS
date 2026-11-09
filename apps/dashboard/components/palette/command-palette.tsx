@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Sparkles, BookOpen, Activity, Settings } from "lucide-react";
+import { Sparkles, BookOpen, Activity, Settings, X, Contrast } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -80,7 +80,7 @@ export function CommandPalette() {
       onOpenChange={handleOpenChange}
       title="Command Palette"
       description="Search skills, wiki pages, and recent runs"
-      className="max-w-[640px] w-full"
+      className="sm:max-w-[640px]"
     >
       <CommandInput placeholder="Search skills, wiki pages, runs…" />
 
@@ -88,100 +88,112 @@ export function CommandPalette() {
         <CommandEmpty>No results found.</CommandEmpty>
 
         {/* ── Skills ──────────────────────────────────────────── */}
-        <CommandGroup heading="Skills">
-          {skills.map((skill) => (
-            <CommandItem
-              key={skill.path}
-              value={`skill ${skill.name} ${skill.description} ${skill.triggers.join(" ")}`}
-              onSelect={handleOpenSkill}
-              className="gap-2.5"
-            >
-              <Sparkles
-                size={14}
-                className="shrink-0"
-                style={{ color: "var(--accent-plum-400)" }}
-                aria-hidden="true"
-              />
-              <span className="flex flex-col min-w-0">
-                <span className="text-sm font-medium truncate">{skill.name}</span>
-                <span
-                  className="text-xs truncate"
-                  style={{ color: "var(--text-muted)" }}
+        {skills.length > 0 && (
+          <>
+            <CommandGroup heading="Skills">
+              {skills.map((skill) => (
+                <CommandItem
+                  key={skill.path}
+                  value={`skill ${skill.name} ${skill.description} ${skill.triggers.join(" ")}`}
+                  onSelect={handleOpenSkill}
+                  className="gap-2.5"
                 >
-                  {skill.description}
-                </span>
-              </span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
+                  <Sparkles
+                    size={14}
+                    className="shrink-0"
+                    style={{ color: "var(--accent-plum-400)" }}
+                    aria-hidden="true"
+                  />
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium truncate">{skill.name}</span>
+                    <span
+                      className="text-xs truncate"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {skill.description}
+                    </span>
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
 
-        <CommandSeparator />
+            <CommandSeparator />
+          </>
+        )}
 
         {/* ── Wiki Pages ───────────────────────────────────────── */}
-        <CommandGroup heading="Wiki Pages">
-          {wikiPaths.map((pagePath) => {
-            const title = pagePath.split("/").pop() ?? pagePath;
-            return (
-              <CommandItem
-                key={pagePath}
-                value={`wiki ${title} ${pagePath}`}
-                onSelect={() => handleWikiNavigate(pagePath)}
-                className="gap-2.5"
-              >
-                <BookOpen
-                  size={14}
-                  className="shrink-0"
-                  style={{ color: "var(--accent-gold-400)" }}
-                  aria-hidden="true"
-                />
-                <span className="flex flex-col min-w-0">
-                  <span className="text-sm font-medium truncate">{title}</span>
-                  <span
-                    className="text-xs truncate font-mono"
-                    style={{
-                      color: "var(--text-muted)",
-                      fontFamily: "var(--font-jetbrains-mono, monospace)",
-                    }}
+        {wikiPaths.length > 0 && (
+          <>
+            <CommandGroup heading="Wiki Pages">
+              {wikiPaths.map((pagePath) => {
+                const title = pagePath.split("/").pop() ?? pagePath;
+                return (
+                  <CommandItem
+                    key={pagePath}
+                    value={`wiki ${title} ${pagePath}`}
+                    onSelect={() => handleWikiNavigate(pagePath)}
+                    className="gap-2.5"
                   >
-                    {pagePath}
-                  </span>
-                </span>
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
+                    <BookOpen
+                      size={14}
+                      className="shrink-0"
+                      style={{ color: "var(--accent-gold-400)" }}
+                      aria-hidden="true"
+                    />
+                    <span className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium truncate">{title}</span>
+                      <span
+                        className="text-xs truncate font-mono"
+                        style={{
+                          color: "var(--text-secondary)",
+                          fontFamily: "var(--font-jetbrains-mono, monospace)",
+                        }}
+                      >
+                        {pagePath}
+                      </span>
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
 
-        <CommandSeparator />
+            <CommandSeparator />
+          </>
+        )}
 
         {/* ── Recent Runs ──────────────────────────────────────── */}
-        <CommandGroup heading="Recent Runs">
-          {(recentRuns ?? []).slice(0, 5).map((run) => (
-            <CommandItem
-              key={run.id}
-              value={`run ${run.agent} ${run.status} ${((run as { tags?: string[] }).tags ?? []).join(" ")}`}
-              onSelect={() => handleRunNavigate(run.id)}
-              className="gap-2.5"
-            >
-              <Activity
-                size={14}
-                className="shrink-0"
-                style={{ color: "var(--text-muted)" }}
-                aria-hidden="true"
-              />
-              <span className="flex flex-col min-w-0">
-                <span className="text-sm font-medium truncate">{run.agent}</span>
-                <span
-                  className="text-xs"
-                  style={{ color: "var(--text-muted)" }}
+        {(recentRuns?.length ?? 0) > 0 && (
+          <>
+            <CommandGroup heading="Recent Runs">
+              {(recentRuns ?? []).slice(0, 5).map((run) => (
+                <CommandItem
+                  key={run.id}
+                  value={`run ${run.agent} ${run.status} ${((run as { tags?: string[] }).tags ?? []).join(" ")}`}
+                  onSelect={() => handleRunNavigate(run.id)}
+                  className="gap-2.5"
                 >
-                  Hermes · {run.status}
-                </span>
-              </span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
+                  <Activity
+                    size={14}
+                    className="shrink-0"
+                    style={{ color: "var(--text-secondary)" }}
+                    aria-hidden="true"
+                  />
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium truncate">{run.agent}</span>
+                    <span
+                      className="text-xs"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Hermes · {run.status}
+                    </span>
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
 
-        <CommandSeparator />
+            <CommandSeparator />
+          </>
+        )}
 
         {/* ── Quick Actions ────────────────────────────────────── */}
         <CommandGroup heading="Quick Actions">
@@ -193,7 +205,7 @@ export function CommandPalette() {
             <Settings
               size={14}
               className="shrink-0"
-              style={{ color: "var(--text-muted)" }}
+              style={{ color: "var(--text-secondary)" }}
               aria-hidden="true"
             />
             <span className="text-sm">Open Settings</span>
@@ -203,13 +215,12 @@ export function CommandPalette() {
             onSelect={handleClearFilter}
             className="gap-2.5"
           >
-            <span
-              className="size-[14px] shrink-0 flex items-center justify-center text-xs leading-none"
-              style={{ color: "var(--text-muted)" }}
+            <X
+              size={14}
+              className="shrink-0"
+              style={{ color: "var(--text-secondary)" }}
               aria-hidden="true"
-            >
-              ✕
-            </span>
+            />
             <span className="text-sm">Clear filter</span>
           </CommandItem>
           <CommandItem
@@ -220,17 +231,17 @@ export function CommandPalette() {
             }}
             className="gap-2.5"
           >
-            <span
-              className="size-[14px] shrink-0 flex items-center justify-center text-xs leading-none"
-              style={{ color: "var(--text-muted)" }}
+            <Contrast
+              size={14}
+              className="shrink-0"
+              style={{ color: "var(--text-secondary)" }}
               aria-hidden="true"
-            >
-              ◑
-            </span>
+            />
             <span className="text-sm">Toggle theme</span>
             <span
+              data-slot="command-shortcut"
               className="ml-auto text-xs"
-              style={{ color: "var(--text-muted)" }}
+              style={{ color: "var(--text-secondary)" }}
             >
               Phase 6
             </span>
@@ -246,7 +257,7 @@ export function CommandPalette() {
           backgroundColor: "color-mix(in srgb, var(--surface-elevated) 60%, transparent)",
         }}
       >
-        <span className="flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
+        <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
           <kbd
             className="rounded-sm border px-1 py-0.5 text-[10px] font-medium"
             style={{
@@ -259,7 +270,7 @@ export function CommandPalette() {
           </kbd>
           <span className="text-[11px]">navigate</span>
         </span>
-        <span className="flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
+        <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
           <kbd
             className="rounded-sm border px-1 py-0.5 text-[10px] font-medium"
             style={{
@@ -272,7 +283,7 @@ export function CommandPalette() {
           </kbd>
           <span className="text-[11px]">select</span>
         </span>
-        <span className="flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
+        <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
           <kbd
             className="rounded-sm border px-1 py-0.5 text-[10px] font-medium"
             style={{
