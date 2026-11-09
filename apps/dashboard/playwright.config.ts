@@ -40,7 +40,7 @@ export default defineConfig({
       // at 390px the fields are full-width and stacked — a different layout,
       // and the viewport a light-mode user is most likely to meet an
       // unreadable placeholder on.
-      testMatch: /(viewport-overflow|focus-visible|aria-invalid|field-boundary)\.spec\.ts/,
+      testMatch: /(viewport-overflow|focus-visible|aria-invalid|field-boundary|command-palette)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },
