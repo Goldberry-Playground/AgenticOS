@@ -6,7 +6,7 @@
 // page; only a confirmed-good response (or a route on the tracked KNOWN_BROKEN
 // list) may stay quiet.
 import assert from "node:assert/strict";
-import { classify, isAlerting, buildAlert, KNOWN_BROKEN, API_ROUTES } from "./dashboard-smoke.mjs";
+import { classify, isAlerting, buildAlert, isAccessLogin, KNOWN_BROKEN, API_ROUTES } from "./dashboard-smoke.mjs";
 
 const ok = (path, body = "{}", ms = 120) => ({ path, status: 200, ms, body });
 
@@ -38,6 +38,13 @@ assert.equal(auth.verdict, "auth");
 assert.equal(isAlerting(auth.verdict), true);
 // …but an ordinary app redirect is not an auth failure.
 assert.notEqual(classify({ path: "/", status: 307, ms: 50, location: "/runs" }).verdict, "auth");
+
+// Access-login detection matches the HOST, not a substring anywhere in the URL.
+assert.equal(isAccessLogin("https://goldberrygrove.cloudflareaccess.com/cdn-cgi/access/login/x"), true);
+assert.equal(isAccessLogin("https://evil.example/?next=goldberrygrove.cloudflareaccess.com"), false);
+assert.equal(isAccessLogin("https://cloudflareaccess.com.evil.example/"), false);
+assert.equal(isAccessLogin("/runs"), false);
+assert.equal(isAccessLogin(""), false);
 
 // Known-broken routes report but stay quiet; a recovery is flagged so the list gets trimmed.
 for (const path of Object.keys(KNOWN_BROKEN)) {

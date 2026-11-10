@@ -66,6 +66,13 @@ export const SEMANTIC = {
   },
 };
 
+/** True when a redirect Location points at a Cloudflare Access login host. */
+export function isAccessLogin(location) {
+  let host;
+  try { host = new URL(location || "", "https://invalid.local").hostname; } catch { return false; }
+  return host.endsWith(".cloudflareaccess.com");
+}
+
 /**
  * Classify one probe result.
  * @param {{path:string,status:number|null,ms:number,location?:string,body?:string,error?:string}} r
@@ -76,7 +83,7 @@ export function classify(r) {
   // A redirect to the Access login means the PROBE is misconfigured (token
   // missing from the Access policy), not that the app is down. Distinct verdict,
   // still pages: a silently-blind monitor is the failure this exists to prevent.
-  if (r.status >= 300 && r.status < 400 && /cloudflareaccess\.com/.test(r.location || "")) {
+  if (r.status >= 300 && r.status < 400 && isAccessLogin(r.location)) {
     return { path: r.path, verdict: "auth", reason: "redirected to Cloudflare Access login" };
   }
   const bad =
