@@ -37,8 +37,10 @@ export function registerSkillsRoute(app: FastifyInstance, config: Config): void 
       if (!fm) continue;
       const base = path.basename(full).replace(/\.md$/, "");
       skills.push({
-        name: (fm.name as string) ?? base,
-        description: (fm.description as string) ?? "",
+        // The vault's skills mirror (skills-vault sync) writes skill_name /
+        // skill_description; hand-written pages use name / description.
+        name: ((fm.name ?? fm.skill_name) as string) ?? base,
+        description: ((fm.description ?? fm.skill_description) as string) ?? "",
         triggers: toStringArray(fm.triggers),
         usedBy: toStringArray(fm.used_by ?? fm.usedBy),
         // Path relative to the vault root, posix-normalized for the dashboard.
