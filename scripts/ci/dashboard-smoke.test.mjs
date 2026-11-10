@@ -31,6 +31,17 @@ assert.equal(
   classify(ok("/api/health/services", JSON.stringify({ services: [{ name: "Paperclip", ok: true }] }))).verdict,
   "ok",
 );
+// Idle is Paperclip's normal resting state (wake-on-event agents): must not page.
+// Seen live 2026-11-10: {ok:false, detail:"no agents running", latencyMs:43}.
+assert.equal(
+  classify(ok("/api/health/services", JSON.stringify({ services: [{ name: "Paperclip", ok: false, latencyMs: 43, detail: "no agents running" }] }))).verdict,
+  "ok",
+);
+assert.equal(
+  classify(ok("/api/health/services", JSON.stringify({ services: [{ name: "Paperclip", ok: false, detail: "all running agents stuck" }] }))).verdict,
+  "fail",
+);
+assert.equal(classify(ok("/api/health/services", JSON.stringify({ services: [] }))).verdict, "fail");
 
 // A blind monitor is an outage of the monitor: Access login redirect → auth, which pages.
 const auth = classify({ path: "/", status: 302, ms: 50, location: "https://goldberrygrove.cloudflareaccess.com/cdn-cgi/access/login/x" });
