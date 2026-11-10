@@ -40,6 +40,24 @@ describe("GET /skills", () => {
     await app.close();
   });
 
+  it("reads skill_name / skill_description written by the vault skills mirror", async () => {
+    const app = Fastify();
+    registerSkillsRoute(app, {
+      port: 7777,
+      vaultRoot: fixtureRoot,
+      wikiSubdir: "wiki",
+      syncthingUrl: undefined,
+      syncthingApiKey: undefined, syncthingFolderId: "agenticos-vault",
+    });
+
+    const body = (await app.inject({ method: "GET", url: "/skills" })).json();
+    const mirrored = body.skills.find((s: { name: string }) => s.name === "vault-style");
+    expect(mirrored).toBeTruthy();
+    expect(mirrored.description).toMatch(/skills-vault sync/);
+
+    await app.close();
+  });
+
   it("finds skills nested in domain subfolders (recursive walk)", async () => {
     const app = Fastify();
     registerSkillsRoute(app, {
