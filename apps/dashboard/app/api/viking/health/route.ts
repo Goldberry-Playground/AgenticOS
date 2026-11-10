@@ -14,7 +14,9 @@ export interface VikingHealth {
 }
 
 export async function GET(): Promise<NextResponse> {
-  const baseUrl = process.env.OPENVIKING_URL;
+  // App Platform sets OPENVIKING_ENDPOINT (see app-platform.tf); OPENVIKING_URL is the
+  // older local-dev name. Reading only OPENVIKING_URL showed "not configured" in prod.
+  const baseUrl = process.env.OPENVIKING_ENDPOINT ?? process.env.OPENVIKING_URL;
   if (!baseUrl) {
     return NextResponse.json({ reachable: false });
   }
