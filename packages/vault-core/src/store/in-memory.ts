@@ -139,11 +139,25 @@ export class InMemoryVaultStore implements VaultStore {
     return path.join(this.vaultRoot, "inbox");
   }
 
+  // The rebuild currently running on behalf of ensureIndex(), shared by every
+  // caller that finds the index cold or stale while it runs. Without this, N
+  // concurrent reads after the TTL lapses start N full rebuilds, each holding
+  // its own copy of every note in memory: the dashboard's /memory graph fires
+  // ~157 /page reads at once, and that took vault-server past its 256 MiB heap
+  // on 2026-11-10. Explicit revalidate() calls (writes, POST /revalidate)
+  // still rebuild unconditionally.
+  private rebuildInFlight: Promise<void> | null = null;
+
   private async ensureIndex(): Promise<VaultIndex> {
     if (this.index && Date.now() < this.ttlExpiresAt) {
       return this.index;
     }
-    await this.revalidate();
+    if (!this.rebuildInFlight) {
+      this.rebuildInFlight = this.revalidate().finally(() => {
+        this.rebuildInFlight = null;
+      });
+    }
+    await this.rebuildInFlight;
     return this.index!;
   }
 
