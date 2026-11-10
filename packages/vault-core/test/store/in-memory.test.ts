@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -395,5 +395,36 @@ describe("InMemoryVaultStore - configurable wiki root (wikiSubdir)", () => {
     const { flat } = await store.list();
     expect(flat).toContain("Under/Wiki");
     expect(flat).not.toContain("RootLevel");
+  });
+});
+
+describe("InMemoryVaultStore - concurrent cold reads (thundering herd)", () => {
+  // Regression (2026-11-10): the dashboard's /memory graph fires one
+  // /page request per note (~157) at once. With an expired TTL, every one of
+  // them ran its own full revalidate() -- 157 parallel copies of the whole
+  // vault index -- and vault-server died at its 256 MiB heap limit.
+  it("shares one index rebuild across concurrent callers", async () => {
+    for (let i = 0; i < 20; i++) {
+      await writeWikiPage(`Farm/Note ${i}.md`, `# Note ${i}\n\nBody [[Note ${(i + 1) % 20}]].`);
+    }
+    const spy = vi.spyOn(store, "revalidate");
+
+    const results = await Promise.all(
+      Array.from({ length: 50 }, (_, i) => store.read(`Farm/Note ${i % 20}`))
+    );
+
+    expect(results.every((p) => p !== null)).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("rebuilds again once the shared rebuild has settled and the TTL lapses", async () => {
+    const short = new InMemoryVaultStore({ vaultRoot: tmpDir, ttlMs: 0 });
+    await writeWikiPage("Farm/A.md", "# A");
+    const spy = vi.spyOn(short, "revalidate");
+
+    await Promise.all([short.read("Farm/A"), short.read("Farm/A")]);
+    await short.read("Farm/A");
+
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });
