@@ -274,8 +274,19 @@ fi
 #   Tier B — intra-day thinning. Runs only at/above RECLAIM_PCT, i.e. strictly
 #     after the WARN_PCT page, so the normal steady state is still governed by
 #     the server's own retention. Keeps the newest KEEP_NEWEST dumps plus the
-#     newest dump of each calendar day; drops the remaining same-day duplicates
-#     oldest-last. Never drops below MIN_KEEP and never touches the newest.
+#     newest *restorable* dump of each calendar day; drops the remaining
+#     same-day duplicates oldest-last. Never drops below MIN_KEEP and never
+#     touches the newest.
+#     COMPLETENESS (GOL-3922): only a dump that passes dump_is_complete() may
+#     stand in as a day's kept representative. The empty-but-newer `.sql.gz`
+#     the server leaves when its in-process dump stalls (gzip header, no
+#     COMMIT; — the GOL-3854 failure) must NEVER become the keeper that makes
+#     that day's genuine dumps read as reclaimable "duplicates": that would
+#     keep the empty file and delete the day's only restorable backups, and
+#     these dumps are single-copy. So an incomplete dump never marks a day as
+#     covered; a complete dump is reclaimed only once a *complete* same-day
+#     dump is already kept. (The absolute KEEP_NEWEST rail still keeps the
+#     newest files whatever they are, so a just-finished dump is never nuked.)
 #     This is the FALLBACK, not the fix — the fix is a tighter
 #     `backupRetention` in the Paperclip instance settings.
 reclaimed_bytes=0
@@ -340,6 +351,10 @@ if [ "${RECLAIM}" = "1" ]; then
         log "only ${remaining} dump(s) in ${d} (min_keep=${MIN_KEEP}) — nothing to thin"
         continue
       fi
+      # seen_days holds the calendar days that already have a kept *restorable*
+      # dump. Only a complete dump is ever added to it, so an incomplete dump
+      # can never make a same-day complete dump look like a reclaimable
+      # duplicate (GOL-3922).
       seen_days=" "
       idx=0
       for row in "${rows[@]}"; do
@@ -352,20 +367,40 @@ if [ "${RECLAIM}" = "1" ]; then
         # mtime is only the fallback for a name we cannot parse.
         day="$(printf '%s' "${f##*/}" | sed -n 's/^paperclip-\([0-9]\{4\}\)\([0-9]\{2\}\)\([0-9]\{2\}\)-[0-9]\{6\}\.sql\.gz$/\1-\2-\3/p')"
         [ -n "${day}" ] || day="$(date -u -d "@${e}" +%Y-%m-%d 2>/dev/null || echo unknown)"
+        # Restorability gates representation. Same gate as the freshness check
+        # (~1-2s of CPU per 450M dump, only past RECLAIM_PCT, hourly).
+        if dump_is_complete "$f"; then complete=1; else complete=0; fi
         if [ "${idx}" -le "${KEEP_NEWEST}" ]; then
-          case "${seen_days}" in *" ${day} "*) : ;; *) seen_days="${seen_days}${day} " ;; esac
+          # Absolute rail: keep the newest KEEP_NEWEST files whatever they are,
+          # but only a complete one may represent (and thus close out) its day.
+          if [ "${complete}" = 1 ]; then
+            case "${seen_days}" in *" ${day} "*) : ;; *) seen_days="${seen_days}${day} " ;; esac
+          fi
           continue
         fi
         case "${seen_days}" in
           *" ${day} "*)
+            # The day already has a kept COMPLETE dump, so this one is a true
+            # same-day duplicate — reclaimable whether it is complete or the
+            # empty file we are keeping the complete one instead of.
             if [ "${remaining}" -le "${MIN_KEEP}" ]; then
               log "min_keep=${MIN_KEEP} reached in ${d} — stopping"
               break
             fi
-            rm_reclaim "$f" "intra-day duplicate for ${day}"
+            if [ "${complete}" = 1 ]; then
+              rm_reclaim "$f" "intra-day duplicate for ${day}"
+            else
+              rm_reclaim "$f" "incomplete intra-day dump for ${day} (no closing COMMIT;), restorable dump kept"
+            fi
             remaining=$(( remaining - 1 ))
             ;;
-          *) seen_days="${seen_days}${day} " ;;
+          *)
+            # No restorable representative for this day yet. Keep this file, but
+            # only mark the day covered if THIS dump is itself restorable — an
+            # incomplete dump is kept (never reclaimed here) and leaves the day
+            # open so a later complete same-day dump still becomes the keeper.
+            [ "${complete}" = 1 ] && seen_days="${seen_days}${day} "
+            ;;
         esac
       done
     done

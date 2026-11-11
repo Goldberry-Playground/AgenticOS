@@ -35,6 +35,17 @@ new_fixture() { # echoes the mount root; creates <root>/instances/default/data/b
   echo "${root}"
 }
 
+# mkgz PATH complete|empty — write a real gzip dump at PATH. `complete` ends in
+# the closing COMMIT; (passes dump_is_complete); `empty` is the gzip-header-only
+# file the server leaves on a stalled dump (GOL-3854) — valid gzip, no COMMIT.
+mkgz() {
+  if [ "$2" = complete ]; then
+    printf -- '-- Paperclip database backup\nCOPY x FROM stdin;\n1\t2\n\\.\nCOMMIT;\n' | gzip -c > "$1"
+  else
+    printf -- '-- Paperclip database backup\n' | gzip -c > "$1"
+  fi
+}
+
 run_guard() { # env overrides come from the caller
   PAPERCLIP_DATA_DIR="$1" \
   ENV_FILE=/dev/null \
@@ -87,7 +98,7 @@ declare -a STAMPS=(
   "20260101-180000" "20260101-060000"
 )
 for s in "${STAMPS[@]}"; do
-  printf 'gz' > "${B}/paperclip-${s}.sql.gz"
+  mkgz "${B}/paperclip-${s}.sql.gz" complete
   touch -d "${s:0:4}-${s:4:2}-${s:6:2} ${s:9:2}:${s:11:2}" "${B}/paperclip-${s}.sql.gz"
 done
 RECLAIM_PCT=0 run_guard "${ROOT}"
@@ -97,10 +108,36 @@ check_absent  "${B}" paperclip-20260103-060000.sql.gz paperclip-20260102-120000.
                      paperclip-20260102-060000.sql.gz paperclip-20260101-060000.sql.gz
 rm -rf "${ROOT}"
 
+echo "== Tier B keeps the day's RESTORABLE dump, not an empty newer one (GOL-3922) =="
+# The server left two empty .sql.gz (gzip header, no COMMIT;) as the newest
+# files of 2026-03-01 after a stalled dump, over that day's genuine complete
+# dumps. The old thinning bucketed by mtime alone: the empty newest marked the
+# day "seen", so the day's complete dumps read as same-day duplicates and were
+# reclaimed — keeping the empties and deleting the only restorable backups.
+# Completeness-aware thinning must keep a complete dump for the day, reclaim the
+# empty as the duplicate, and never delete a complete dump unless a complete
+# same-day dump is kept.
+ROOT="$(new_fixture)"; B="${ROOT}/instances/default/data/backups"
+mkgz "${B}/paperclip-20260301-230000.sql.gz" empty;    touch -d '2026-03-01 23:00' "${B}/paperclip-20260301-230000.sql.gz"
+mkgz "${B}/paperclip-20260301-180000.sql.gz" empty;    touch -d '2026-03-01 18:00' "${B}/paperclip-20260301-180000.sql.gz"
+mkgz "${B}/paperclip-20260301-120000.sql.gz" complete; touch -d '2026-03-01 12:00' "${B}/paperclip-20260301-120000.sql.gz"
+mkgz "${B}/paperclip-20260301-060000.sql.gz" empty;    touch -d '2026-03-01 06:00' "${B}/paperclip-20260301-060000.sql.gz"
+mkgz "${B}/paperclip-20260301-000000.sql.gz" complete; touch -d '2026-03-01 00:00' "${B}/paperclip-20260301-000000.sql.gz"
+mkgz "${B}/paperclip-20260228-120000.sql.gz" complete; touch -d '2026-02-28 12:00' "${B}/paperclip-20260228-120000.sql.gz"
+RECLAIM_PCT=0 run_guard "${ROOT}"
+# The day's restorable dump survives (old code deleted it as a "duplicate" of
+# the empty newest); the empty past the keep-newest rail is reclaimed.
+check_present "${B}" paperclip-20260301-120000.sql.gz paperclip-20260228-120000.sql.gz
+check_absent  "${B}" paperclip-20260301-060000.sql.gz
+grep -q 'restorable dump kept' "${ROOT}/.out" \
+  && pass "logged the empty duplicate was dropped for a restorable dump" \
+  || fail "no log line naming the incomplete intra-day duplicate"
+rm -rf "${ROOT}"
+
 echo "== Tier B respects MIN_KEEP =="
 ROOT="$(new_fixture)"; B="${ROOT}/instances/default/data/backups"
 for s in 20260105-180000 20260105-120000 20260105-060000; do
-  printf 'gz' > "${B}/paperclip-${s}.sql.gz"; touch -d "2026-01-05 ${s:9:2}:00" "${B}/paperclip-${s}.sql.gz"
+  mkgz "${B}/paperclip-${s}.sql.gz" complete; touch -d "2026-01-05 ${s:9:2}:00" "${B}/paperclip-${s}.sql.gz"
 done
 RECLAIM_PCT=0 run_guard "${ROOT}"
 check_present "${B}" paperclip-20260105-180000.sql.gz paperclip-20260105-120000.sql.gz paperclip-20260105-060000.sql.gz
@@ -136,10 +173,10 @@ echo "== Tier B buckets by the filename stamp, not by mtime =="
 # bucketing on the server's own filename stamp keeps it. MIN_KEEP=2 so the
 # floor cannot mask the difference.
 ROOT="$(new_fixture)"; B="${ROOT}/instances/default/data/backups"
-printf 'gz' > "${B}/paperclip-20260221-180000.sql.gz"; touch -d '2026-02-21 18:00' "${B}/paperclip-20260221-180000.sql.gz"
-printf 'gz' > "${B}/paperclip-20260221-120000.sql.gz"; touch -d '2026-02-21 12:00' "${B}/paperclip-20260221-120000.sql.gz"
-printf 'gz' > "${B}/paperclip-20260221-060000.sql.gz"; touch -d '2026-02-21 06:00' "${B}/paperclip-20260221-060000.sql.gz"
-printf 'gz' > "${B}/paperclip-20260220-230000.sql.gz"; touch -d '2026-02-21 04:00' "${B}/paperclip-20260220-230000.sql.gz"
+mkgz "${B}/paperclip-20260221-180000.sql.gz" complete; touch -d '2026-02-21 18:00' "${B}/paperclip-20260221-180000.sql.gz"
+mkgz "${B}/paperclip-20260221-120000.sql.gz" complete; touch -d '2026-02-21 12:00' "${B}/paperclip-20260221-120000.sql.gz"
+mkgz "${B}/paperclip-20260221-060000.sql.gz" complete; touch -d '2026-02-21 06:00' "${B}/paperclip-20260221-060000.sql.gz"
+mkgz "${B}/paperclip-20260220-230000.sql.gz" complete; touch -d '2026-02-21 04:00' "${B}/paperclip-20260220-230000.sql.gz"
 MIN_KEEP=2 RECLAIM_PCT=0 run_guard "${ROOT}"
 check_present "${B}" paperclip-20260221-180000.sql.gz paperclip-20260221-120000.sql.gz paperclip-20260220-230000.sql.gz
 check_absent  "${B}" paperclip-20260221-060000.sql.gz
