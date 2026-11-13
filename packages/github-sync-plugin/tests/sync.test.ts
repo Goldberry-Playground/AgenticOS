@@ -217,6 +217,27 @@ describe("handleIssueCreated — loop prevention", () => {
     expect(mapping).toMatchObject({ githubRepo: "up-repo", githubIssueNumber: 55, origin: "github" });
   });
 
+  it("returns the create failure, flagging 410 issues-disabled as permanent", async () => {
+    const cases = [
+      { res: { ok: false, status: 410, error: "Issues are disabled for this repo" }, permanent: true },
+      { res: { ok: false, status: 502, error: "Bad Gateway" }, permanent: false },
+      { res: { ok: false, error: "request timed out after 8000ms" }, permanent: false },
+    ];
+    for (const c of cases) {
+      const db = makeFakeDb();
+      const deps: SyncDeps = {
+        db,
+        github: makeGithub({ createIssue: vi.fn().mockResolvedValue(c.res) }),
+        config: CONFIG,
+        logger: silentLogger,
+        getIssue: async () => makeIssue({ id: "pi-f", description: "native" }),
+      };
+      const out = await handleIssueCreated(deps, { issueId: "pi-f", companyId: "co-1" });
+      expect(out).toMatchObject({ failed: true, permanent: c.permanent, error: c.res.error });
+      expect(await getByPaperclipId(db, "pi-f")).toBeNull();
+    }
+  });
+
   it("skips when the issue is already mapped (idempotent)", async () => {
     const db = makeFakeDb();
     await upsert(db, {

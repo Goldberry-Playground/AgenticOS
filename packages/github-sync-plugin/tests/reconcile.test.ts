@@ -181,6 +181,56 @@ describe("runMirrorReconcile", () => {
     expect(await getByPaperclipId(db, issues[1]!.id)).not.toBeNull();
   });
 
+  it("names the identifiers of failed issues in the summary", async () => {
+    const db = makeFakeDb();
+    const issues = [makeIssue({ identifier: "GOL-77" })];
+    const create = vi.fn().mockResolvedValue({ ok: false, status: 502, error: "Bad Gateway" });
+    const s = await sweep(db, issues, makeDeps(db, issues, create));
+
+    expect(s.failed).toBe(1);
+    expect(s.failedIds).toEqual(["GOL-77"]);
+  });
+
+  it("treats a 410 issues-disabled repo as unmirrorable (not failed) and stops calling GitHub for that project", async () => {
+    // 2026-11-13: the Paperclip project bridges to a repo with issues DISABLED.
+    // GitHub answers 410 forever, so the hourly sweep reported "1 failed" every
+    // run and retried GOL-3854 indefinitely. A 410 is a repo setting, not a blip.
+    const db = makeFakeDb();
+    const issues = [makeIssue({ identifier: "GOL-3854" }), makeIssue({ identifier: "GOL-3855" })];
+    const create = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 410, error: "Issues are disabled for this repo" });
+    const s = await sweep(db, issues, makeDeps(db, issues, create));
+
+    expect(create).toHaveBeenCalledTimes(1); // second issue never hits GitHub
+    expect(s).toMatchObject({ created: 0, failed: 0, unmirrorable: 2 });
+    expect(s.failedIds).toEqual([]);
+    expect(s.unmirrorableIds).toEqual(["GOL-3854", "GOL-3855"]);
+  });
+
+  it("an unmirrorable project does not stop other projects from mirroring", async () => {
+    const db = makeFakeDb();
+    const dead = makeIssue({});
+    const live = makeIssue({});
+    const deadDeps = makeDeps(db, [dead], vi.fn().mockResolvedValue({ ok: false, status: 410, error: "Issues are disabled for this repo" }));
+    const liveCreate = okCreate();
+    const liveDeps = makeDeps(db, [live], liveCreate);
+    const byProject: Record<string, { deps: SyncDeps; issues: Issue[] }> = {
+      dead: { deps: deadDeps, issues: [dead] },
+      live: { deps: liveDeps, issues: [live] },
+    };
+    const s = await runMirrorReconcile({
+      companyId: "co-1",
+      projectIds: ["dead", "live"],
+      listIssues: async (p, status) => byProject[p]!.issues.filter((i) => i.status === status),
+      depsForProject: (p) => byProject[p]!.deps,
+      logger: silentLogger,
+    });
+
+    expect(s).toMatchObject({ created: 1, failed: 0, unmirrorable: 1 });
+    expect(liveCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("pages through more than one page WITHIN a status", async () => {
     const db = makeFakeDb();
     // 130 mapped-already rows in ONE active status: paging must cross the
@@ -250,10 +300,30 @@ describe("buildReconcilePing", () => {
       skippedTerminal: 5,
       skippedPluginOp: 5,
       failed: 2,
+      failedIds: ["GOL-1", "GOL-2"],
+      unmirrorable: 0,
+      unmirrorableIds: [],
       capped: true,
     });
     expect(ping).toContain("20 missing GitHub twin(s)");
     expect(ping).toContain("2 failed");
     expect(ping).toContain("capped");
+  });
+
+  it("names failed identifiers, truncating long lists", () => {
+    const ids = ["GOL-1", "GOL-2", "GOL-3", "GOL-4", "GOL-5", "GOL-6", "GOL-7"];
+    const ping = buildReconcilePing({
+      scanned: 10, created: 0, skippedMapped: 3, skippedTerminal: 0, skippedPluginOp: 0,
+      failed: 7, failedIds: ids, unmirrorable: 0, unmirrorableIds: [], capped: false,
+    });
+    expect(ping).toContain("7 failed: GOL-1, GOL-2, GOL-3, GOL-4, GOL-5 +2 more");
+  });
+
+  it("mentions unmirrorable issues when the ping fires for another reason", () => {
+    const ping = buildReconcilePing({
+      scanned: 10, created: 1, skippedMapped: 8, skippedTerminal: 0, skippedPluginOp: 0,
+      failed: 0, failedIds: [], unmirrorable: 1, unmirrorableIds: ["GOL-3854"], capped: false,
+    });
+    expect(ping).toContain("1 unmirrorable (repo has issues disabled): GOL-3854");
   });
 });
