@@ -62,7 +62,11 @@ export const SEMANTIC = {
   "/api/vault/stats": (j) => (j?.pageCount > 0 ? null : `pageCount=${j?.pageCount}`),
   "/api/health/services": (j) => {
     const pc = (j?.services || []).find((s) => s.name === "Paperclip");
-    return pc?.ok ? null : `Paperclip ok=${pc?.ok} (${pc?.detail ?? "missing"})`;
+    // The route reports ok:false with "no agents running" when Paperclip is
+    // reachable but idle (agents are wake-on-event, so that is the normal
+    // resting state). Only unreachable / stuck / missing is an outage.
+    if (pc?.ok || pc?.detail === "no agents running") return null;
+    return `Paperclip ok=${pc?.ok} (${pc?.detail ?? "missing"})`;
   },
 };
 
