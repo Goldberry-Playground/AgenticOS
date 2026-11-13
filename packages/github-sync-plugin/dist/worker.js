@@ -42706,6 +42706,9 @@ function isClosedByAnotherRequest(res) {
   if (res.ok || res.status !== 422) return false;
   return (res.errors ?? []).some((e) => /closed by another request/i.test(e.message ?? ""));
 }
+function isPermanentCreateFailure(res) {
+  return res.status === 410 || /issues (are|have been) disabled/i.test(res.error);
+}
 async function handleIssueCreated(deps, input2) {
   const { db, github, config: config2, logger, getIssue } = deps;
   const existing = await getByPaperclipId(db, input2.issueId);
@@ -42746,11 +42749,20 @@ async function handleIssueCreated(deps, input2) {
     labels: [config2.syncLabelPaperclip]
   });
   if (!created.ok) {
+    const permanent = isPermanentCreateFailure(created);
     logger.error("issue.created: failed to create GitHub issue", {
       issueId: issue2.id,
+      githubRepo: config2.githubRepo,
+      status: created.status,
+      permanent,
       error: created.error
     });
-    return;
+    return {
+      failed: true,
+      permanent,
+      error: created.error,
+      ...created.status !== void 0 ? { status: created.status } : {}
+    };
   }
   await upsert(db, {
     paperclipIssueId: issue2.id,
@@ -43341,11 +43353,15 @@ async function runMirrorReconcile(input2) {
     skippedTerminal: 0,
     skippedPluginOp: 0,
     failed: 0,
+    failedIds: [],
+    unmirrorable: 0,
+    unmirrorableIds: [],
     capped: false
   };
   for (const projectId of input2.projectIds) {
     const deps = input2.depsForProject(projectId);
     if (!deps) continue;
+    let projectUnmirrorable = false;
     for (const status of ACTIVE_STATUSES) {
       for (let offset = 0; ; offset += PAGE_SIZE) {
         const page2 = await input2.listIssues(projectId, status, offset, PAGE_SIZE);
@@ -43363,22 +43379,43 @@ async function runMirrorReconcile(input2) {
             summary.skippedMapped++;
             continue;
           }
+          const label2 = issue2.identifier ?? issue2.id;
+          if (projectUnmirrorable) {
+            summary.unmirrorable++;
+            summary.unmirrorableIds.push(label2);
+            continue;
+          }
           if (summary.created + summary.failed >= maxCreates) {
             summary.capped = true;
             return summary;
           }
           try {
-            await handleIssueCreated(deps, {
+            const failure2 = await handleIssueCreated(deps, {
               issueId: issue2.id,
               companyId: input2.companyId
             });
+            if (failure2?.permanent) {
+              projectUnmirrorable = true;
+              summary.unmirrorable++;
+              summary.unmirrorableIds.push(label2);
+              input2.logger.warn("mirror-reconcile: bridge repo refuses issue creates; skipping project for this run", {
+                projectId,
+                githubRepo: deps.config.githubRepo,
+                issueId: issue2.id,
+                status: failure2.status,
+                error: failure2.error
+              });
+              continue;
+            }
             if (await getByPaperclipId(deps.db, issue2.id)) {
               summary.created++;
             } else {
               summary.failed++;
+              summary.failedIds.push(label2);
             }
           } catch (err) {
             summary.failed++;
+            summary.failedIds.push(label2);
             input2.logger.error("mirror-reconcile: mirror-create failed; continuing sweep", {
               issueId: issue2.id,
               projectId,
@@ -43394,7 +43431,15 @@ async function runMirrorReconcile(input2) {
 }
 function buildReconcilePing(s) {
   const capNote = s.capped ? " \u2014 capped, next run continues" : "";
-  return `\u{1F9F9} mirror-reconcile: created ${s.created} missing GitHub twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
+  const failedNote = s.failedIds.length ? `: ${listIds(s.failedIds)}` : "";
+  const unmirrorableNote = s.unmirrorable ? `; ${s.unmirrorable} unmirrorable (repo has issues disabled): ${listIds(s.unmirrorableIds)}` : "";
+  return `\u{1F9F9} mirror-reconcile: created ${s.created} missing GitHub twin(s), ${s.failed} failed${failedNote} (scanned ${s.scanned})${unmirrorableNote}${capNote}`;
+}
+var PING_ID_LIMIT = 5;
+function listIds(ids) {
+  const shown = ids.slice(0, PING_ID_LIMIT).join(", ");
+  const more = ids.length - PING_ID_LIMIT;
+  return more > 0 ? `${shown} +${more} more` : shown;
 }
 
 // src/signoff-reconcile.ts
@@ -44119,7 +44164,16 @@ var manifest = {
   //   commit-fetch failure/truncation leaves every reviewer in place. Unset config ⇒
   //   guard inert (behaviour unchanged). No new capability, no migration; manifest
   //   surface adds one optional config field.
-  version: "0.17.0",
+  // 0.17.1 = mirror-reconcile stops re-reporting an unfixable create (2026-11-13).
+  //   The Paperclip project bridges to a repo with GitHub Issues DISABLED, so every
+  //   hourly sweep retried GOL-3854, got 410 "Issues are disabled", and pinged
+  //   "1 failed" forever. handleIssueCreated now RETURNS its create failure with a
+  //   `permanent` flag (410 / "issues disabled" only); the sweep counts those as
+  //   `unmirrorable`, skips the rest of that project for the run (no further GitHub
+  //   calls, no budget burn), and an unmirrorable-only run no longer pings. Real
+  //   failures still ping and now NAME the issue identifiers. No migration, no
+  //   capability change.
+  version: "0.17.1",
   displayName: "GitHub Sync",
   description: "Bidirectional issue sync between Paperclip and GitHub. Paperclip \u2192 GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub \u2192 Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo\u2194project bridges across orgs.",
   author: "AgenticOS",

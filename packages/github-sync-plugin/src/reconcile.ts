@@ -21,6 +21,9 @@
  *    the event-path guard in handleIssueCreated.
  *  - Per-issue failures are counted and logged, never thrown — one bad issue
  *    can't kill the sweep.
+ *  - A PERMANENT refusal (bridge repo has Issues disabled → 410) is counted as
+ *    `unmirrorable`, not `failed`, and the rest of that project is skipped for
+ *    the run. Before this, GOL-3854 alone produced "1 failed" every hour.
  */
 import type { Issue } from "@paperclipai/plugin-sdk";
 import { handleIssueCreated, isPluginOperationalIssue, isTerminalStatus, type SyncDeps, type SyncLogger } from "./sync.js";
@@ -55,6 +58,15 @@ export interface ReconcileSummary {
   skippedTerminal: number;
   skippedPluginOp: number;
   failed: number;
+  /** Identifiers (GOL-123, or the id when unset) of the `failed` issues, for the ping. */
+  failedIds: string[];
+  /**
+   * Unmapped issues in a project whose repo refused the create PERMANENTLY
+   * (issues disabled). Not `failed`: retrying cannot help, so these don't drive
+   * the ops ping on their own. See isPermanentCreateFailure.
+   */
+  unmirrorable: number;
+  unmirrorableIds: string[];
   capped: boolean;
 }
 
@@ -87,12 +99,20 @@ export async function runMirrorReconcile(input: ReconcileInput): Promise<Reconci
     skippedTerminal: 0,
     skippedPluginOp: 0,
     failed: 0,
+    failedIds: [],
+    unmirrorable: 0,
+    unmirrorableIds: [],
     capped: false,
   };
 
   for (const projectId of input.projectIds) {
     const deps = input.depsForProject(projectId);
     if (!deps) continue; // bridge skipped at setup (no auth) — nothing to mirror into
+
+    // Set once the bridge's repo refuses a create permanently. Further unmapped
+    // issues in this project are tallied without calling GitHub: same repo, same
+    // answer, and they must not eat the attempt budget other projects need.
+    let projectUnmirrorable = false;
 
     for (const status of ACTIVE_STATUSES) {
       for (let offset = 0; ; offset += PAGE_SIZE) {
@@ -113,6 +133,12 @@ export async function runMirrorReconcile(input: ReconcileInput): Promise<Reconci
             summary.skippedMapped++;
             continue;
           }
+          const label = issue.identifier ?? issue.id;
+          if (projectUnmirrorable) {
+            summary.unmirrorable++;
+            summary.unmirrorableIds.push(label);
+            continue;
+          }
           // Budget ATTEMPTS (not successes) so a failing GitHub API is retried at
           // next run's pace instead of hammered for the whole backlog in one sweep.
           if (summary.created + summary.failed >= maxCreates) {
@@ -121,19 +147,34 @@ export async function runMirrorReconcile(input: ReconcileInput): Promise<Reconci
           }
           try {
             // Same idempotent path as the issue.created event; records the mapping.
-            await handleIssueCreated(deps, {
+            const failure = await handleIssueCreated(deps, {
               issueId: issue.id,
               companyId: input.companyId,
             });
+            if (failure?.permanent) {
+              projectUnmirrorable = true;
+              summary.unmirrorable++;
+              summary.unmirrorableIds.push(label);
+              input.logger.warn("mirror-reconcile: bridge repo refuses issue creates; skipping project for this run", {
+                projectId,
+                githubRepo: deps.config.githubRepo,
+                issueId: issue.id,
+                status: failure.status,
+                error: failure.error,
+              });
+              continue;
+            }
             // handleIssueCreated logs-and-returns on GitHub failure rather than
             // throwing — the mapping row is the ground truth for success.
             if (await getByPaperclipId(deps.db, issue.id)) {
               summary.created++;
             } else {
               summary.failed++;
+              summary.failedIds.push(label);
             }
           } catch (err) {
             summary.failed++;
+            summary.failedIds.push(label);
             input.logger.error("mirror-reconcile: mirror-create failed; continuing sweep", {
               issueId: issue.id,
               projectId,
@@ -151,5 +192,17 @@ export async function runMirrorReconcile(input: ReconcileInput): Promise<Reconci
 /** Ops-channel one-liner for a sweep that did something noteworthy. */
 export function buildReconcilePing(s: ReconcileSummary): string {
   const capNote = s.capped ? " — capped, next run continues" : "";
-  return `🧹 mirror-reconcile: created ${s.created} missing GitHub twin(s), ${s.failed} failed (scanned ${s.scanned})${capNote}`;
+  const failedNote = s.failedIds.length ? `: ${listIds(s.failedIds)}` : "";
+  const unmirrorableNote = s.unmirrorable
+    ? `; ${s.unmirrorable} unmirrorable (repo has issues disabled): ${listIds(s.unmirrorableIds)}`
+    : "";
+  return `🧹 mirror-reconcile: created ${s.created} missing GitHub twin(s), ${s.failed} failed${failedNote} (scanned ${s.scanned})${unmirrorableNote}${capNote}`;
+}
+
+/** Keep the Discord line short: first few ids, then a count. */
+const PING_ID_LIMIT = 5;
+function listIds(ids: readonly string[]): string {
+  const shown = ids.slice(0, PING_ID_LIMIT).join(", ");
+  const more = ids.length - PING_ID_LIMIT;
+  return more > 0 ? `${shown} +${more} more` : shown;
 }

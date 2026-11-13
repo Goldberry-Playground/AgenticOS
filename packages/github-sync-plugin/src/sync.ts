@@ -186,10 +186,35 @@ export function isClosedByAnotherRequest(res: {
  * - Otherwise (native Paperclip issue) → create a GitHub issue, stamp it with the
  *   paperclip label + back-link footer + marker, and record the mapping (origin "paperclip").
  */
+/**
+ * A failed outbound mirror-create, returned (not thrown) so the reconcile sweep
+ * can tell a repo-level condition that retrying will never fix from a transient
+ * blip. Event dispatch ignores the return value.
+ */
+export interface MirrorCreateFailure {
+  failed: true;
+  /** True when retrying cannot succeed until someone changes the repo/bridge. */
+  permanent: boolean;
+  status?: number;
+  error: string;
+}
+
+/**
+ * GitHub answers `POST /issues` with 410 Gone "Issues are disabled for this repo"
+ * when the bridged repo has its Issues feature switched off (forks default to
+ * this). That is a repo setting, so retrying hourly only re-reports the same
+ * failure (GOL-3854 → Paperclip-AgenticOS, 2026-11-13). Kept deliberately narrow:
+ * 404/403/422 can be scope, permission, or payload problems that deserve the
+ * louder `failed` path until someone looks.
+ */
+export function isPermanentCreateFailure(res: { status?: number; error: string }): boolean {
+  return res.status === 410 || /issues (are|have been) disabled/i.test(res.error);
+}
+
 export async function handleIssueCreated(
   deps: SyncDeps,
   input: { issueId: string; companyId: string },
-): Promise<void> {
+): Promise<MirrorCreateFailure | void> {
   const { db, github, config, logger, getIssue } = deps;
 
   const existing = await getByPaperclipId(db, input.issueId);
@@ -236,11 +261,20 @@ export async function handleIssueCreated(
     labels: [config.syncLabelPaperclip],
   });
   if (!created.ok) {
+    const permanent = isPermanentCreateFailure(created);
     logger.error("issue.created: failed to create GitHub issue", {
       issueId: issue.id,
+      githubRepo: config.githubRepo,
+      status: created.status,
+      permanent,
       error: created.error,
     });
-    return;
+    return {
+      failed: true,
+      permanent,
+      error: created.error,
+      ...(created.status !== undefined ? { status: created.status } : {}),
+    };
   }
 
   await upsert(db, {
