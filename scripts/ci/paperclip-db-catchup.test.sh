@@ -66,7 +66,13 @@ fixture() { # $1 = age in minutes of the newest dump, or "empty" for none
     local stamp f
     stamp="$(date -d "-$1 min" '+%Y%m%d-%H%M%S' 2>/dev/null || date '+%Y%m%d-%H%M%S')"
     f="${BACKUPS}/paperclip-${stamp}.sql.gz"
-    head -c 3000000 /dev/zero | tr '\0' 'y' >"${f}"
+    # A REAL completed gzipped dump: incompressible body (so it clears
+    # MIN_DUMP_BYTES) wrapped in the pg_dump header + closing COMMIT; so the
+    # freshness check's completeness gate counts it. A plain blob would now be
+    # rejected as incomplete and the "fresh → no-op" cases would never fire.
+    { printf -- '-- PostgreSQL database dump\n'
+      head -c 3000000 /dev/urandom | base64
+      printf -- '\nCOMMIT;\n'; } | gzip >"${f}"
     touch -d "-$1 min" "${f}"
   fi
 }
@@ -165,6 +171,21 @@ fixture 300
 DRY_RUN=1 run; check "exit code" "${RC}" "0"
 check "dump count unchanged" "$(count_dumps)" "1"
 want "DRY_RUN would dump" "dry-run logged the decision"
+
+echo "== 15. a fresh EMPTY .sql.gz masking an OLD complete dump → still stale, catch-up taken (GOL-3854) =="
+# The regression: the server stalled mid-dump and left a 20-byte header-only
+# gzip dated NOW. Selecting the newest FILE by mtime would read "age ~1m, fresh"
+# and this safety net would stay silent while the last RESTORABLE dump is 300m
+# stale. The completeness-aware selection must ignore the empty file.
+fixture 300                                  # old, complete, stale (300m)
+es="$(date -d '-1 min' '+%Y%m%d-%H%M%S' 2>/dev/null || date '+%Y%m%d-%H%M%S')"
+printf '' | gzip >"${BACKUPS}/paperclip-${es}.sql.gz"   # 20-byte header-only, newest FILE
+touch -d '-1 min' "${BACKUPS}/paperclip-${es}.sql.gz" 2>/dev/null || true
+run; check "exit code" "${RC}" "0"
+check "real catch-up dump written (empty file did not mask staleness)" "$(count_dumps)" "3"
+check "no leftover .tmp" "$(count_tmp)" "0"
+want "INCOMPLETE dump" "flagged the empty newest file as incomplete"
+want "STALE by" "measured staleness from the old COMPLETE dump, not the empty one"
 
 echo
 echo "passed ${PASS}, failed ${FAIL}"

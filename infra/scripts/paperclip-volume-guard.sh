@@ -139,6 +139,24 @@ alert() { # $1 = reason-key; $2 = message  (throttled per reason via stamp file)
   : > "${stamp}" 2>/dev/null || true
 }
 
+# dump_is_complete FILE — succeeds iff FILE is a *restorable* gzipped pg_dump:
+# the gzip CRC decompresses clean AND the decompressed stream ends in the dump's
+# closing `COMMIT;` (or the plain-pg_dump "database dump complete" comment). A
+# header-only .sql.gz — the 20-byte file the server left on 2026-10-28 when its
+# in-process dump stalled mid-stream (GOL-3854) — passes `gzip -t` but carries
+# no rows, so it fails here. This is the same gate paperclip-backup-offsite.py
+# applies before shipping, so the freshness page and the off-box shipper agree
+# on what "completed" means and a silent empty dump can never read as fresh.
+dump_is_complete() {
+  local f="$1" tail_txt
+  # gzip is not seekable, so the whole stream is decompressed to reach its tail;
+  # at ~450M that is ~1-2s of CPU once per hourly run — the same cost the shipper
+  # already pays. `|| true` keeps pipefail's non-zero on a truncated stream from
+  # aborting the assignment under `set -e`; the grep below is the real verdict.
+  tail_txt="$(gzip -dc -- "${f}" 2>/dev/null | tail -c 4096 | tr -d '\0')" || true
+  printf '%s' "${tail_txt}" | grep -q 'COMMIT;\|-- PostgreSQL database dump complete'
+}
+
 # --- Resolve the volume mountpoint on the host ---
 # Prefer `docker volume inspect` (exact); PAPERCLIP_DATA_DIR overrides for
 # non-docker layouts / smoke tests.
@@ -376,18 +394,36 @@ else
 fi
 
 # --- Check 2: backup freshness (partial dump folded in as context) ---
+# Freshness is measured from the newest *restorable* dump, not merely the newest
+# FILE. Walking the dumps newest-first and taking the first that passes
+# dump_is_complete() means a fresher-but-empty .sql.gz (gzip header, no rows —
+# GOL-3854) can no longer read as "age 0, healthy" and silence this page; the
+# age is computed from the last dump that would actually restore, and the empty
+# newer file is named as the likely silent failure in the alert.
 shopt -s nullglob
 newest_gz=""; newest_epoch=0; partial=""
+newest_any=""; newest_any_epoch=0; skipped_incomplete=0
+rows=()
 for d in "${MOUNT}"/instances/*/data/backups; do
   [ -d "$d" ] || continue
   for p in "$d"/*.sql;    do partial="$p"; done
-  for f in "$d"/*.sql.gz; do
-    e="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
-    if [ "$e" -gt "$newest_epoch" ]; then newest_epoch="$e"; newest_gz="$f"; fi
-  done
+  for f in "$d"/*.sql.gz; do rows+=("$(stat -c %Y "$f" 2>/dev/null || echo 0) $f"); done
 done
+if [ "${#rows[@]}" -gt 0 ]; then
+  while IFS= read -r row; do
+    e="${row%% *}"; f="${row#* }"
+    if [ -z "${newest_any}" ]; then newest_any="$f"; newest_any_epoch="$e"; fi
+    [ -n "${newest_gz}" ] && continue   # already found the newest complete dump
+    if dump_is_complete "$f"; then
+      newest_gz="$f"; newest_epoch="$e"
+    else
+      skipped_incomplete=$(( skipped_incomplete + 1 ))
+      log "freshness: $(basename "$f") is the newest file but is an INCOMPLETE dump (gzip ok, no closing COMMIT;) — not counting it as a backup (GOL-3854)"
+    fi
+  done < <(printf '%s\n' "${rows[@]}" | sort -rn)
+fi
 
-if [ -z "${newest_gz}" ] && [ -z "${partial}" ]; then
+if [ "${#rows[@]}" -eq 0 ] && [ -z "${partial}" ]; then
   log "no dumps found under ${MOUNT}/instances/*/data/backups — skipping freshness check (fresh box?)"
 else
   now="$(date +%s)"
@@ -396,11 +432,14 @@ else
     log "newest completed dump: ${newest_gz} (age ${age_min}m; stale threshold ${STALE_MIN}m = ${BACKUP_INTERVAL_MIN}m interval + 35m, ${BACKUP_INTERVAL_SRC})"
   else
     age_min=999999
-    log "no completed *.sql.gz dump found; partial present: ${partial:-none}"
+    log "no COMPLETE *.sql.gz dump found (${#rows[@]} file(s) present, all incomplete); partial present: ${partial:-none}"
   fi
   if [ "${age_min}" -gt "${STALE_MIN}" ]; then
     ctx=""
     [ -n "${partial}" ] && ctx=" A partial dump ($(basename "${partial}")) exists — a dump died mid-write."
+    if [ "${skipped_incomplete}" -gt 0 ] && [ -n "${newest_any}" ]; then
+      ctx="${ctx} The newest file ($(basename "${newest_any}")) is an INCOMPLETE dump (gzip header but no COMMIT;) — the server likely wrote an empty dump and stalled (GOL-3854)."
+    fi
     alert backup-stale ":rotating_light: **${HOSTNAME_SHORT}** Paperclip DB backup is STALE — newest completed dump is ${age_min}m old (expected every ${BACKUP_INTERVAL_MIN}m; threshold ${STALE_MIN}m). BOTH paths have failed: the server's own interval AND the hourly catch-up timer (GOL-2858).${ctx} Check \`/var/log/agenticos/paperclip-db-catchup.log\` first — it says why it did not dump — then paperclip-server logs (GOL-1632)."
   fi
 fi
