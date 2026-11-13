@@ -45,8 +45,9 @@ const TARGETS: ProbeTarget[] = [
   // Any HTTP response from the Anthropic edge counts as reachable.
   { name: "Anthropic API", url: "https://api.anthropic.com", method: "GET", expectStatuses: [] },
   { name: "GitHub API", url: "https://api.github.com", method: "GET", expectStatuses: [200] },
-  // Unauthenticated /v2 → 401 proves the API stack is up.
-  { name: "DigitalOcean API", url: "https://api.digitalocean.com/v2", method: "GET", expectStatuses: [401] },
+  // Unauthenticated /v2/account → 401 proves the API stack is up. (Bare /v2
+  // started returning 404, which the page showed as a DigitalOcean outage.)
+  { name: "DigitalOcean API", url: "https://api.digitalocean.com/v2/account", method: "GET", expectStatuses: [401] },
   { name: "Cloudflare", url: "https://www.cloudflare.com", method: "HEAD", expectStatuses: [200] },
 ];
 

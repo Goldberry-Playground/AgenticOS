@@ -1,0 +1,52 @@
+name: Dashboard smoke probe
+
+# Synthetic check of every AgenticOS dashboard page and read-only API route,
+# through Cloudflare Access, paging Grove ops Discord on failure. Logic and
+# rationale: scripts/ci/dashboard-smoke.mjs (unit tests: *.test.mjs, run by ci.yml).
+#
+# Configuration (no-op until set, so this is safe to merge first):
+#   secret DASHBOARD_CF_CLIENT_ID      Cloudflare Access service token that the
+#   secret DASHBOARD_CF_CLIENT_SECRET  agenticos.gatheringatthegrove.com Access
+#                                      app admits (Service Auth policy).
+#   secret DISCORD_WEBHOOK_URL         Grove ops Discord webhook (already set).
+#   var    DASHBOARD_URL               optional override of the dashboard base URL.
+
+on:
+  schedule:
+    - cron: "23,53 * * * *" # every 30 min, off the top-of-hour vault-ingest
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only; never post to Discord"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Probe dashboard pages + API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run dashboard smoke probe
+        shell: bash
+        env:
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+          DASHBOARD_CF_CLIENT_ID: ${{ secrets.DASHBOARD_CF_CLIENT_ID }}
+          DASHBOARD_CF_CLIENT_SECRET: ${{ secrets.DASHBOARD_CF_CLIENT_SECRET }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SMOKE_DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          rc=0
+          node scripts/ci/dashboard-smoke.mjs > report.txt 2>&1 || rc=$?
+          cat report.txt
+          { echo "### Dashboard smoke"; echo '```'; cat report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"

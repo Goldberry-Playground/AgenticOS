@@ -98,6 +98,20 @@ DRY_RUN="${DRY_RUN:-0}"
 LOG_TS() { date '+%Y-%m-%dT%H:%M:%S%z'; }
 log() { echo "[$(LOG_TS)] paperclip-db-catchup: $*"; }
 
+# dump_is_complete FILE — succeeds iff FILE is a *restorable* gzipped dump: gzip
+# CRC decompresses clean AND the stream ends in the closing `COMMIT;` (or the
+# plain-pg_dump completion comment). Same gate this script already applies to its
+# OWN fresh dump below, and the one paperclip-backup-offsite.py ships against.
+# Used in freshness selection so a header-only .sql.gz the server left when its
+# in-process dump stalled (the 20-byte GOL-3854 file: passes `gzip -t`, zero
+# rows) is NOT mistaken for a fresh backup — this script then correctly treats
+# the directory as stale and takes a real catch-up dump.
+dump_is_complete() {
+  local f="$1" tail_txt
+  tail_txt="$(gzip -dc -- "${f}" 2>/dev/null | tail -c 4096 | tr -d '\0')" || true
+  printf '%s' "${tail_txt}" | grep -q 'COMMIT;\|^-- PostgreSQL database dump complete'
+}
+
 # --- Single-flight: a dump takes minutes; an hourly timer plus a Persistent=true
 # catch-up on boot can otherwise overlap and race on the same directory. -----
 # Held on fd 9 for the life of the process (released by the kernel on exit), so
@@ -134,21 +148,41 @@ fi
 # Mirrors the guard's glob. More than one instance directory is not a shape this
 # deployment has; if it ever appears, the newest dump across all of them decides
 # freshness and the dump is written next to it.
+#
+# "Newest completed" is literal: a fresher-but-empty .sql.gz (the stalled-server
+# GOL-3854 file) must NOT satisfy freshness, or this safety net goes quiet
+# exactly when the server path has silently died. So we walk the dumps
+# newest-first and take the first that dump_is_complete(); the dir of the newest
+# FILE (complete or not) is still where we write the catch-up dump.
 newest_gz=""; newest_epoch=0; backups_dir=""
+newest_any=""; newest_any_epoch=0
+rows=()
 for d in "${MOUNT}"/instances/*/data/backups; do
   [ -d "${d}" ] || continue
   [ -z "${backups_dir}" ] && backups_dir="${d}"
   for f in "${d}"/paperclip-*.sql.gz; do
     [ -f "${f}" ] || continue
     e="$(stat -c %Y "${f}" 2>/dev/null || echo 0)"
-    if [ "${e}" -gt "${newest_epoch}" ]; then
-      newest_epoch="${e}"; newest_gz="${f}"; backups_dir="${d}"
-    fi
+    rows+=("${e} ${f}")
   done
 done
 if [ -z "${backups_dir}" ]; then
   log "no ${MOUNT}/instances/*/data/backups directory — Paperclip not initialised here, nothing to do"
   exit 0
+fi
+if [ "${#rows[@]}" -gt 0 ]; then
+  while IFS= read -r row; do
+    e="${row%% *}"; f="${row#* }"
+    if [ -z "${newest_any}" ]; then
+      newest_any="${f}"; newest_any_epoch="${e}"; backups_dir="$(dirname "${f}")"
+    fi
+    [ -n "${newest_gz}" ] && continue   # already found the newest complete dump
+    if dump_is_complete "${f}"; then
+      newest_gz="${f}"; newest_epoch="${e}"
+    else
+      log "newest file ${f##*/} is an INCOMPLETE dump (gzip ok, no closing COMMIT;) — not counting it; the server likely stalled mid-dump (GOL-3854)"
+    fi
+  done < <(printf '%s\n' "${rows[@]}" | sort -rn)
 fi
 
 now="$(date +%s)"

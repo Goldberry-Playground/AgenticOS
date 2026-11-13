@@ -71,6 +71,19 @@ jobs:
             ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
               'tar xzf - -C /opt/agenticos && echo synced'
 
+      # The extract above overwrites openviking-config/ov.conf with the committed
+      # copy, whose server.root_api_key is the placeholder. Re-render it from
+      # .env right away, so the next openviking recreate never comes up on the
+      # public placeholder key (2026-11-10: it did, and every real key got 401).
+      # Fails the deploy if .env has no real key.
+      - name: Re-render ov.conf root key from .env
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            'bash /opt/agenticos/infra/scripts/render-ov-conf.sh'
+
       # GOL-238: the 4G swap safety-net lives in cloud-init, but that only runs on
       # a fresh droplet build. This box (created 2026-05-21) predates that change,
       # so /swapfile was never created and the OOM-killer fired at 91.8% RAM on

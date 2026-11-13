@@ -714,7 +714,9 @@ function makeDispatch(
   ctx: PluginContext,
   cfg: GithubSyncConfig,
   depsByProject: Map<string, SyncDeps>,
-  handle: (deps: SyncDeps, input: { issueId: string; companyId: string }) => Promise<void>,
+  // Result ignored: handleIssueCreated returns its create failure for the
+  // reconcile sweep; event dispatch has already logged it.
+  handle: (deps: SyncDeps, input: { issueId: string; companyId: string }) => Promise<unknown>,
   eventName: string,
 ) {
   return async (event: PluginEvent) => {

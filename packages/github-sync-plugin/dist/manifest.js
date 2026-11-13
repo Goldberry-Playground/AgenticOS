@@ -309,7 +309,16 @@ var manifest = {
   //   commit-fetch failure/truncation leaves every reviewer in place. Unset config ⇒
   //   guard inert (behaviour unchanged). No new capability, no migration; manifest
   //   surface adds one optional config field.
-  version: "0.17.0",
+  // 0.17.1 = mirror-reconcile stops re-reporting an unfixable create (2026-11-13).
+  //   The Paperclip project bridges to a repo with GitHub Issues DISABLED, so every
+  //   hourly sweep retried GOL-3854, got 410 "Issues are disabled", and pinged
+  //   "1 failed" forever. handleIssueCreated now RETURNS its create failure with a
+  //   `permanent` flag (410 / "issues disabled" only); the sweep counts those as
+  //   `unmirrorable`, skips the rest of that project for the run (no further GitHub
+  //   calls, no budget burn), and an unmirrorable-only run no longer pings. Real
+  //   failures still ping and now NAME the issue identifiers. No migration, no
+  //   capability change.
+  version: "0.17.1",
   displayName: "GitHub Sync",
   description: "Bidirectional issue sync between Paperclip and GitHub. Paperclip \u2192 GitHub mirrors issue changes via the gh-token-broker (GitHub App, no PAT); GitHub \u2192 Paperclip creates mirror issues from an inbound HMAC webhook (agent-free). Multiple repo\u2194project bridges across orgs.",
   author: "AgenticOS",
