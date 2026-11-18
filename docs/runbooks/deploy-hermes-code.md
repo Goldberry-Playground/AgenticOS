@@ -1,5 +1,12 @@
 # Runbook: Deploy Hermes code to the Droplet
 
+> **RETIRED. Do not follow.** Hermes was replaced by Paperclip
+> ([ADR 0006](../adr/0006-hermes-to-paperclip-runtime.md)). `packages/agenticos-hermes` is gone
+> from this repo and `docker-compose.yml` has no `hermes-agent` / `hermes-gateway` services, so
+> the build steps below fail. Do not run the `rm -rf /opt/agenticos/packages` step: that path
+> may now hold the deployed plugin packages. Current deploy paths: `.github/workflows/deploy-droplet.yml`,
+> `deploy-droplet-plugins.yml`, `deploy-paperclip-server.yml`.
+
 How to ship a change to the `agenticos_hermes` Python package (e.g. a fix in
 `packages/agenticos-hermes/src/agenticos_hermes/...`) to the running Droplet.
 

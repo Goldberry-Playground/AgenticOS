@@ -107,7 +107,7 @@ values; `ulimit -H -t 999999` fails with *"Operation not permitted"* (non-escapa
 True per-*worker* cgroup isolation — placing agent subprocesses in a child cgroup
 so the github-sync worker has a guaranteed CPU reservation *inside* the container —
 requires `paperclip-server` (the Paperclip platform) to move spawned children into
-a delegated sub-cgroup. That is a **product concern** (Engineering - Alice), out of
+a delegated sub-cgroup. That is a **product concern** (Engineering - Ada), out of
 scope for this infra change. Layers 1+2 make it unnecessary in practice (the runaway
 is reaped in ≤1 CPU-hour and de-prioritised throughout); revisit only if the live
 throttle test shows github-sync still starving under a bounded co-tenant load.
