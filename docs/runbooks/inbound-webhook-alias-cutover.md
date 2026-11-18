@@ -1,5 +1,12 @@
 # Runbook — Inbound webhook alias cutover (GOL-1416)
 
+> **HISTORICAL. Do not follow.** The GOL-1416 bridge this runbook installs was removed on
+> 2026-08-24 (GOL-1720, #600): `infra/terraform/cloudflare-webhook-alias.tf` and the wildcard
+> Access apps no longer exist, and `/api/gh-webhooks/*` is not rewritten any more. Pointing the
+> GitHub App webhook URL at that path today drops every delivery. The live inbound scope is the
+> plugin KEY path, see the header of `infra/terraform/cloudflare-qa-webhook.tf` and
+> [`github-issue-sync.md`](github-issue-sync.md).
+
 **Owner:** DevOps (Terra) · **Epic:** GOL-1401 (github-sync reliability) · **Folds:** #504 · **Extends:** #506
 
 ## What this changes and why

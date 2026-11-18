@@ -245,7 +245,7 @@ One block per repo. `skip` lines name the guardrail that fired:
 | `authored by X, not agenticos-developer` | `auto-approve.yml` approves maintainer PRs but never enqueues them; arming would take that control away |
 | `already armed by agenticos-developer` | the idempotency path — the steady state on a quiet queue |
 | `armed by <someone else>` | re-arming would mean disabling theirs first |
-| `already in the merge queue` | arming cannot fix an existing entry → `merge-queue-rescue.sh` |
+| `already in the merge queue` | arming cannot fix an existing entry → `merge-queue-rescue.sh` (grove-sites `scripts/ci/`) |
 | `conflicting` | resolve the conflict first |
 | `unapproved and protected path(s) touched` | the `ARM_PROTECTED` boundary, working |
 | `unapproved and … carve-out unavailable` / `changed-file list` | **fail-closed** — a lookup it could not trust, not a finding |

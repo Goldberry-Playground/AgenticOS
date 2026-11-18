@@ -16,7 +16,7 @@ AgenticOS runs a **two-brain memory model** — a human brain and an agent brain
 
 - **Human memory (the vault)** — an Obsidian-format vault on disk (`wiki/`, `+inbox/`, `+sources/`). Markdown files, wiki links, taxonomies. The vault is canonical human knowledge; Obsidian on the Mac is a read/write view of it via Syncthing — the Droplet never runs Obsidian itself. On the Droplet the vault lives at `/opt/vault` and is served by **vault-server** (Fastify, VPC `10.116.16.2:7779 → 7777`); the dashboard's **Memory tab** is a vault-driven three-pane browser reading it through `/api/vault/*`. This is the only memory surfaced in the Memory tab.
 - **Agent memory / observability (OpenViking)** — [OpenViking](https://github.com/volcengine/OpenViking) (open-source context database by Volcengine / ByteDance) with filesystem-paradigm URIs (`viking://resources/…`, `viking://user/memories`, `viking://agent/skills`), L0/L1/L2 tiered loading, hybrid directory + semantic retrieval, and automatic memory extraction into 6 categories on session commit. OpenViking is exposed to Paperclip agents via the **openviking-plugin** (`@agenticos/openviking-plugin`), which wires the memory tools (`viking_remember`, `viking_recall`, `find`, `abstract`, …) natively. Viking runs on the Droplet (VPC `:1933`) and uses local Ollama for its own embedding + summarization pipelines. **OpenViking is the agent's working memory — it belongs to observability, not the Memory tab, and is not the vault.**
-- **Agent runtime** — [Paperclip](https://github.com/paperclipai/paperclip) (MIT, open-source multi-agent runtime) is the **conductor**: heartbeat scheduling, issue→agent assignment, an adapter registry for multi-model switching, org charts, budget policies, approvals, and a plugin SDK. Agents run through **pluggable adapters** — `claude_local` (Claude, on the Max subscription), `codex_local` (OpenAI Codex), `opencode_local` (OpenCode, incl. local Ollama models via `ollama:11434`), and `gemini_local`. [**Hermes Agent**](https://github.com/NousResearch/hermes-agent) remains available as **one such adapter option** (`hermes_local`) — an agent backend Paperclip can dispatch to for personas that suit it, **not** the orchestrator. (Earlier versions of AgenticOS used Hermes as the runtime itself; ADR 0006 moved orchestration to Paperclip — see `docs/adr/`.)
+- **Agent runtime** — [Paperclip](https://github.com/paperclipai/paperclip) (MIT, open-source multi-agent runtime; the Droplet runs our fork [`Goldberry-Playground/Paperclip-AgenticOS`](https://github.com/Goldberry-Playground/Paperclip-AgenticOS), default branch `master`, pinned to an `agenticos-v*` tag in `infra/cloud-init/droplet-bootstrap.yaml.tpl`) is the **conductor**: heartbeat scheduling, issue→agent assignment, an adapter registry for multi-model switching, org charts, budget policies, approvals, and a plugin SDK. Agents run through **pluggable adapters** — `claude_local` (Claude, on the Max subscription), `codex_local` (OpenAI Codex), `opencode_local` (OpenCode, incl. local Ollama models via `ollama:11434`), and `gemini_local`. [**Hermes Agent**](https://github.com/NousResearch/hermes-agent) remains available as **one such adapter option** (`hermes_local`) — an agent backend Paperclip can dispatch to for personas that suit it, **not** the orchestrator. (Earlier versions of AgenticOS used Hermes as the runtime itself; ADR 0006 moved orchestration to Paperclip — see `docs/adr/`.)
 - **Vault tools** — an MCP-to-vault server (in this repo, `apps/dashboard/lib/mcp-vault/`) exposing the vault to any MCP-capable agent.
 - **Dashboard** — Next.js 16 + shadcn/ui, deployed on DigitalOcean App Platform with auto-deploy on `push to main`.
 - **Auth** — Cloudflare Access (Google SSO) in front of the public dashboard URL.
@@ -61,12 +61,13 @@ AgenticOS runs a **two-brain memory model** — a human brain and an agent brain
                   browser, Syncthing)      (Phase 4+ connectors)
 ```
 
-The full design lives in
-[`docs/superpowers/specs/2026-05-20-agenticos-foundation-v2-design.md`](docs/superpowers/specs/2026-05-20-agenticos-foundation-v2-design.md).
+The current design lives in
+[`docs/superpowers/specs/2026-06-09-paperclip-integration-design.md`](docs/superpowers/specs/2026-06-09-paperclip-integration-design.md)
+(the 2026-05-20 foundation-v2 design is its superseded ancestor).
 
 ## Status
 
-**Foundation v2 spec approved. v1 implementation in planning.**
+**Running on the Paperclip runtime ([ADR 0006](docs/adr/0006-hermes-to-paperclip-runtime.md)).** The scope lists below date from the foundation-v2 plan and are kept as history; see the [docs index](docs/README.md) for what is current.
 
 Phases 1–2 (vault editor, lint, taxonomy, MCP-to-vault server) are merged. Phase 3 originally targeted Hermes Agent as runtime, then pivoted to Letta, then pivoted to the current composed stack. The full decision trail is preserved in [`docs/archive/`](docs/archive/) and [`docs/adr/`](docs/adr/).
 
@@ -91,7 +92,10 @@ apps/
 
 packages/
 ├── vault-core/                 # markdown parse, frontmatter, lint, taxonomy
-└── config/                     # shared eslint + tsconfig
+├── config/                     # shared eslint + tsconfig
+├── credential-broker/          # 1Password-backed credential broker service
+└── *-plugin/                   # Paperclip plugins: discord, github, github-sync,
+                                #   grove-content-drafter, openviking, vault
 
 docs/
 ├── superpowers/specs/          # current design specs (start here)
@@ -101,8 +105,6 @@ docs/
 ├── information-architecture.md # IA spec for the dashboard
 └── phase-{4,5,6}-design-brief.md  # forward-looking briefs (to be re-scoped per v2+)
 ```
-
-`packages/hermes-client/` is a legacy TypeScript client for the now-retired Hermes API — vestigial since the move to Paperclip, pending removal once confirmed unreferenced.
 
 ## Documentation
 
@@ -114,7 +116,7 @@ Start with the **[docs index](docs/README.md)** for a status table of every spec
 - **Runtime**: Paperclip is the agent runtime (see [ADR 0006](docs/adr/0006-hermes-to-paperclip-runtime.md)); the earlier [`docs/plans/spec1-orchestrator.md`](docs/plans/spec1-orchestrator.md) (Hermes-based) is superseded
 - **ADR 0003**: [Scheduler ownership](docs/adr/0003-scheduler-ownership.md) — affirmed (executor changed)
 - **ADR 0004**: [Hermes → Letta pivot](docs/archive/0004-pivot-hermes-to-letta.md) — superseded; archived as decision trail
-- **ADR 0005**: [Letta → composed stack](docs/adr/0005-letta-to-composed-stack.md) — current; supersedes 0004
+- **ADR 0005**: [Letta → composed stack](docs/adr/0005-letta-to-composed-stack.md) — superseded by ADR 0006 (2026-06-09)
 - **Archive**: [`docs/archive/`](docs/archive/) — Hermes-shaped and Letta-shaped Phase 3 designs
 
 ## Prerequisites for running v1
@@ -152,7 +154,7 @@ pnpm typecheck
 pnpm lint
 ```
 
-Requires Node ≥20 and pnpm ≥9.
+Requires Node 22.x and pnpm 9 (`package.json` `engines` / `packageManager`).
 
 ### Running a second instance on one host
 

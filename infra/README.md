@@ -11,7 +11,7 @@ Claude Max subscription; Codex/Ollama are optional) — see
 - **DigitalOcean**
   - VPC `agenticos-vpc` (region `nyc1` by default)
   - SSH key `agenticos-droplet-key`
-  - Droplet `agenticos-droplet` (Ubuntu 24.04, `s-2vcpu-4gb`, in the VPC)
+  - Droplet `agenticos-droplet` (Ubuntu 24.04, `s-4vcpu-8gb` since GOL-657, in the VPC)
   - App Platform app `agenticos-dashboard` tracking `Goldberry-Playground/AgenticOS@main`
 - **Tailscale**
   - Pre-authorized, single-use auth key tagged `tag:agenticos-droplet`
@@ -55,10 +55,10 @@ Two independent surfaces, two deploy paths:
 
 ## Cost
 
-- Droplet `s-2vcpu-4gb`: **$24/mo**
+- Droplet `s-4vcpu-8gb` (GOL-657, was `s-2vcpu-4gb` at $24/mo): **$48/mo**
 - App Platform `professional-xs`, horizontal autoscale 1–3 instances @70% CPU (GOL-256, board decision D1): **~$29/mo floor → up to ~$87/mo** at 3 instances under sustained load
 - Tailscale free tier, Cloudflare Access free tier, Syncthing free → **$0/mo**
-- **Total: ~$53/mo floor** (up to ~$111/mo under sustained dashboard load)
+- **Total: ~$77/mo floor** (up to ~$135/mo under sustained dashboard load)
 
 ## Prerequisites
 
@@ -99,7 +99,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/agenticos-droplet -C "agenticos-droplet"
   yields a silent `success:true, count:0` false-negative on refresh, not a 403):
   - Zone → DNS → Edit (on `gatheringatthegrove.com`)
   - Zone → Zone → Read (on `gatheringatthegrove.com`)
-  - Zone → Transform Rules → Edit (on `gatheringatthegrove.com`) — `cloudflare-webhook-alias.tf`
+  - Zone → Transform Rules → Edit (on `gatheringatthegrove.com`) — was for `cloudflare-webhook-alias.tf`, removed in GOL-1720 (#600); no Transform Rule resource remains in this stack
   - Account → Access: Apps and Policies → Edit
   - Account → Access: Identity Providers → Read — `cloudflare-access.tf` google IdP data source
   - Account → Access: Service Tokens → Read — `cloudflare-qa-webhook.tf`
