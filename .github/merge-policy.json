@@ -38,8 +38,7 @@
       "repo": "AgriforestryOS",
       "system": "legacy",
       "branch": "main",
-      "agent_ops": "out-of-scope",
-      "//agent-ops": "GOL-2016: dormant `4.x` product (last non-CI commit 2026-06-17); `agent-review/*` has never run here and there is no bridge. Out of the agent pipeline by CEO decision 2026-10-14 (reversible; archive was explicitly rejected as a one-way door). Keep the contexts below in lockstep with its own `.github/required-checks.json` as usual; do not port auto-approve or the other agent-ops workflows. See //agent-ops and the repo README.",
+      "//agent-ops": "GOL-3721 (restructure spec \u00a7B, Josh 2026-11-01; supersedes GOL-2016): back ON the agent pipeline from the fresh `main` (GOL-3720). github-sync bridge registered 2026-11-11; the agent-ops workflows (auto-approve, ci-autofix, ci-failure-router pinned to a grove-sites SHA, config-freeze, fix-touches-test) + ownership.yml landed in AgriforestryOS#41. protected-paths-guard is not ported (removed fleet-wide by GOL-2013). There is no pull_request review rule here, so dismiss_stale_reviews stays false: the //guard-hold flip does not apply. Keep the contexts below in lockstep with its own `.github/required-checks.json` as usual.",
       "merge_queue_targets": {
         "check_response_timeout_minutes": 90
       },
