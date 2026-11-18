@@ -58,8 +58,8 @@ importers:
         specifier: ^4.6.0
         version: 4.6.0
       nuqs:
-        specifier: ^2.10.2
-        version: 2.10.2(next@16.4.6(@babel/core@7.29.7)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        specifier: ^2.10.3
+        version: 2.10.3(next@16.4.6(@babel/core@7.29.7)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -240,8 +240,8 @@ importers:
         specifier: ^3.1163.0
         version: 3.1168.0
       '@paperclipai/plugin-sdk':
-        specifier: 2026.1023.0
-        version: 2026.1023.0(react@19.3.1)
+        specifier: 2026.1106.0
+        version: 2026.1106.0(react@19.3.1)
     devDependencies:
       '@agenticos/tsconfig':
         specifier: workspace:*
@@ -262,8 +262,8 @@ importers:
   packages/github-plugin:
     dependencies:
       '@paperclipai/plugin-sdk':
-        specifier: 2026.1023.0
-        version: 2026.1023.0(react@19.3.1)
+        specifier: 2026.1106.0
+        version: 2026.1106.0(react@19.3.1)
     devDependencies:
       '@agenticos/tsconfig':
         specifier: workspace:*
@@ -284,8 +284,8 @@ importers:
   packages/github-sync-plugin:
     dependencies:
       '@paperclipai/plugin-sdk':
-        specifier: 2026.1023.0
-        version: 2026.1023.0(react@19.3.1)
+        specifier: 2026.1106.0
+        version: 2026.1106.0(react@19.3.1)
     devDependencies:
       '@agenticos/tsconfig':
         specifier: workspace:*
@@ -306,8 +306,8 @@ importers:
   packages/grove-content-drafter-plugin:
     dependencies:
       '@paperclipai/plugin-sdk':
-        specifier: 2026.1023.0
-        version: 2026.1023.0(react@19.3.1)
+        specifier: 2026.1106.0
+        version: 2026.1106.0(react@19.3.1)
     devDependencies:
       '@agenticos/tsconfig':
         specifier: workspace:*
@@ -328,8 +328,8 @@ importers:
   packages/openviking-plugin:
     dependencies:
       '@paperclipai/plugin-sdk':
-        specifier: 2026.1023.0
-        version: 2026.1023.0(react@19.3.1)
+        specifier: 2026.1106.0
+        version: 2026.1106.0(react@19.3.1)
     devDependencies:
       '@agenticos/tsconfig':
         specifier: workspace:*
@@ -405,8 +405,8 @@ importers:
   packages/vault-plugin:
     dependencies:
       '@paperclipai/plugin-sdk':
-        specifier: 2026.1023.0
-        version: 2026.1023.0(react@19.3.1)
+        specifier: 2026.1106.0
+        version: 2026.1106.0(react@19.3.1)
     devDependencies:
       '@agenticos/tsconfig':
         specifier: workspace:*
@@ -1415,8 +1415,8 @@ packages:
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
 
-  '@paperclipai/plugin-sdk@2026.1023.0':
-    resolution: {integrity: sha512-n0kNdEbFekD675ElKOhbV4wYowcxpwCNU8/Jtkl2WeAqIVgdxUyih4i9pAcbiIX67e21Jzpl1jMSgIjKZ5VIvw==}
+  '@paperclipai/plugin-sdk@2026.1106.0':
+    resolution: {integrity: sha512-dmRBcyEIsqKAxBfrqwVGNxnARCwsGCt2bhrch49E0jhGzo0wwn501W9B3YADggSTSbm81FxMu8/G9z/jDrNeKA==}
     engines: {node: '>=24.11.0'}
     hasBin: true
     peerDependencies:
@@ -1425,8 +1425,8 @@ packages:
       react:
         optional: true
 
-  '@paperclipai/shared@2026.1023.0':
-    resolution: {integrity: sha512-IWW78idhIw2MDM41tznnN83Fi/O8WlTIS6Sa6eoQYG1COQDEXaTTKsRO7+ekDd0DhNDuPNpi5Dzrc4ocUREmWQ==}
+  '@paperclipai/shared@2026.1106.0':
+    resolution: {integrity: sha512-fleBeHYbmnwdvEuzyQ4ABUFbHzqft47ni/ZktF1jWQsFkyfHmHBz5xFm3nfD3WZQ9UGnVZmXfEhfk+nizpeGEQ==}
     engines: {node: '>=24.11.0'}
 
   '@pinojs/redact@0.4.0':
@@ -4326,8 +4326,8 @@ packages:
     resolution: {integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==}
     engines: {node: '>=18'}
 
-  nuqs@2.10.2:
-    resolution: {integrity: sha512-HaLMCr9H2wywEnTu3j+QW98EteDT3Kfmx3SJJ6JfcvCvkFi/g/fKd/oCXa5DF0x1s1l4zcFtzsq9bflj6RcM6A==}
+  nuqs@2.10.3:
+    resolution: {integrity: sha512-dNGDsvpKFoxyDLOWZh+OiQ02od3RLJ52044I+Ld1wjTCVOv7ZZtBmd2Aq7CHFdDGYRn+hg6FPPh6FUMFX2YLaQ==}
     peerDependencies:
       '@remix-run/react': '>=2'
       '@tanstack/react-router': ^1
@@ -6696,14 +6696,14 @@ snapshots:
 
   '@oxc-project/types@0.156.0': {}
 
-  '@paperclipai/plugin-sdk@2026.1023.0(react@19.3.1)':
+  '@paperclipai/plugin-sdk@2026.1106.0(react@19.3.1)':
     dependencies:
-      '@paperclipai/shared': 2026.1023.0
+      '@paperclipai/shared': 2026.1106.0
       zod: 4.6.7
     optionalDependencies:
       react: 19.3.1
 
-  '@paperclipai/shared@2026.1023.0':
+  '@paperclipai/shared@2026.1106.0':
     dependencies:
       three: 0.185.1
       zod: 4.6.7
@@ -10020,7 +10020,7 @@ snapshots:
       path-key: 4.0.0
       unicorn-magic: 0.3.0
 
-  nuqs@2.10.2(next@16.4.6(@babel/core@7.29.7)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
+  nuqs@2.10.3(next@16.4.6(@babel/core@7.29.7)(@opentelemetry/api@1.10.0)(@playwright/test@1.65.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
     dependencies:
       '@standard-schema/spec': 1.1.0
       react: 19.3.1
