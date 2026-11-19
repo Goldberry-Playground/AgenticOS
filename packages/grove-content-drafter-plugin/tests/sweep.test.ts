@@ -123,8 +123,9 @@ describe("runSweep", () => {
   });
 
   it("isolates a throwing issue: counts it, keeps sweeping, finishes the tick (GOL-2927)", async () => {
-    // Before this, one throw (e.g. the host's invocation-scope denial) aborted
-    // runSweep and silently dropped every remaining request in the tick.
+    // Before this, one throw (an Odoo blip, a host error) aborted runSweep and
+    // silently dropped every remaining request in the tick. (The host's
+    // invocation-scope denial is a separate, covered case — see below.)
     const warn = vi.fn();
     const { deps, issues } = build({
       issues_: [issue("i1"), issue("i2")],
@@ -133,12 +134,7 @@ describe("runSweep", () => {
     });
     deps.logger = { info: () => {}, warn };
     (issues.listComments as any).mockImplementation(async (id: string) => {
-      if (id === "i1") {
-        throw new Error(
-          'Plugin "f071f43f" is not allowed to perform "issues.listComments": ' +
-            "the worker referenced a missing, expired, or unknown invocation scope",
-        );
-      }
+      if (id === "i1") throw new Error("ECONNRESET");
       return [goodReply];
     });
 
@@ -175,5 +171,42 @@ describe("runSweep", () => {
     expect(s.waiting).toBe(1);
     expect(s.rePinged).toBe(0);
     expect(issues.postComment).not.toHaveBeenCalled();
+  });
+
+  it("counts a per-issue invocation-scope denial as scopeDenied (covered by the event sweep), not as an error", async () => {
+    // GOL-3352: a comment event delivered mid-sweep holds the scope for 15 min;
+    // the scheduled sweep's remaining company-scoped calls are denied. That
+    // event's own handler sweeps under a valid scope, so this is covered work,
+    // and `errors` must stay 0 so it keeps meaning "something real broke".
+    const { deps, issues } = build({
+      issues_: [issue("i1"), issue("i2")],
+      reqByIssue: { i1: reqState(), i2: reqState({ productId: 2 }) },
+      comments: { i2: [goodReply] },
+    });
+    (issues.listComments as any).mockImplementation(async (id: string) => {
+      if (id === "i1") {
+        throw new Error(
+          'Plugin "x" is not allowed to perform "issues.listComments": the worker referenced a missing, expired, or unknown invocation scope',
+        );
+      }
+      return [goodReply];
+    });
+    const s = await runSweep(deps);
+    expect(s.scopeDenied).toBe(1);
+    expect(s.errors).toBe(0);
+    // The denial is isolated: the next issue is still processed.
+    expect(s.drafted).toBe(1);
+    expect(issues.setStatus).toHaveBeenCalledWith("i2", "done");
+  });
+
+  it("still counts a non-scope throw as an error", async () => {
+    const { deps } = build({
+      issues_: [issue("i1")],
+      reqByIssue: { i1: reqState() },
+    });
+    (deps.issues.listComments as any).mockRejectedValue(new Error("ECONNRESET"));
+    const s = await runSweep(deps);
+    expect(s.errors).toBe(1);
+    expect(s.scopeDenied).toBe(0);
   });
 });
