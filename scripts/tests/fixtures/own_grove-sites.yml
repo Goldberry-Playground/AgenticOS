@@ -20,7 +20,7 @@ version: 1
 repo: grove-sites
 
 defaults:
-  review: [engineering-alice]
+  review: [engineering-ada]
 
 partitions:
   # --- Tenant frontends (Next.js apps) ------------------------------------
@@ -28,25 +28,25 @@ partitions:
     paths:
       - apps/hub/**
     owner: frontend-iris
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 2
   - name: app-goldberry
     paths:
       - apps/goldberry/**
     owner: frontend-iris
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 2
   - name: app-ggg
     paths:
       - apps/ggg/**
     owner: frontend-iris
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 2
   - name: app-nursery
     paths:
       - apps/nursery/**
     owner: frontend-iris
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 2
   - name: app-qa-portal
     paths:
@@ -64,18 +64,18 @@ partitions:
       - packages/grove-tokens/**
       - packages/assets/**
     owner: frontend-iris
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
   - name: pkg-odoo-client
     paths:
       - packages/odoo-client/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [frontend-iris]
     wave: 1
   - name: pkg-checkout
     paths:
       - packages/checkout/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [frontend-iris]
     wave: 1
   - name: pkg-integrations
@@ -83,13 +83,13 @@ partitions:
       - packages/ghost-client/**
       - packages/analytics/**
       - packages/otel/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [frontend-iris]
     wave: 1
   - name: pkg-config
     paths:
       - packages/config/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 1
 
@@ -98,18 +98,18 @@ partitions:
     paths:
       - tools/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
   - name: infra
     paths:
       - infra/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
   - name: scripts
     paths:
       - scripts/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 1
   - name: docs
@@ -117,5 +117,5 @@ partitions:
       - docs/**
       - wireframes/**
     owner: frontend-iris
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 3

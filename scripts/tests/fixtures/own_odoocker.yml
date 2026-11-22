@@ -21,14 +21,14 @@ partitions:
       - docker-compose.*.yml
       - Makefile
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
 
   # --- Odoo application layer (addons, conf, image) -----------------------
   - name: odoo
     paths:
       - odoo/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 1
 
@@ -38,7 +38,7 @@ partitions:
       - nginx/**
       - nginx-proxy/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
 
   # --- Data services ------------------------------------------------------
@@ -47,7 +47,7 @@ partitions:
       - postgres/**
       - pgadmin/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
 
   # --- Observability / metrics -------------------------------------------
@@ -59,7 +59,7 @@ partitions:
       - do-metrics/**
       - synthetic/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 2
 
   # --- Provisioning / host ------------------------------------------------
@@ -67,19 +67,19 @@ partitions:
     paths:
       - infra/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
   - name: systemd
     paths:
       - systemd/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
   - name: scripts
     paths:
       - scripts/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
 
   # --- Ops tooling / misc -------------------------------------------------
@@ -87,23 +87,23 @@ partitions:
     paths:
       - cost/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 2
   - name: keep
     paths:
       - keep/**
     owner: devops-terra
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 2
   - name: skills
     paths:
       - skills/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 2
   - name: docs
     paths:
       - docs/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 3

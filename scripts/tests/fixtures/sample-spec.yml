@@ -1,7 +1,7 @@
 # Sample decomposition fixture (GOL-154 §8) — acceptance smoke.
 #
 # Exercises all three real ownership.yml files, multiple waves (1 + 2), owners
-# spanning alice/terra/iris, reviewers drawn from partition `review:` and from
+# spanning ada/terra/iris, reviewers drawn from partition `review:` and from
 # `defaults.review`, and exactly ONE unmapped path.
 #
 # NOTE (Alice, GOL-343): the literal §8 draft used `packages/ui-kit/**` and
