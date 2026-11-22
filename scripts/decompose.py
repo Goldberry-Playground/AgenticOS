@@ -35,7 +35,7 @@ Apply (create/update issues via the Paperclip API):
       --apply --company-id "$PAPERCLIP_COMPANY_ID"
 
 Owner/reviewer resolution: ownership slug **==** agent ``urlKey``. Resolved from
-``--agents-file`` (JSON: ``[{"urlKey":"engineering-alice","id":"..."}]``) when
+``--agents-file`` (JSON: ``[{"urlKey":"engineering-ada","id":"..."}]``) when
 given, else live via ``GET /api/companies/{id}/agents``. An unknown slug is a
 hard error (never a silent drop).
 

@@ -7,30 +7,30 @@ version: 1
 repo: grove-odoo-modules
 
 defaults:
-  review: [engineering-alice]
+  review: [engineering-ada]
 
 partitions:
   - name: module-grove-headless
     paths:
       - grove_headless/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 1
   - name: module-web-dark-mode
     paths:
       - web_dark_mode/**
     owner: frontend-iris
-    review: [engineering-alice]
+    review: [engineering-ada]
     wave: 1
   - name: scripts
     paths:
       - scripts/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 1
   - name: docs
     paths:
       - docs/**
-    owner: engineering-alice
+    owner: engineering-ada
     review: [devops-terra]
     wave: 3

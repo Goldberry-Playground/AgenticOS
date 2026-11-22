@@ -82,8 +82,8 @@ class TestSpecificity(unittest.TestCase):
         # deliberately declare the broad glob FIRST so declaration-order is not
         # what makes the specific one win.
         return [
-            d.Partition("r", "broad", ["apps/**"], ["engineering-alice"], ["devops-terra"], 1, 0),
-            d.Partition("r", "specific", ["apps/hub/**"], ["frontend-iris"], ["engineering-alice"], 2, 1),
+            d.Partition("r", "broad", ["apps/**"], ["engineering-ada"], ["devops-terra"], 1, 0),
+            d.Partition("r", "specific", ["apps/hub/**"], ["frontend-iris"], ["engineering-ada"], 2, 1),
         ]
 
     def test_longest_literal_prefix_wins(self):
@@ -96,7 +96,7 @@ class TestSpecificity(unittest.TestCase):
 
     def test_declaration_order_breaks_ties(self):
         parts = [
-            d.Partition("r", "first", ["src/**"], ["engineering-alice"], ["devops-terra"], 1, 0),
+            d.Partition("r", "first", ["src/**"], ["engineering-ada"], ["devops-terra"], 1, 0),
             d.Partition("r", "second", ["src/**"], ["frontend-iris"], ["devops-terra"], 1, 1),
         ]
         self.assertEqual(d._pick_partition(parts, "src/a.ts").name, "first")
@@ -131,18 +131,18 @@ class TestSampleSpec(unittest.TestCase):
             k: (em.partition.owners[0], em.partition.reviewers, em.wave)
             for k, em in self.emissions.items()
         }
-        self.assertEqual(got["grove-sites/app-hub"], ("frontend-iris", ["engineering-alice"], 2))
-        self.assertEqual(got["odoocker/data"], ("devops-terra", ["engineering-alice"], 1))
+        self.assertEqual(got["grove-sites/app-hub"], ("frontend-iris", ["engineering-ada"], 2))
+        self.assertEqual(got["odoocker/data"], ("devops-terra", ["engineering-ada"], 1))
         self.assertEqual(
-            got["grove-odoo-modules/module-grove-headless"], ("engineering-alice", ["devops-terra"], 1)
+            got["grove-odoo-modules/module-grove-headless"], ("engineering-ada", ["devops-terra"], 1)
         )
         self.assertEqual(
-            got["grove-odoo-modules/module-web-dark-mode"], ("frontend-iris", ["engineering-alice"], 1)
+            got["grove-odoo-modules/module-web-dark-mode"], ("frontend-iris", ["engineering-ada"], 1)
         )
 
     def test_owners_span_all_three_agents(self):
         owners = {em.partition.owners[0] for em in self.emissions.values()}
-        self.assertEqual(owners, {"engineering-alice", "devops-terra", "frontend-iris"})
+        self.assertEqual(owners, {"engineering-ada", "devops-terra", "frontend-iris"})
 
     def test_body_carries_idempotency_marker_and_acceptance(self):
         r = resolver()
@@ -175,7 +175,7 @@ class TestLiteralSpec(unittest.TestCase):
 # --------------------------------------------------------------------------- #
 class TestResolver(unittest.TestCase):
     def test_known_slug(self):
-        self.assertEqual(resolver().id_for("engineering-alice"), "1809e0f4-cdd8-4ac9-912d-b6678d71d29a")
+        self.assertEqual(resolver().id_for("engineering-ada"), "72f97c75-99e9-48e5-94ff-d1bd0c6edb1a")
 
     def test_unknown_slug_hard_errors(self):
         with self.assertRaises(ValueError):
