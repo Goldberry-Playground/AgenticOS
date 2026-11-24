@@ -3436,14 +3436,14 @@ var init_schemas = __esm({
         const shape = zod.def.shape;
         const propValues = {};
         for (const key in shape) {
-          const field2 = shape[key]._zod;
-          if (field2.values) {
+          const field6 = shape[key]._zod;
+          if (field6.values) {
             if (!Object.prototype.hasOwnProperty.call(propValues, key)) {
               assignProp(propValues, key, /* @__PURE__ */ new Set());
             }
-            for (const v of field2.values)
+            for (const v of field6.values)
               propValues[key].add(v);
-            if (field2.optin !== void 0)
+            if (field6.optin !== void 0)
               propValues[key].add(void 0);
           }
         }
@@ -3505,15 +3505,15 @@ var init_schemas = __esm({
         const syms = normalized.symbolKeys;
         const doc = new Doc(["payload", "ctx"], { shape, inst, memo: memo2, syms });
         const parseStr = (k) => `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
-        const prefixStr = (id2, k) => `
-          let ${id2}_ab = false;
-          for (let i = 0; i < ${id2}.issues.length; i++) {
-            const iss = ${id2}.issues[i];
+        const prefixStr = (id3, k) => `
+          let ${id3}_ab = false;
+          for (let i = 0; i < ${id3}.issues.length; i++) {
+            const iss = ${id3}.issues[i];
             iss.path = iss.path ? [${k}, ...iss.path] : [${k}];
             payload.issues.push(iss);
-            if (iss.continue !== true) ${id2}_ab = true;
+            if (iss.continue !== true) ${id3}_ab = true;
           }
-          if (${id2}_ab && ctx && ctx.abortEarly) {
+          if (${id3}_ab && ctx && ctx.abortEarly) {
             payload.value = newResult;
             return payload;
           }`;
@@ -3527,34 +3527,34 @@ var init_schemas = __esm({
         for (const key of normalized.allKeys) {
           if (key === "__proto__")
             continue;
-          const id2 = ids[key];
+          const id3 = ids[key];
           const k = typeof key === "symbol" ? `syms[${syms.indexOf(key)}]` : esc(key);
           const isPresent = `${k} in input`;
           const schema = shape[key];
           const optin = schema?._zod?.optin;
           const isOptionalIn = optin !== void 0;
           const isOptionalOut = schema?._zod?.optout === "optional";
-          doc.write(`const ${id2} = ${parseStr(k)};`);
+          doc.write(`const ${id3} = ${parseStr(k)};`);
           if (isOptionalIn && isOptionalOut) {
-            const assign = optin === "optional" ? `${id2}_present` : `${id2}.value !== undefined || ${id2}_present`;
+            const assign = optin === "optional" ? `${id3}_present` : `${id3}.value !== undefined || ${id3}_present`;
             doc.write(`
-        const ${id2}_present = ${isPresent};
-        if (!${id2}.issues.length || ${id2}_present) {
-          if (${id2}.issues.length) {${prefixStr(id2, k)}
+        const ${id3}_present = ${isPresent};
+        if (!${id3}.issues.length || ${id3}_present) {
+          if (${id3}.issues.length) {${prefixStr(id3, k)}
           }
 
           if (${assign}) {
-            newResult[${k}] = ${id2}.value;
+            newResult[${k}] = ${id3}.value;
           }
         }
 
       `);
           } else if (!isOptionalIn) {
             doc.write(`
-        const ${id2}_present = ${isPresent};
-        if (${id2}.issues.length) {${prefixStr(id2, k)}
+        const ${id3}_present = ${isPresent};
+        if (${id3}.issues.length) {${prefixStr(id3, k)}
         }
-        if (!${id2}_present && !${id2}.issues.length) {
+        if (!${id3}_present && !${id3}.issues.length) {
           payload.issues.push({
             code: "invalid_type",
             expected: "nonoptional",
@@ -3567,22 +3567,22 @@ var init_schemas = __esm({
           }
         }
 
-        if (${id2}_present) {
-          newResult[${k}] = ${id2}.value;
+        if (${id3}_present) {
+          newResult[${k}] = ${id3}.value;
         }
 
       `);
           } else {
             doc.write(`
-        if (${id2}.issues.length) {${prefixStr(id2, k)}
+        if (${id3}.issues.length) {${prefixStr(id3, k)}
         }
       `);
             if (optin === "defaulted") {
-              doc.write(`newResult[${k}] = ${id2}.value;`);
+              doc.write(`newResult[${k}] = ${id3}.value;`);
             } else {
               doc.write(`
-        if (${id2}.value !== undefined || ${isPresent}) {
-          newResult[${k}] = ${id2}.value;
+        if (${id3}.value !== undefined || ${isPresent}) {
+          newResult[${k}] = ${id3}.value;
         }
       `);
             }
@@ -15690,26 +15690,26 @@ function extractDefs(ctx, schema) {
     return;
   const idToSchema = /* @__PURE__ */ new Map();
   for (const entry of ctx.seen.entries()) {
-    const id2 = ctx.metadataRegistry.get(entry[0])?.id;
-    if (id2) {
-      const existing = idToSchema.get(id2);
+    const id3 = ctx.metadataRegistry.get(entry[0])?.id;
+    if (id3) {
+      const existing = idToSchema.get(id3);
       if (existing && existing !== entry[0]) {
-        throw new Error(`Duplicate schema id "${id2}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);
+        throw new Error(`Duplicate schema id "${id3}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);
       }
-      idToSchema.set(id2, entry[0]);
+      idToSchema.set(id3, entry[0]);
     }
   }
   const makeURI = (entry) => {
     const defsSegment = ctx.target === "draft-2020-12" ? "$defs" : "definitions";
     if (ctx.external) {
       const externalId = ctx.external.registry.get(entry[0])?.id;
-      const uriGenerator = ctx.external.uri ?? ((id3) => id3);
+      const uriGenerator = ctx.external.uri ?? ((id4) => id4);
       if (externalId) {
         return { ref: uriGenerator(externalId) };
       }
-      const id2 = entry[1].defId ?? entry[1].schema.id ?? `schema${ctx.counter++}`;
-      entry[1].defId = id2;
-      return { defId: id2, ref: `${uriGenerator("__shared")}#/${defsSegment}/${encodeJSONPointerSegment(id2)}` };
+      const id3 = entry[1].defId ?? entry[1].schema.id ?? `schema${ctx.counter++}`;
+      entry[1].defId = id3;
+      return { defId: id3, ref: `${uriGenerator("__shared")}#/${defsSegment}/${encodeJSONPointerSegment(id3)}` };
     }
     const uriPrefix = `#`;
     const defUriPrefix = `${uriPrefix}/${defsSegment}/`;
@@ -15757,8 +15757,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
         continue;
       }
     }
-    const id2 = ctx.metadataRegistry.get(entry[0])?.id;
-    if (id2) {
+    const id3 = ctx.metadataRegistry.get(entry[0])?.id;
+    if (id3) {
       extractToDef(entry);
       continue;
     }
@@ -15989,10 +15989,10 @@ function finalize(ctx, schema) {
   } else {
   }
   if (ctx.external?.uri) {
-    const id2 = ctx.external.registry.get(schema)?.id;
-    if (!id2)
+    const id3 = ctx.external.registry.get(schema)?.id;
+    if (!id3)
       throw new Error("Schema is missing an `id` property");
-    result.$id = ctx.external.uri(id2);
+    result.$id = ctx.external.uri(id3);
   }
   assignProps(result, root.defId ? root.schema : root.def ?? root.schema);
   const rootMetaId = ctx.metadataRegistry.get(schema)?.id;
@@ -16178,7 +16178,7 @@ function stringifyKeyNames(bySchema, json2, visited) {
   const values = json2.enum ?? (json2.const !== void 0 ? [json2.const] : void 0);
   if (!numericType && !values?.some((v) => typeof v === "number"))
     return json2;
-  const { minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, format, id: id2, ...rest } = json2;
+  const { minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, format, id: id3, ...rest } = json2;
   if (rest.enum)
     rest.enum = rest.enum.map((v) => typeof v === "number" ? String(v) : v);
   else if (typeof rest.const === "number")
@@ -16584,8 +16584,8 @@ var init_json_schema_processors = __esm({
       }
       const requiredKeys = [];
       for (const key of Object.keys(shape)) {
-        const field2 = def2.shape[key];
-        if (ctx.io === "input" ? inputOptin(field2) === void 0 : field2._zod.optout === void 0) {
+        const field6 = def2.shape[key];
+        if (ctx.io === "input" ? inputOptin(field6) === void 0 : field6._zod.optout === void 0) {
           requiredKeys.push(key);
         }
       }
@@ -20424,7 +20424,7 @@ var init_zod = __esm({
 // node_modules/@paperclipai/shared/dist/types/chat-channels.js
 var CHAT_PROVIDERS, CHAT_ENDPOINT_STATUSES, CHAT_CONCURRENCY_POLICIES, CHAT_EVENT_KINDS, CHAT_DELIVERY_STATES, CHAT_PUBLICATION_STATES, CHAT_FILE_TRANSFER_PHASES, CHAT_PRINCIPAL_KINDS, CHAT_IDENTITY_LINK_STATUSES, CHAT_RESOURCE_AVAILABILITIES;
 var init_chat_channels = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/types/chat-channels.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/types/chat-channels.js"() {
     CHAT_PROVIDERS = [
       "slack",
       "github",
@@ -20520,10 +20520,18 @@ var init_chat_channels = __esm({
 });
 
 // node_modules/@paperclipai/shared/dist/validators/task-workspace.js
-var taskWorkspaceSelectionSchema, taskWorkspaceIntentSchema, selectTaskWorkspaceSchema;
+var listTaskWorkspacesSchema, executionWorkspaceSummaryPageQuerySchema, taskWorkspaceSelectionSchema, taskWorkspaceIntentSchema, selectTaskWorkspaceSchema;
 var init_task_workspace = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/task-workspace.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/task-workspace.js"() {
     init_zod();
+    listTaskWorkspacesSchema = external_exports.object({
+      limit: external_exports.number().int().min(1).max(100).default(50),
+      cursor: external_exports.string().uuid().optional()
+    }).strict();
+    executionWorkspaceSummaryPageQuerySchema = external_exports.object({
+      limit: external_exports.coerce.number().int().min(1).max(101).default(51),
+      cursor: external_exports.string().uuid().optional()
+    }).strict();
     taskWorkspaceSelectionSchema = external_exports.discriminatedUnion("kind", [
       external_exports.object({ kind: external_exports.literal("task_directory") }).strict(),
       external_exports.object({ kind: external_exports.literal("existing"), workspaceId: external_exports.string().uuid() }).strict(),
@@ -20543,16 +20551,50 @@ var init_task_workspace = __esm({
   }
 });
 
+// node_modules/@paperclipai/shared/dist/validators/text.js
+function normalizeEscapedLineBreaks(value) {
+  if (/[\r\n]/.test(value))
+    return value;
+  return value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
+}
+function maxStringLength(schema, max) {
+  return schema.max(max).refine((value) => value.length <= max, `Must be at most ${max} characters`);
+}
+var multilineTextSchema;
+var init_text = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/text.js"() {
+    init_zod();
+    multilineTextSchema = external_exports.string().transform(normalizeEscapedLineBreaks);
+  }
+});
+
 // node_modules/@paperclipai/shared/dist/constants.js
 function clampIssueRequestDepth(value) {
   if (typeof value !== "number" || !Number.isFinite(value))
     return 0;
   return Math.min(MAX_ISSUE_REQUEST_DEPTH, Math.max(0, Math.floor(value)));
 }
-var ISSUE_SUMMARIES_MAX_IDS, AGENT_ROLES, ISSUE_STATUSES, INBOX_MINE_ISSUE_STATUSES, INBOX_MINE_ISSUE_STATUS_FILTER, ISSUE_PRIORITIES, ISSUE_REVIEW_POLICIES, ISSUE_WORK_MODES, ISSUE_HARNESS_KINDS, MAX_ISSUE_REQUEST_DEPTH, ISSUE_COMMENT_AUTHOR_TYPES, ISSUE_COMMENT_PRESENTATION_KINDS, ISSUE_COMMENT_PRESENTATION_TONES, ISSUE_COMMENT_PRESENTATION_DENSITIES, ISSUE_COMMENT_METADATA_ROW_TYPES, ISSUE_THREAD_INTERACTION_KINDS, ISSUE_THREAD_INTERACTION_CANONICAL_RESOLVER_POLICIES, ISSUE_THREAD_INTERACTION_LEGACY_RESOLVER_POLICY_ALIASES, ISSUE_THREAD_INTERACTION_RESOLVER_POLICIES, ISSUE_THREAD_INTERACTION_RESOLVER_POLICY_PROVENANCES, ISSUE_THREAD_INTERACTION_EFFECTIVE_RESOLVER_POLICY_SOURCES, REQUEST_CHECKBOX_CONFIRMATION_OPTION_LIMIT, REQUEST_ITEM_VERDICTS_ITEM_LIMIT, ISSUE_THREAD_INTERACTION_STATUSES, ISSUE_THREAD_INTERACTION_CONTINUATION_POLICIES, ISSUE_WATCHDOG_DISCOVERY_KINDS, ISSUE_RECOVERY_ACTION_KINDS, ISSUE_RECOVERY_ACTION_STATUSES, ISSUE_RECOVERY_ACTION_OWNER_TYPES, ISSUE_RECOVERY_ACTION_OUTCOMES, ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY, SYSTEM_ISSUE_DOCUMENT_KEYS, SYSTEM_ISSUE_DOCUMENT_KEY_SET, ISSUE_EXECUTION_POLICY_MODES, ISSUE_EXECUTION_STAGE_TYPES, ISSUE_MONITOR_SCHEDULED_BY, ISSUE_EXECUTION_MONITOR_KINDS, ISSUE_EXECUTION_MONITOR_RECOVERY_POLICIES, ISSUE_EXECUTION_STATE_STATUSES, ISSUE_EXECUTION_MONITOR_STATE_STATUSES, ISSUE_EXECUTION_MONITOR_CLEAR_REASONS, ISSUE_EXECUTION_DECISION_OUTCOMES;
+var ISSUE_SUMMARIES_MAX_IDS, AGENT_ADAPTER_TYPES, AGENT_ROLES, AGENT_ICON_NAMES, ISSUE_STATUSES, ISSUE_DISPLAY_STATUSES, INBOX_MINE_ISSUE_STATUSES, INBOX_MINE_ISSUE_STATUS_FILTER, ISSUE_PRIORITIES, ISSUE_REVIEW_POLICIES, ISSUE_WORK_MODES, ISSUE_HARNESS_KINDS, MAX_ISSUE_REQUEST_DEPTH, ISSUE_COMMENT_AUTHOR_TYPES, ISSUE_COMMENT_PRESENTATION_KINDS, ISSUE_COMMENT_PRESENTATION_TONES, ISSUE_COMMENT_PRESENTATION_DENSITIES, ISSUE_COMMENT_METADATA_ROW_TYPES, ISSUE_THREAD_INTERACTION_KINDS, ISSUE_THREAD_INTERACTION_CANONICAL_RESOLVER_POLICIES, ISSUE_THREAD_INTERACTION_LEGACY_RESOLVER_POLICY_ALIASES, ISSUE_THREAD_INTERACTION_RESOLVER_POLICIES, ISSUE_THREAD_INTERACTION_RESOLVER_POLICY_PROVENANCES, ISSUE_THREAD_INTERACTION_EFFECTIVE_RESOLVER_POLICY_SOURCES, REQUEST_CHECKBOX_CONFIRMATION_OPTION_LIMIT, REQUEST_ITEM_VERDICTS_ITEM_LIMIT, ISSUE_THREAD_INTERACTION_STATUSES, ISSUE_THREAD_INTERACTION_CONTINUATION_POLICIES, ISSUE_WATCHDOG_DISCOVERY_KINDS, ISSUE_SURFACE_VISIBILITIES, ISSUE_RECOVERY_ACTION_KINDS, ISSUE_RECOVERY_ACTION_STATUSES, ISSUE_RECOVERY_ACTION_OWNER_TYPES, ISSUE_RECOVERY_ACTION_OUTCOMES, ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY, SYSTEM_ISSUE_DOCUMENT_KEYS, SYSTEM_ISSUE_DOCUMENT_KEY_SET, EXTERNAL_OBJECT_STATUS_CATEGORIES, EXTERNAL_OBJECT_STATUS_TONES, EXTERNAL_OBJECT_LIVENESS_STATES, EXTERNAL_OBJECT_MENTION_SOURCE_KINDS, EXTERNAL_OBJECT_MENTION_CONFIDENCES, ISSUE_EXECUTION_POLICY_MODES, ISSUE_EXECUTION_STAGE_TYPES, ISSUE_MONITOR_SCHEDULED_BY, ISSUE_EXECUTION_MONITOR_KINDS, ISSUE_EXECUTION_MONITOR_RECOVERY_POLICIES, ISSUE_EXECUTION_STATE_STATUSES, ISSUE_EXECUTION_MONITOR_STATE_STATUSES, ISSUE_EXECUTION_MONITOR_CLEAR_REASONS, ISSUE_EXECUTION_DECISION_OUTCOMES, ROUTINE_STATUSES, ROUTINE_CONCURRENCY_POLICIES, ROUTINE_CATCH_UP_POLICIES, ROUTINE_ACTIVITY_GATE_POLICIES, ROUTINE_ACTIVITY_GATE_SCOPES, ROUTINE_TRIGGER_KINDS, ROUTINE_TRIGGER_SIGNING_MODES, ROUTINE_VARIABLE_TYPES, SECRET_PROVIDERS, SECRET_PROVIDER_CONFIG_STATUSES, SECRET_STATUSES, SECRET_MANAGED_MODES, SECRET_BINDING_TARGET_TYPES, SECRET_PROJECTION_CLASSES, TOOL_APPLICATION_TYPES, TOOL_APPLICATION_STATUSES, TOOL_CONNECTION_KINDS, TOOL_CONNECTION_HEALTH_STATUSES, TOOL_CATALOG_ENTRY_KINDS, TOOL_CATALOG_ENTRY_STATUSES, TOOL_RISK_LEVELS, TOOL_PROFILE_STATUSES, TOOL_PROFILE_DEFAULT_ACTIONS, TOOL_PROFILE_ENTRY_SELECTOR_TYPES, TOOL_PROFILE_ENTRY_EFFECTS, TOOL_PROFILE_BINDING_TARGET_TYPES, TOOL_MCP_GATEWAY_STATUSES, TOOL_MCP_GATEWAY_DEFAULT_PROFILE_MODES, TOOL_MCP_GATEWAY_CONTEXT_SCOPE_TYPES, TOOL_MCP_GATEWAY_TOKEN_SUBJECT_TYPES, TOOL_MCP_GATEWAY_TOKEN_ACTIONS, CONNECTION_TOKEN_ISSUANCE_PATHS, TOOL_POLICY_TYPES, TOOL_POLICY_DECISIONS, TOOL_INVOCATION_STATUSES, TOOL_INVOCATION_APPROVAL_STATES, TOOL_ACTION_REQUEST_STATUSES, TOOL_AUDIT_EVENT_TYPES, TOOL_AUDIT_OUTCOMES, TOOL_RUNTIME_KINDS, TOOL_RUNTIME_SLOT_STATUSES, TOOL_RATE_LIMIT_WINDOW_KINDS, PLUGIN_STATUSES, PLUGIN_CATEGORIES, PLUGIN_CAPABILITIES, PLUGIN_DATABASE_CORE_READ_TABLES, PLUGIN_API_ROUTE_METHODS, PLUGIN_API_ROUTE_AUTH_MODES, PLUGIN_API_ROUTE_CHECKOUT_POLICIES, PLUGIN_UI_SLOT_TYPES, PLUGIN_RESERVED_COMPANY_ROUTE_SEGMENTS, PLUGIN_RESERVED_COMPANY_SETTINGS_ROUTE_SEGMENTS, PLUGIN_LAUNCHER_PLACEMENT_ZONES, PLUGIN_LAUNCHER_ACTIONS, PLUGIN_LAUNCHER_BOUNDS, PLUGIN_LAUNCHER_RENDER_ENVIRONMENTS, PLUGIN_UI_SLOT_ENTITY_TYPES, PLUGIN_STATE_SCOPE_KINDS;
 var init_constants = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/constants.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/constants.js"() {
     ISSUE_SUMMARIES_MAX_IDS = 5;
+    AGENT_ADAPTER_TYPES = [
+      "process",
+      "http",
+      "claude_local",
+      "codex_local",
+      "paperclip_runner",
+      "cursor_cloud",
+      "gemini_local",
+      "grok_local",
+      "hermes_gateway",
+      "hermes_local",
+      "kimi_local",
+      "opencode_local",
+      "pi_local",
+      "cursor",
+      "openclaw_gateway"
+    ];
     AGENT_ROLES = [
       "ceo",
       "cto",
@@ -20567,10 +20609,63 @@ var init_constants = __esm({
       "researcher",
       "general"
     ];
+    AGENT_ICON_NAMES = [
+      "bot",
+      "cpu",
+      "brain",
+      "zap",
+      "rocket",
+      "code",
+      "terminal",
+      "shield",
+      "eye",
+      "search",
+      "wrench",
+      "hammer",
+      "lightbulb",
+      "sparkles",
+      "star",
+      "heart",
+      "flame",
+      "bug",
+      "cog",
+      "database",
+      "globe",
+      "lock",
+      "mail",
+      "message-square",
+      "file-code",
+      "git-branch",
+      "package",
+      "puzzle",
+      "target",
+      "wand",
+      "atom",
+      "circuit-board",
+      "radar",
+      "swords",
+      "telescope",
+      "microscope",
+      "crown",
+      "gem",
+      "hexagon",
+      "pentagon",
+      "fingerprint"
+    ];
     ISSUE_STATUSES = [
       "backlog",
       "todo",
       "in_progress",
+      "in_review",
+      "done",
+      "blocked",
+      "cancelled"
+    ];
+    ISSUE_DISPLAY_STATUSES = [
+      "backlog",
+      "todo",
+      "in_progress",
+      "monitoring",
       "in_review",
       "done",
       "blocked",
@@ -20650,6 +20745,7 @@ var init_constants = __esm({
       "wake_assignee_on_accept"
     ];
     ISSUE_WATCHDOG_DISCOVERY_KINDS = ["product_bug", "platform_bug"];
+    ISSUE_SURFACE_VISIBILITIES = ["default", "plugin_operation"];
     ISSUE_RECOVERY_ACTION_KINDS = [
       "missing_disposition",
       "deliberate_wait_without_target",
@@ -20687,6 +20783,44 @@ var init_constants = __esm({
       "pipeline-case-body"
     ];
     SYSTEM_ISSUE_DOCUMENT_KEY_SET = new Set(SYSTEM_ISSUE_DOCUMENT_KEYS);
+    EXTERNAL_OBJECT_STATUS_CATEGORIES = [
+      "unknown",
+      "open",
+      "waiting",
+      "running",
+      "succeeded",
+      "failed",
+      "blocked",
+      "closed",
+      "archived",
+      "auth_required",
+      "unreachable"
+    ];
+    EXTERNAL_OBJECT_STATUS_TONES = [
+      "neutral",
+      "info",
+      "success",
+      "warning",
+      "danger",
+      "muted"
+    ];
+    EXTERNAL_OBJECT_LIVENESS_STATES = [
+      "unknown",
+      "fresh",
+      "stale",
+      "auth_required",
+      "rate_limited",
+      "unreachable"
+    ];
+    EXTERNAL_OBJECT_MENTION_SOURCE_KINDS = [
+      "title",
+      "description",
+      "comment",
+      "document",
+      "property",
+      "plugin"
+    ];
+    EXTERNAL_OBJECT_MENTION_CONFIDENCES = ["exact", "likely", "possible"];
     ISSUE_EXECUTION_POLICY_MODES = ["normal", "auto"];
     ISSUE_EXECUTION_STAGE_TYPES = ["review", "approval"];
     ISSUE_MONITOR_SCHEDULED_BY = ["assignee", "board"];
@@ -20710,27 +20844,404 @@ var init_constants = __esm({
       "max_attempts_exhausted"
     ];
     ISSUE_EXECUTION_DECISION_OUTCOMES = ["approved", "changes_requested"];
-  }
-});
-
-// node_modules/@paperclipai/shared/dist/validators/text.js
-function normalizeEscapedLineBreaks(value) {
-  if (/[\r\n]/.test(value))
-    return value;
-  return value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
-}
-var multilineTextSchema;
-var init_text = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/text.js"() {
-    init_zod();
-    multilineTextSchema = external_exports.string().transform(normalizeEscapedLineBreaks);
+    ROUTINE_STATUSES = ["active", "paused", "archived"];
+    ROUTINE_CONCURRENCY_POLICIES = ["coalesce_if_active", "always_enqueue", "skip_if_active"];
+    ROUTINE_CATCH_UP_POLICIES = ["skip_missed", "enqueue_missed_with_cap"];
+    ROUTINE_ACTIVITY_GATE_POLICIES = ["always", "require_external_activity"];
+    ROUTINE_ACTIVITY_GATE_SCOPES = ["company", "project"];
+    ROUTINE_TRIGGER_KINDS = ["schedule", "webhook", "api"];
+    ROUTINE_TRIGGER_SIGNING_MODES = ["bearer", "app_webhook", "hmac_sha256", "github_hmac", "fireflies_hmac", "none"];
+    ROUTINE_VARIABLE_TYPES = ["text", "textarea", "number", "boolean", "select", "date"];
+    SECRET_PROVIDERS = [
+      "local_encrypted",
+      "aws_secrets_manager",
+      "gcp_secret_manager",
+      "vault"
+    ];
+    SECRET_PROVIDER_CONFIG_STATUSES = [
+      "ready",
+      "warning",
+      "coming_soon",
+      "disabled"
+    ];
+    SECRET_STATUSES = ["active", "disabled", "archived", "deleted"];
+    SECRET_MANAGED_MODES = ["paperclip_managed", "external_reference"];
+    SECRET_BINDING_TARGET_TYPES = [
+      "agent",
+      "project",
+      "environment",
+      "routine",
+      "plugin",
+      "issue",
+      "run",
+      "tool_connection",
+      "system"
+    ];
+    SECRET_PROJECTION_CLASSES = ["unclassified", "class_3_static_lease"];
+    TOOL_APPLICATION_TYPES = ["rest_api", "mcp_http", "mcp_stdio", "paperclip_plugin", "a2a", "chat"];
+    TOOL_APPLICATION_STATUSES = ["draft", "active", "disabled", "archived"];
+    TOOL_CONNECTION_KINDS = ["managed"];
+    TOOL_CONNECTION_HEALTH_STATUSES = [
+      "unknown",
+      "healthy",
+      "degraded",
+      "failed",
+      "unchecked",
+      "ok",
+      "error",
+      "missing_secret"
+    ];
+    TOOL_CATALOG_ENTRY_KINDS = ["tool", "resource", "prompt"];
+    TOOL_CATALOG_ENTRY_STATUSES = ["active", "disabled", "quarantined", "removed"];
+    TOOL_RISK_LEVELS = ["low", "medium", "high", "critical", "read", "write", "destructive"];
+    TOOL_PROFILE_STATUSES = ["draft", "active", "disabled", "archived"];
+    TOOL_PROFILE_DEFAULT_ACTIONS = ["deny", "allow"];
+    TOOL_PROFILE_ENTRY_SELECTOR_TYPES = [
+      "application",
+      "connection",
+      "catalog_entry",
+      "tool_name",
+      "risk_level"
+    ];
+    TOOL_PROFILE_ENTRY_EFFECTS = ["include", "exclude"];
+    TOOL_PROFILE_BINDING_TARGET_TYPES = ["company", "agent", "project", "routine", "issue", "gateway"];
+    TOOL_MCP_GATEWAY_STATUSES = ["draft", "active", "disabled", "archived"];
+    TOOL_MCP_GATEWAY_DEFAULT_PROFILE_MODES = [
+      "gateway_only",
+      "inherit_context_then_gateway",
+      "gateway_then_context"
+    ];
+    TOOL_MCP_GATEWAY_CONTEXT_SCOPE_TYPES = [
+      "none",
+      "company",
+      "project",
+      "routine",
+      "issue",
+      "agent"
+    ];
+    TOOL_MCP_GATEWAY_TOKEN_SUBJECT_TYPES = ["gateway_client", "heartbeat_run", "board_user", "agent"];
+    TOOL_MCP_GATEWAY_TOKEN_ACTIONS = [
+      "tools/list",
+      "tools/call",
+      "resources/list",
+      "resources/read",
+      "prompts/list",
+      "prompts/get"
+    ];
+    CONNECTION_TOKEN_ISSUANCE_PATHS = ["exchange", "oauth_access", "static"];
+    TOOL_POLICY_TYPES = [
+      "allow",
+      "block",
+      "require_approval",
+      "trust_rule",
+      "rate_limit"
+    ];
+    TOOL_POLICY_DECISIONS = ["allow", "deny", "require_approval", "rate_limited", "defer_runtime"];
+    TOOL_INVOCATION_STATUSES = [
+      "pending",
+      "authorized",
+      "denied",
+      "awaiting_approval",
+      "executing",
+      "succeeded",
+      "failed",
+      "cancelled",
+      "timed_out",
+      "rate_limited"
+    ];
+    TOOL_INVOCATION_APPROVAL_STATES = [
+      "not_required",
+      "required",
+      "pending",
+      "approved",
+      "rejected",
+      "expired"
+    ];
+    TOOL_ACTION_REQUEST_STATUSES = [
+      "pending",
+      "approved",
+      "executing",
+      "rejected",
+      "expired",
+      "cancelled",
+      "executed",
+      "failed"
+    ];
+    TOOL_AUDIT_EVENT_TYPES = [
+      "discovery",
+      "policy_decision",
+      "invocation_created",
+      "call_started",
+      "call_completed",
+      "call_failed",
+      "call_denied",
+      "approval_requested",
+      "approval_resolved",
+      "session_revoked",
+      "trust_rule_created",
+      "trust_rule_revoked",
+      "trust_rule_used",
+      "runtime_started",
+      "runtime_stopped",
+      "rate_limited"
+    ];
+    TOOL_AUDIT_OUTCOMES = ["pending", "success", "failure", "denied", "timeout", "cancelled"];
+    TOOL_RUNTIME_KINDS = ["remote_session", "local_stdio"];
+    TOOL_RUNTIME_SLOT_STATUSES = ["starting", "running", "idle", "stopped", "failed", "disabled", "error"];
+    TOOL_RATE_LIMIT_WINDOW_KINDS = ["minute", "hour", "day", "month"];
+    PLUGIN_STATUSES = [
+      "installed",
+      "ready",
+      "disabled",
+      "error",
+      "upgrade_pending",
+      "uninstalled"
+    ];
+    PLUGIN_CATEGORIES = [
+      "connector",
+      "workspace",
+      "automation",
+      "ui"
+    ];
+    PLUGIN_CAPABILITIES = [
+      "ai.connections.route",
+      // Data Read
+      "companies.read",
+      "projects.read",
+      "projects.instance-secrets",
+      "projects.git-credentials",
+      "project.workspaces.read",
+      "execution.workspaces.read",
+      "workspaces.manage",
+      "issues.read",
+      "issue.relations.read",
+      "issue.subtree.read",
+      "issue.comments.read",
+      // Read pending issue-thread interactions (decision cards) on an issue.
+      "issue.interactions.read",
+      // Read issue attachment metadata and, via the capability-scoped host
+      // bridge, attachment content bytes (bytes-only, company-scoped, audit-logged).
+      "issue.attachments.read",
+      // Read company approvals (list + get). The host redacts approval payloads to
+      // match the web app's own approval read surface.
+      "approvals.read",
+      "issue.documents.read",
+      "agents.read",
+      "agents.lifecycle.manage",
+      "goals.read",
+      "goals.create",
+      "goals.update",
+      "activity.read",
+      "costs.read",
+      "issues.orchestration.read",
+      "access.members.read",
+      "access.invites.read",
+      "authorization.grants.read",
+      "authorization.policies.read",
+      "authorization.audit.read",
+      "database.namespace.read",
+      // Data Write
+      "issues.create",
+      "issues.update",
+      "issue.relations.write",
+      "issues.checkout",
+      "issues.wakeup",
+      "issue.comments.create",
+      "issue.comments.create_human_attributed",
+      "issue.interactions.create",
+      // Respond to (accept/reject) an issue-thread interaction on behalf of a
+      // paired board user. Impersonation surface: the host independently
+      // re-verifies the actor is an active human member of the company at apply
+      // time (never trusts plugin-supplied identity), matching the web app's
+      // board-only interaction resolve route.
+      "issue.interactions.respond",
+      // Decide (approve/reject) a company approval on behalf of a paired board
+      // user. Same apply-time active-human-member re-verification as above; the
+      // web app's approval decision routes are board-only.
+      "approvals.respond",
+      "issue.documents.write",
+      "projects.managed",
+      "routines.managed",
+      "skills.managed",
+      "agents.pause",
+      "agents.resume",
+      "agents.invoke",
+      "agents.managed",
+      "access.members.write",
+      "access.invites.write",
+      "authorization.grants.write",
+      "authorization.policies.write",
+      "agent.sessions.create",
+      "agent.sessions.list",
+      "agent.sessions.send",
+      "agent.sessions.close",
+      "activity.log.write",
+      "metrics.write",
+      "telemetry.track",
+      "database.namespace.migrate",
+      "database.namespace.write",
+      "external.objects.detect",
+      "external.objects.read",
+      "external.objects.write",
+      "external.objects.refresh",
+      // Plugin State
+      "plugin.state.read",
+      "plugin.state.write",
+      // Runtime / Integration
+      "events.subscribe",
+      "events.emit",
+      "jobs.schedule",
+      "webhooks.receive",
+      "api.routes.register",
+      "http.outbound",
+      "secrets.read-ref",
+      "environment.drivers.register",
+      "local.folders",
+      // Agent Tools
+      "agent.tools.register",
+      // UI
+      "instance.settings.register",
+      "ui.sidebar.register",
+      "ui.page.register",
+      "ui.detailTab.register",
+      "ui.dashboardWidget.register",
+      "ui.commentAnnotation.register",
+      "ui.action.register"
+    ];
+    PLUGIN_DATABASE_CORE_READ_TABLES = [
+      "companies",
+      "projects",
+      "goals",
+      "agents",
+      "issues",
+      "issue_documents",
+      "issue_relations",
+      "issue_comments",
+      "heartbeat_runs",
+      "cost_events",
+      "approvals",
+      "issue_approvals",
+      "budget_incidents"
+    ];
+    PLUGIN_API_ROUTE_METHODS = ["GET", "POST", "PATCH", "DELETE"];
+    PLUGIN_API_ROUTE_AUTH_MODES = ["board", "agent", "board-or-agent", "webhook"];
+    PLUGIN_API_ROUTE_CHECKOUT_POLICIES = [
+      "none",
+      "required-for-agent-in-progress",
+      "always-for-agent"
+    ];
+    PLUGIN_UI_SLOT_TYPES = [
+      "page",
+      "detailTab",
+      "taskDetailView",
+      "dashboardWidget",
+      "sidebar",
+      "routeSidebar",
+      "sidebarPanel",
+      "projectSidebarItem",
+      "globalToolbarButton",
+      "appShellOverlay",
+      "organizationSwitcher",
+      "toolbarButton",
+      "contextMenuItem",
+      "commentAnnotation",
+      "commentContextMenuItem",
+      "settingsPage",
+      "companySettingsPage"
+    ];
+    PLUGIN_RESERVED_COMPANY_ROUTE_SEGMENTS = [
+      "dashboard",
+      "onboarding",
+      "companies",
+      "company",
+      "settings",
+      "plugins",
+      "org",
+      "agents",
+      "projects",
+      "issues",
+      "goals",
+      "approvals",
+      "costs",
+      "activity",
+      "inbox",
+      "workspaces",
+      "design-guide",
+      "tests"
+    ];
+    PLUGIN_RESERVED_COMPANY_SETTINGS_ROUTE_SEGMENTS = [
+      "general",
+      "environments",
+      "access",
+      "members",
+      "invites",
+      "secrets",
+      "instance"
+    ];
+    PLUGIN_LAUNCHER_PLACEMENT_ZONES = [
+      "page",
+      "detailTab",
+      "taskDetailView",
+      "dashboardWidget",
+      "sidebar",
+      "sidebarPanel",
+      "projectSidebarItem",
+      "globalToolbarButton",
+      "toolbarButton",
+      "contextMenuItem",
+      "commentAnnotation",
+      "commentContextMenuItem",
+      "settingsPage"
+    ];
+    PLUGIN_LAUNCHER_ACTIONS = [
+      "navigate",
+      "openModal",
+      "openDrawer",
+      "openPopover",
+      "performAction",
+      "deepLink"
+    ];
+    PLUGIN_LAUNCHER_BOUNDS = [
+      "inline",
+      "compact",
+      "default",
+      "wide",
+      "full"
+    ];
+    PLUGIN_LAUNCHER_RENDER_ENVIRONMENTS = [
+      "hostInline",
+      "hostOverlay",
+      "hostRoute",
+      "external",
+      "iframe"
+    ];
+    PLUGIN_UI_SLOT_ENTITY_TYPES = [
+      "project",
+      "issue",
+      "agent",
+      "goal",
+      "run",
+      "comment",
+      "execution_workspace",
+      "project_workspace"
+    ];
+    PLUGIN_STATE_SCOPE_KINDS = [
+      "instance",
+      "company",
+      "project",
+      "project_workspace",
+      "agent",
+      "issue",
+      "goal",
+      "run"
+    ];
   }
 });
 
 // node_modules/@paperclipai/shared/dist/trust-policy.js
 var TRUST_PRESETS, LOW_TRUST_REVIEW_PRESET, LOW_TRUST_REVIEW_PRESET_VERSION, LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION;
 var init_trust_policy = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/trust-policy.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/trust-policy.js"() {
     TRUST_PRESETS = ["standard", "low_trust_review"];
     LOW_TRUST_REVIEW_PRESET = "low_trust_review";
     LOW_TRUST_REVIEW_PRESET_VERSION = 1;
@@ -20741,7 +21252,7 @@ var init_trust_policy = __esm({
 // node_modules/@paperclipai/shared/dist/validators/trust-policy.js
 var trustPresetSchema, lowTrustOutputPromotionTargetSchema, lowTrustBoundarySchema, lowTrustReviewPresetPolicySchema, assignmentAuthorizationPolicySchema, protectedAgentAuthorizationPolicySchema, trustAuthorizationPolicySchema, sourceTrustArtifactKindSchema, sourceTrustMetadataSchema;
 var init_trust_policy2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/trust-policy.js"() {
     init_zod();
     init_trust_policy();
     trustPresetSchema = external_exports.enum(TRUST_PRESETS);
@@ -20804,29 +21315,29 @@ var init_trust_policy2 = __esm({
 });
 
 // node_modules/@paperclipai/shared/dist/validators/partial.js
-function fieldWithoutDefault(field2) {
-  if (field2 instanceof external_exports.ZodDefault) {
-    return fieldWithoutDefault(field2.unwrap());
+function fieldWithoutDefault(field6) {
+  if (field6 instanceof external_exports.ZodDefault) {
+    return fieldWithoutDefault(field6.unwrap());
   }
-  if (field2 instanceof external_exports.ZodOptional) {
-    return external_exports.optional(fieldWithoutDefault(field2.unwrap()));
+  if (field6 instanceof external_exports.ZodOptional) {
+    return external_exports.optional(fieldWithoutDefault(field6.unwrap()));
   }
-  if (field2 instanceof external_exports.ZodNullable) {
-    return external_exports.nullable(fieldWithoutDefault(field2.unwrap()));
+  if (field6 instanceof external_exports.ZodNullable) {
+    return external_exports.nullable(fieldWithoutDefault(field6.unwrap()));
   }
-  return field2;
+  return field6;
 }
 function shapeWithoutDefaults(shape) {
-  return Object.fromEntries(Object.entries(shape).map(([key, field2]) => [
+  return Object.fromEntries(Object.entries(shape).map(([key, field6]) => [
     key,
-    fieldWithoutDefault(field2)
+    fieldWithoutDefault(field6)
   ]));
 }
 function objectWithoutDefaults(schema) {
   return external_exports.object(shapeWithoutDefaults(schema.shape));
 }
 var init_partial = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/partial.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/partial.js"() {
     init_zod();
   }
 });
@@ -20846,8 +21357,8 @@ function questionSetToAskUserQuestionsPayload(questionSet) {
     ...questionSet.submitLabel ? { submitLabel: questionSet.submitLabel.slice(0, 120) } : {},
     questionSet,
     questions: questionSet.questions.map((question) => {
-      const options = (question.options ?? []).map(({ id: id2, label: label2, description }) => ({
-        id: id2,
+      const options = (question.options ?? []).map(({ id: id3, label: label2, description }) => ({
+        id: id3,
         label: label2,
         ...description !== void 0 ? { description } : {}
       }));
@@ -20875,7 +21386,7 @@ function questionSetToAskUserQuestionsPayload(questionSet) {
   };
 }
 var init_question_set = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/question-set.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/question-set.js"() {
   }
 });
 
@@ -20954,12 +21465,13 @@ function requireTitleOrDescription(value, ctx) {
     ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["title"], message: "Provide a title or task description" });
   }
 }
-var issueSummariesQuerySchema, issueBlockedInboxStateSchema, issueBlockedInboxSeveritySchema, issueBlockedInboxReasonSchema, issueBlockedInboxIssueRefSchema, issueBlockedInboxAttentionSchema, ISSUE_EXECUTION_WORKSPACE_PREFERENCES, executionWorkspaceStrategySchema, ipv4CidrPattern, protectedTaskEgressCidrs, issueExecutionWorkspaceSettingsSchema, issueAssigneeAdapterOverridesSchema, issueExecutionStagePrincipalBaseSchema, issueExecutionStagePrincipalSchema, issueExecutionStageParticipantSchema, issueExecutionStageSchema, issueExecutionMonitorPolicySchema, issueExecutionPolicySchema, issueExecutionMonitorStateSchema, issueReviewRequestSchema, issueExecutionStateSchema, issueRecoveryActionReadModelSchema, RESOLVE_ISSUE_RECOVERY_ACTION_OUTCOMES, resumeWorkspaceFinalizationSchema, retryWorkspaceExportSchema, taskRetrySchema, recoverWorkspaceSchema, reconstructWorkspaceSchema, resolveIssueRecoveryActionSchema, issueRequestDepthInputSchema, createIssueBaseSchema, createIssueDuplicateGuardSchema, onboardingFirstTaskMarkerSchema, createIssueInputSchema, createIssueSchema, setIssueTitleSchema, upsertIssueWatchdogSchema, createChildIssueSchema, createAcceptedPlanDecompositionSchema, createIssueLabelSchema, issueCommentAttachmentIdsSchema, updateIssueSchema, stalledReviewDecisionSchema, checkoutIssueSchema, commentMetadataLabelSchema, commentMetadataTextSchema, issueCommentAuthorTypeSchema, issueCommentPresentationSchema, issueCommentMetadataBaseRowSchema, issueCommentMetadataTextRowSchema, issueCommentMetadataCodeRowSchema, issueCommentMetadataKeyValueRowSchema, issueCommentMetadataIssueLinkRowSchema, issueCommentMetadataAgentLinkRowSchema, issueCommentMetadataRunLinkRowSchema, issueCommentMetadataRowSchema, issueCommentMetadataSectionSchema, issueCommentMetadataSchema, addIssueCommentSchema, issueThreadInteractionStatusSchema, issueThreadInteractionKindSchema, issueThreadInteractionCanonicalResolverPolicySchema, issueThreadInteractionResolverPolicySchema, issueThreadInteractionResolverPolicyProvenanceSchema, issueThreadInteractionEffectiveResolverPolicySourceSchema, issueThreadInteractionContinuationPolicySchema, connectionIntentPhaseSchema, connectionIntentBrandAssetSchema, connectionIntentPayloadSchema, connectionIntentResultSchema, issueDocumentKeySchema, suggestedTaskDraftSchema, suggestTasksPayloadSchema, suggestTasksResultCreatedTaskSchema, suggestTasksResultSchema, askUserQuestionsQuestionOptionSchema, askUserQuestionsQuestionSchema, paperclipQuestionOptionSchema, paperclipQuestionSchema, paperclipQuestionSetPayloadSchema, askUserQuestionsPayloadFields, askUserQuestionsPayloadSchema, askUserQuestionsAnswerSchema, askUserQuestionsResultSchema, requestConfirmationHrefSchema, requestConfirmationTargetBaseSchema, requestConfirmationIssueDocumentTargetSchema, requestConfirmationCustomTargetSchema, requestConfirmationTargetSchema, requestConfirmationToolActionPayloadSchema, requestConfirmationSecretProposalPayloadSchema, requestConfirmationPayloadSchema, requestCheckboxConfirmationOptionSchema, requestCheckboxConfirmationPayloadSchema, requestConfirmationResumeFailureSchema, requestConfirmationToolActionResultSchema, requestConfirmationSecretProposalResultSchema, requestConfirmationResultSchema, requestCheckboxConfirmationResultSchema, requestItemVerdictValueSchema, requestItemVerdictsItemSchema, requestItemVerdictsPayloadSchema, requestItemVerdictsResultItemSchema, requestItemVerdictsResultSchema, createIssueThreadInteractionCommon, createLegacyAskUserQuestionsPayloadSchema, createAskUserQuestionsPayloadSchema, createIssueThreadInteractionSchema, acceptIssueThreadInteractionSchema, resolveConfirmationFromCommentSchema, rejectIssueThreadInteractionSchema, cancelIssueThreadInteractionSchema, skipIssueThreadInteractionSchema, withdrawIssueThreadInteractionSchema, respondIssueThreadInteractionSchema, submitIssueThreadInteractionVerdictsSchema, linkIssueApprovalSchema, createIssueAttachmentMetadataSchema, ISSUE_DOCUMENT_FORMATS, issueDocumentFormatSchema, upsertIssueDocumentSchema, restoreIssueDocumentRevisionSchema;
+var issueSummariesQuerySchema, issueBlockedInboxStateSchema, issueBlockedInboxSeveritySchema, issueBlockedInboxReasonSchema, issueBlockedInboxIssueRefSchema, issueBlockedInboxAttentionSchema, ISSUE_EXECUTION_WORKSPACE_PREFERENCES, executionWorkspaceStrategySchema, ipv4CidrPattern, protectedTaskEgressCidrs, issueExecutionWorkspaceSettingsSchema, issueAssigneeAdapterOverridesSchema, issueExecutionStagePrincipalBaseSchema, issueExecutionStagePrincipalSchema, issueExecutionStageParticipantSchema, issueExecutionStageSchema, issueExecutionMonitorPolicySchema, requiredQualityReviewSchema, issueExecutionPolicySchema, issueExecutionMonitorStateSchema, issueReviewRequestSchema, issueExecutionStateSchema, issueRecoveryActionReadModelSchema, RESOLVE_ISSUE_RECOVERY_ACTION_OUTCOMES, resumeWorkspaceFinalizationSchema, confirmNativeControllerStoppedSchema, confirmOwnerGoneSchema, retryWorkspaceExportSchema, taskRetrySchema, recoverWorkspaceSchema, reconstructWorkspaceSchema, resolveIssueRecoveryActionSchema, issueRequestDepthInputSchema, createIssueBaseSchema, createIssueDuplicateGuardSchema, onboardingFirstTaskMarkerSchema, createIssueInputSchema, createIssueSchema, setIssueTitleSchema, upsertIssueWatchdogSchema, createChildIssueSchema, createAcceptedPlanDecompositionSchema, createIssueLabelSchema, issueCommentAttachmentIdsSchema, updateIssueSchema, stalledReviewDecisionSchema, checkoutIssueSchema, commentMetadataLabelSchema, commentMetadataTextSchema, issueCommentAuthorTypeSchema, issueCommentPresentationSchema, issueCommentMetadataBaseRowSchema, issueCommentMetadataTextRowSchema, issueCommentMetadataCodeRowSchema, issueCommentMetadataKeyValueRowSchema, issueCommentMetadataIssueLinkRowSchema, issueCommentMetadataAgentLinkRowSchema, issueCommentMetadataRunLinkRowSchema, issueCommentMetadataRowSchema, issueCommentMetadataSectionSchema, issueCommentMetadataSchema, sendChatMessageSchema, markIssueReadSchema, addIssueCommentSchema, issueThreadInteractionStatusSchema, issueThreadInteractionKindSchema, issueThreadInteractionCanonicalResolverPolicySchema, issueThreadInteractionResolverPolicySchema, issueThreadInteractionResolverPolicyProvenanceSchema, issueThreadInteractionEffectiveResolverPolicySourceSchema, issueThreadInteractionContinuationPolicySchema, connectionIntentPhaseSchema, connectionIntentBrandAssetSchema, connectionIntentPayloadSchema, connectionIntentResultSchema, issueDocumentKeySchema, suggestedTaskDraftSchema, suggestTasksPayloadSchema, suggestTasksResultCreatedTaskSchema, suggestTasksResultSchema, askUserQuestionsQuestionOptionSchema, askUserQuestionsQuestionSchema, paperclipQuestionOptionSchema, paperclipQuestionSchema, paperclipQuestionSetPayloadSchema, askUserQuestionsPayloadFields, askUserQuestionsPayloadSchema, askUserQuestionsAnswerSchema, askUserQuestionsResultSchema, requestConfirmationHrefSchema, requestConfirmationTargetBaseSchema, requestConfirmationIssueDocumentTargetSchema, requestConfirmationCustomTargetSchema, requestConfirmationIssueAttachmentTargetSchema, requestConfirmationTargetSchema, requestConfirmationToolActionPayloadSchema, requestConfirmationSecretProposalPayloadSchema, qualityReviewBindingSchema, requestConfirmationPayloadSchema, requestCheckboxConfirmationOptionSchema, requestCheckboxConfirmationPayloadSchema, requestConfirmationResumeFailureSchema, requestConfirmationToolActionResultSchema, requestConfirmationSecretProposalResultSchema, requestConfirmationResultSchema, requestCheckboxConfirmationResultSchema, requestItemVerdictValueSchema, requestItemVerdictsItemSchema, requestItemVerdictsPayloadSchema, requestItemVerdictsResultItemSchema, requestItemVerdictsResultSchema, createIssueThreadInteractionCommon, createLegacyAskUserQuestionsPayloadSchema, createAskUserQuestionsPayloadSchema, createIssueThreadInteractionSchema, acceptIssueThreadInteractionSchema, resolveConfirmationFromCommentSchema, rejectIssueThreadInteractionSchema, cancelIssueThreadInteractionSchema, skipIssueThreadInteractionSchema, withdrawIssueThreadInteractionSchema, respondIssueThreadInteractionSchema, submitIssueThreadInteractionVerdictsSchema, linkIssueApprovalSchema, createIssueAttachmentMetadataSchema, ISSUE_DOCUMENT_FORMATS, issueDocumentFormatSchema, upsertIssueDocumentSchema, restoreIssueDocumentRevisionSchema;
 var init_issue = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/issue.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/issue.js"() {
     init_chat_channels();
     init_task_workspace();
     init_zod();
+    init_text();
     init_constants();
     init_constants();
     init_text();
@@ -20967,7 +21479,7 @@ var init_issue = __esm({
     init_partial();
     init_question_set();
     issueSummariesQuerySchema = external_exports.object({
-      ids: external_exports.string().transform((value) => value.split(",").map((id2) => id2.trim().toLowerCase())).pipe(external_exports.array(external_exports.string().guid()).min(1).max(ISSUE_SUMMARIES_MAX_IDS)).transform((ids) => [...new Set(ids)])
+      ids: external_exports.string().transform((value) => value.split(",").map((id3) => id3.trim().toLowerCase())).pipe(external_exports.array(external_exports.string().guid()).min(1).max(ISSUE_SUMMARIES_MAX_IDS)).transform((ids) => [...new Set(ids)])
     }).strict();
     issueBlockedInboxStateSchema = external_exports.enum([
       "needs_attention",
@@ -21105,7 +21617,7 @@ var init_issue = __esm({
       }
     });
     issueAssigneeAdapterOverridesSchema = external_exports.object({
-      adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()).refine((config2) => !Object.prototype.hasOwnProperty.call(config2, "homeMode"), "homeMode must be set by an operator on the agent, not on a task").optional(),
+      adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()).refine((config2) => !Object.prototype.hasOwnProperty.call(config2, "homeMode"), "homeMode must be set by an operator on the agent, not on a task").refine((config2) => !config2.env || typeof config2.env !== "object" || !Object.keys(config2.env).some((key) => key.toUpperCase() === "PAPERCLIP_RUNNER_PREPARED_HARNESS_HOME"), "Prepared harness homes must be provisioned by the execution environment, not on a task").refine((config2) => !config2.env || typeof config2.env !== "object" || !Object.keys(config2.env).some((key) => ["BASH_ENV", "ZDOTDIR", "GH_CONFIG_DIR", "PAPERCLIP_GITHUB_LAUNCHER_DIR"].includes(key.toUpperCase())), "Managed shell helpers must be provisioned by the execution environment, not on a task").optional(),
       useProjectWorkspace: external_exports.boolean().optional()
     }).strict();
     issueExecutionStagePrincipalBaseSchema = external_exports.object({
@@ -21198,7 +21710,18 @@ var init_issue = __esm({
       maxAttempts: external_exports.number().int().positive().max(100).optional().nullable().default(null),
       recoveryPolicy: external_exports.enum(ISSUE_EXECUTION_MONITOR_RECOVERY_POLICIES).optional().nullable().default(null)
     });
+    requiredQualityReviewSchema = external_exports.object({
+      version: external_exports.literal(1),
+      deliverables: external_exports.array(external_exports.object({
+        key: external_exports.string().regex(/^[a-z][a-z0-9_-]{0,79}$/),
+        label: external_exports.string().trim().min(1).max(120)
+      }).strict()).min(1).max(10)
+    }).strict().superRefine((value, ctx) => {
+      if (new Set(value.deliverables.map((item) => item.key)).size !== value.deliverables.length)
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Quality review deliverable keys must be unique", path: ["deliverables"] });
+    });
     issueExecutionPolicySchema = external_exports.object({
+      requiredQualityReview: requiredQualityReviewSchema.optional(),
       mode: external_exports.enum(ISSUE_EXECUTION_POLICY_MODES).optional().default("normal"),
       commentRequired: external_exports.boolean().optional().default(true),
       stages: external_exports.array(issueExecutionStageSchema).default([]),
@@ -21280,6 +21803,18 @@ var init_issue = __esm({
       ownerToken: external_exports.string().guid(),
       controllerAndCopybackStopped: external_exports.literal(true),
       stopEvidence: external_exports.string().trim().min(20).max(12e3)
+    }).strict();
+    confirmNativeControllerStoppedSchema = external_exports.object({
+      actionId: external_exports.string().guid(),
+      runId: external_exports.string().guid(),
+      stopEvidence: external_exports.string().trim().min(20).max(12e3)
+    }).strict();
+    confirmOwnerGoneSchema = external_exports.object({
+      actionId: external_exports.string().guid(),
+      recordId: external_exports.string().guid(),
+      stopEvidence: external_exports.string().trim().min(20).max(12e3),
+      /** The record version the board saw (`evidence.recordUpdatedAt`); required when the request names one. */
+      recordVersion: external_exports.string().datetime({ offset: true }).optional()
     }).strict();
     retryWorkspaceExportSchema = external_exports.object({
       actionId: external_exports.string().guid(),
@@ -21374,6 +21909,10 @@ var init_issue = __esm({
         ]),
         action: multilineTextSchema.pipe(external_exports.string().trim().min(1).max(2e3))
       }).strict().optional().nullable(),
+      /**
+       * Inherit the project and workspace strategy of this issue. The new task never
+       * shares the source issue's realized workspace; it gets its own from the project base.
+       */
       inheritExecutionWorkspaceFromIssueId: external_exports.string().guid().optional().nullable(),
       title: external_exports.string().min(1),
       description: multilineTextSchema.optional().nullable(),
@@ -21560,7 +22099,14 @@ var init_issue = __esm({
     }).strict();
     issueCommentMetadataSchema = external_exports.object({
       version: external_exports.literal(1),
+      chatMessage: external_exports.object({
+        sourceTaskId: external_exports.uuid(),
+        sourceTaskIdentifier: external_exports.string().min(1).max(80),
+        sourceRunId: external_exports.uuid(),
+        contentHash: external_exports.string().regex(/^[a-f0-9]{64}$/)
+      }).strict().optional(),
       recoveryResponsibility: external_exports.enum(["system", "user"]).optional(),
+      attachmentPreparation: external_exports.object({ attachmentId: external_exports.uuid() }).strict().optional(),
       sourceChannel: external_exports.enum(CHAT_PROVIDERS).optional(),
       sourceRunId: external_exports.string().guid().nullable().optional(),
       authorizationReason: external_exports.string().trim().min(1).max(160).nullable().optional(),
@@ -21574,6 +22120,11 @@ var init_issue = __esm({
       }).strict().optional(),
       sections: external_exports.array(issueCommentMetadataSectionSchema).min(1).max(20)
     }).strict();
+    sendChatMessageSchema = external_exports.object({
+      body: multilineTextSchema.pipe(external_exports.string().trim().min(1).max(2e4)),
+      idempotencyKey: external_exports.string().trim().min(1).max(240)
+    }).strict();
+    markIssueReadSchema = external_exports.object({ throughCommentId: external_exports.uuid().optional() }).strict();
     addIssueCommentSchema = external_exports.object({
       clientRequestId: external_exports.string().uuid().optional(),
       body: multilineTextSchema.pipe(external_exports.string().min(1)),
@@ -21608,6 +22159,14 @@ var init_issue = __esm({
       }
     }, "Connection intent brand assets must be HTTPS URLs or local app brand paths");
     connectionIntentPayloadSchema = external_exports.object({
+      setupAccess: external_exports.object({
+        connectionId: external_exports.string().guid(),
+        access: external_exports.union([external_exports.literal("all_agents"), external_exports.object({ agentIds: external_exports.array(external_exports.string().guid()).max(250) }).strict()])
+      }).strict().optional(),
+      savedSetup: external_exports.object({ endpointId: external_exports.string().guid(), connectionId: external_exports.string().guid(), action: external_exports.enum(["enter_credentials", "rotate_credentials", "confirm_identity"]).optional(), credentialRotation: external_exports.object({ previousId: external_exports.string().guid().nullable() }).strict().optional(), credentialEntry: external_exports.object({
+        previousGenerations: external_exports.record(external_exports.string().refine((field6) => ["signingSecret", "webhookSecret", "privateKey", "clientSecret", "projectSecret"].includes(field6)), external_exports.string().uuid().nullable()).refine((value) => Object.keys(value).length > 0 && Object.keys(value).length <= 5),
+        requireAll: external_exports.boolean()
+      }).strict().optional() }).strict().refine((value) => value.action !== "rotate_credentials" || !!value.credentialRotation, "Rotation requests need a completion boundary").optional(),
       accessRequest: external_exports.object({
         connectionId: external_exports.string().guid(),
         connectionName: external_exports.string().trim().min(1).max(160),
@@ -21616,7 +22175,7 @@ var init_issue = __esm({
           toolName: external_exports.string().trim().min(1).max(160),
           versionHash: external_exports.string().min(1).max(256),
           permission: external_exports.enum(["allowed", "ask_first"])
-        }).strict()).min(1).max(20).refine((tools) => new Set(tools.map((tool3) => tool3.catalogEntryId)).size === tools.length, "Requested tools must be unique")
+        }).strict()).min(1).max(500).refine((tools2) => new Set(tools2.map((tool3) => tool3.catalogEntryId)).size === tools2.length, "Requested tools must be unique")
       }).strict().optional(),
       upstreamService: external_exports.object({ slug: external_exports.string().min(1).max(120), name: external_exports.string().min(1).max(160), selectionInteractionId: external_exports.string().guid().optional() }).strict().optional(),
       purpose: external_exports.enum(["ai", "channel"]).optional(),
@@ -21659,6 +22218,8 @@ var init_issue = __esm({
       parentId: external_exports.string().guid().nullable().optional(),
       title: external_exports.string().trim().min(1).max(240),
       description: multilineTextSchema.pipe(external_exports.string().trim().max(2e4)).nullable().optional(),
+      initialPlan: external_exports.string().trim().min(1).max(2e5).nullable().optional(),
+      requiredQualityReview: requiredQualityReviewSchema.optional(),
       priority: external_exports.enum(ISSUE_PRIORITIES).nullable().optional(),
       workMode: external_exports.enum(ISSUE_WORK_MODES).nullable().optional(),
       assigneeAgentId: external_exports.string().guid().nullable().optional(),
@@ -21727,29 +22288,29 @@ var init_issue = __esm({
       options: external_exports.array(askUserQuestionsQuestionOptionSchema).min(1).max(129)
     });
     paperclipQuestionOptionSchema = external_exports.object({
-      id: external_exports.string().min(1).max(160),
-      label: external_exports.string().min(1).max(1e3),
-      description: external_exports.string().max(4e3).optional(),
+      id: maxStringLength(external_exports.string().min(1), 160),
+      label: maxStringLength(external_exports.string().min(1), 1e3),
+      description: maxStringLength(external_exports.string(), 4e3).optional(),
       recommended: external_exports.boolean().optional()
     });
     paperclipQuestionSchema = external_exports.object({
-      id: external_exports.string().min(1).max(160),
-      header: external_exports.string().max(1e3).optional(),
-      prompt: external_exports.string().min(1).max(4e3),
-      helpText: external_exports.string().max(4e3).optional(),
+      id: maxStringLength(external_exports.string().min(1), 160),
+      header: maxStringLength(external_exports.string(), 1e3).optional(),
+      prompt: maxStringLength(external_exports.string().min(1), 4e3),
+      helpText: maxStringLength(external_exports.string(), 4e3).optional(),
       required: external_exports.boolean(),
       answerMode: external_exports.enum(["single_select", "multi_select", "text"]),
       initialText: external_exports.string().refine((value) => value.length <= 2e5 && Array.from(value).length <= 1e5, "initial text exceeds 100000 Unicode code points").optional(),
       options: external_exports.array(paperclipQuestionOptionSchema).max(128).optional(),
       customAnswer: external_exports.object({
         enabled: external_exports.literal(true),
-        label: external_exports.string().max(1e3).optional(),
-        placeholder: external_exports.string().max(1e3).optional()
+        label: maxStringLength(external_exports.string(), 1e3).optional(),
+        placeholder: maxStringLength(external_exports.string(), 1e3).optional()
       }).optional(),
       textValidation: external_exports.object({
         minLength: external_exports.number().int().min(0).max(1e5).optional(),
         maxLength: external_exports.number().int().min(0).max(1e5).optional(),
-        pattern: external_exports.string().max(1e3).optional(),
+        pattern: maxStringLength(external_exports.string(), 1e3).optional(),
         inputType: external_exports.enum(["text", "number", "integer"]).optional(),
         minimum: external_exports.number().finite().optional(),
         maximum: external_exports.number().finite().optional()
@@ -21815,9 +22376,9 @@ var init_issue = __esm({
     });
     paperclipQuestionSetPayloadSchema = external_exports.object({
       schema: external_exports.literal("paperclip.question_set.v1"),
-      title: external_exports.string().max(1e3).optional(),
-      description: external_exports.string().max(1e5).optional(),
-      submitLabel: external_exports.string().max(200).optional(),
+      title: maxStringLength(external_exports.string(), 1e3).optional(),
+      description: maxStringLength(external_exports.string(), 1e5).optional(),
+      submitLabel: maxStringLength(external_exports.string(), 200).optional(),
       questions: external_exports.array(paperclipQuestionSchema).min(1).max(64)
     }).superRefine((value, ctx) => {
       const questionIds = value.questions.map((question) => question.id);
@@ -21927,8 +22488,16 @@ var init_issue = __esm({
       revisionId: external_exports.string().trim().min(1).max(255).nullable().optional(),
       revisionNumber: external_exports.number().int().positive().nullable().optional()
     });
+    requestConfirmationIssueAttachmentTargetSchema = requestConfirmationTargetBaseSchema.extend({
+      type: external_exports.literal("issue_attachment"),
+      issueId: external_exports.string().guid().nullable().optional(),
+      attachmentId: external_exports.string().guid(),
+      assetId: external_exports.string().guid(),
+      sha256: external_exports.string().regex(/^[a-f0-9]{64}$/, "sha256 must identify the exact attachment bytes")
+    });
     requestConfirmationTargetSchema = external_exports.discriminatedUnion("type", [
       requestConfirmationIssueDocumentTargetSchema,
+      requestConfirmationIssueAttachmentTargetSchema,
       requestConfirmationCustomTargetSchema
     ]);
     requestConfirmationToolActionPayloadSchema = external_exports.object({
@@ -21957,7 +22526,12 @@ var init_issue = __esm({
       justification: external_exports.string().trim().min(1).max(2e4),
       expiresAt: external_exports.string().datetime({ offset: true })
     });
+    qualityReviewBindingSchema = external_exports.object({
+      key: external_exports.string().regex(/^[a-z][a-z0-9_-]{0,79}$/),
+      requirementHash: external_exports.string().regex(/^[a-f0-9]{64}$/).optional()
+    }).strict();
     requestConfirmationPayloadSchema = external_exports.object({
+      qualityReview: qualityReviewBindingSchema.optional(),
       version: external_exports.literal(1),
       prompt: external_exports.string().trim().min(1).max(1e3),
       acceptLabel: external_exports.string().trim().min(1).max(80).nullable().optional(),
@@ -22135,6 +22709,8 @@ var init_issue = __esm({
       "defer"
     ]);
     requestItemVerdictsItemSchema = external_exports.object({
+      qualityReview: qualityReviewBindingSchema.optional(),
+      target: requestConfirmationTargetSchema.nullable().optional(),
       id: external_exports.string().trim().min(1).max(120),
       label: external_exports.string().trim().min(1).max(120),
       description: external_exports.string().trim().max(500).nullable().optional(),
@@ -22155,7 +22731,13 @@ var init_issue = __esm({
       target: requestConfirmationTargetSchema.nullable().optional()
     }).superRefine((value, ctx) => {
       const itemIds = /* @__PURE__ */ new Set();
+      const qualityKeys = /* @__PURE__ */ new Set();
       for (const [index, item] of value.items.entries()) {
+        if (item.qualityReview) {
+          if (qualityKeys.has(item.qualityReview.key))
+            ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Quality review keys must be unique within one request", path: ["items", index, "qualityReview", "key"] });
+          qualityKeys.add(item.qualityReview.key);
+        }
         if (itemIds.has(item.id)) {
           ctx.addIssue({
             code: external_exports.ZodIssueCode.custom,
@@ -22268,7 +22850,7 @@ var init_issue = __esm({
         return;
       const shown = new Set(value.questionSet.questions.map((question) => question.id));
       const stored = new Set(value.questions.map((question) => question.id));
-      if (shown.size !== stored.size || [...shown].some((id2) => !stored.has(id2))) {
+      if (shown.size !== stored.size || [...shown].some((id3) => !stored.has(id3))) {
         ctx.addIssue({
           code: external_exports.ZodIssueCode.custom,
           path: ["questionSet", "questions"],
@@ -22280,10 +22862,10 @@ var init_issue = __esm({
         const storage = storedById.get(question.id);
         if (!storage)
           continue;
-        const mismatch = (field2) => ctx.addIssue({
+        const mismatch = (field6) => ctx.addIssue({
           code: external_exports.ZodIssueCode.custom,
-          path: ["questionSet", "questions", index, field2],
-          message: `questionSet ${field2} must match the corresponding questions entry.`
+          path: ["questionSet", "questions", index, field6],
+          message: `questionSet ${field6} must match the corresponding questions entry.`
         });
         if (question.prompt.trim() !== storage.prompt)
           mismatch("prompt");
@@ -22475,7 +23057,7 @@ var init_issue = __esm({
 // node_modules/@paperclipai/shared/dist/case-handoffs.js
 var caseWorkflowDocumentTextSchema, caseInitialDocumentSchema, caseInitialDocumentsSchema, agentCaseHandoffSchema, doneCaseHandoffSchema, handoffCaseSchema;
 var init_case_handoffs = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/case-handoffs.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/case-handoffs.js"() {
     init_zod();
     init_issue();
     caseWorkflowDocumentTextSchema = external_exports.string().min(1).max(2e5).regex(/\S/, "Workflow document text must not be blank").describe("Workflow Markdown. Recommend both a fenced Mermaid stateDiagram-v2 map and prose explaining every transition: its trigger or condition, required evidence or outputs, destination agent, human wait/resume rules, and bounded correction or escalation behavior. Match diagram state IDs to phase names and define named transition outcomes in prose. Stored verbatim as the task's workflow document; diagram labels are advisory, not executable guards.");
@@ -22573,7 +23155,7 @@ function tool(name, method, scopes, risk, description, shape) {
 }
 var slackSearchConfigSchema, channel, user, timestamp, text, cursor, page, channelPage, message, write, file2, document, SLACK_TOOLS, slackToolCallSchema;
 var init_slack_tools = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/slack-tools.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/slack-tools.js"() {
     init_zod();
     slackSearchConfigSchema = external_exports.object({
       clientId: external_exports.string().regex(/^\d+\.\d+$/),
@@ -22690,7 +23272,7 @@ var init_slack_tools = __esm({
 // node_modules/@paperclipai/shared/dist/slack-app-manifest.js
 var slackRegistrationSchema, slackRegistrationStatusSchema, slackRegistrationStateSchema, slackAvatarStateSchema, slackAccountStateSchema, slackInstallAuthorizationSchema, slackManagerAuthorizationSchema, slackSetupActionSchema, slackTestMessageSchema, slackTestMessageResultSchema, slackSetupOptionsSchema, slackManagedProvisionSchema, slackManagedResultSchema;
 var init_slack_app_manifest = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/slack-app-manifest.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/slack-app-manifest.js"() {
     init_zod();
     slackRegistrationSchema = external_exports.object({
       requestId: external_exports.string().uuid(),
@@ -22749,13 +23331,24 @@ var init_slack_app_manifest = __esm({
   }
 });
 
+// node_modules/@paperclipai/shared/dist/adapter-type.js
+var agentAdapterTypeSchema, optionalAgentAdapterTypeSchema;
+var init_adapter_type = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/adapter-type.js"() {
+    init_zod();
+    init_constants();
+    agentAdapterTypeSchema = external_exports.string().trim().min(1).default("process").describe(`Known built-in adapters: ${AGENT_ADAPTER_TYPES.join(", ")}. External adapters may register additional non-empty string types at runtime.`);
+    optionalAgentAdapterTypeSchema = external_exports.string().trim().min(1).optional();
+  }
+});
+
 // node_modules/@paperclipai/shared/dist/google-workspace-connectors.js
 function def(appSlug, serverUrl, scopes, writeTools = []) {
   return { appSlug, serverUrl, scopes, writeTools };
 }
 var auth, SERVICE_PROFILES, GOOGLE_WORKSPACE_CONNECTOR_PROFILES, one, toolScopes;
 var init_google_workspace_connectors = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/google-workspace-connectors.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/google-workspace-connectors.js"() {
     auth = (scope) => `https://www.googleapis.com/auth/${scope}`;
     SERVICE_PROFILES = {
       "gmail.read": def("gmail", "https://gmailmcp.googleapis.com/mcp/v1", [auth("gmail.readonly")]),
@@ -22782,7 +23375,7 @@ var init_google_workspace_connectors = __esm({
         "google-workspace",
         "https://workspacemcp.googleapis.com/mcp/v1",
         // Keep the original broker/envelope contract stable as legacy profiles evolve.
-        [...new Set(Object.entries(SERVICE_PROFILES).filter(([id2]) => id2 !== "gmail.archive").flatMap(([, profile]) => profile.scopes))]
+        [...new Set(Object.entries(SERVICE_PROFILES).filter(([id3]) => id3 !== "gmail.archive").flatMap(([, profile]) => profile.scopes))]
       )
     };
     one = (...scopes) => [scopes.map(auth)];
@@ -22825,13 +23418,13 @@ var init_google_workspace_connectors = __esm({
 
 // node_modules/@paperclipai/shared/dist/github-connectors.js
 var init_github_connectors = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/github-connectors.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/github-connectors.js"() {
   }
 });
 
 // node_modules/@paperclipai/shared/dist/asana-connectors.js
 var init_asana_connectors = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/asana-connectors.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/asana-connectors.js"() {
   }
 });
 
@@ -22843,7 +23436,7 @@ function isUuidLike(value) {
 }
 var UUID_RE;
 var init_agent_url_key = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/agent-url-key.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/agent-url-key.js"() {
     UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   }
 });
@@ -22851,7 +23444,7 @@ var init_agent_url_key = __esm({
 // node_modules/@paperclipai/shared/dist/types/search.js
 var COMPANY_SEARCH_SCOPES, COMPANY_SEARCH_SORTS, COMPANY_SEARCH_EXTRACT_SCOPES, COMPANY_SEARCH_EXTRACT_KINDS;
 var init_search = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/types/search.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/types/search.js"() {
     COMPANY_SEARCH_SCOPES = ["all", "issues", "comments", "documents", "artifacts", "agents", "projects"];
     COMPANY_SEARCH_SORTS = ["relevance", "updated", "created", "priority"];
     COMPANY_SEARCH_EXTRACT_SCOPES = ["all", "issues", "comments", "documents"];
@@ -22868,40 +23461,40 @@ function queryValues(value) {
     return [];
   return Array.isArray(value) ? value : [value];
 }
-function parseOptionalString(value, ctx, field2) {
+function parseOptionalString(value, ctx, field6) {
   const raw = firstQueryValue(value);
   if (raw === void 0 || raw === null)
     return void 0;
   if (typeof raw !== "string" && typeof raw !== "number") {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be a string` });
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field6} must be a string` });
     return void 0;
   }
   const normalized = String(raw).trim();
   return normalized.length > 0 ? normalized : void 0;
 }
-function parseIntegerQuery(value, ctx, field2, fallback, min, max) {
+function parseIntegerQuery(value, ctx, field6, fallback, min, max) {
   const raw = firstQueryValue(value);
   if (raw === void 0 || raw === null || raw === "")
     return fallback;
   const text2 = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
   if (!/^-?\d+$/.test(text2)) {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be an integer` });
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field6} must be an integer` });
     return fallback;
   }
   const numeric = Number.parseInt(text2, 10);
   if (!Number.isInteger(numeric) || numeric < min || numeric > max) {
     const range = min === 0 ? `between 0 and ${max}` : `between ${min} and ${max}`;
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be ${range}` });
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field6} must be ${range}` });
     return fallback;
   }
   return numeric;
 }
-function parseEnumList(value, ctx, field2, allowed) {
+function parseEnumList(value, ctx, field6, allowed) {
   const allowedSet = new Set(allowed);
   const values = [];
   for (const rawEntry of queryValues(value)) {
     if (typeof rawEntry !== "string") {
-      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be a comma-separated string` });
+      ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field6} must be a comma-separated string` });
       continue;
     }
     for (const rawItem of rawEntry.split(",")) {
@@ -22909,7 +23502,7 @@ function parseEnumList(value, ctx, field2, allowed) {
       if (!item)
         continue;
       if (!allowedSet.has(item)) {
-        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} contains an unsupported value` });
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field6} contains an unsupported value` });
         continue;
       }
       if (!values.includes(item))
@@ -22918,12 +23511,12 @@ function parseEnumList(value, ctx, field2, allowed) {
   }
   return values;
 }
-function parseOptionalUuid(value, ctx, field2) {
-  const normalized = parseOptionalString(value, ctx, field2);
+function parseOptionalUuid(value, ctx, field6) {
+  const normalized = parseOptionalString(value, ctx, field6);
   if (normalized === void 0)
     return void 0;
   if (!isUuidLike(normalized)) {
-    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field2} must be a UUID` });
+    ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: `${field6} must be a UUID` });
     return void 0;
   }
   return normalized;
@@ -22963,7 +23556,7 @@ function parseUpdatedWithin(value, ctx) {
 }
 var COMPANY_SEARCH_MAX_QUERY_LENGTH, COMPANY_SEARCH_DEFAULT_LIMIT, COMPANY_SEARCH_MAX_LIMIT, COMPANY_SEARCH_MAX_OFFSET, COMPANY_SEARCH_EXTRACT_DEFAULT_LIMIT, COMPANY_SEARCH_EXTRACT_MAX_LIMIT, COMPANY_SEARCH_EXTRACT_MAX_OFFSET, COMPANY_SEARCH_EXTRACT_DEFAULT_MATCHES_PER_ISSUE, COMPANY_SEARCH_EXTRACT_MAX_MATCHES_PER_ISSUE, UPDATED_WITHIN_RE, companySearchQuerySchema, companySearchExtractQuerySchema;
 var init_search2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/search.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/search.js"() {
     init_zod();
     init_constants();
     init_agent_url_key();
@@ -22991,6 +23584,7 @@ var init_search2 = __esm({
       limit: external_exports.unknown().optional().transform((value, ctx) => parseIntegerQuery(value, ctx, "limit", COMPANY_SEARCH_DEFAULT_LIMIT, 1, COMPANY_SEARCH_MAX_LIMIT)),
       offset: external_exports.unknown().optional().transform((value, ctx) => parseIntegerQuery(value, ctx, "offset", 0, 0, COMPANY_SEARCH_MAX_OFFSET)),
       status: external_exports.unknown().optional().transform((value, ctx) => parseEnumList(value, ctx, "status", ISSUE_STATUSES)),
+      displayStatus: external_exports.unknown().optional().transform((value, ctx) => parseEnumList(value, ctx, "displayStatus", ISSUE_DISPLAY_STATUSES)),
       priority: external_exports.unknown().optional().transform((value, ctx) => parseEnumList(value, ctx, "priority", ISSUE_PRIORITIES)),
       assigneeAgentId: external_exports.unknown().optional().transform((value, ctx) => parseAssigneeAgentId(value, ctx)),
       assigneeUserId: external_exports.unknown().optional().transform((value, ctx) => parseOptionalString(value, ctx, "assigneeUserId")),
@@ -23066,7 +23660,7 @@ function isValidTimeZone(timezone) {
 }
 var statusCardStateSchema, statusCardUpdateKindSchema, statusCardUpdateTriggerSchema, statusCardUpdateStatusSchema, statusCardRefreshTriggersSchema, statusCardRefreshPolicySchema, defaultStatusCardRefreshPolicy, statusCardFingerprintSchema, statusCardSchema, statusCardUpdateChangeSchema, statusCardUpdateSchema, statusCardSummaryRevisionSchema, listStatusCardsQuerySchema, createStatusCardSchema, patchStatusCardSchema, refreshStatusCardSchema, writeStatusCardQuerySchema, writeStatusCardSummarySchema;
 var init_status_card = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/status-card.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/status-card.js"() {
     init_zod();
     init_search2();
     statusCardStateSchema = external_exports.enum(["compiling", "active", "error", "paused_budget", "paused_hours"]);
@@ -23145,7 +23739,9 @@ var init_status_card = __esm({
       summaryBody: external_exports.string().nullable().optional(),
       watchedIssueCount: external_exports.number().int().nonnegative().optional(),
       todayTokens: external_exports.number().int().nonnegative().optional(),
-      todayCostCents: external_exports.number().nonnegative().optional()
+      todayCostCents: external_exports.number().nonnegative().optional(),
+      /** Company-scoped board route where people view, restore and refresh the card. */
+      href: external_exports.string().optional()
     });
     statusCardUpdateChangeSchema = external_exports.object({
       issueId: external_exports.string().guid(),
@@ -23221,7 +23817,7 @@ var init_status_card = __esm({
 // node_modules/@paperclipai/shared/dist/connection-instructions.js
 var CONNECTION_INSTRUCTIONS_MAX_LENGTH, connectionInstructionTemplateSchema, connectionAgentInstructionsSchema;
 var init_connection_instructions = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/connection-instructions.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/connection-instructions.js"() {
     init_zod();
     CONNECTION_INSTRUCTIONS_MAX_LENGTH = 2e3;
     connectionInstructionTemplateSchema = external_exports.object({
@@ -23243,7 +23839,7 @@ var init_connection_instructions = __esm({
 // node_modules/@paperclipai/shared/dist/ai-provider-routing.js
 var aiProviderRoutingSchema;
 var init_ai_provider_routing = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/ai-provider-routing.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/ai-provider-routing.js"() {
     init_zod();
     aiProviderRoutingSchema = external_exports.object({
       kind: external_exports.enum(["openrouter", "bedrock", "gateway", "local"]),
@@ -23285,7 +23881,7 @@ var init_ai_provider_routing = __esm({
 // node_modules/@paperclipai/shared/dist/ai-connections.js
 var connectionPurposeTransportSchema, AI_PROVIDERS, aiProviderSchema, aiAuthMethodSchema, requirement, aiConnectionBindingSchema, aiConnectionMetadataSchema, AI_CONNECTION_CAPABILITIES, createAiConnectionSchema, aiConnectionLoginIntentSchema, localAiConnectionSchema, localAiLoginStartSchema;
 var init_ai_connections = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/ai-connections.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/ai-connections.js"() {
     init_zod();
     init_ai_provider_routing();
     connectionPurposeTransportSchema = external_exports.discriminatedUnion("connectionPurpose", [
@@ -23342,7 +23938,10 @@ var init_ai_connections = __esm({
         name: "GitHub Copilot",
         methods: { api_key: { adapters: ["copilot_runtime"], envKey: "COPILOT_GITHUB_TOKEN" } }
       },
-      google: { name: "Google", methods: { api_key: { adapters: ["gemini_local", "pi_local"], envKey: "GEMINI_API_KEY" } } },
+      google: { name: "Google", methods: {
+        api_key: { adapters: ["gemini_local", "pi_local", "antigravity_runtime"], envKey: "GEMINI_API_KEY" },
+        subscription: { adapters: ["antigravity_runtime"], envKey: "GEMINI_HOME" }
+      } },
       anthropic: {
         name: "Claude",
         methods: {
@@ -23405,7 +24004,7 @@ var init_ai_connections = __esm({
       }
     });
     aiConnectionLoginIntentSchema = external_exports.object({
-      provider: external_exports.enum(["anthropic", "openai", "xai"]),
+      provider: external_exports.enum(["anthropic", "openai", "xai", "google"]),
       method: external_exports.literal("subscription"),
       name: external_exports.string().trim().min(1).max(160),
       ownership: external_exports.enum(["personal", "shared"]),
@@ -23420,10 +24019,2406 @@ var init_ai_connections = __esm({
   }
 });
 
+// node_modules/@paperclipai/shared/dist/remote-mcp-connectors.js
+function isRemoteMcpConnectorId(value) {
+  return typeof value === "string" && Object.hasOwn(REMOTE_MCP_CONNECTOR_METHODS, value);
+}
+function isRemoteMcpConnectorMethod(provider, method) {
+  return isRemoteMcpConnectorId(provider) && method === REMOTE_MCP_CONNECTOR_METHODS[provider];
+}
+var REMOTE_MCP_CONNECTOR_METHODS;
+var init_remote_mcp_connectors = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/remote-mcp-connectors.js"() {
+    REMOTE_MCP_CONNECTOR_METHODS = {
+      zapier: "generated-url",
+      arcade: "mcp",
+      composio: "mcp",
+      executor: "mcp"
+    };
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/mcp-remote-headers.js
+function checkMcpRemoteHeaderName(name) {
+  const trimmed = name.trim();
+  if (!trimmed)
+    return { ok: false, reason: "empty" };
+  if (trimmed.length > MAX_HEADER_NAME_LENGTH)
+    return { ok: false, reason: "too_long" };
+  if (!HTTP_TOKEN_PATTERN.test(trimmed))
+    return { ok: false, reason: "invalid_characters" };
+  const lower = trimmed.toLowerCase();
+  if (FORBIDDEN_HEADER_NAMES.has(lower))
+    return { ok: false, reason: "forbidden" };
+  if (FORBIDDEN_HEADER_PREFIXES.some((prefix) => lower.startsWith(prefix))) {
+    return { ok: false, reason: "forbidden" };
+  }
+  return OK;
+}
+function checkMcpRemoteHeaderValue(value) {
+  if (value.length > MAX_HEADER_VALUE_LENGTH)
+    return { ok: false, reason: "value_too_long" };
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(value)) {
+    return { ok: false, reason: "value_control_characters" };
+  }
+  return OK;
+}
+function mcpRemoteHeaderRejectionMessage(headerName2, reason) {
+  switch (reason) {
+    case "empty":
+      return "Header names cannot be blank.";
+    case "too_long":
+      return `Header name "${headerName2.slice(0, MAX_HEADER_NAME_LENGTH)}" is too long.`;
+    case "invalid_characters":
+      return `"${headerName2.slice(0, MAX_HEADER_NAME_LENGTH)}" is not a valid header name. Use letters, digits, and dashes.`;
+    case "forbidden":
+      return `Paperclip manages the "${headerName2}" header and cannot send a custom value for it.`;
+    case "value_too_long":
+      return `The value for "${headerName2}" is too long.`;
+    case "value_control_characters":
+      return `The value for "${headerName2}" contains line breaks or control characters.`;
+  }
+}
+function mcpRemoteHeaderNameFromConfigPath(configPath) {
+  if (!configPath.startsWith("headers."))
+    return null;
+  const name = configPath.slice("headers.".length).trim();
+  return name.length > 0 ? name : null;
+}
+var HTTP_TOKEN_PATTERN, MAX_HEADER_NAME_LENGTH, MAX_HEADER_VALUE_LENGTH, FORBIDDEN_HEADER_NAMES, FORBIDDEN_HEADER_PREFIXES, OK;
+var init_mcp_remote_headers = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/mcp-remote-headers.js"() {
+    HTTP_TOKEN_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+    MAX_HEADER_NAME_LENGTH = 128;
+    MAX_HEADER_VALUE_LENGTH = 8192;
+    FORBIDDEN_HEADER_NAMES = /* @__PURE__ */ new Set([
+      "connection",
+      "content-length",
+      "cookie",
+      "cookie2",
+      "expect",
+      "host",
+      "keep-alive",
+      "proxy-authenticate",
+      "proxy-authorization",
+      "proxy-connection",
+      "set-cookie",
+      "set-cookie2",
+      "te",
+      "trailer",
+      "transfer-encoding",
+      "upgrade",
+      "via"
+    ]);
+    FORBIDDEN_HEADER_PREFIXES = ["proxy-", "sec-", "http2-"];
+    OK = { ok: true };
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/validators/secret.js
+function requireSecretRotationInput(value, ctx) {
+  if (!value.value?.trim() && !value.externalRef?.trim() && value.providerVersionRef == null && value.providerConfigId == null) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["value"],
+      message: "Secret rotation requires value, externalRef, providerVersionRef, or providerConfigId"
+    });
+  }
+}
+function rejectSensitiveProviderConfigKeys(value, ctx) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return;
+  for (const key of Object.keys(value)) {
+    if (!deniedProviderConfigKeyPattern.test(key))
+      continue;
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["config", key],
+      message: `Provider vault config cannot persist sensitive field: ${key}`
+    });
+  }
+}
+function rejectUnsafeVaultAddress(value, ctx) {
+  if (value === void 0 || value === null)
+    return;
+  const parsed = vaultAddressSchema.safeParse(value);
+  if (parsed.success)
+    return;
+  for (const issue2 of parsed.error.issues) {
+    ctx.addIssue({
+      ...issue2,
+      path: ["config", "address", ...issue2.path]
+    });
+  }
+}
+var secretKeySchema, secretVersionSelectorSchema, creatableSecretStatusSchema, envBindingPlainSchema, envBindingSecretRefSchema, envBindingUserSecretRefSchema, envBindingSchema, envConfigSchema, createSecretSchema, rotateSecretSchema, updateSecretSchema, secretBindingTargetSchema, createSecretBindingSchema, createUserSecretDefinitionSchema, updateUserSecretDefinitionSchema, createUserSecretValueSchema, updateUserSecretValueSchema, rotateUserSecretValueSchema, createUserSecretDeclarationSchema, safeShortText, optionalSafeShortText, deniedProviderConfigKeyPattern, localEncryptedProviderConfigSchema, awsSecretsManagerProviderConfigSchema, gcpSecretManagerProviderConfigSchema, vaultAddressSchema, vaultProviderConfigSchema, secretProviderConfigPayloadSchema, createSecretProviderConfigSchema, updateSecretProviderConfigSchema, remoteSecretImportPreviewSchema, secretProviderConfigDiscoveryPreviewSchema, remoteSecretImportSelectionSchema, remoteSecretImportSchema;
+var init_secret = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/secret.js"() {
+    init_zod();
+    init_constants();
+    secretKeySchema = external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/);
+    secretVersionSelectorSchema = external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]);
+    creatableSecretStatusSchema = external_exports.enum(["active", "disabled", "archived"]);
+    envBindingPlainSchema = external_exports.object({
+      type: external_exports.literal("plain"),
+      value: external_exports.string()
+    });
+    envBindingSecretRefSchema = external_exports.object({
+      type: external_exports.literal("secret_ref"),
+      secretId: external_exports.string().guid(),
+      version: secretVersionSelectorSchema.optional(),
+      projectionClass: external_exports.enum(SECRET_PROJECTION_CLASSES).optional(),
+      projectionAllowlistKey: external_exports.string().trim().min(1).max(160).optional().nullable()
+    });
+    envBindingUserSecretRefSchema = external_exports.object({
+      type: external_exports.literal("user_secret_ref"),
+      key: secretKeySchema,
+      version: secretVersionSelectorSchema.optional(),
+      required: external_exports.boolean().optional().default(true),
+      allowMissingOverride: external_exports.boolean().optional().default(false)
+    });
+    envBindingSchema = external_exports.union([
+      external_exports.string(),
+      envBindingPlainSchema,
+      envBindingSecretRefSchema,
+      envBindingUserSecretRefSchema
+    ]);
+    envConfigSchema = external_exports.record(external_exports.string(), envBindingSchema);
+    createSecretSchema = external_exports.object({
+      name: external_exports.string().min(1),
+      key: secretKeySchema.optional(),
+      provider: external_exports.enum(SECRET_PROVIDERS).optional(),
+      providerConfigId: external_exports.string().guid().optional().nullable(),
+      managedMode: external_exports.enum(SECRET_MANAGED_MODES).optional(),
+      value: external_exports.string().min(1).optional().nullable(),
+      description: external_exports.string().optional().nullable(),
+      externalRef: external_exports.string().optional().nullable(),
+      providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+      providerVersionRef: external_exports.string().optional().nullable()
+    }).superRefine((value, ctx) => {
+      if ((value.managedMode ?? "paperclip_managed") === "external_reference") {
+        if (!value.externalRef?.trim()) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            path: ["externalRef"],
+            message: "External reference secrets require externalRef"
+          });
+        }
+        return;
+      }
+      if (value.externalRef?.trim()) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["externalRef"],
+          message: "Managed secrets cannot set externalRef"
+        });
+      }
+      if (!value.value?.trim()) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["value"],
+          message: "Managed secrets require value"
+        });
+      }
+    });
+    rotateSecretSchema = external_exports.object({
+      value: external_exports.string().min(1).optional().nullable(),
+      externalRef: external_exports.string().optional().nullable(),
+      providerVersionRef: external_exports.string().optional().nullable(),
+      providerConfigId: external_exports.string().guid().optional().nullable()
+    }).superRefine(requireSecretRotationInput);
+    updateSecretSchema = external_exports.object({
+      name: external_exports.string().min(1).optional(),
+      key: secretKeySchema.optional(),
+      status: external_exports.enum(SECRET_STATUSES).optional(),
+      providerConfigId: external_exports.string().guid().optional().nullable(),
+      description: external_exports.string().optional().nullable(),
+      externalRef: external_exports.string().optional().nullable(),
+      providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    secretBindingTargetSchema = external_exports.object({
+      targetType: external_exports.enum(SECRET_BINDING_TARGET_TYPES),
+      targetId: external_exports.string().min(1),
+      configPath: external_exports.string().min(1)
+    });
+    createSecretBindingSchema = secretBindingTargetSchema.extend({
+      secretId: external_exports.string().guid(),
+      versionSelector: secretVersionSelectorSchema.default("latest"),
+      required: external_exports.boolean().default(true),
+      label: external_exports.string().optional().nullable(),
+      projectionClass: external_exports.enum(SECRET_PROJECTION_CLASSES).optional(),
+      projectionAllowlistKey: external_exports.string().trim().min(1).max(160).optional().nullable()
+    });
+    createUserSecretDefinitionSchema = external_exports.object({
+      key: secretKeySchema,
+      name: external_exports.string().trim().min(1).max(160),
+      description: external_exports.string().trim().max(500).optional().nullable(),
+      status: creatableSecretStatusSchema.optional(),
+      provider: external_exports.enum(SECRET_PROVIDERS).optional(),
+      providerConfigId: external_exports.string().guid().optional().nullable(),
+      managedMode: external_exports.enum(SECRET_MANAGED_MODES).optional(),
+      providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+      usageGuidance: external_exports.string().trim().max(1e3).optional().nullable()
+    });
+    updateUserSecretDefinitionSchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(160).optional(),
+      description: external_exports.string().trim().max(500).optional().nullable(),
+      status: external_exports.enum(SECRET_STATUSES).optional(),
+      providerConfigId: external_exports.string().guid().optional().nullable(),
+      providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+      usageGuidance: external_exports.string().trim().max(1e3).optional().nullable()
+    });
+    createUserSecretValueSchema = external_exports.object({
+      definitionKey: secretKeySchema.optional(),
+      definitionId: external_exports.string().guid().optional(),
+      value: external_exports.string().min(1).optional().nullable(),
+      externalRef: external_exports.string().optional().nullable(),
+      providerVersionRef: external_exports.string().optional().nullable(),
+      providerConfigId: external_exports.string().guid().optional().nullable()
+    }).superRefine((value, ctx) => {
+      if (!value.definitionKey && !value.definitionId) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["definitionId"],
+          message: "User secret value requires definitionId or definitionKey"
+        });
+      }
+      if (!value.value?.trim() && !value.externalRef?.trim()) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["value"],
+          message: "User secret value requires value or externalRef"
+        });
+      }
+    });
+    updateUserSecretValueSchema = external_exports.object({
+      status: external_exports.enum(SECRET_STATUSES).optional(),
+      value: external_exports.string().min(1).optional().nullable(),
+      externalRef: external_exports.string().min(1).optional().nullable(),
+      providerVersionRef: external_exports.string().min(1).optional().nullable(),
+      providerConfigId: external_exports.string().guid().optional().nullable()
+    });
+    rotateUserSecretValueSchema = external_exports.object({
+      value: external_exports.string().min(1).optional().nullable(),
+      externalRef: external_exports.string().min(1).optional().nullable(),
+      providerVersionRef: external_exports.string().min(1).optional().nullable(),
+      providerConfigId: external_exports.string().guid().optional().nullable()
+    }).superRefine(requireSecretRotationInput);
+    createUserSecretDeclarationSchema = secretBindingTargetSchema.extend({
+      definitionKey: secretKeySchema,
+      envKey: external_exports.string().trim().min(1),
+      versionSelector: secretVersionSelectorSchema.default("latest"),
+      required: external_exports.boolean().default(true),
+      allowMissingOverride: external_exports.boolean().default(false),
+      label: external_exports.string().optional().nullable()
+    });
+    safeShortText = external_exports.string().trim().min(1).max(160);
+    optionalSafeShortText = safeShortText.optional().nullable();
+    deniedProviderConfigKeyPattern = /^(access[-_]?key([-_]?id)?|secret[-_]?access[-_]?key|secret[-_]?key|token|password|passwd|credential|credentials|private[-_]?key|pem|jwt|session[-_]?token|service[-_]?account([-_]?json)?|client[-_]?secret|secret[-_]?id|unseal[-_]?key|recovery[-_]?key|key[-_]?file([-_]?path)?|token[-_]?file([-_]?path)?)$/i;
+    localEncryptedProviderConfigSchema = external_exports.object({
+      backupReminderAcknowledged: external_exports.boolean().optional()
+    }).strict();
+    awsSecretsManagerProviderConfigSchema = external_exports.object({
+      region: external_exports.string().trim().regex(/^[a-z]{2}(?:-gov)?-[a-z]+-\d+$/, "Invalid AWS region"),
+      namespace: optionalSafeShortText,
+      secretNamePrefix: optionalSafeShortText,
+      kmsKeyId: external_exports.string().trim().min(1).max(512).optional().nullable(),
+      ownerTag: optionalSafeShortText,
+      environmentTag: optionalSafeShortText
+    }).strict();
+    gcpSecretManagerProviderConfigSchema = external_exports.object({
+      projectId: external_exports.string().trim().min(1).max(128).regex(/^[a-z][a-z0-9-]{4,127}$/).optional().nullable(),
+      location: optionalSafeShortText,
+      namespace: optionalSafeShortText,
+      secretNamePrefix: optionalSafeShortText
+    }).strict();
+    vaultAddressSchema = external_exports.preprocess((value) => typeof value === "string" ? value.trim() : value, external_exports.string().url().superRefine((value, ctx) => {
+      let url2;
+      try {
+        url2 = new URL(value);
+      } catch {
+        return;
+      }
+      const hasPath = url2.pathname !== "" && url2.pathname !== "/";
+      if (url2.protocol !== "http:" && url2.protocol !== "https:" || url2.username || url2.password || url2.search || url2.hash || hasPath) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "Vault address must be an origin-only HTTP(S) URL without credentials, path, query, or fragment"
+        });
+      }
+    }).transform((value) => new URL(value).origin));
+    vaultProviderConfigSchema = external_exports.object({
+      address: vaultAddressSchema.optional().nullable(),
+      namespace: optionalSafeShortText,
+      mountPath: optionalSafeShortText,
+      secretPathPrefix: optionalSafeShortText
+    }).strict();
+    secretProviderConfigPayloadSchema = external_exports.discriminatedUnion("provider", [
+      external_exports.object({ provider: external_exports.literal("local_encrypted"), config: localEncryptedProviderConfigSchema }),
+      external_exports.object({ provider: external_exports.literal("aws_secrets_manager"), config: awsSecretsManagerProviderConfigSchema }),
+      external_exports.object({ provider: external_exports.literal("gcp_secret_manager"), config: gcpSecretManagerProviderConfigSchema }),
+      external_exports.object({ provider: external_exports.literal("vault"), config: vaultProviderConfigSchema })
+    ]);
+    createSecretProviderConfigSchema = external_exports.object({
+      provider: external_exports.enum(SECRET_PROVIDERS),
+      displayName: external_exports.string().trim().min(1).max(120),
+      status: external_exports.enum(SECRET_PROVIDER_CONFIG_STATUSES).optional(),
+      isDefault: external_exports.boolean().optional(),
+      config: external_exports.record(external_exports.string(), external_exports.unknown()).default({})
+    }).superRefine((value, ctx) => {
+      rejectSensitiveProviderConfigKeys(value.config, ctx);
+      const parsed = secretProviderConfigPayloadSchema.safeParse({
+        provider: value.provider,
+        config: value.config
+      });
+      if (!parsed.success) {
+        for (const issue2 of parsed.error.issues) {
+          ctx.addIssue({
+            ...issue2,
+            path: issue2.path[0] === "config" ? issue2.path : ["config", ...issue2.path]
+          });
+        }
+      }
+      const status = value.status ?? (["gcp_secret_manager", "vault"].includes(value.provider) ? "coming_soon" : "ready");
+      if ((value.provider === "gcp_secret_manager" || value.provider === "vault") && status !== "coming_soon" && status !== "disabled") {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["status"],
+          message: `${value.provider} provider vaults are locked while coming soon`
+        });
+      }
+      if ((status === "coming_soon" || status === "disabled") && value.isDefault) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["isDefault"],
+          message: "Only ready or warning provider vaults can be default"
+        });
+      }
+    });
+    updateSecretProviderConfigSchema = external_exports.object({
+      displayName: external_exports.string().trim().min(1).max(120).optional(),
+      status: external_exports.enum(SECRET_PROVIDER_CONFIG_STATUSES).optional(),
+      isDefault: external_exports.boolean().optional(),
+      config: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+    }).superRefine((value, ctx) => {
+      if (value.config !== void 0) {
+        rejectSensitiveProviderConfigKeys(value.config, ctx);
+        rejectUnsafeVaultAddress(value.config.address, ctx);
+      }
+      if ((value.status === "coming_soon" || value.status === "disabled") && value.isDefault) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["isDefault"],
+          message: "Only ready or warning provider vaults can be default"
+        });
+      }
+    });
+    remoteSecretImportPreviewSchema = external_exports.object({
+      providerConfigId: external_exports.string().guid(),
+      query: external_exports.string().trim().max(200).optional().nullable(),
+      nextToken: external_exports.string().trim().min(1).max(4096).optional().nullable(),
+      pageSize: external_exports.number().int().min(1).max(100).optional()
+    });
+    secretProviderConfigDiscoveryPreviewSchema = external_exports.object({
+      provider: external_exports.enum(SECRET_PROVIDERS),
+      config: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
+      query: external_exports.string().trim().max(200).optional().nullable(),
+      nextToken: external_exports.string().trim().min(1).max(4096).optional().nullable(),
+      pageSize: external_exports.number().int().min(1).max(100).optional()
+    }).superRefine((value, ctx) => {
+      rejectSensitiveProviderConfigKeys(value.config, ctx);
+      const parsed = secretProviderConfigPayloadSchema.safeParse({
+        provider: value.provider,
+        config: value.config
+      });
+      if (!parsed.success) {
+        for (const issue2 of parsed.error.issues) {
+          ctx.addIssue({
+            ...issue2,
+            path: issue2.path[0] === "config" ? issue2.path : ["config", ...issue2.path]
+          });
+        }
+      }
+    });
+    remoteSecretImportSelectionSchema = external_exports.object({
+      externalRef: external_exports.string().trim().min(1).max(2048),
+      name: external_exports.string().trim().min(1).max(160).optional().nullable(),
+      key: external_exports.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9_.-]+$/).optional().nullable(),
+      description: external_exports.string().trim().max(500).optional().nullable(),
+      providerVersionRef: external_exports.string().trim().min(1).max(512).optional().nullable(),
+      providerMetadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    remoteSecretImportSchema = external_exports.object({
+      providerConfigId: external_exports.string().guid(),
+      secrets: external_exports.array(remoteSecretImportSelectionSchema).min(1).max(100)
+    });
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/routine-variables.js
+function isValidRoutineDateString(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match)
+    return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12)
+    return false;
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [
+    31,
+    leapYear ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31
+  ][month - 1];
+  return day >= 1 && day <= daysInMonth;
+}
+var HUMAN_TIMESTAMP_FORMATTER;
+var init_routine_variables = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/routine-variables.js"() {
+    HUMAN_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC",
+      timeZoneName: "short"
+    });
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/validators/routine.js
+var routineVariableValueSchema, routineVariableSchema, createRoutineSchema, updateRoutineSchema, routineRevisionSnapshotRoutineV1Schema, routineRevisionSnapshotTriggerV1Schema, routineRevisionSnapshotV1Schema, baseTriggerSchema, createRoutineTriggerSchema, updateRoutineTriggerSchema, runRoutineSchema, rotateRoutineTriggerSecretSchema;
+var init_routine = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/routine.js"() {
+    init_zod();
+    init_constants();
+    init_issue();
+    init_secret();
+    init_routine_variables();
+    init_partial();
+    routineVariableValueSchema = external_exports.union([external_exports.string(), external_exports.number().finite(), external_exports.boolean()]);
+    routineVariableSchema = external_exports.object({
+      name: external_exports.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]*$/),
+      label: external_exports.string().trim().max(120).optional().nullable(),
+      type: external_exports.enum(ROUTINE_VARIABLE_TYPES).optional().default("text"),
+      defaultValue: routineVariableValueSchema.optional().nullable(),
+      required: external_exports.boolean().optional().default(true),
+      options: external_exports.array(external_exports.string().trim().min(1).max(120)).max(50).optional().default([])
+    }).superRefine((value, ctx) => {
+      if (value.type === "select" && value.options.length === 0) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["options"],
+          message: "Select variables require at least one option"
+        });
+      }
+      if (value.type !== "select" && value.options.length > 0) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["options"],
+          message: "Only select variables can define options"
+        });
+      }
+      if (value.type === "select" && value.defaultValue != null) {
+        if (typeof value.defaultValue !== "string" || !value.options.includes(value.defaultValue)) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            path: ["defaultValue"],
+            message: "Select variable defaults must match one of the allowed options"
+          });
+        }
+      }
+      if (value.type === "date" && value.defaultValue != null) {
+        if (typeof value.defaultValue !== "string" || !isValidRoutineDateString(value.defaultValue)) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            path: ["defaultValue"],
+            message: "Date variable defaults must be valid YYYY-MM-DD calendar dates"
+          });
+        }
+      }
+    });
+    createRoutineSchema = external_exports.object({
+      projectId: external_exports.string().guid().optional().nullable(),
+      folderId: external_exports.string().guid().optional().nullable(),
+      goalId: external_exports.string().guid().optional().nullable(),
+      parentIssueId: external_exports.string().guid().optional().nullable(),
+      title: external_exports.string().trim().min(1).max(200),
+      description: external_exports.string().optional().nullable(),
+      assigneeAgentId: external_exports.string().guid().optional().nullable(),
+      priority: external_exports.enum(ISSUE_PRIORITIES).optional().default("medium"),
+      status: external_exports.enum(ROUTINE_STATUSES).optional().default("active"),
+      concurrencyPolicy: external_exports.enum(ROUTINE_CONCURRENCY_POLICIES).optional().default("coalesce_if_active"),
+      catchUpPolicy: external_exports.enum(ROUTINE_CATCH_UP_POLICIES).optional().default("skip_missed"),
+      activityGatePolicy: external_exports.enum(ROUTINE_ACTIVITY_GATE_POLICIES).optional(),
+      activityGateScope: external_exports.enum(ROUTINE_ACTIVITY_GATE_SCOPES).optional(),
+      variables: external_exports.array(routineVariableSchema).optional().default([]),
+      env: envConfigSchema.optional().nullable()
+    });
+    updateRoutineSchema = objectWithoutDefaults(createRoutineSchema).partial().extend({
+      baseRevisionId: external_exports.string().guid().optional().nullable(),
+      responsibleUserId: external_exports.string().trim().min(1).optional()
+    });
+    routineRevisionSnapshotRoutineV1Schema = external_exports.object({
+      id: external_exports.string().guid(),
+      companyId: external_exports.string().guid(),
+      projectId: external_exports.string().guid().nullable(),
+      folderId: external_exports.string().guid().nullable().optional(),
+      goalId: external_exports.string().guid().nullable(),
+      parentIssueId: external_exports.string().guid().nullable(),
+      title: external_exports.string().trim().min(1).max(200),
+      description: external_exports.string().nullable(),
+      assigneeAgentId: external_exports.string().guid().nullable(),
+      priority: external_exports.enum(ISSUE_PRIORITIES),
+      status: external_exports.enum(ROUTINE_STATUSES),
+      concurrencyPolicy: external_exports.enum(ROUTINE_CONCURRENCY_POLICIES),
+      catchUpPolicy: external_exports.enum(ROUTINE_CATCH_UP_POLICIES),
+      activityGatePolicy: external_exports.enum(ROUTINE_ACTIVITY_GATE_POLICIES).default("always"),
+      activityGateScope: external_exports.enum(ROUTINE_ACTIVITY_GATE_SCOPES).default("company"),
+      variables: external_exports.array(routineVariableSchema),
+      env: envConfigSchema.nullable().default(null),
+      responsibleUserId: external_exports.string().nullable().default(null)
+    }).strict();
+    routineRevisionSnapshotTriggerV1Schema = external_exports.object({
+      id: external_exports.string().guid(),
+      setupPending: external_exports.boolean().optional(),
+      kind: external_exports.enum(ROUTINE_TRIGGER_KINDS),
+      label: external_exports.string().nullable(),
+      enabled: external_exports.boolean(),
+      cronExpression: external_exports.string().nullable(),
+      timezone: external_exports.string().nullable(),
+      publicId: external_exports.string().nullable(),
+      signingMode: external_exports.enum(ROUTINE_TRIGGER_SIGNING_MODES).nullable(),
+      replayWindowSec: external_exports.number().int().min(30).max(86400).nullable()
+    }).strict();
+    routineRevisionSnapshotV1Schema = external_exports.object({
+      version: external_exports.literal(1),
+      routine: routineRevisionSnapshotRoutineV1Schema,
+      triggers: external_exports.array(routineRevisionSnapshotTriggerV1Schema)
+    }).strict();
+    baseTriggerSchema = external_exports.object({
+      label: external_exports.string().trim().max(120).optional().nullable(),
+      enabled: external_exports.boolean().optional().default(true)
+    });
+    createRoutineTriggerSchema = external_exports.discriminatedUnion("kind", [
+      baseTriggerSchema.extend({
+        kind: external_exports.literal("schedule"),
+        cronExpression: external_exports.string().trim().min(1),
+        timezone: external_exports.string().trim().min(1).default("UTC")
+      }),
+      baseTriggerSchema.extend({
+        kind: external_exports.literal("webhook"),
+        setupPending: external_exports.boolean().optional(),
+        signingMode: external_exports.enum(ROUTINE_TRIGGER_SIGNING_MODES).optional().default("bearer"),
+        replayWindowSec: external_exports.number().int().min(30).max(86400).optional().default(300)
+      }),
+      baseTriggerSchema.extend({
+        kind: external_exports.literal("api")
+      })
+    ]);
+    updateRoutineTriggerSchema = external_exports.object({
+      setupPending: external_exports.literal(false).optional(),
+      archived: external_exports.boolean().optional(),
+      label: external_exports.string().trim().max(120).optional().nullable(),
+      enabled: external_exports.boolean().optional(),
+      cronExpression: external_exports.string().trim().min(1).optional().nullable(),
+      timezone: external_exports.string().trim().min(1).optional().nullable(),
+      signingMode: external_exports.enum(ROUTINE_TRIGGER_SIGNING_MODES).optional().nullable(),
+      replayWindowSec: external_exports.number().int().min(30).max(86400).optional().nullable()
+    });
+    runRoutineSchema = external_exports.object({
+      triggerId: external_exports.string().guid().optional().nullable(),
+      payload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+      variables: external_exports.record(external_exports.string(), routineVariableValueSchema).optional().nullable(),
+      projectId: external_exports.string().guid().optional().nullable(),
+      projectWorkspaceId: external_exports.string().guid().optional().nullable(),
+      assigneeAgentId: external_exports.string().guid().optional().nullable(),
+      idempotencyKey: external_exports.string().trim().max(255).optional().nullable(),
+      source: external_exports.enum(["manual", "api"]).optional().default("manual"),
+      executionWorkspaceId: external_exports.string().guid().optional().nullable(),
+      executionWorkspacePreference: external_exports.enum(ISSUE_EXECUTION_WORKSPACE_PREFERENCES).optional().nullable(),
+      executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable()
+    });
+    rotateRoutineTriggerSecretSchema = external_exports.object({});
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/validators/external-object.js
+var externalObjectStatusCategorySchema, externalObjectStatusToneSchema, externalObjectLivenessStateSchema, externalObjectMentionSourceKindSchema, externalObjectMentionConfidenceSchema, externalObjectProviderKeySchema, externalObjectTypeSchema, externalObjectCanonicalIdentitySchema, externalObjectMentionSourceSchema;
+var init_external_object = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/external-object.js"() {
+    init_zod();
+    init_constants();
+    externalObjectStatusCategorySchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_CATEGORIES);
+    externalObjectStatusToneSchema = external_exports.enum(EXTERNAL_OBJECT_STATUS_TONES);
+    externalObjectLivenessStateSchema = external_exports.enum(EXTERNAL_OBJECT_LIVENESS_STATES);
+    externalObjectMentionSourceKindSchema = external_exports.enum(EXTERNAL_OBJECT_MENTION_SOURCE_KINDS);
+    externalObjectMentionConfidenceSchema = external_exports.enum(EXTERNAL_OBJECT_MENTION_CONFIDENCES);
+    externalObjectProviderKeySchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z][a-z0-9_.-]*$/);
+    externalObjectTypeSchema = external_exports.string().trim().min(1).max(80).regex(/^[a-z][a-z0-9_]*$/);
+    externalObjectCanonicalIdentitySchema = external_exports.object({
+      scheme: external_exports.enum(["http", "https"]),
+      host: external_exports.string().trim().min(1),
+      path: external_exports.string().trim().min(1),
+      queryParamHashes: external_exports.record(external_exports.string(), external_exports.string().regex(/^[a-f0-9]{64}$/)).optional()
+    }).strict();
+    externalObjectMentionSourceSchema = external_exports.object({
+      sourceKind: externalObjectMentionSourceKindSchema,
+      documentKey: external_exports.string().trim().min(1).optional().nullable(),
+      propertyKey: external_exports.string().trim().min(1).optional().nullable()
+    }).strict();
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/validators/plugin.js
+function isValidCronExpression(expression) {
+  const trimmed = expression.trim();
+  if (!trimmed)
+    return false;
+  const fields = trimmed.split(/\s+/);
+  if (fields.length !== 5)
+    return false;
+  return fields.every((f) => CRON_FIELD_PATTERN.test(f));
+}
+var jsonSchemaSchema, CRON_FIELD_PATTERN, pluginJobDeclarationSchema, pluginWebhookDeclarationSchema, pluginToolDeclarationSchema, pluginEnvironmentTemplateConfigFieldSchema, pluginEnvironmentTemplateConfigBindingSchema, sandboxProviderCapabilitiesSchema, pluginEnvironmentDriverDeclarationSchema, pluginManagedAgentDeclarationSchema, pluginManagedProjectDeclarationSchema, pluginManagedResourceRefSchema, pluginManagedRoutineDeclarationSchema, pluginLocalFolderRelativePathSchema, pluginLocalFolderDeclarationSchema, pluginManagedSkillFileDeclarationSchema, pluginManagedSkillDeclarationSchema, runtimeActivityIdentifierSchema, pluginUiSlotDeclarationSchema, entityScopedLauncherPlacementZones, launcherBoundsByEnvironment, pluginLauncherActionDeclarationSchema, pluginLauncherRenderDeclarationSchema, pluginLauncherDeclarationSchema, pluginDatabaseDeclarationSchema, pluginApiRouteDeclarationSchema, pluginObjectReferenceRefreshPolicySchema, pluginObjectReferenceProviderDeclarationSchema, pluginManifestV1Schema, installPluginSchema, upsertPluginConfigSchema, patchPluginConfigSchema, updatePluginStatusSchema, uninstallPluginSchema, pluginStateScopeKeySchema, setPluginStateSchema, listPluginStateSchema;
+var init_plugin = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/plugin.js"() {
+    init_zod();
+    init_constants();
+    init_routine();
+    init_external_object();
+    jsonSchemaSchema = external_exports.record(external_exports.string(), external_exports.unknown()).refine((val) => {
+      if (Object.keys(val).length === 0)
+        return true;
+      return typeof val.type === "string" || val.$ref !== void 0 || val.oneOf !== void 0 || val.anyOf !== void 0 || val.allOf !== void 0;
+    }, { message: "Must be a valid JSON Schema object (requires at least a 'type', '$ref', or composition keyword)" });
+    CRON_FIELD_PATTERN = /^(\*(?:\/[0-9]+)?|[0-9]+(?:-[0-9]+)?(?:\/[0-9]+)?)(?:,(\*(?:\/[0-9]+)?|[0-9]+(?:-[0-9]+)?(?:\/[0-9]+)?))*$/;
+    pluginJobDeclarationSchema = external_exports.object({
+      jobKey: external_exports.string().min(1),
+      displayName: external_exports.string().min(1),
+      description: external_exports.string().optional(),
+      schedule: external_exports.string().refine((val) => isValidCronExpression(val), { message: "schedule must be a valid 5-field cron expression (e.g. '*/15 * * * *')" }).optional()
+    });
+    pluginWebhookDeclarationSchema = external_exports.object({
+      endpointKey: external_exports.string().min(1),
+      displayName: external_exports.string().min(1),
+      description: external_exports.string().optional()
+    });
+    pluginToolDeclarationSchema = external_exports.object({
+      name: external_exports.string().min(1),
+      displayName: external_exports.string().min(1),
+      description: external_exports.string().min(1),
+      parametersSchema: jsonSchemaSchema
+    });
+    pluginEnvironmentTemplateConfigFieldSchema = external_exports.string().min(1).max(100).regex(/^[A-Za-z_][A-Za-z0-9_-]*$/, "Template config binding fields must be top-level config keys using letters, digits, underscores, or hyphens").refine((value) => value !== "provider", {
+      message: "Template config binding must not replace the sandbox provider key"
+    });
+    pluginEnvironmentTemplateConfigBindingSchema = external_exports.object({
+      field: pluginEnvironmentTemplateConfigFieldSchema,
+      unsetFields: external_exports.array(pluginEnvironmentTemplateConfigFieldSchema).max(20).optional()
+    }).strict().superRefine((value, ctx) => {
+      const unsetFields = value.unsetFields ?? [];
+      const seen = /* @__PURE__ */ new Set();
+      for (const [index, field6] of unsetFields.entries()) {
+        if (field6 === value.field) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Template config binding cannot unset the same field it sets",
+            path: ["unsetFields", index]
+          });
+        }
+        if (seen.has(field6)) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Template config binding unsetFields must be unique",
+            path: ["unsetFields", index]
+          });
+        }
+        seen.add(field6);
+      }
+    });
+    sandboxProviderCapabilitiesSchema = external_exports.object({
+      reusableLeases: external_exports.boolean().optional(),
+      nativeSyncIn: external_exports.boolean().optional(),
+      nativeSyncOut: external_exports.boolean().optional(),
+      persistentProcessSessions: external_exports.boolean().optional(),
+      independentControlCommands: external_exports.boolean().optional(),
+      incrementalSessionOutput: external_exports.boolean().optional(),
+      concurrentSyncOperations: external_exports.boolean().optional(),
+      duplexCommandStream: external_exports.boolean().optional(),
+      runnerWebSocketIngress: external_exports.boolean().optional()
+    }).strict();
+    pluginEnvironmentDriverDeclarationSchema = external_exports.object({
+      skillKeys: external_exports.array(external_exports.string().min(1).max(100)).max(100).optional(),
+      requiresAgent: external_exports.boolean().optional(),
+      supportsTasks: external_exports.boolean().optional(),
+      freshWorkspaceVersion: external_exports.literal(1).optional(),
+      creationOperationVersion: external_exports.literal(1).optional(),
+      warmTaskVersion: external_exports.literal(1).optional(),
+      driverKey: external_exports.string().min(1).regex(/^[a-z0-9][a-z0-9._-]*$/, "Environment driver key must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, hyphens, or underscores"),
+      kind: external_exports.enum(["environment_driver", "sandbox_provider"]).optional(),
+      displayName: external_exports.string().min(1).max(100),
+      description: external_exports.string().max(500).optional(),
+      defaultAcquireTimeoutMs: external_exports.number().int().positive().max(864e5).optional(),
+      supportsReusableLeases: external_exports.boolean().optional(),
+      sandboxCapabilities: sandboxProviderCapabilitiesSchema.optional(),
+      supportsInteractiveSetup: external_exports.boolean().optional(),
+      interactiveSetupConnectionTypes: external_exports.array(external_exports.string().min(1).max(100)).max(10).optional(),
+      supportsTemplateCapture: external_exports.boolean().optional(),
+      templateRefKind: external_exports.string().min(1).max(100).optional(),
+      templateConfigBinding: pluginEnvironmentTemplateConfigBindingSchema.optional(),
+      templateIdentityPaths: external_exports.array(external_exports.string().min(1).max(200)).max(20).optional(),
+      supportsTemplateDelete: external_exports.boolean().optional(),
+      // The neutral transport capability: does the provider host an interactive
+      // login on a real pseudo-terminal? Validate a literal boolean only.
+      supportsLoginPty: external_exports.boolean().optional(),
+      // Deprecated alias for `supportsLoginPty`. It exists only so an external
+      // plugin manifest that declares the old name still loads. Validate a literal
+      // boolean only. The transform below canonicalizes it onto `supportsLoginPty`
+      // and drops it, so every downstream reader reads only the canonical field.
+      supportsSetupTokenLogin: external_exports.boolean().optional(),
+      configSchema: jsonSchemaSchema
+    }).strict().superRefine((driver, ctx) => {
+      if (driver.supportsLoginPty !== void 0 && driver.supportsSetupTokenLogin !== void 0 && driver.supportsLoginPty !== driver.supportsSetupTokenLogin) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "supportsSetupTokenLogin is a deprecated alias for supportsLoginPty; the two flags must not carry different values",
+          path: ["supportsLoginPty"]
+        });
+      }
+    }).transform((driver) => {
+      const { supportsSetupTokenLogin, ...rest } = driver;
+      return { ...rest, supportsLoginPty: rest.supportsLoginPty ?? supportsSetupTokenLogin };
+    });
+    pluginManagedAgentDeclarationSchema = external_exports.object({
+      agentKey: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "agentKey must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, colons, underscores, or hyphens"
+      }),
+      displayName: external_exports.string().min(1).max(100),
+      role: external_exports.string().min(1).max(100).optional(),
+      title: external_exports.string().max(200).nullable().optional(),
+      icon: external_exports.string().max(100).nullable().optional(),
+      capabilities: external_exports.string().max(2e3).nullable().optional(),
+      adapterType: external_exports.string().min(1).max(100).optional(),
+      adapterPreference: external_exports.array(external_exports.string().min(1).max(100)).max(10).optional(),
+      adapterConfig: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
+      runtimeConfig: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
+      permissions: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
+      status: external_exports.enum(["idle", "paused"]).optional(),
+      budgetMonthlyCents: external_exports.number().int().min(0).optional(),
+      instructions: external_exports.object({
+        entryFile: external_exports.string().min(1).max(200).optional(),
+        content: external_exports.string().max(2e5).optional(),
+        files: external_exports.record(external_exports.string(), external_exports.string().max(2e5)).optional(),
+        assetPath: external_exports.string().min(1).max(500).optional()
+      }).optional()
+    });
+    pluginManagedProjectDeclarationSchema = external_exports.object({
+      projectKey: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "projectKey must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, colons, underscores, or hyphens"
+      }),
+      displayName: external_exports.string().min(1).max(120),
+      description: external_exports.string().max(2e3).nullable().optional(),
+      status: external_exports.enum(["backlog", "planned", "in_progress", "completed", "cancelled"]).optional(),
+      color: external_exports.string().max(32).nullable().optional(),
+      settings: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+    });
+    pluginManagedResourceRefSchema = external_exports.object({
+      pluginKey: external_exports.string().min(1).max(100).optional(),
+      resourceKind: external_exports.enum(["agent", "project", "routine", "skill"]),
+      resourceKey: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "resourceKey must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, colons, underscores, or hyphens"
+      })
+    });
+    pluginManagedRoutineDeclarationSchema = external_exports.object({
+      routineKey: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "routineKey must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, colons, underscores, or hyphens"
+      }),
+      title: external_exports.string().trim().min(1).max(200),
+      description: external_exports.string().max(1e4).nullable().optional(),
+      assigneeRef: pluginManagedResourceRefSchema.extend({ resourceKind: external_exports.literal("agent") }).nullable().optional(),
+      projectRef: pluginManagedResourceRefSchema.extend({ resourceKind: external_exports.literal("project") }).nullable().optional(),
+      goalId: external_exports.string().guid().nullable().optional(),
+      status: external_exports.enum(ROUTINE_STATUSES).optional(),
+      priority: external_exports.enum(ISSUE_PRIORITIES).optional(),
+      concurrencyPolicy: external_exports.enum(ROUTINE_CONCURRENCY_POLICIES).optional(),
+      catchUpPolicy: external_exports.enum(ROUTINE_CATCH_UP_POLICIES).optional(),
+      activityGatePolicy: external_exports.enum(ROUTINE_ACTIVITY_GATE_POLICIES).optional(),
+      activityGateScope: external_exports.enum(ROUTINE_ACTIVITY_GATE_SCOPES).optional(),
+      variables: external_exports.array(routineVariableSchema).optional(),
+      triggers: external_exports.array(external_exports.object({
+        kind: external_exports.enum(ROUTINE_TRIGGER_KINDS),
+        label: external_exports.string().trim().max(120).nullable().optional(),
+        enabled: external_exports.boolean().optional(),
+        cronExpression: external_exports.string().trim().min(1).optional().nullable(),
+        timezone: external_exports.string().trim().min(1).optional().nullable(),
+        signingMode: external_exports.enum(ROUTINE_TRIGGER_SIGNING_MODES).optional().nullable(),
+        replayWindowSec: external_exports.number().int().min(30).max(86400).optional().nullable()
+      })).max(20).optional(),
+      issueTemplate: external_exports.object({
+        surfaceVisibility: external_exports.enum(ISSUE_SURFACE_VISIBILITIES).optional(),
+        originId: external_exports.string().trim().max(255).nullable().optional(),
+        billingCode: external_exports.string().trim().max(200).nullable().optional()
+      }).optional()
+    });
+    pluginLocalFolderRelativePathSchema = external_exports.string().min(1).max(500).refine((value) => !value.startsWith("/") && !value.includes("..") && !value.includes("\\") && !value.split("/").some((segment) => segment === "" || segment === "."), { message: "local folder paths must be relative paths without traversal, empty segments, or backslashes" });
+    pluginLocalFolderDeclarationSchema = external_exports.object({
+      folderKey: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "folderKey must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, colons, underscores, or hyphens"
+      }),
+      displayName: external_exports.string().min(1).max(100),
+      description: external_exports.string().max(500).optional(),
+      access: external_exports.enum(["read", "readWrite"]).optional(),
+      requiredDirectories: external_exports.array(pluginLocalFolderRelativePathSchema).optional(),
+      requiredFiles: external_exports.array(pluginLocalFolderRelativePathSchema).optional()
+    });
+    pluginManagedSkillFileDeclarationSchema = external_exports.object({
+      path: pluginLocalFolderRelativePathSchema.refine((value) => value.toLowerCase() !== "skill.md", { message: "managed skill files cannot replace SKILL.md; use markdown for the main skill file" }),
+      content: external_exports.string().max(2e5)
+    });
+    pluginManagedSkillDeclarationSchema = external_exports.object({
+      skillKey: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "skillKey must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, colons, underscores, or hyphens"
+      }),
+      displayName: external_exports.string().min(1).max(100),
+      slug: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "slug must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, colons, underscores, or hyphens"
+      }).optional(),
+      description: external_exports.string().max(2e3).nullable().optional(),
+      markdown: external_exports.string().max(2e5).optional(),
+      files: external_exports.array(pluginManagedSkillFileDeclarationSchema).max(50).optional()
+    }).superRefine((value, ctx) => {
+      const paths = (value.files ?? []).map((file3) => file3.path);
+      const duplicates = paths.filter((path2, index) => paths.indexOf(path2) !== index);
+      if (duplicates.length > 0) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `Duplicate managed skill file paths: ${[...new Set(duplicates)].join(", ")}`,
+          path: ["files"]
+        });
+      }
+    });
+    runtimeActivityIdentifierSchema = external_exports.string().min(1).refine((value) => Array.from(value).length <= 160, "Activity identifiers must contain at most 160 code points").regex(/^[^\u0000-\u001f\u007f]+$/);
+    pluginUiSlotDeclarationSchema = external_exports.object({
+      type: external_exports.enum(PLUGIN_UI_SLOT_TYPES),
+      id: external_exports.string().min(1),
+      displayName: external_exports.string().min(1),
+      exportName: external_exports.string().min(1),
+      entityTypes: external_exports.array(external_exports.enum(PLUGIN_UI_SLOT_ENTITY_TYPES)).optional(),
+      taskSidePanel: external_exports.object({
+        availabilityPath: external_exports.string().regex(/^\/(?:[a-zA-Z0-9_-]+\/)*:entityId(?:\/[a-zA-Z0-9_-]+)*$/),
+        activation: external_exports.object({ namespace: runtimeActivityIdentifierSchema, activityKey: runtimeActivityIdentifierSchema }).strict().optional()
+      }).strict().optional(),
+      routePath: external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/, {
+        message: "routePath must be a lowercase single-segment slug (letters, numbers, hyphens)"
+      }).optional(),
+      order: external_exports.number().int().optional()
+    }).superRefine((value, ctx) => {
+      if (value.taskSidePanel && (value.type !== "detailTab" || !value.entityTypes?.includes("agent"))) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "taskSidePanel requires an agent detailTab", path: ["taskSidePanel"] });
+      }
+      const entityScopedTypes = ["detailTab", "taskDetailView", "contextMenuItem", "commentAnnotation", "commentContextMenuItem", "projectSidebarItem"];
+      if (entityScopedTypes.includes(value.type) && (!value.entityTypes || value.entityTypes.length === 0)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `${value.type} slots require at least one entityType`,
+          path: ["entityTypes"]
+        });
+      }
+      if (value.type === "projectSidebarItem" && value.entityTypes && !value.entityTypes.includes("project")) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: 'projectSidebarItem slots require entityTypes to include "project"',
+          path: ["entityTypes"]
+        });
+      }
+      if (value.type === "commentAnnotation" && value.entityTypes && !value.entityTypes.includes("comment")) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: 'commentAnnotation slots require entityTypes to include "comment"',
+          path: ["entityTypes"]
+        });
+      }
+      if (value.type === "commentContextMenuItem" && value.entityTypes && !value.entityTypes.includes("comment")) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: 'commentContextMenuItem slots require entityTypes to include "comment"',
+          path: ["entityTypes"]
+        });
+      }
+      if (value.routePath && value.type !== "page" && value.type !== "routeSidebar" && value.type !== "companySettingsPage") {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "routePath is only supported for page, routeSidebar, and companySettingsPage slots",
+          path: ["routePath"]
+        });
+      }
+      if (value.type === "routeSidebar" && !value.routePath) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "routeSidebar slots require routePath",
+          path: ["routePath"]
+        });
+      }
+      if (value.type === "companySettingsPage" && !value.routePath) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "companySettingsPage slots require routePath",
+          path: ["routePath"]
+        });
+      }
+      if (value.routePath && PLUGIN_RESERVED_COMPANY_ROUTE_SEGMENTS.includes(value.routePath)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `routePath "${value.routePath}" is reserved by the host`,
+          path: ["routePath"]
+        });
+      }
+      if (value.type === "companySettingsPage" && value.routePath && PLUGIN_RESERVED_COMPANY_SETTINGS_ROUTE_SEGMENTS.includes(value.routePath)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `company settings routePath "${value.routePath}" is reserved by the host`,
+          path: ["routePath"]
+        });
+      }
+    });
+    entityScopedLauncherPlacementZones = [
+      "detailTab",
+      "taskDetailView",
+      "contextMenuItem",
+      "commentAnnotation",
+      "commentContextMenuItem",
+      "projectSidebarItem"
+    ];
+    launcherBoundsByEnvironment = {
+      hostInline: ["inline", "compact", "default"],
+      hostOverlay: ["compact", "default", "wide", "full"],
+      hostRoute: ["default", "wide", "full"],
+      external: [],
+      iframe: ["compact", "default", "wide", "full"]
+    };
+    pluginLauncherActionDeclarationSchema = external_exports.object({
+      type: external_exports.enum(PLUGIN_LAUNCHER_ACTIONS),
+      target: external_exports.string().min(1),
+      params: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+    }).superRefine((value, ctx) => {
+      if (value.type === "performAction" && value.target.includes("/")) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "performAction launchers must target an action key, not a route or URL",
+          path: ["target"]
+        });
+      }
+      if (value.type === "navigate" && /^https?:\/\//.test(value.target)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "navigate launchers must target a host route, not an absolute URL",
+          path: ["target"]
+        });
+      }
+    });
+    pluginLauncherRenderDeclarationSchema = external_exports.object({
+      environment: external_exports.enum(PLUGIN_LAUNCHER_RENDER_ENVIRONMENTS),
+      bounds: external_exports.enum(PLUGIN_LAUNCHER_BOUNDS).optional()
+    }).superRefine((value, ctx) => {
+      if (!value.bounds) {
+        return;
+      }
+      const supportedBounds = launcherBoundsByEnvironment[value.environment];
+      if (!supportedBounds.includes(value.bounds)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `bounds "${value.bounds}" is not supported for render environment "${value.environment}"`,
+          path: ["bounds"]
+        });
+      }
+    });
+    pluginLauncherDeclarationSchema = external_exports.object({
+      id: external_exports.string().min(1),
+      displayName: external_exports.string().min(1),
+      description: external_exports.string().optional(),
+      placementZone: external_exports.enum(PLUGIN_LAUNCHER_PLACEMENT_ZONES),
+      exportName: external_exports.string().min(1).optional(),
+      entityTypes: external_exports.array(external_exports.enum(PLUGIN_UI_SLOT_ENTITY_TYPES)).optional(),
+      order: external_exports.number().int().optional(),
+      action: pluginLauncherActionDeclarationSchema,
+      render: pluginLauncherRenderDeclarationSchema.optional()
+    }).superRefine((value, ctx) => {
+      if (entityScopedLauncherPlacementZones.some((zone) => zone === value.placementZone) && (!value.entityTypes || value.entityTypes.length === 0)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `${value.placementZone} launchers require at least one entityType`,
+          path: ["entityTypes"]
+        });
+      }
+      if (value.placementZone === "projectSidebarItem" && value.entityTypes && !value.entityTypes.includes("project")) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: 'projectSidebarItem launchers require entityTypes to include "project"',
+          path: ["entityTypes"]
+        });
+      }
+      if (value.action.type === "performAction" && value.render) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "performAction launchers cannot declare render hints",
+          path: ["render"]
+        });
+      }
+      if (["openModal", "openDrawer", "openPopover"].includes(value.action.type) && !value.render) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `${value.action.type} launchers require render metadata`,
+          path: ["render"]
+        });
+      }
+      if (value.action.type === "openModal" && value.render?.environment === "hostInline") {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "openModal launchers cannot use the hostInline render environment",
+          path: ["render", "environment"]
+        });
+      }
+      if (value.action.type === "openDrawer" && value.render && !["hostOverlay", "iframe"].includes(value.render.environment)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "openDrawer launchers must use hostOverlay or iframe render environments",
+          path: ["render", "environment"]
+        });
+      }
+      if (value.action.type === "openPopover" && value.render?.environment === "hostRoute") {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "openPopover launchers cannot use the hostRoute render environment",
+          path: ["render", "environment"]
+        });
+      }
+    });
+    pluginDatabaseDeclarationSchema = external_exports.object({
+      namespaceSlug: external_exports.string().regex(/^[a-z0-9][a-z0-9_]*$/, {
+        message: "namespaceSlug must be lowercase letters, digits, or underscores and start with a letter or digit"
+      }).max(40).optional(),
+      migrationsDir: external_exports.string().min(1).refine((value) => !value.startsWith("/") && !value.includes("..") && !/[\\]/.test(value), { message: "migrationsDir must be a relative package path without '..' or backslashes" }),
+      coreReadTables: external_exports.array(external_exports.enum(PLUGIN_DATABASE_CORE_READ_TABLES)).optional()
+    });
+    pluginApiRouteDeclarationSchema = external_exports.object({
+      routeKey: external_exports.string().min(1).max(100).regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+        message: "routeKey must be lowercase letters, digits, dots, colons, underscores, or hyphens"
+      }),
+      method: external_exports.enum(PLUGIN_API_ROUTE_METHODS),
+      transport: external_exports.literal("websocket").optional(),
+      path: external_exports.string().min(1).regex(/^\/[a-zA-Z0-9:_./-]*$/, {
+        message: "path must start with / and contain only path-safe literal or :param segments"
+      }).refine((value) => !value.includes("..") && !value.includes("//") && value !== "/api" && !value.startsWith("/api/") && value !== "/plugins" && !value.startsWith("/plugins/"), { message: "path must stay inside the plugin api namespace" }),
+      auth: external_exports.enum(PLUGIN_API_ROUTE_AUTH_MODES),
+      capability: external_exports.literal("api.routes.register"),
+      checkoutPolicy: external_exports.enum(PLUGIN_API_ROUTE_CHECKOUT_POLICIES).optional(),
+      companyResolution: external_exports.discriminatedUnion("from", [
+        external_exports.object({ from: external_exports.literal("body"), key: external_exports.string().min(1) }),
+        external_exports.object({ from: external_exports.literal("query"), key: external_exports.string().min(1) }),
+        external_exports.object({ from: external_exports.literal("issue"), param: external_exports.string().min(1) }),
+        external_exports.object({ from: external_exports.literal("agent"), param: external_exports.string().min(1) })
+      ]).optional()
+    }).refine((route) => !route.transport || route.method === "GET" && route.auth === "board", { message: "WebSocket routes require GET and board authentication" }).refine((route) => !route.transport || route.companyResolution?.from !== "body", {
+      message: "WebSocket routes cannot resolve company from a request body",
+      path: ["companyResolution"]
+    });
+    pluginObjectReferenceRefreshPolicySchema = external_exports.object({
+      defaultTtlSeconds: external_exports.number().int().positive().max(86400).optional(),
+      staleAfterSeconds: external_exports.number().int().positive().max(604800).optional()
+    }).superRefine((value, ctx) => {
+      if (value.defaultTtlSeconds != null && value.staleAfterSeconds != null && value.staleAfterSeconds < value.defaultTtlSeconds) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "staleAfterSeconds must be greater than or equal to defaultTtlSeconds",
+          path: ["staleAfterSeconds"]
+        });
+      }
+    });
+    pluginObjectReferenceProviderDeclarationSchema = external_exports.object({
+      providerKey: externalObjectProviderKeySchema,
+      displayName: external_exports.string().min(1).max(100),
+      objectTypes: external_exports.array(externalObjectTypeSchema).min(1),
+      urlPatterns: external_exports.array(external_exports.string().trim().min(1).max(500)).optional(),
+      refreshPolicy: pluginObjectReferenceRefreshPolicySchema.optional(),
+      webhookEndpointKeys: external_exports.array(external_exports.string().min(1)).optional()
+    }).superRefine((value, ctx) => {
+      const duplicateObjectTypes = value.objectTypes.filter((type, i) => value.objectTypes.indexOf(type) !== i);
+      if (duplicateObjectTypes.length > 0) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `Duplicate objectTypes: ${[...new Set(duplicateObjectTypes)].join(", ")}`,
+          path: ["objectTypes"]
+        });
+      }
+      const webhookKeys = value.webhookEndpointKeys ?? [];
+      const duplicateWebhookKeys = webhookKeys.filter((key, i) => webhookKeys.indexOf(key) !== i);
+      if (duplicateWebhookKeys.length > 0) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: `Duplicate webhookEndpointKeys: ${[...new Set(duplicateWebhookKeys)].join(", ")}`,
+          path: ["webhookEndpointKeys"]
+        });
+      }
+    });
+    pluginManifestV1Schema = external_exports.object({
+      id: external_exports.string().min(1).regex(/^[a-z0-9][a-z0-9._-]*$/, "Plugin id must start with a lowercase alphanumeric and contain only lowercase letters, digits, dots, hyphens, or underscores"),
+      apiVersion: external_exports.literal(1),
+      version: external_exports.string().min(1).regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/, "Version must follow semver (e.g. 1.0.0 or 1.0.0-beta.1)"),
+      displayName: external_exports.string().min(1).max(100),
+      description: external_exports.string().min(1).max(500),
+      author: external_exports.string().min(1).max(200),
+      categories: external_exports.array(external_exports.enum(PLUGIN_CATEGORIES)).min(1),
+      minimumHostVersion: external_exports.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/, "minimumHostVersion must follow semver (e.g. 1.0.0)").optional(),
+      minimumPaperclipVersion: external_exports.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/, "minimumPaperclipVersion must follow semver (e.g. 1.0.0)").optional(),
+      capabilities: external_exports.array(external_exports.enum(PLUGIN_CAPABILITIES)).min(1),
+      agentLifecycle: external_exports.literal(true).optional(),
+      workspaceProvider: external_exports.object({
+        finalizationVersion: external_exports.literal(1).optional(),
+        supportsMergeAncestry: external_exports.boolean().optional(),
+        recoveryPullRequestVersion: external_exports.literal(1).optional(),
+        freshWorkspaceVersion: external_exports.literal(1).optional(),
+        modes: external_exports.array(external_exports.enum(["shared_workspace", "isolated_workspace", "operator_branch"])).min(1).max(3),
+        strategies: external_exports.array(external_exports.enum(["project_primary", "git_worktree"])).min(1).max(2),
+        defaultForProjects: external_exports.object({
+          mode: external_exports.enum(["shared_workspace", "isolated_workspace", "operator_branch"]),
+          strategy: external_exports.enum(["project_primary", "git_worktree"])
+        }).strict().optional()
+      }).strict().optional(),
+      resourceLifecycle: external_exports.array(external_exports.enum(["agent", "project", "agent_runtime"])).min(1).max(3).optional(),
+      aiConnectionRouter: external_exports.object({ name: external_exports.string().trim().min(1).max(100), description: external_exports.string().trim().min(1).max(500) }).strict().optional(),
+      entrypoints: external_exports.object({
+        worker: external_exports.string().min(1),
+        ui: external_exports.string().min(1).optional()
+      }),
+      instanceConfigSchema: jsonSchemaSchema.optional(),
+      jobs: external_exports.array(pluginJobDeclarationSchema).optional(),
+      webhooks: external_exports.array(pluginWebhookDeclarationSchema).optional(),
+      tools: external_exports.array(pluginToolDeclarationSchema).optional(),
+      database: pluginDatabaseDeclarationSchema.optional(),
+      apiRoutes: external_exports.array(pluginApiRouteDeclarationSchema).optional(),
+      environmentDrivers: external_exports.array(pluginEnvironmentDriverDeclarationSchema).optional(),
+      agents: external_exports.array(pluginManagedAgentDeclarationSchema).optional(),
+      projects: external_exports.array(pluginManagedProjectDeclarationSchema).optional(),
+      routines: external_exports.array(pluginManagedRoutineDeclarationSchema).optional(),
+      skills: external_exports.array(pluginManagedSkillDeclarationSchema).optional(),
+      localFolders: external_exports.array(pluginLocalFolderDeclarationSchema).optional(),
+      objectReferences: external_exports.array(pluginObjectReferenceProviderDeclarationSchema).optional(),
+      launchers: external_exports.array(pluginLauncherDeclarationSchema).optional(),
+      ui: external_exports.object({
+        slots: external_exports.array(pluginUiSlotDeclarationSchema).min(1).optional(),
+        launchers: external_exports.array(pluginLauncherDeclarationSchema).optional()
+      }).optional()
+    }).superRefine((manifest2, ctx) => {
+      if (manifest2.environmentDrivers?.some((driver) => driver.requiresAgent) && !manifest2.agentLifecycle) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Agent-dependent environments require agent lifecycle participation", path: ["agentLifecycle"] });
+      }
+      if (manifest2.agentLifecycle && !manifest2.capabilities.includes("agents.lifecycle.manage")) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Agent lifecycle participation requires agents.lifecycle.manage", path: ["capabilities"] });
+      }
+      if (manifest2.workspaceProvider && (!manifest2.capabilities.includes("workspaces.manage") || !manifest2.resourceLifecycle?.includes("project"))) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["workspaceProvider"], message: "Workspace providers require workspaces.manage and project resource lifecycle" });
+      }
+      const defaults = manifest2.workspaceProvider?.defaultForProjects;
+      if (defaults && (!manifest2.workspaceProvider.modes.includes(defaults.mode) || !manifest2.workspaceProvider.strategies.includes(defaults.strategy))) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["workspaceProvider", "defaultForProjects"], message: "Project defaults must use a declared workspace mode and strategy" });
+      }
+      if (manifest2.resourceLifecycle && !manifest2.capabilities.includes("events.subscribe")) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Resource lifecycle delivery requires events.subscribe", path: ["capabilities"] });
+      }
+      const hasUiSlots = (manifest2.ui?.slots?.length ?? 0) > 0;
+      const hasUiLaunchers = (manifest2.ui?.launchers?.length ?? 0) > 0;
+      if ((hasUiSlots || hasUiLaunchers) && !manifest2.entrypoints.ui) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "entrypoints.ui is required when ui.slots or ui.launchers are declared",
+          path: ["entrypoints", "ui"]
+        });
+      }
+      if (manifest2.minimumHostVersion && manifest2.minimumPaperclipVersion && manifest2.minimumHostVersion !== manifest2.minimumPaperclipVersion) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "minimumHostVersion and minimumPaperclipVersion must match when both are declared",
+          path: ["minimumHostVersion"]
+        });
+      }
+      if (manifest2.aiConnectionRouter && !manifest2.capabilities.includes("ai.connections.route")) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "ai.connections.route is required for aiConnectionRouter", path: ["capabilities"] });
+      }
+      if (manifest2.tools && manifest2.tools.length > 0) {
+        if (!manifest2.capabilities.includes("agent.tools.register")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'agent.tools.register' is required when tools are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.environmentDrivers && manifest2.environmentDrivers.length > 0) {
+        if (!manifest2.capabilities.includes("environment.drivers.register")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'environment.drivers.register' is required when environmentDrivers are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      for (const [index, driver] of (manifest2.environmentDrivers ?? []).entries()) {
+        const keys = driver.skillKeys ?? [];
+        if (new Set(keys).size !== keys.length || keys.some((key) => !manifest2.skills?.some((skill) => skill.skillKey === key))) {
+          ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "Environment skill keys must be unique references to this plugin's managed skills", path: ["environmentDrivers", index, "skillKeys"] });
+        }
+      }
+      if (manifest2.agents && manifest2.agents.length > 0) {
+        if (!manifest2.capabilities.includes("agents.managed")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'agents.managed' is required when managed agents are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.projects && manifest2.projects.length > 0) {
+        if (!manifest2.capabilities.includes("projects.managed")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'projects.managed' is required when managed projects are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.routines && manifest2.routines.length > 0) {
+        if (!manifest2.capabilities.includes("routines.managed")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'routines.managed' is required when managed routines are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.skills && manifest2.skills.length > 0) {
+        if (!manifest2.capabilities.includes("skills.managed")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'skills.managed' is required when managed skills are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.localFolders && manifest2.localFolders.length > 0) {
+        if (!manifest2.capabilities.includes("local.folders")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'local.folders' is required when local folders are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.jobs && manifest2.jobs.length > 0) {
+        if (!manifest2.capabilities.includes("jobs.schedule")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'jobs.schedule' is required when jobs are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.webhooks && manifest2.webhooks.length > 0) {
+        if (!manifest2.capabilities.includes("webhooks.receive")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'webhooks.receive' is required when webhooks are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      for (const [index, slot] of (manifest2.ui?.slots ?? []).entries()) {
+        if (!slot.taskSidePanel)
+          continue;
+        const route = manifest2.apiRoutes?.find((route2) => route2.path === slot.taskSidePanel.availabilityPath && route2.method === "GET");
+        if (!route || route.auth !== "board" || route.transport || route.companyResolution?.from !== "agent" || route.companyResolution.param !== "entityId") {
+          ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "taskSidePanel availability requires a declared board GET route scoped to agent :entityId", path: ["ui", "slots", index, "taskSidePanel"] });
+        }
+      }
+      if (manifest2.apiRoutes?.some((route) => route.transport === "websocket") && !manifest2.capabilities.includes("http.outbound")) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message: "WebSocket routes require http.outbound", path: ["capabilities"] });
+      }
+      if (manifest2.apiRoutes && manifest2.apiRoutes.length > 0) {
+        if (!manifest2.capabilities.includes("api.routes.register")) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: "Capability 'api.routes.register' is required when apiRoutes are declared",
+            path: ["capabilities"]
+          });
+        }
+      }
+      if (manifest2.objectReferences && manifest2.objectReferences.length > 0) {
+        for (const capability of ["external.objects.detect", "external.objects.read"]) {
+          if (!manifest2.capabilities.includes(capability)) {
+            ctx.addIssue({
+              code: external_exports.ZodIssueCode.custom,
+              message: `Capability '${capability}' is required when objectReferences are declared`,
+              path: ["capabilities"]
+            });
+          }
+        }
+        const declaredWebhookKeys = new Set((manifest2.webhooks ?? []).map((webhook) => webhook.endpointKey));
+        for (const [providerIndex, provider] of manifest2.objectReferences.entries()) {
+          for (const endpointKey of provider.webhookEndpointKeys ?? []) {
+            if (!declaredWebhookKeys.has(endpointKey)) {
+              ctx.addIssue({
+                code: external_exports.ZodIssueCode.custom,
+                message: `objectReferences webhookEndpointKey "${endpointKey}" must match a declared webhook endpoint`,
+                path: ["objectReferences", providerIndex, "webhookEndpointKeys"]
+              });
+            }
+          }
+        }
+      }
+      if (manifest2.database) {
+        const requiredCapabilities = [
+          "database.namespace.migrate",
+          "database.namespace.read"
+        ];
+        for (const capability of requiredCapabilities) {
+          if (!manifest2.capabilities.includes(capability)) {
+            ctx.addIssue({
+              code: external_exports.ZodIssueCode.custom,
+              message: `Capability '${capability}' is required when database migrations are declared`,
+              path: ["capabilities"]
+            });
+          }
+        }
+        const coreReadTables = manifest2.database.coreReadTables ?? [];
+        const duplicates = coreReadTables.filter((table, i) => coreReadTables.indexOf(table) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate database coreReadTables: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["database", "coreReadTables"]
+          });
+        }
+      }
+      if (manifest2.jobs) {
+        const jobKeys = manifest2.jobs.map((j) => j.jobKey);
+        const duplicates = jobKeys.filter((key, i) => jobKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate job keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["jobs"]
+          });
+        }
+      }
+      if (manifest2.webhooks) {
+        const endpointKeys = manifest2.webhooks.map((w) => w.endpointKey);
+        const duplicates = endpointKeys.filter((key, i) => endpointKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate webhook endpoint keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["webhooks"]
+          });
+        }
+      }
+      if (manifest2.apiRoutes) {
+        const routeKeys = manifest2.apiRoutes.map((route) => route.routeKey);
+        const duplicateKeys = routeKeys.filter((key, i) => routeKeys.indexOf(key) !== i);
+        if (duplicateKeys.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate api route keys: ${[...new Set(duplicateKeys)].join(", ")}`,
+            path: ["apiRoutes"]
+          });
+        }
+        const routeSignatures = manifest2.apiRoutes.map((route) => `${route.method} ${route.path}`);
+        const duplicateRoutes = routeSignatures.filter((sig, i) => routeSignatures.indexOf(sig) !== i);
+        if (duplicateRoutes.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate api routes: ${[...new Set(duplicateRoutes)].join(", ")}`,
+            path: ["apiRoutes"]
+          });
+        }
+      }
+      if (manifest2.tools) {
+        const toolNames = manifest2.tools.map((t) => t.name);
+        const duplicates = toolNames.filter((name, i) => toolNames.indexOf(name) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate tool names: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["tools"]
+          });
+        }
+      }
+      if (manifest2.environmentDrivers) {
+        const driverKeys = manifest2.environmentDrivers.map((d) => d.driverKey);
+        const duplicates = driverKeys.filter((key, i) => driverKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate environment driver keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["environmentDrivers"]
+          });
+        }
+      }
+      if (manifest2.localFolders) {
+        const folderKeys = manifest2.localFolders.map((folder) => folder.folderKey);
+        const duplicates = folderKeys.filter((key, i) => folderKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate local folder keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["localFolders"]
+          });
+        }
+      }
+      if (manifest2.agents) {
+        const agentKeys = manifest2.agents.map((agent) => agent.agentKey);
+        const duplicates = agentKeys.filter((key, i) => agentKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate managed agent keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["agents"]
+          });
+        }
+      }
+      if (manifest2.projects) {
+        const projectKeys = manifest2.projects.map((project) => project.projectKey);
+        const duplicates = projectKeys.filter((key, i) => projectKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate managed project keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["projects"]
+          });
+        }
+      }
+      if (manifest2.routines) {
+        const routineKeys = manifest2.routines.map((routine) => routine.routineKey);
+        const duplicates = routineKeys.filter((key, i) => routineKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate managed routine keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["routines"]
+          });
+        }
+      }
+      if (manifest2.skills) {
+        const skillKeys = manifest2.skills.map((skill) => skill.skillKey);
+        const duplicates = skillKeys.filter((key, i) => skillKeys.indexOf(key) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate managed skill keys: ${[...new Set(duplicates)].join(", ")}`,
+            path: ["skills"]
+          });
+        }
+      }
+      if (manifest2.objectReferences) {
+        const providerKeys = manifest2.objectReferences.map((provider) => provider.providerKey);
+        const duplicateProviders = providerKeys.filter((key, i) => providerKeys.indexOf(key) !== i);
+        if (duplicateProviders.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate object reference provider keys: ${[...new Set(duplicateProviders)].join(", ")}`,
+            path: ["objectReferences"]
+          });
+        }
+      }
+      if (manifest2.ui) {
+        if (manifest2.ui.slots) {
+          const slotIds = manifest2.ui.slots.map((s) => s.id);
+          const duplicates = slotIds.filter((id3, i) => slotIds.indexOf(id3) !== i);
+          if (duplicates.length > 0) {
+            ctx.addIssue({
+              code: external_exports.ZodIssueCode.custom,
+              message: `Duplicate UI slot ids: ${[...new Set(duplicates)].join(", ")}`,
+              path: ["ui", "slots"]
+            });
+          }
+        }
+      }
+      const allLaunchers = [
+        ...manifest2.launchers ?? [],
+        ...manifest2.ui?.launchers ?? []
+      ];
+      if (allLaunchers.length > 0) {
+        const launcherIds = allLaunchers.map((launcher) => launcher.id);
+        const duplicates = launcherIds.filter((id3, i) => launcherIds.indexOf(id3) !== i);
+        if (duplicates.length > 0) {
+          ctx.addIssue({
+            code: external_exports.ZodIssueCode.custom,
+            message: `Duplicate launcher ids: ${[...new Set(duplicates)].join(", ")}`,
+            path: manifest2.ui?.launchers ? ["ui", "launchers"] : ["launchers"]
+          });
+        }
+      }
+    });
+    installPluginSchema = external_exports.object({
+      packageName: external_exports.string().min(1),
+      version: external_exports.string().min(1).optional(),
+      /** Set by loader for local-path installs so the worker can be resolved. */
+      packagePath: external_exports.string().min(1).optional()
+    });
+    upsertPluginConfigSchema = external_exports.object({
+      companyId: external_exports.string().guid(),
+      configJson: external_exports.record(external_exports.string(), external_exports.unknown())
+    });
+    patchPluginConfigSchema = external_exports.object({
+      companyId: external_exports.string().guid(),
+      configJson: external_exports.record(external_exports.string(), external_exports.unknown())
+    });
+    updatePluginStatusSchema = external_exports.object({
+      status: external_exports.enum(PLUGIN_STATUSES),
+      lastError: external_exports.string().nullable().optional()
+    });
+    uninstallPluginSchema = external_exports.object({
+      removeData: external_exports.boolean().optional().default(false)
+    });
+    pluginStateScopeKeySchema = external_exports.object({
+      scopeKind: external_exports.enum(PLUGIN_STATE_SCOPE_KINDS),
+      scopeId: external_exports.string().min(1).optional(),
+      namespace: external_exports.string().min(1).optional(),
+      stateKey: external_exports.string().min(1)
+    });
+    setPluginStateSchema = external_exports.object({
+      scopeKind: external_exports.enum(PLUGIN_STATE_SCOPE_KINDS),
+      scopeId: external_exports.string().min(1).optional(),
+      namespace: external_exports.string().min(1).optional(),
+      stateKey: external_exports.string().min(1),
+      /** JSON-serializable value to store. */
+      value: external_exports.unknown()
+    });
+    listPluginStateSchema = external_exports.object({
+      scopeKind: external_exports.enum(PLUGIN_STATE_SCOPE_KINDS).optional(),
+      scopeId: external_exports.string().min(1).optional(),
+      namespace: external_exports.string().min(1).optional()
+    });
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/validators/tool-access.js
+function rejectSensitiveConfigKeys(value, ctx, path2 = []) {
+  if (!value || typeof value !== "object")
+    return;
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => rejectSensitiveConfigKeys(entry, ctx, [...path2, index]));
+    return;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (sensitiveConfigKeyPattern.test(key)) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, key],
+        message: `Tool access config cannot persist sensitive field: ${key}. Use credentialSecretRefs instead.`
+      });
+    }
+    rejectSensitiveConfigKeys(nested, ctx, [...path2, key]);
+  }
+}
+function rejectUnsafeHeaderCredentials(credentialValues, ctx, path2) {
+  for (const [configPath, value] of Object.entries(credentialValues)) {
+    const headerName2 = mcpRemoteHeaderNameFromConfigPath(configPath);
+    if (configPath.startsWith("headers.") && !headerName2) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, configPath],
+        message: "Header names cannot be blank."
+      });
+      continue;
+    }
+    if (!headerName2)
+      continue;
+    const nameCheck = checkMcpRemoteHeaderName(headerName2);
+    if (!nameCheck.ok) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, configPath],
+        message: mcpRemoteHeaderRejectionMessage(headerName2, nameCheck.reason)
+      });
+      continue;
+    }
+    const valueCheck = checkMcpRemoteHeaderValue(value);
+    if (!valueCheck.ok) {
+      ctx.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: [...path2, configPath],
+        message: mcpRemoteHeaderRejectionMessage(headerName2, valueCheck.reason)
+      });
+    }
+  }
+}
+var toolApplicationTypeSchema, toolApplicationStatusSchema, toolConnectionTransportSchema, toolConnectionPurposeSchema, toolConnectionAuthKindSchema, toolConnectionOwnershipSchema, toolConnectionCredentialSourceSchema, vercelConnectCredentialSummarySchema, vercelConnectGrantSummarySchema, connectionGrantKindSchema, connectionGrantStatusSchema, createConnectionGrantDelegationSchema, toolConnectionCredentialPolicySchema, toolConnectionStatusSchema, toolConnectionInstallTargetTypeSchema, toolCredentialPlacementSchema, toolConnectionKindSchema, toolConnectionHealthStatusSchema, toolCatalogEntryKindSchema, toolCatalogEntryStatusSchema, toolRiskLevelSchema, toolProfileStatusSchema, toolProfileDefaultActionSchema, toolProfileEntrySelectorTypeSchema, toolProfileEntryEffectSchema, toolProfileBindingTargetTypeSchema, toolPolicyTypeSchema, toolPolicyDecisionSchema, toolInvocationStatusSchema, toolInvocationApprovalStateSchema, toolMcpGatewayStatusSchema, toolMcpGatewayDefaultProfileModeSchema, toolMcpGatewayContextScopeTypeSchema, toolMcpGatewayTokenSubjectTypeSchema, toolMcpGatewayTokenActionSchema, toolActionRequestStatusSchema, toolAuditEventTypeSchema, toolAuditOutcomeSchema, toolRuntimeKindSchema, toolRuntimeSlotStatusSchema, toolRateLimitWindowKindSchema, safeKeyPattern, sensitiveConfigKeyPattern, toolCredentialSecretRefSchema, mcpConnectionCredentialRefSchema, toolTransportConfigSchema, toolRedactedValueSummarySchema, createToolApplicationSchema, updateToolApplicationSchema, createToolConnectionSchema, updateToolConnectionSchema, connectionGrantSchema, putToolConnectionInstallsSchema, replaceConnectionGrantMembersSchema, connectionTokenIssuancePathSchema, connectionTokenScopeSchema, connectionTokenSubjectSchema, connectionTokenRequestSchema, startConnectionAuthorizationSchema, envKeyPattern, toolStdioTemplateToolSchema, createToolStdioCommandTemplateSchema, disableToolStdioCommandTemplateSchema, GENERIC_MCP_AUTH_MODES, genericMcpAuthModeSchema, genericMcpOAuthClientSchema, googleWorkspaceServiceSelectionSchema, connectToolAppSchema, reconnectToolAppSchema, finishToolAppSchema, finalizeOAuthAccessSchema, startToolOAuthSchema, upsertToolCatalogEntrySchema, createToolProfileSchema, updateToolProfileSchema, createToolProfileEntrySchema, createToolProfileEntryForProfileSchema, updateToolProfileEntrySchema, createToolProfileWithEntriesSchema, duplicateToolProfileSchema, updateToolProfileWithEntriesSchema, reviewToolProfileNewToolsSchema, deleteToolProfileSchema, createToolProfileBindingSchema, createToolProfileBindingForProfileSchema, unbindToolProfileBindingSchema, headerNameSchema, toolMcpGatewayAuthConfigSchema, toolMcpGatewayHeaderPolicySchema, toolMcpGatewayMetadataPolicySchema, toolMcpGatewayOnDemandToolsConfigSchema, createToolMcpGatewaySchema, updateToolMcpGatewaySchema, createToolMcpGatewayTokenSchema, argumentConditionSchema, timeWindowConditionSchema, actorConditionSchema, contextConditionSchema, credentialScopeConditionSchema, toolPolicyConditionsSchema, createToolPolicySchema, updateToolPolicySchema, reorderToolPoliciesSchema, duplicateToolPolicySchema, createToolInvocationSchema, createToolActionRequestSchema, toolConnectionTestCallSchema, importMcpJsonSchema, toolAccessSelectorSchema, toolRateLimitRuleSchema, toolTrustRuleArgumentFiltersSchema, toolTrustRuleScopeSchema, toolTrustRuleBatchApprovalSchema, createToolTrustRuleFromActionRequestSchema, revokeToolTrustRuleSchema, toolPolicyTestRequestSchema;
+var init_tool_access = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/tool-access.js"() {
+    init_connection_instructions();
+    init_remote_mcp_connectors();
+    init_zod();
+    init_constants();
+    init_mcp_remote_headers();
+    init_plugin();
+    init_partial();
+    toolApplicationTypeSchema = external_exports.enum(TOOL_APPLICATION_TYPES);
+    toolApplicationStatusSchema = external_exports.enum(TOOL_APPLICATION_STATUSES);
+    toolConnectionTransportSchema = external_exports.enum(["mcp_remote", "rest_api", "local_stdio", "chat_sdk", "voice"]);
+    toolConnectionPurposeSchema = external_exports.enum(["tool", "channel"]);
+    toolConnectionAuthKindSchema = external_exports.enum(["oauth", "api_key", "none"]);
+    toolConnectionOwnershipSchema = external_exports.enum(["platform_shared", "platform_provisioned", "customer", "dcr"]);
+    toolConnectionCredentialSourceSchema = external_exports.enum(["paperclip_vault", "vercel_connect"]);
+    vercelConnectCredentialSummarySchema = external_exports.object({
+      provider: external_exports.literal("vercel_connect"),
+      connectorId: external_exports.string().trim().min(1).max(255),
+      connectorUid: external_exports.string().trim().min(1).max(255),
+      service: external_exports.string().trim().min(1).max(255),
+      connectorType: external_exports.string().trim().min(1).max(255),
+      principalMode: external_exports.enum(["app", "user"]),
+      headerName: external_exports.string().trim().min(1).max(160),
+      headerPrefix: external_exports.string().max(120).nullable().optional(),
+      scopes: external_exports.array(external_exports.string().trim().min(1).max(500)).max(50)
+    }).strict();
+    vercelConnectGrantSummarySchema = external_exports.object({
+      provider: external_exports.literal("vercel_connect"),
+      subjectType: external_exports.enum(["app", "user"]),
+      installationId: external_exports.string().trim().min(1).max(255).optional(),
+      tenantId: external_exports.string().trim().min(1).max(255).optional(),
+      tokenId: external_exports.string().trim().min(1).max(255).optional(),
+      expiresAt: external_exports.string().datetime({ offset: true }).optional(),
+      lastVerifiedAt: external_exports.string().datetime({ offset: true }).optional()
+    }).strict();
+    connectionGrantKindSchema = external_exports.enum(["organization", "user", "agent"]);
+    connectionGrantStatusSchema = external_exports.enum(["active", "revoked", "expired", "needs_reauthorization"]);
+    createConnectionGrantDelegationSchema = external_exports.object({
+      agentId: external_exports.string().guid()
+    });
+    toolConnectionCredentialPolicySchema = external_exports.enum(["shared", "per_user", "per_user_with_fallback", "per_agent"]);
+    toolConnectionStatusSchema = external_exports.enum(["draft", "active", "disabled", "archived"]);
+    toolConnectionInstallTargetTypeSchema = external_exports.enum(["company", "agent"]);
+    toolCredentialPlacementSchema = external_exports.enum(["header", "env", "url"]);
+    toolConnectionKindSchema = external_exports.enum(TOOL_CONNECTION_KINDS);
+    toolConnectionHealthStatusSchema = external_exports.enum(TOOL_CONNECTION_HEALTH_STATUSES);
+    toolCatalogEntryKindSchema = external_exports.enum(TOOL_CATALOG_ENTRY_KINDS);
+    toolCatalogEntryStatusSchema = external_exports.enum(TOOL_CATALOG_ENTRY_STATUSES);
+    toolRiskLevelSchema = external_exports.enum(TOOL_RISK_LEVELS);
+    toolProfileStatusSchema = external_exports.enum(TOOL_PROFILE_STATUSES);
+    toolProfileDefaultActionSchema = external_exports.enum(TOOL_PROFILE_DEFAULT_ACTIONS);
+    toolProfileEntrySelectorTypeSchema = external_exports.enum(TOOL_PROFILE_ENTRY_SELECTOR_TYPES);
+    toolProfileEntryEffectSchema = external_exports.enum(TOOL_PROFILE_ENTRY_EFFECTS);
+    toolProfileBindingTargetTypeSchema = external_exports.enum(TOOL_PROFILE_BINDING_TARGET_TYPES);
+    toolPolicyTypeSchema = external_exports.enum(TOOL_POLICY_TYPES);
+    toolPolicyDecisionSchema = external_exports.enum(TOOL_POLICY_DECISIONS);
+    toolInvocationStatusSchema = external_exports.enum(TOOL_INVOCATION_STATUSES);
+    toolInvocationApprovalStateSchema = external_exports.enum(TOOL_INVOCATION_APPROVAL_STATES);
+    toolMcpGatewayStatusSchema = external_exports.enum(TOOL_MCP_GATEWAY_STATUSES);
+    toolMcpGatewayDefaultProfileModeSchema = external_exports.enum(TOOL_MCP_GATEWAY_DEFAULT_PROFILE_MODES);
+    toolMcpGatewayContextScopeTypeSchema = external_exports.enum(TOOL_MCP_GATEWAY_CONTEXT_SCOPE_TYPES);
+    toolMcpGatewayTokenSubjectTypeSchema = external_exports.enum(TOOL_MCP_GATEWAY_TOKEN_SUBJECT_TYPES);
+    toolMcpGatewayTokenActionSchema = external_exports.enum(TOOL_MCP_GATEWAY_TOKEN_ACTIONS);
+    toolActionRequestStatusSchema = external_exports.enum(TOOL_ACTION_REQUEST_STATUSES);
+    toolAuditEventTypeSchema = external_exports.enum(TOOL_AUDIT_EVENT_TYPES);
+    toolAuditOutcomeSchema = external_exports.enum(TOOL_AUDIT_OUTCOMES);
+    toolRuntimeKindSchema = external_exports.enum(TOOL_RUNTIME_KINDS);
+    toolRuntimeSlotStatusSchema = external_exports.enum(TOOL_RUNTIME_SLOT_STATUSES);
+    toolRateLimitWindowKindSchema = external_exports.enum(TOOL_RATE_LIMIT_WINDOW_KINDS);
+    safeKeyPattern = /^[a-z0-9][a-z0-9._:-]*$/i;
+    sensitiveConfigKeyPattern = /^(access[-_]?key([-_]?id)?|api[-_]?key|authorization|bearer|client[-_]?secret|credential|credentials|jwt|password|passwd|private[-_]?key|refresh[-_]?token|secret|secret[-_]?access[-_]?key|secret[-_]?key|session[-_]?token|token)$/i;
+    toolCredentialSecretRefSchema = external_exports.object({
+      secretId: external_exports.string().guid(),
+      versionSelector: external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]).optional(),
+      configPath: external_exports.string().trim().min(1).max(200),
+      required: external_exports.boolean().optional(),
+      label: external_exports.string().trim().max(120).optional().nullable(),
+      projectionClass: external_exports.enum(SECRET_PROJECTION_CLASSES).optional(),
+      projectionAllowlistKey: external_exports.string().trim().min(1).max(160).optional().nullable(),
+      keyScope: external_exports.string().trim().min(1).max(160).optional(),
+      expiresAt: external_exports.string().datetime({ offset: true }).optional()
+    });
+    mcpConnectionCredentialRefSchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(120),
+      secretId: external_exports.string().guid(),
+      version: external_exports.union([external_exports.literal("latest"), external_exports.number().int().positive()]).optional(),
+      placement: toolCredentialPlacementSchema,
+      key: external_exports.string().trim().min(1).max(160),
+      prefix: external_exports.string().max(120).nullable().optional()
+    });
+    toolTransportConfigSchema = external_exports.record(external_exports.string(), external_exports.unknown()).superRefine(rejectSensitiveConfigKeys);
+    toolRedactedValueSummarySchema = external_exports.object({
+      summary: external_exports.string().max(4e3),
+      sizeBytes: external_exports.number().int().min(0).optional().nullable(),
+      sha256: external_exports.string().trim().regex(/^[a-f0-9]{64}$/i).optional().nullable(),
+      redactedFields: external_exports.array(external_exports.string().trim().min(1).max(200)).default([]).optional(),
+      artifactId: external_exports.string().guid().optional().nullable()
+    });
+    createToolApplicationSchema = external_exports.object({
+      applicationKey: external_exports.string().trim().min(1).max(160).regex(safeKeyPattern).optional(),
+      name: external_exports.string().trim().min(1).max(160),
+      description: external_exports.string().max(4e3).optional().nullable(),
+      type: toolApplicationTypeSchema,
+      status: toolApplicationStatusSchema.optional(),
+      pluginId: external_exports.string().guid().optional().nullable(),
+      ownerAgentId: external_exports.string().guid().optional().nullable(),
+      ownerUserId: external_exports.string().optional().nullable(),
+      metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    updateToolApplicationSchema = createToolApplicationSchema.partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool application field is required" });
+    createToolConnectionSchema = external_exports.object({
+      agentInstructions: connectionAgentInstructionsSchema.nullable().optional(),
+      applicationId: external_exports.string().guid().optional(),
+      applicationName: external_exports.string().trim().min(1).max(160).optional(),
+      name: external_exports.string().trim().min(1).max(160),
+      connectionPurpose: toolConnectionPurposeSchema.default("tool"),
+      transport: toolConnectionTransportSchema.optional(),
+      authKind: toolConnectionAuthKindSchema.default("none"),
+      credentialPolicy: toolConnectionCredentialPolicySchema.optional(),
+      ownership: toolConnectionOwnershipSchema.default("customer"),
+      status: toolConnectionStatusSchema.optional(),
+      connectionKind: toolConnectionKindSchema.default("managed"),
+      config: toolTransportConfigSchema.optional(),
+      // No default: when the caller omits it, the service stores `config` here.
+      transportConfig: toolTransportConfigSchema.optional(),
+      credentialRefs: external_exports.array(mcpConnectionCredentialRefSchema).optional(),
+      credentialSecretRefs: external_exports.array(toolCredentialSecretRefSchema).default([]),
+      enabled: external_exports.boolean().optional()
+    });
+    updateToolConnectionSchema = objectWithoutDefaults(createToolConnectionSchema.omit({ applicationId: true })).partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool connection field is required" });
+    connectionGrantSchema = external_exports.object({
+      id: external_exports.string().guid(),
+      companyId: external_exports.string().guid(),
+      connectionId: external_exports.string().guid(),
+      kind: connectionGrantKindSchema,
+      subjectUserId: external_exports.string().nullable(),
+      subjectAgentId: external_exports.string().guid().nullable().optional(),
+      providerTenant: external_exports.object({
+        name: external_exports.string().trim().min(1).max(200).optional(),
+        externalId: external_exports.string().trim().min(1).max(400).optional(),
+        oauth: external_exports.object({
+          strategy: external_exports.string().trim().min(1).max(100).optional(),
+          accessTokenExpiresAt: external_exports.string().datetime().nullable().optional(),
+          scopes: external_exports.array(external_exports.string().trim().min(1).max(500)).max(20).optional(),
+          scopeSource: external_exports.enum(["provider", "requested_fallback"]).optional(),
+          unrequestedScopes: external_exports.array(external_exports.string().trim().min(1).max(500)).max(20).optional(),
+          requestedScopes: external_exports.array(external_exports.string().trim().min(1).max(500)).max(20).optional(),
+          tokenType: external_exports.string().trim().min(1).max(100).optional(),
+          refreshTokenExpiresAt: external_exports.string().datetime().optional(),
+          refreshedAt: external_exports.string().datetime().optional()
+        }).optional(),
+        github: external_exports.object({
+          userId: external_exports.string().regex(/^[1-9][0-9]{0,30}$/),
+          login: external_exports.string().trim().min(1).max(100),
+          avatarUrl: external_exports.string().url().max(2e3).optional(),
+          installationCount: external_exports.number().int().nonnegative(),
+          repositoryCount: external_exports.number().int().nonnegative(),
+          repositorySelection: external_exports.enum(["all", "selected", "mixed", "none"]),
+          installationIds: external_exports.array(external_exports.string().regex(/^[1-9][0-9]{0,30}$/)).max(100),
+          installationOwnerLogins: external_exports.array(external_exports.string().trim().min(1).max(100)).max(100),
+          installationUrl: external_exports.string().url().max(2e3).optional(),
+          managementUrl: external_exports.string().url().max(2e3).optional(),
+          appSlug: external_exports.string().regex(/^[a-z0-9-]{1,100}$/).optional(),
+          lastAccessRefreshAt: external_exports.string().datetime().optional(),
+          bindingSync: external_exports.object({ id: external_exports.string().uuid(), removeInstallationIds: external_exports.array(external_exports.string().regex(/^[1-9][0-9]{0,30}$/)).max(100) }).optional(),
+          continuityRetry: external_exports.object({ at: external_exports.string().datetime(), attempts: external_exports.number().int().min(1).max(16), revision: external_exports.string().max(2e3) }).optional(),
+          lastWebhookAt: external_exports.string().datetime().optional(),
+          webhookHealth: external_exports.enum(["pending", "healthy", "unhealthy"]).optional()
+        }).optional()
+      }).nullable(),
+      credentialSecretRefs: external_exports.array(toolCredentialSecretRefSchema),
+      externalCredential: vercelConnectGrantSummarySchema.nullable().optional(),
+      status: connectionGrantStatusSchema,
+      isDefault: external_exports.boolean(),
+      createdByAgentId: external_exports.string().guid().nullable(),
+      createdByUserId: external_exports.string().nullable(),
+      revokedAt: external_exports.coerce.date().nullable(),
+      revokedByAgentId: external_exports.string().guid().nullable(),
+      revokedByUserId: external_exports.string().nullable(),
+      lastUsedAt: external_exports.coerce.date().nullable(),
+      createdAt: external_exports.coerce.date(),
+      updatedAt: external_exports.coerce.date()
+    }).superRefine((grant, ctx) => {
+      const validSubject = grant.kind === "user" && Boolean(grant.subjectUserId) && !grant.subjectAgentId || grant.kind === "agent" && Boolean(grant.subjectAgentId) && !grant.subjectUserId || grant.kind === "organization" && !grant.subjectUserId && !grant.subjectAgentId;
+      if (!validSubject) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["kind"], message: "User and agent grants require exactly their matching subject; organization grants cannot have a subject" });
+      }
+      if (grant.externalCredential && grant.credentialSecretRefs.length > 0) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["credentialSecretRefs"], message: "External grants cannot also contain Paperclip secret references" });
+      }
+    });
+    putToolConnectionInstallsSchema = external_exports.object({
+      installs: external_exports.array(external_exports.object({
+        targetType: toolConnectionInstallTargetTypeSchema,
+        targetId: external_exports.string().trim().min(1).max(200)
+      })).max(1e3)
+    }).strict();
+    replaceConnectionGrantMembersSchema = external_exports.object({
+      memberUserIds: external_exports.array(external_exports.string().trim().min(1).max(500)).max(1e3)
+    }).strict();
+    connectionTokenIssuancePathSchema = external_exports.enum(CONNECTION_TOKEN_ISSUANCE_PATHS);
+    connectionTokenScopeSchema = external_exports.union([
+      external_exports.string().trim().min(1).max(500),
+      external_exports.array(external_exports.string().trim().min(1).max(240)).max(100)
+    ]);
+    connectionTokenSubjectSchema = external_exports.discriminatedUnion("type", [
+      external_exports.object({ type: external_exports.literal("app") }).strict(),
+      external_exports.object({ type: external_exports.literal("user"), userId: external_exports.string().trim().min(1).max(500) }).strict()
+    ]);
+    connectionTokenRequestSchema = external_exports.object({
+      subject: connectionTokenSubjectSchema.optional().default({ type: "app" }),
+      scope: connectionTokenScopeSchema.optional(),
+      requestedTtlSeconds: external_exports.number().int().positive().max(86400).optional(),
+      grantId: external_exports.string().guid().optional()
+    }).strict();
+    startConnectionAuthorizationSchema = external_exports.object({
+      subjectUserId: external_exports.string().trim().min(1).max(500),
+      scopes: external_exports.array(external_exports.string().trim().min(1).max(240)).max(100).optional(),
+      returnTo: external_exports.string().trim().max(2e3).optional()
+    }).strict();
+    envKeyPattern = /^[A-Z_][A-Z0-9_]*$/i;
+    toolStdioTemplateToolSchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(240),
+      title: external_exports.string().trim().max(240).optional().nullable(),
+      description: external_exports.string().max(8e3).optional().nullable(),
+      inputSchema: jsonSchemaSchema.optional().nullable(),
+      annotations: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    createToolStdioCommandTemplateSchema = external_exports.object({
+      templateId: external_exports.string().trim().min(1).max(160).regex(safeKeyPattern),
+      name: external_exports.string().trim().min(1).max(160),
+      description: external_exports.string().max(4e3).optional().nullable(),
+      command: external_exports.string().trim().min(1).max(2e3),
+      args: external_exports.array(external_exports.string().max(2e3)).max(100).default([]),
+      envKeys: external_exports.array(external_exports.string().trim().min(1).max(160).regex(envKeyPattern)).max(200).default([]),
+      tools: external_exports.array(toolStdioTemplateToolSchema).max(500).default([])
+    });
+    disableToolStdioCommandTemplateSchema = external_exports.object({
+      reason: external_exports.string().trim().max(1e3).optional().nullable()
+    });
+    GENERIC_MCP_AUTH_MODES = ["auto", "none", "bearer", "custom_headers", "oauth"];
+    genericMcpAuthModeSchema = external_exports.enum(GENERIC_MCP_AUTH_MODES);
+    genericMcpOAuthClientSchema = external_exports.object({
+      clientId: external_exports.string().trim().min(1).max(4096),
+      clientSecret: external_exports.string().min(1).max(16384).optional()
+    }).strict();
+    googleWorkspaceServiceSelectionSchema = external_exports.object({
+      gmail: external_exports.enum(["read", "write"]).optional(),
+      drive: external_exports.enum(["read", "write"]).optional(),
+      calendar: external_exports.enum(["read", "write"]).optional()
+    }).strict().refine((value) => Object.keys(value).length > 0, "Select at least one Google service");
+    connectToolAppSchema = external_exports.object({
+      workspaceServices: googleWorkspaceServiceSelectionSchema.optional(),
+      agentInstructions: connectionAgentInstructionsSchema.nullable().optional(),
+      galleryKey: external_exports.string().trim().min(1).max(120).optional(),
+      connectionMethodKey: external_exports.string().trim().min(1).max(120).optional(),
+      link: external_exports.string().trim().url().max(2e3).optional(),
+      name: external_exports.string().trim().min(1).max(160).optional(),
+      credentialValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.string().min(1)).optional(),
+      configValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.unknown()).optional(),
+      applicationId: external_exports.string().guid().optional(),
+      /** Pending connection request this setup should resolve after authorization. */
+      interactionId: external_exports.string().uuid().optional(),
+      /** Exact draft to continue after an interrupted setup. */
+      resumeConnectionId: external_exports.string().guid().optional(),
+      /** Exact configured connection to reauthorize without replacing its identity. */
+      reconnectConnectionId: external_exports.string().guid().optional(),
+      saveDraft: external_exports.boolean().optional(),
+      authMode: genericMcpAuthModeSchema.optional(),
+      oauthClient: genericMcpOAuthClientSchema.optional(),
+      credentialSource: external_exports.enum(["paperclip_vault", "vercel_connect"]).optional(),
+      vercelConnect: external_exports.object({ connector: external_exports.string().trim().min(1).max(255) }).strict().optional(),
+      /**
+       * Which identity this credential becomes (PAP-17835). `user` means "Just me":
+       * the credential is committed to the caller's own personal grant and never to
+       * the connection row's shared secret refs or the default organization grant.
+       * Omitted keeps the historical shared-credential behaviour.
+       */
+      grantKind: connectionGrantKindSchema.optional(),
+      /** Same-company agent that owns a dedicated provider identity. */
+      subjectAgentId: external_exports.string().guid().optional()
+    }).superRefine((value, ctx) => {
+      if (value.workspaceServices && value.galleryKey !== "google-workspace") {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["workspaceServices"], message: "Service selection requires Google Workspace" });
+      }
+      if (value.configValues)
+        rejectSensitiveConfigKeys(value.configValues, ctx, ["configValues"]);
+      if (value.credentialValues)
+        rejectUnsafeHeaderCredentials(value.credentialValues, ctx, ["credentialValues"]);
+      if (value.grantKind === "agent" !== Boolean(value.subjectAgentId)) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["subjectAgentId"], message: "subjectAgentId is required exactly for an agent grant" });
+      }
+      if (value.saveDraft && !isRemoteMcpConnectorMethod(value.galleryKey, value.connectionMethodKey)) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["saveDraft"], message: "Draft saving requires a remote MCP connector" });
+      }
+      if (value.authMode && value.galleryKey && !isRemoteMcpConnectorMethod(value.galleryKey, value.connectionMethodKey)) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["authMode"],
+          message: "Authentication mode selection applies to a pasted URL, not a gallery app"
+        });
+      }
+      if (value.resumeConnectionId && value.reconnectConnectionId) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["reconnectConnectionId"], message: "Choose resume or reconnect, not both" });
+      }
+      if (value.resumeConnectionId && !value.galleryKey) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["resumeConnectionId"],
+          message: "Only gallery app setup can resume a draft connection"
+        });
+      }
+      const source = value.credentialSource ?? "paperclip_vault";
+      if (source === "vercel_connect") {
+        if (!value.vercelConnect) {
+          ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["vercelConnect"], message: "A Vercel connector UID is required" });
+        }
+        if (value.credentialValues && Object.keys(value.credentialValues).length > 0) {
+          ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["credentialValues"], message: "Vercel-backed connections cannot include provider credentials" });
+        }
+        if (value.oauthClient) {
+          ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["oauthClient"], message: "Vercel-backed connections cannot include OAuth client credentials" });
+        }
+      } else if (value.vercelConnect) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["vercelConnect"], message: "Vercel connector metadata requires the vercel_connect credential source" });
+      }
+    }).refine((value) => Boolean(value.galleryKey) || Boolean(value.link), { message: "Provide a galleryKey or link" });
+    reconnectToolAppSchema = external_exports.object({
+      credentialValues: external_exports.record(external_exports.string().trim().min(1).max(200), external_exports.string().min(1))
+    });
+    finishToolAppSchema = external_exports.object({
+      agentInstructions: connectionAgentInstructionsSchema.nullable().optional(),
+      /** Task setup adds access while preserving existing assignments and action policies. */
+      preserveExistingAccess: external_exports.boolean().optional(),
+      enabledCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).default([]),
+      askFirstCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).default([]),
+      reviewedCatalogEntryIds: external_exports.array(external_exports.string().guid()).max(500).optional(),
+      access: external_exports.union([
+        external_exports.literal("all_agents"),
+        // Choosing specific agents may intentionally leave the connection unassigned.
+        external_exports.object({ agentIds: external_exports.array(external_exports.string().guid()).max(250) })
+      ])
+    });
+    finalizeOAuthAccessSchema = external_exports.object({
+      grantKind: connectionGrantKindSchema
+    }).strict();
+    startToolOAuthSchema = external_exports.object({
+      workspaceServices: googleWorkspaceServiceSelectionSchema.optional(),
+      asCurrentUser: external_exports.boolean().optional(),
+      asAgentId: external_exports.string().uuid().optional(),
+      interactionId: external_exports.string().uuid().optional()
+    }).strict().superRefine((value, ctx) => {
+      if (value.asCurrentUser && value.asAgentId) {
+        ctx.addIssue({ code: external_exports.ZodIssueCode.custom, path: ["asAgentId"], message: "Choose either the current user or one dedicated agent" });
+      }
+    }).default({});
+    upsertToolCatalogEntrySchema = external_exports.object({
+      applicationId: external_exports.string().guid(),
+      connectionId: external_exports.string().guid(),
+      entryKind: toolCatalogEntryKindSchema.default("tool"),
+      toolName: external_exports.string().trim().min(1).max(240),
+      title: external_exports.string().trim().max(240).optional().nullable(),
+      description: external_exports.string().max(8e3).optional().nullable(),
+      inputSchema: jsonSchemaSchema.optional().nullable(),
+      outputSchema: jsonSchemaSchema.optional().nullable(),
+      annotations: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+      riskLevel: toolRiskLevelSchema.default("medium"),
+      isReadOnly: external_exports.boolean().default(false),
+      isWrite: external_exports.boolean().default(false),
+      isDestructive: external_exports.boolean().default(false),
+      status: toolCatalogEntryStatusSchema.default("active"),
+      version: external_exports.string().trim().max(200).optional().nullable(),
+      schemaHash: external_exports.string().trim().max(128).optional().nullable()
+    });
+    createToolProfileSchema = external_exports.object({
+      profileKey: external_exports.string().trim().min(1).max(160).regex(safeKeyPattern),
+      name: external_exports.string().trim().min(1).max(160),
+      description: external_exports.string().max(4e3).optional().nullable(),
+      status: toolProfileStatusSchema.default("active"),
+      defaultAction: toolProfileDefaultActionSchema.default("deny"),
+      metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    updateToolProfileSchema = objectWithoutDefaults(createToolProfileSchema).partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool profile field is required" });
+    createToolProfileEntrySchema = external_exports.object({
+      profileId: external_exports.string().guid(),
+      selectorType: toolProfileEntrySelectorTypeSchema,
+      effect: toolProfileEntryEffectSchema.default("include"),
+      applicationId: external_exports.string().guid().optional().nullable(),
+      connectionId: external_exports.string().guid().optional().nullable(),
+      catalogEntryId: external_exports.string().guid().optional().nullable(),
+      toolName: external_exports.string().trim().min(1).max(240).optional().nullable(),
+      riskLevel: toolRiskLevelSchema.optional().nullable(),
+      conditions: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    createToolProfileEntryForProfileSchema = createToolProfileEntrySchema.omit({ profileId: true });
+    updateToolProfileEntrySchema = objectWithoutDefaults(createToolProfileEntryForProfileSchema).partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool profile entry field is required" });
+    createToolProfileWithEntriesSchema = createToolProfileSchema.extend({
+      entries: external_exports.array(createToolProfileEntryForProfileSchema).max(250).optional()
+    });
+    duplicateToolProfileSchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(160),
+      includeAssignments: external_exports.boolean().default(false)
+    });
+    updateToolProfileWithEntriesSchema = objectWithoutDefaults(createToolProfileSchema).partial().extend({
+      entries: external_exports.array(createToolProfileEntryForProfileSchema).max(250).optional()
+    }).refine((value) => Object.keys(value).length > 0, { message: "At least one tool profile field is required" });
+    reviewToolProfileNewToolsSchema = external_exports.object({
+      decisions: external_exports.array(external_exports.object({
+        catalogEntryId: external_exports.string().guid(),
+        decision: external_exports.enum(["allow", "keep_blocked"])
+      })).min(1).max(250)
+    });
+    deleteToolProfileSchema = external_exports.object({
+      force: external_exports.boolean().default(false),
+      reassignToProfileId: external_exports.string().guid().optional()
+    }).prefault({});
+    createToolProfileBindingSchema = external_exports.object({
+      profileId: external_exports.string().guid(),
+      targetType: toolProfileBindingTargetTypeSchema,
+      targetId: external_exports.string().trim().min(1).max(200),
+      priority: external_exports.number().int().min(0).max(1e4).default(100),
+      metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    createToolProfileBindingForProfileSchema = createToolProfileBindingSchema.omit({ profileId: true });
+    unbindToolProfileBindingSchema = createToolProfileBindingForProfileSchema.pick({
+      targetType: true,
+      targetId: true
+    });
+    headerNameSchema = external_exports.string().trim().min(1).max(120).regex(/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
+    toolMcpGatewayAuthConfigSchema = external_exports.object({
+      version: external_exports.literal(1).default(1),
+      bearer: external_exports.object({
+        enabled: external_exports.boolean().default(true),
+        tokenPrefix: external_exports.literal("pcgw").default("pcgw"),
+        defaultTtlSeconds: external_exports.number().int().positive().max(31536e3).nullable().default(7776e3),
+        requireFiniteExpiry: external_exports.boolean().default(true),
+        longLivedTokenRequiresOverride: external_exports.boolean().default(true)
+      }).prefault({}),
+      oauth: external_exports.object({
+        enabled: external_exports.literal(false).default(false),
+        reservedFor: external_exports.literal("v1_5").default("v1_5"),
+        protectedResourceMetadataPath: external_exports.string().trim().max(240).optional().nullable(),
+        dynamicClientRegistration: external_exports.literal(false).optional(),
+        authorizationCodePkce: external_exports.literal(false).optional()
+      }).prefault({})
+    });
+    toolMcpGatewayHeaderPolicySchema = external_exports.object({
+      version: external_exports.literal(1).default(1),
+      callerPassthrough: external_exports.object({
+        enabled: external_exports.boolean().default(false),
+        allowedHeaders: external_exports.array(headerNameSchema).max(50).default([])
+      }).prefault({}),
+      staticHeaders: external_exports.array(external_exports.object({
+        name: headerNameSchema,
+        valueRef: external_exports.string().trim().max(240).optional().nullable(),
+        value: external_exports.string().max(4e3).optional().nullable()
+      })).max(50).default([]),
+      generatedMetadata: external_exports.object({
+        enabled: external_exports.boolean().default(false),
+        allowedHeaders: external_exports.array(headerNameSchema).max(20).default([])
+      }).prefault({}),
+      responseHeaders: external_exports.object({
+        forwardMcpRequiredHeaders: external_exports.boolean().default(true),
+        forwardSafeCacheHeaders: external_exports.boolean().default(true)
+      }).prefault({})
+    });
+    toolMcpGatewayMetadataPolicySchema = external_exports.object({
+      version: external_exports.literal(1).default(1),
+      forwardCompanyId: external_exports.boolean().default(false),
+      forwardGatewayId: external_exports.boolean().default(false),
+      forwardProjectId: external_exports.boolean().default(false),
+      forwardIssueId: external_exports.boolean().default(false),
+      forwardAgentId: external_exports.boolean().default(false),
+      forwardRunId: external_exports.boolean().default(false),
+      forwardCorrelationId: external_exports.boolean().default(true)
+    });
+    toolMcpGatewayOnDemandToolsConfigSchema = external_exports.object({
+      enabled: external_exports.boolean().default(false),
+      searchToolName: external_exports.literal("search_tools").default("search_tools"),
+      runToolName: external_exports.literal("run_tool").default("run_tool")
+    });
+    createToolMcpGatewaySchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(160),
+      slug: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional(),
+      displaySlug: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional(),
+      description: external_exports.string().max(4e3).optional().nullable(),
+      profileId: external_exports.string().guid(),
+      defaultProfileMode: toolMcpGatewayDefaultProfileModeSchema.default("gateway_only").optional(),
+      contextScopeType: toolMcpGatewayContextScopeTypeSchema.default("none").optional(),
+      contextScopeId: external_exports.string().trim().min(1).max(200).optional().nullable(),
+      agentId: external_exports.string().guid().optional().nullable(),
+      projectId: external_exports.string().guid().optional().nullable(),
+      issueId: external_exports.string().guid().optional().nullable(),
+      approvalIssueId: external_exports.string().guid().optional().nullable(),
+      authConfig: toolMcpGatewayAuthConfigSchema.optional(),
+      headerPolicy: toolMcpGatewayHeaderPolicySchema.optional(),
+      metadataPolicy: toolMcpGatewayMetadataPolicySchema.optional(),
+      onDemandToolsConfig: toolMcpGatewayOnDemandToolsConfigSchema.optional(),
+      metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    updateToolMcpGatewaySchema = objectWithoutDefaults(createToolMcpGatewaySchema).partial().extend({ status: toolMcpGatewayStatusSchema.optional() }).refine((value) => Object.keys(value).length > 0, { message: "At least one gateway field is required" });
+    createToolMcpGatewayTokenSchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(160),
+      subjectType: toolMcpGatewayTokenSubjectTypeSchema.default("gateway_client").optional(),
+      subjectId: external_exports.string().trim().min(1).max(240).optional().nullable(),
+      clientLabel: external_exports.string().trim().min(1).max(160),
+      ownerNote: external_exports.string().trim().max(1e3).default(""),
+      allowedActions: external_exports.array(toolMcpGatewayTokenActionSchema).min(1).max(TOOL_MCP_GATEWAY_TOKEN_ACTIONS.length).default(["tools/list", "tools/call"]).optional(),
+      expiresAt: external_exports.coerce.date().optional().nullable(),
+      expiryOverrideReason: external_exports.string().trim().min(1).max(1e3).optional().nullable()
+    }).superRefine((value, ctx) => {
+      if (value.subjectType && value.subjectType !== "gateway_client") {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["subjectType"],
+          message: "Public V1 token minting only supports gateway_client subjects; heartbeat_run is runtime-managed, while board_user and agent are reserved for later OAuth/user-bound flows."
+        });
+      }
+      if (value.expiresAt === null && !value.expiryOverrideReason) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["expiryOverrideReason"],
+          message: "Non-expiring gateway tokens require an override reason."
+        });
+      }
+    });
+    argumentConditionSchema = external_exports.object({
+      fieldEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+      fieldNotEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+      fieldIn: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.array(external_exports.unknown()).min(1).max(100)).optional(),
+      fieldMatches: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.string().trim().min(1).max(500)).optional(),
+      fieldExists: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional(),
+      fieldAbsent: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional()
+    }).strict().refine((value) => Object.values(value).some((nested) => Array.isArray(nested) ? nested.length > 0 : Boolean(nested && Object.keys(nested).length > 0)), { message: "Argument conditions must include at least one field predicate" });
+    timeWindowConditionSchema = external_exports.object({
+      startAt: external_exports.string().trim().datetime({ offset: true }).optional(),
+      endAt: external_exports.string().trim().datetime({ offset: true }).optional(),
+      daysOfWeekUtc: external_exports.array(external_exports.number().int().min(0).max(6)).max(7).optional(),
+      startHourUtc: external_exports.number().int().min(0).max(23).optional(),
+      endHourUtc: external_exports.number().int().min(0).max(24).optional()
+    }).strict().refine((value) => value.startAt || value.endAt || value.daysOfWeekUtc?.length || value.startHourUtc !== void 0 || value.endHourUtc !== void 0, { message: "timeWindow must include at least one bound" });
+    actorConditionSchema = external_exports.object({
+      actorType: external_exports.enum(["agent", "user", "system", "plugin"]).optional(),
+      actorTypes: external_exports.array(external_exports.enum(["agent", "user", "system", "plugin"])).max(20).optional(),
+      agentId: external_exports.string().guid().optional(),
+      agentIds: external_exports.array(external_exports.string().guid()).max(100).optional()
+    }).strict();
+    contextConditionSchema = external_exports.object({
+      projectId: external_exports.string().guid().optional(),
+      projectIds: external_exports.array(external_exports.string().guid()).max(100).optional(),
+      routineId: external_exports.string().guid().optional(),
+      routineIds: external_exports.array(external_exports.string().guid()).max(100).optional(),
+      issueId: external_exports.string().guid().optional(),
+      issueIds: external_exports.array(external_exports.string().guid()).max(100).optional(),
+      requireIssue: external_exports.boolean().optional(),
+      requireProject: external_exports.boolean().optional(),
+      requireRoutine: external_exports.boolean().optional()
+    }).strict();
+    credentialScopeConditionSchema = external_exports.object({
+      applicationId: external_exports.string().guid().optional(),
+      applicationIds: external_exports.array(external_exports.string().guid()).max(100).optional(),
+      connectionId: external_exports.string().guid().optional(),
+      connectionIds: external_exports.array(external_exports.string().guid()).max(100).optional(),
+      catalogEntryId: external_exports.string().guid().optional(),
+      catalogEntryIds: external_exports.array(external_exports.string().guid()).max(100).optional(),
+      applicationKey: external_exports.string().trim().min(1).max(160).optional(),
+      applicationKeys: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional(),
+      providerType: external_exports.string().trim().min(1).max(160).optional(),
+      providerTypes: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional()
+    }).strict();
+    toolPolicyConditionsSchema = external_exports.object({
+      arguments: argumentConditionSchema.optional(),
+      args: argumentConditionSchema.optional(),
+      actor: actorConditionSchema.optional(),
+      context: contextConditionSchema.optional(),
+      risk: external_exports.object({
+        levels: external_exports.array(toolRiskLevelSchema).max(20).optional(),
+        max: toolRiskLevelSchema.optional(),
+        isWrite: external_exports.boolean().optional(),
+        isDestructive: external_exports.boolean().optional()
+      }).strict().optional(),
+      credentialScope: credentialScopeConditionSchema.optional(),
+      trustBoundary: external_exports.object({
+        providerType: external_exports.string().trim().min(1).max(160).optional(),
+        providerTypes: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional(),
+        applicationKey: external_exports.string().trim().min(1).max(160).optional(),
+        applicationKeys: external_exports.array(external_exports.string().trim().min(1).max(160)).max(100).optional(),
+        remoteHttpOnly: external_exports.boolean().optional(),
+        paperclipSelfOnly: external_exports.boolean().optional()
+      }).strict().optional(),
+      timeWindow: timeWindowConditionSchema.optional()
+    }).strict().refine((value) => Object.keys(value).length > 0, { message: "Tool policy conditions must include at least one supported condition group" });
+    createToolPolicySchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(160),
+      description: external_exports.string().max(4e3).optional().nullable(),
+      policyType: toolPolicyTypeSchema,
+      priority: external_exports.number().int().min(0).max(1e4).default(100),
+      enabled: external_exports.boolean().default(true),
+      selectors: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
+      conditions: toolPolicyConditionsSchema.optional().nullable(),
+      config: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable()
+    });
+    updateToolPolicySchema = objectWithoutDefaults(createToolPolicySchema).partial().refine((value) => Object.keys(value).length > 0, { message: "At least one tool policy field is required" });
+    reorderToolPoliciesSchema = external_exports.object({
+      policyIds: external_exports.array(external_exports.string().guid()).min(1).max(500)
+    });
+    duplicateToolPolicySchema = external_exports.object({
+      name: external_exports.string().trim().min(1).max(160).optional()
+    });
+    createToolInvocationSchema = external_exports.object({
+      idempotencyKey: external_exports.string().trim().min(1).max(300).optional().nullable(),
+      issueId: external_exports.string().guid().optional().nullable(),
+      runId: external_exports.string().guid().optional().nullable(),
+      applicationId: external_exports.string().guid().optional().nullable(),
+      connectionId: external_exports.string().guid().optional().nullable(),
+      catalogEntryId: external_exports.string().guid().optional().nullable(),
+      toolName: external_exports.string().trim().min(1).max(240),
+      argumentsHash: external_exports.string().trim().max(128).optional().nullable(),
+      argumentsSummary: toolRedactedValueSummarySchema.optional().nullable()
+    });
+    createToolActionRequestSchema = external_exports.object({
+      invocationId: external_exports.string().guid(),
+      issueId: external_exports.string().guid().optional().nullable(),
+      canonicalArgumentsHash: external_exports.string().trim().min(1).max(128),
+      canonicalArgumentsSummary: toolRedactedValueSummarySchema,
+      signedArguments: external_exports.string().trim().max(4096).optional().nullable(),
+      previewMarkdown: external_exports.string().max(2e4).optional().nullable(),
+      expiresAt: external_exports.coerce.date().optional().nullable()
+    });
+    toolConnectionTestCallSchema = external_exports.object({
+      agentId: external_exports.string().guid(),
+      toolName: external_exports.string().trim().min(1).max(240),
+      parameters: external_exports.unknown().optional()
+    });
+    importMcpJsonSchema = external_exports.object({
+      mcpJson: external_exports.union([external_exports.string(), external_exports.record(external_exports.string(), external_exports.unknown())])
+    });
+    toolAccessSelectorSchema = external_exports.object({
+      actorType: external_exports.enum(["agent", "user", "system", "plugin"]).optional(),
+      agentId: external_exports.string().guid().optional(),
+      agentIds: external_exports.array(external_exports.string().guid()).optional(),
+      projectId: external_exports.string().guid().optional(),
+      projectIds: external_exports.array(external_exports.string().guid()).optional(),
+      routineId: external_exports.string().guid().optional(),
+      routineIds: external_exports.array(external_exports.string().guid()).optional(),
+      issueId: external_exports.string().guid().optional(),
+      issueIds: external_exports.array(external_exports.string().guid()).optional(),
+      gatewayId: external_exports.string().guid().optional(),
+      gatewayIds: external_exports.array(external_exports.string().guid()).optional(),
+      gatewayPublicId: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional(),
+      gatewayPublicIds: external_exports.array(external_exports.string().trim().min(1).max(120).regex(safeKeyPattern)).optional(),
+      gatewayTokenId: external_exports.string().guid().optional(),
+      gatewayTokenIds: external_exports.array(external_exports.string().guid()).optional(),
+      clientSubjectType: toolMcpGatewayTokenSubjectTypeSchema.optional(),
+      clientSubjectTypes: external_exports.array(toolMcpGatewayTokenSubjectTypeSchema).optional(),
+      clientName: external_exports.string().trim().min(1).max(160).optional(),
+      clientNames: external_exports.array(external_exports.string().trim().min(1).max(160)).optional(),
+      externalClient: external_exports.boolean().optional(),
+      applicationId: external_exports.string().guid().optional(),
+      applicationIds: external_exports.array(external_exports.string().guid()).optional(),
+      connectionId: external_exports.string().guid().optional(),
+      connectionIds: external_exports.array(external_exports.string().guid()).optional(),
+      catalogEntryId: external_exports.string().guid().optional(),
+      catalogEntryIds: external_exports.array(external_exports.string().guid()).optional(),
+      toolName: external_exports.string().trim().min(1).max(240).optional(),
+      toolNames: external_exports.array(external_exports.string().trim().min(1).max(240)).optional(),
+      riskLevel: toolRiskLevelSchema.optional(),
+      riskLevels: external_exports.array(toolRiskLevelSchema).optional()
+    });
+    toolRateLimitRuleSchema = external_exports.object({
+      limit: external_exports.number().int().positive().max(1e6),
+      windowSeconds: external_exports.number().int().positive().max(31536e3),
+      keyBy: external_exports.array(external_exports.enum(["company", "agent", "application", "connection", "tool"])).optional()
+    });
+    toolTrustRuleArgumentFiltersSchema = external_exports.object({
+      allowAny: external_exports.boolean().optional(),
+      exactHash: external_exports.string().trim().regex(/^[a-f0-9]{64}$/i).optional().nullable(),
+      allowedHashes: external_exports.array(external_exports.string().trim().regex(/^[a-f0-9]{64}$/i)).max(100).optional(),
+      fieldEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+      fieldNotEquals: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.unknown()).optional(),
+      fieldIn: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.array(external_exports.unknown()).min(1).max(100)).optional(),
+      fieldMatches: external_exports.record(external_exports.string().trim().min(1).max(120), external_exports.string().trim().min(1).max(500)).optional(),
+      fieldExists: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional(),
+      fieldAbsent: external_exports.array(external_exports.string().trim().min(1).max(120)).max(100).optional()
+    }).refine((value) => value.allowAny === true || Boolean(value.exactHash) || Boolean(value.allowedHashes?.length) || Boolean(value.fieldEquals && Object.keys(value.fieldEquals).length > 0) || Boolean(value.fieldNotEquals && Object.keys(value.fieldNotEquals).length > 0) || Boolean(value.fieldIn && Object.keys(value.fieldIn).length > 0) || Boolean(value.fieldMatches && Object.keys(value.fieldMatches).length > 0) || Boolean(value.fieldExists?.length) || Boolean(value.fieldAbsent?.length), { message: "Trust-rule argument filters must specify allowAny, a hash filter, or a field predicate" });
+    toolTrustRuleScopeSchema = external_exports.object({
+      includeAgent: external_exports.boolean().optional(),
+      includeProject: external_exports.boolean().optional(),
+      includeIssue: external_exports.boolean().optional(),
+      includeApplication: external_exports.boolean().optional(),
+      includeConnection: external_exports.boolean().optional(),
+      includeCatalogEntry: external_exports.boolean().optional(),
+      includeTool: external_exports.boolean().optional()
+    });
+    toolTrustRuleBatchApprovalSchema = external_exports.object({
+      enabled: external_exports.boolean().optional(),
+      maxBatchSize: external_exports.number().int().positive().max(100).optional(),
+      windowSeconds: external_exports.number().int().positive().max(31536e3).optional()
+    });
+    createToolTrustRuleFromActionRequestSchema = external_exports.object({
+      argumentMode: external_exports.enum(["exact", "action"]).optional(),
+      name: external_exports.string().trim().min(1).max(160).optional(),
+      description: external_exports.string().max(4e3).optional().nullable(),
+      priority: external_exports.number().int().min(0).max(1e4).default(40),
+      approvalThreshold: external_exports.number().int().min(1).max(50).default(2),
+      selectors: toolAccessSelectorSchema.optional(),
+      scope: toolTrustRuleScopeSchema.optional(),
+      argumentFilters: toolTrustRuleArgumentFiltersSchema.optional(),
+      expiresAt: external_exports.coerce.date().optional().nullable(),
+      batchApproval: toolTrustRuleBatchApprovalSchema.optional().nullable()
+    });
+    revokeToolTrustRuleSchema = external_exports.object({
+      reason: external_exports.string().trim().max(1e3).optional().nullable()
+    });
+    toolPolicyTestRequestSchema = external_exports.object({
+      companyId: external_exports.string().guid(),
+      actor: external_exports.object({
+        actorType: external_exports.enum(["agent", "user", "system", "plugin"]),
+        actorId: external_exports.string().trim().min(1).max(240),
+        agentId: external_exports.string().guid().optional().nullable()
+      }),
+      runContext: external_exports.object({
+        heartbeatRunId: external_exports.string().guid().optional().nullable(),
+        issueId: external_exports.string().guid().optional().nullable(),
+        projectId: external_exports.string().guid().optional().nullable(),
+        routineId: external_exports.string().guid().optional().nullable(),
+        gatewayId: external_exports.string().guid().optional().nullable(),
+        gatewayPublicId: external_exports.string().trim().min(1).max(120).regex(safeKeyPattern).optional().nullable(),
+        gatewayTokenId: external_exports.string().guid().optional().nullable(),
+        clientSubjectType: toolMcpGatewayTokenSubjectTypeSchema.optional().nullable(),
+        clientSubjectId: external_exports.string().trim().min(1).max(240).optional().nullable(),
+        clientName: external_exports.string().trim().min(1).max(160).optional().nullable(),
+        externalClient: external_exports.boolean().optional().nullable()
+      }).optional().nullable(),
+      request: external_exports.object({
+        applicationId: external_exports.string().guid().optional().nullable(),
+        connectionId: external_exports.string().guid().optional().nullable(),
+        catalogEntryId: external_exports.string().guid().optional().nullable(),
+        toolName: external_exports.string().trim().min(1).max(240),
+        arguments: external_exports.unknown().optional(),
+        idempotencyKey: external_exports.string().trim().min(1).max(512).optional().nullable(),
+        sideEffecting: external_exports.boolean().optional()
+      }),
+      consumeRateLimit: external_exports.boolean().optional(),
+      writeAuditEvent: external_exports.boolean().optional()
+    });
+  }
+});
+
 // node_modules/@paperclipai/shared/dist/types/chat-github.js
 var GITHUB_REVIEW_EVENTS;
 var init_chat_github = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/types/chat-github.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/types/chat-github.js"() {
     GITHUB_REVIEW_EVENTS = [
       "opened",
       "synchronize",
@@ -23438,7 +26433,7 @@ var init_chat_github = __esm({
 // node_modules/@paperclipai/shared/dist/validators/chat-github.js
 var githubIdSchema, githubCommitSchema, shortList, prompts, githubReviewPolicySchema, person, githubAllowedPersonSchema, githubChatConfigurationSchema, updateGitHubChatConfigurationSchema, githubReviewAssessmentSchema;
 var init_chat_github2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/chat-github.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/chat-github.js"() {
     init_zod();
     init_chat_github();
     githubIdSchema = external_exports.string().regex(/^[1-9][0-9]{0,19}$/);
@@ -23529,8 +26524,8 @@ var init_chat_github2 = __esm({
         external_exports.literal(5)
       ]),
       complete: external_exports.boolean(),
-      summary: external_exports.string().trim().min(1).max(24e3),
-      rationale: external_exports.string().trim().min(1).max(12e3),
+      summary: external_exports.string().trim().min(1).max(24e3).describe("Review body only: describe the change, findings, and verdict. Paperclip adds the bot-name/score heading and reviewed-commit, coverage, and task/run footer; do not include them here or copy a previously published comment."),
+      rationale: external_exports.string().trim().min(1).max(12e3).describe("Explain the score, supporting evidence, and remaining risk. Published after summary. Do not repeat the summary, score heading, or generated footer; put reviewed paths and limitations in coverage."),
       coverage: external_exports.object({
         reviewedPaths: external_exports.array(external_exports.string().min(1).max(1024)).max(5e3),
         omittedPaths: external_exports.array(external_exports.string().min(1).max(1024)).max(5e3),
@@ -23542,7 +26537,7 @@ var init_chat_github2 = __esm({
         line: external_exports.number().int().positive(),
         side: external_exports.enum(["LEFT", "RIGHT"]),
         severity: external_exports.enum(["info", "warning", "error"]),
-        category: external_exports.string().min(1).max(80),
+        category: external_exports.string().min(1).max(80).describe("Use an exact value from begin_review.findingCategories for this assessment. Categories are configured per repository; do not invent values. If none apply, put the finding in summary. read_pull_request metadata also includes reviewPolicy.findingCategories."),
         body: external_exports.string().trim().min(1).max(12e3)
       }).strict()).max(300)
     }).strict().superRefine((value, ctx) => {
@@ -23566,7 +26561,7 @@ var init_chat_github2 = __esm({
 // node_modules/@paperclipai/shared/dist/validators/chat-channels.js
 var chatExecutionDefaultsSchema, chatProviderSchema, chatEndpointStatusSchema, chatConcurrencyPolicySchema, chatEventKindSchema, chatDeliveryStateSchema, chatPublicationStateSchema, chatPrincipalKindSchema, chatIdentityLinkStatusSchema, chatResourceAvailabilitySchema, microsoftTeamsCredentialIdSchema, chatEndpointCredentialsSchema, slackAppConfigurationSchema, createChatEndpointSchema, updateChatEndpointSchema, photonProjectIdSchema, photonLineIdSchema, photonChannelConfigurationSchema, inspectPhotonProjectSchema, configureChatEndpointSchema, replaceChatEndpointResourcesSchema, gitHubRepositoryPageQuerySchema, toggleAllGitHubRepositoriesSchema, publishChatCommentSchema, publishChatBoardMessageSchema, publishChatPublicationSchema, resolveChatPublicationSchema, resolveChatActionSchema, createChatIdentityLinkIntentSchema, confirmChatIdentityLinkSchema, replayChatDeliverySchema, chatPublicEndpointIdSchema;
 var init_chat_channels2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/chat-channels.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/chat-channels.js"() {
     init_zod();
     init_text();
     init_task_workspace();
@@ -23721,19 +26716,19 @@ var init_chat_channels2 = __esm({
 
 // node_modules/@paperclipai/shared/dist/types/email.js
 var init_email = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/types/email.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/types/email.js"() {
   }
 });
 
 // node_modules/@paperclipai/shared/dist/types/skill-source.js
 var init_skill_source = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/types/skill-source.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/types/skill-source.js"() {
   }
 });
 
 // node_modules/@paperclipai/shared/dist/types/task-workspace.js
 var init_task_workspace2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/types/task-workspace.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/types/task-workspace.js"() {
   }
 });
 
@@ -23774,7 +26769,7 @@ function normalizeCents(value) {
 }
 var MONEY_SCALE, MAX_MONEY_UNITS;
 var init_money = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/money.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/money.js"() {
     MONEY_SCALE = 10000000n;
     MAX_MONEY_UNITS = 10n ** 24n - 1n;
   }
@@ -23783,7 +26778,7 @@ var init_money = __esm({
 // node_modules/@paperclipai/shared/dist/accounting.js
 var exactCentsSchema, pricingProvenanceSchema, importBillingInvoiceSchema, adjustCostSchema, repairAccountingSchema, retryAccountingSchema, importProviderCostsSchema;
 var init_accounting = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/accounting.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/accounting.js"() {
     init_zod();
     init_money();
     exactCentsSchema = external_exports.union([external_exports.string().max(160), external_exports.number().finite()]).transform((value, ctx) => {
@@ -23856,7 +26851,7 @@ var init_accounting = __esm({
 // node_modules/@paperclipai/shared/dist/agent-appearance.js
 var AGENT_PALETTE_IDS, agentAppearanceSchema;
 var init_agent_appearance = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/agent-appearance.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/agent-appearance.js"() {
     init_zod();
     AGENT_PALETTE_IDS = ["bubblegum-sky", "pink-lemonade", "orchid-peach", "coral-mint", "lime-lagoon", "arctic-blue", "solar-flare", "violet-ember", "deep-tide", "coral-current", "golden-hour", "tangerine-cobalt", "electric-grove", "flamingo-jade", "cherry-pop", "turquoise-cherry", "ultraviolet-tide"];
     agentAppearanceSchema = external_exports.object({
@@ -23869,10 +26864,78 @@ var init_agent_appearance = __esm({
   }
 });
 
+// node_modules/@paperclipai/shared/dist/validators/adapter-skills.js
+var agentSkillStateSchema, agentSkillOriginSchema, agentSkillSyncModeSchema, agentSkillAssignmentModeSchema, agentDesiredSkillEntrySchema, agentDesiredSkillSelectionSchema, agentSkillEntrySchema, agentSkillSnapshotSchema, agentSkillSyncSchema;
+var init_adapter_skills = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/adapter-skills.js"() {
+    init_zod();
+    agentSkillStateSchema = external_exports.enum([
+      "available",
+      "configured",
+      "installed",
+      "missing",
+      "stale",
+      "external"
+    ]);
+    agentSkillOriginSchema = external_exports.enum([
+      "company_managed",
+      "user_installed",
+      "external_unknown"
+    ]);
+    agentSkillSyncModeSchema = external_exports.enum([
+      "unsupported",
+      "persistent",
+      "ephemeral"
+    ]);
+    agentSkillAssignmentModeSchema = external_exports.enum([
+      "add",
+      "remove",
+      "replace"
+    ]);
+    agentDesiredSkillEntrySchema = external_exports.object({
+      key: external_exports.string().min(1),
+      versionId: external_exports.string().guid().nullable()
+    });
+    agentDesiredSkillSelectionSchema = external_exports.union([
+      external_exports.string().min(1),
+      agentDesiredSkillEntrySchema
+    ]);
+    agentSkillEntrySchema = external_exports.object({
+      key: external_exports.string().min(1),
+      runtimeName: external_exports.string().min(1).nullable(),
+      versionId: external_exports.string().guid().nullable().optional(),
+      currentVersionId: external_exports.string().guid().nullable().optional(),
+      desired: external_exports.boolean(),
+      managed: external_exports.boolean(),
+      state: agentSkillStateSchema,
+      origin: agentSkillOriginSchema.optional(),
+      originLabel: external_exports.string().nullable().optional(),
+      locationLabel: external_exports.string().nullable().optional(),
+      readOnly: external_exports.boolean().optional(),
+      sourcePath: external_exports.string().nullable().optional(),
+      targetPath: external_exports.string().nullable().optional(),
+      detail: external_exports.string().nullable().optional()
+    });
+    agentSkillSnapshotSchema = external_exports.object({
+      adapterType: external_exports.string().min(1),
+      supported: external_exports.boolean(),
+      mode: agentSkillSyncModeSchema,
+      desiredSkills: external_exports.array(external_exports.string().min(1)),
+      desiredSkillEntries: external_exports.array(agentDesiredSkillEntrySchema).optional(),
+      entries: external_exports.array(agentSkillEntrySchema),
+      warnings: external_exports.array(external_exports.string())
+    });
+    agentSkillSyncSchema = external_exports.object({
+      mode: agentSkillAssignmentModeSchema,
+      desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema)
+    });
+  }
+});
+
 // node_modules/@paperclipai/shared/dist/ai-connection-router.js
 var aiConnectionRouterBindingSchema, aiRuntimeConnectionBindingSchema, aiConnectionPoolMemberSchema, aiConnectionPoolConfigSchema;
 var init_ai_connection_router = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/ai-connection-router.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/ai-connection-router.js"() {
     init_zod();
     init_ai_connections();
     aiConnectionRouterBindingSchema = external_exports.object({
@@ -23911,6 +26974,260 @@ var init_ai_connection_router = __esm({
           ctx.addIssue({ code: "custom", path: ["members", index, "profile"], message: "Choose an ACP harness" });
       }
     });
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/validators/agent.js
+var agentPermissionsSchema, agentInstructionsBundleModeSchema, updateAgentInstructionsBundleSchema, upsertAgentInstructionsFileSchema, restoreAgentInstructionSchema, adapterConfigSchema, createAgentInstructionsBundleSchema, agentRuntimeConfigSchema, createAgentSchema, builtInAgentProvisionSchema, builtInAgentEmptyMutationSchema, builtInAgentResetSchema, createAgentHireSchema, agentRuntimeSettingsPatchSchema, updateAgentSchema, qualifyAgentRunnerSchema, updateAgentInstructionsPathSchema, taskBridgeAgentKeyScopeSchema, standardAgentKeyScopeSchema, skillTestAgentKeyScopeSchema, agentApiKeyScopeSchema, createAgentKeySchema, agentMineInboxQuerySchema, wakeAgentSchema, resetAgentSessionSchema, testAdapterEnvironmentSchema, updateAgentPermissionsSchema, addAgentProjectAccessSchema, resolveAgentInstructionCandidateSchema;
+var init_agent = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/agent.js"() {
+    init_agent_appearance();
+    init_ai_connection_router();
+    init_zod();
+    init_constants();
+    init_adapter_type();
+    init_secret();
+    init_trust_policy2();
+    init_adapter_skills();
+    init_partial();
+    agentPermissionsSchema = external_exports.object({
+      // No schema default: the server derives the default (enabled unless the
+      // permissions record marks the agent low-trust) when the field is omitted.
+      canCreateAgents: external_exports.boolean().optional(),
+      canCreateSkills: external_exports.boolean().optional().default(true),
+      trustPreset: trustPresetSchema.optional(),
+      authorizationPolicy: trustAuthorizationPolicySchema.optional()
+    }).catchall(external_exports.unknown());
+    agentInstructionsBundleModeSchema = external_exports.enum(["managed", "external"]);
+    updateAgentInstructionsBundleSchema = external_exports.object({
+      mode: agentInstructionsBundleModeSchema.optional(),
+      rootPath: external_exports.string().trim().min(1).nullable().optional(),
+      entryFile: external_exports.string().trim().min(1).optional(),
+      clearLegacyPromptTemplate: external_exports.boolean().optional().default(false),
+      requireExistingEntry: external_exports.boolean().optional()
+    });
+    upsertAgentInstructionsFileSchema = external_exports.object({
+      path: external_exports.string().min(1).max(512),
+      content: external_exports.string().max(1024 * 1024),
+      baseRevisionId: external_exports.string().uuid().nullable().optional(),
+      baseHash: external_exports.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
+      clearLegacyPromptTemplate: external_exports.boolean().optional().default(false)
+    }).strict();
+    restoreAgentInstructionSchema = external_exports.object({
+      path: external_exports.string().min(1).max(512),
+      revisionId: external_exports.string().uuid(),
+      baseRevisionId: external_exports.string().uuid()
+    }).strict();
+    adapterConfigSchema = external_exports.record(external_exports.string(), external_exports.unknown()).superRefine((value, ctx) => {
+      const envValue = value.env;
+      if (envValue === void 0)
+        return;
+      const parsed = envConfigSchema.safeParse(envValue);
+      if (!parsed.success) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "adapterConfig.env must be a map of valid env bindings",
+          path: ["env"]
+        });
+      }
+    });
+    createAgentInstructionsBundleSchema = external_exports.object({
+      entryFile: external_exports.string().trim().min(1).optional(),
+      files: external_exports.record(external_exports.string(), external_exports.string()).refine((files) => Object.keys(files).length > 0, {
+        message: "instructionsBundle.files must contain at least one file"
+      })
+    });
+    agentRuntimeConfigSchema = external_exports.object({
+      aiConnection: aiRuntimeConnectionBindingSchema.optional(),
+      debug: external_exports.object({
+        providerTrace: external_exports.literal("raw").optional()
+      }).strict().optional()
+    }).catchall(external_exports.unknown()).superRefine((value, ctx) => {
+      if (Object.prototype.hasOwnProperty.call(value, "modelProfiles")) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          path: ["modelProfiles"],
+          message: "runtimeConfig.modelProfiles is no longer supported"
+        });
+      }
+    });
+    createAgentSchema = external_exports.object({
+      setupId: external_exports.string().guid().optional(),
+      name: external_exports.string().min(1),
+      role: external_exports.enum(AGENT_ROLES).optional().default("general"),
+      title: external_exports.string().optional().nullable(),
+      icon: external_exports.enum(AGENT_ICON_NAMES).optional().nullable(),
+      appearance: agentAppearanceSchema.optional(),
+      reportsTo: external_exports.string().guid().optional().nullable(),
+      capabilities: external_exports.string().optional().nullable(),
+      desiredSkills: external_exports.array(agentDesiredSkillSelectionSchema).optional(),
+      adapterType: agentAdapterTypeSchema,
+      runner: external_exports.enum(["auto", "paperclip", "legacy"]).optional(),
+      adapterConfig: adapterConfigSchema.optional().default({}),
+      instructionsBundle: createAgentInstructionsBundleSchema.optional(),
+      runtimeConfig: agentRuntimeConfigSchema.optional().default({}),
+      defaultEnvironmentId: external_exports.string().guid().optional().nullable(),
+      budgetMonthlyCents: external_exports.number().int().nonnegative().optional().default(0),
+      permissions: agentPermissionsSchema.optional(),
+      metadata: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+      // The optional stored-session claim from a completed Claude login session. It
+      // is the non-secret `storedSessionId`; it carries no token. The agent-create
+      // transaction consumes it as the one-time stored-session claim.
+      storedSessionId: external_exports.string().min(1).max(256).optional(),
+      // The optional apply-existing flag. When true, the caller binds the fixed
+      // Claude OAuth token reference to the owner stored value with no new login
+      // round trip. The server permits the no-claim bind only for a user actor and
+      // only when that owner already has a stored value. It carries no token.
+      applyStoredClaudeLogin: external_exports.boolean().optional(),
+      // Narrow intent flag set by the onboarding wizard when it hires the very first
+      // agent (the chief of staff). It is not an agent column: the server consumes
+      // it to seed the server-owned chief-of-staff persona over the agent's entry
+      // instruction file instead of the generic default, and honors it only for
+      // board-authored requests. Mirrors onboardingFirstTask on issue create.
+      onboardingFirstAgent: external_exports.boolean().optional()
+    });
+    builtInAgentProvisionSchema = external_exports.object({
+      adapterType: agentAdapterTypeSchema.optional(),
+      runner: external_exports.enum(["auto", "paperclip", "legacy"]).optional(),
+      adapterConfig: adapterConfigSchema.optional(),
+      budgetMonthlyCents: external_exports.number().int().nonnegative().optional()
+    }).strict();
+    builtInAgentEmptyMutationSchema = external_exports.object({}).strict().default({});
+    builtInAgentResetSchema = external_exports.object({
+      resources: external_exports.array(external_exports.enum(["agent", "instructions", "skill", "routine"])).optional()
+    }).strict().default({});
+    createAgentHireSchema = createAgentSchema.omit({ setupId: true }).extend({
+      setupAgentId: external_exports.string().guid().optional(),
+      sourceIssueId: external_exports.string().guid().optional().nullable(),
+      sourceIssueIds: external_exports.array(external_exports.string().guid()).optional(),
+      // Agent-authored hires may explicitly request the caller's native runner
+      // settings. The server consumes this intent; it is never an agent column.
+      inheritRuntimeFrom: external_exports.literal("caller").optional()
+    });
+    agentRuntimeSettingsPatchSchema = external_exports.object({
+      harness: external_exports.string().min(1),
+      model: external_exports.string().trim().min(1).max(512).optional(),
+      aiConnection: aiRuntimeConnectionBindingSchema.optional(),
+      expected: external_exports.object({
+        model: external_exports.string().nullable(),
+        aiConnection: aiRuntimeConnectionBindingSchema.nullable()
+      }).strict()
+    }).strict().refine((value) => value.model !== void 0 || value.aiConnection !== void 0, {
+      message: "Choose a connection or default model to change"
+    });
+    updateAgentSchema = objectWithoutDefaults(createAgentSchema.omit({ permissions: true, onboardingFirstAgent: true, setupId: true })).partial().extend({
+      permissions: external_exports.never().optional(),
+      runtimeSettings: agentRuntimeSettingsPatchSchema.optional(),
+      replaceAdapterConfig: external_exports.boolean().optional(),
+      expectedConfigurationRevision: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(),
+      status: external_exports.enum(["paused", "idle", "terminated"]).optional(),
+      spentMonthlyCents: external_exports.never().optional()
+    });
+    qualifyAgentRunnerSchema = external_exports.object({
+      expectedEnvironmentId: external_exports.string().uuid()
+    }).strict();
+    updateAgentInstructionsPathSchema = external_exports.object({
+      path: external_exports.string().trim().min(1).nullable(),
+      adapterConfigKey: external_exports.string().trim().min(1).optional()
+    });
+    taskBridgeAgentKeyScopeSchema = external_exports.object({
+      kind: external_exports.literal("task_bridge"),
+      projectId: external_exports.string().guid().optional().nullable(),
+      projectIds: external_exports.array(external_exports.string().guid()).max(50).optional(),
+      parentIssueId: external_exports.string().guid().optional().nullable(),
+      parentIssueIds: external_exports.array(external_exports.string().guid()).max(50).optional(),
+      allowedAssigneeAgentIds: external_exports.array(external_exports.string().guid()).max(50).optional()
+    }).strict().superRefine((value, ctx) => {
+      const hasProjectBoundary = Boolean(value.projectId) || Boolean(value.projectIds?.length);
+      const hasParentBoundary = Boolean(value.parentIssueId) || Boolean(value.parentIssueIds?.length);
+      if (!hasProjectBoundary && !hasParentBoundary) {
+        ctx.addIssue({
+          code: external_exports.ZodIssueCode.custom,
+          message: "task_bridge keys require at least one project or parent issue boundary",
+          path: ["projectId"]
+        });
+      }
+    });
+    standardAgentKeyScopeSchema = external_exports.object({
+      kind: external_exports.literal("standard")
+    }).strict();
+    skillTestAgentKeyScopeSchema = external_exports.object({
+      kind: external_exports.literal("skill_test"),
+      issueId: external_exports.string().guid()
+    }).strict();
+    agentApiKeyScopeSchema = external_exports.union([
+      standardAgentKeyScopeSchema,
+      taskBridgeAgentKeyScopeSchema,
+      skillTestAgentKeyScopeSchema
+    ]);
+    createAgentKeySchema = external_exports.object({
+      name: external_exports.string().min(1).default("default"),
+      scope: agentApiKeyScopeSchema.optional().default({ kind: "standard" })
+    });
+    agentMineInboxQuerySchema = external_exports.object({
+      userId: external_exports.string().trim().min(1),
+      status: external_exports.string().trim().min(1).optional().default(INBOX_MINE_ISSUE_STATUS_FILTER)
+    });
+    wakeAgentSchema = external_exports.object({
+      source: external_exports.enum(["timer", "assignment", "on_demand", "automation"]).optional().default("on_demand"),
+      triggerDetail: external_exports.enum(["manual", "ping", "callback", "system"]).optional(),
+      reason: external_exports.string().optional().nullable(),
+      /** Select an exact failed run; its chat request and actor are server-derived. */
+      failedRunId: external_exports.string().uuid().optional(),
+      payload: external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable(),
+      idempotencyKey: external_exports.string().optional().nullable(),
+      forceFreshSession: external_exports.preprocess((value) => value === null ? void 0 : value, external_exports.boolean().optional().default(false)),
+      debug: external_exports.object({
+        providerTrace: external_exports.literal("raw")
+      }).strict().optional()
+    });
+    resetAgentSessionSchema = external_exports.object({
+      taskKey: external_exports.string().min(1).optional().nullable()
+    });
+    testAdapterEnvironmentSchema = external_exports.object({
+      runner: external_exports.enum(["auto", "paperclip", "legacy"]).optional(),
+      aiConnection: aiRuntimeConnectionBindingSchema.optional(),
+      /** Saved agent whose redacted environment entries are restored for this probe. */
+      agentId: external_exports.string().guid().optional(),
+      /** One-shot provider keys for a probe. Never persist these in agent config. */
+      testCredentials: external_exports.object({
+        ANTHROPIC_API_KEY: external_exports.string().max(16384),
+        OPENAI_API_KEY: external_exports.string().max(16384),
+        OPENROUTER_API_KEY: external_exports.string().max(16384),
+        GEMINI_API_KEY: external_exports.string().max(16384),
+        XAI_API_KEY: external_exports.string().max(16384),
+        GROQ_API_KEY: external_exports.string().max(16384),
+        OPENCODE_API_KEY: external_exports.string().max(16384),
+        CURSOR_API_KEY: external_exports.string().max(16384),
+        KIMI_MODEL_API_KEY: external_exports.string().max(16384),
+        API_SERVER_KEY: external_exports.string().max(16384),
+        ZAI_API_KEY: external_exports.string().max(16384),
+        KIMI_API_KEY: external_exports.string().max(16384),
+        MINIMAX_API_KEY: external_exports.string().max(16384)
+      }).partial().strict().optional(),
+      adapterConfig: adapterConfigSchema.optional().default({}),
+      /**
+       * Optional environment to run the adapter test inside. When omitted, the
+       * test runs against the local Paperclip host. When provided and the
+       * environment is non-local (SSH/sandbox), the test probes are executed
+       * inside that environment so the result reflects real agent execution.
+       */
+      environmentId: external_exports.string().guid().optional().nullable()
+    });
+    updateAgentPermissionsSchema = external_exports.object({
+      canCreateAgents: external_exports.boolean(),
+      canCreateSkills: external_exports.boolean().optional(),
+      canAssignTasks: external_exports.boolean(),
+      trustPreset: trustPresetSchema.optional(),
+      authorizationPolicy: trustAuthorizationPolicySchema.optional()
+    });
+    addAgentProjectAccessSchema = external_exports.object({
+      projectIds: external_exports.array(external_exports.string().uuid()).min(1).max(100)
+    }).strict();
+    resolveAgentInstructionCandidateSchema = external_exports.object({
+      baseRevisionId: external_exports.string().uuid().nullable(),
+      content: external_exports.string().max(1024 * 1024)
+    }).strict();
   }
 });
 
@@ -23953,7 +27270,7 @@ function normalizeSkillPolicySourceLocator(value) {
 }
 var SKILL_POLICY_ACTIONS, SKILL_POLICY_SOURCE_TYPES, skillPolicyActionSchema, skillPolicySourceTypeSchema, skillPolicyEffectSchema, nonEmptyUniqueStrings, skillPolicySourceLocatorSchema, skillPolicySubjectSchema, skillPolicyResourceSelectorSchema, skillPolicyRuleSchema, skillPolicyDocumentSchema, replaceSkillPolicySchema, skillPolicyEvaluationResourceSchema, evaluateSkillPolicySchema;
 var init_skill_policy = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/skill-policy.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/skill-policy.js"() {
     init_zod();
     SKILL_POLICY_ACTIONS = [
       "skills.create",
@@ -24025,7 +27342,7 @@ var init_skill_policy = __esm({
 // node_modules/@paperclipai/shared/dist/validators/provider-trace.js
 var providerTraceDirectionSchema, providerTraceDispositionSchema, providerTraceFieldMappingSchema, providerTraceStatusSchema, sha256DigestSchema, dateValueSchema, providerTraceFrameSchema, providerTraceInterpretationSchema, providerTraceMetadataSchema, runPresentationSourceSchema, runPresentationDecisionSchema;
 var init_provider_trace = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/provider-trace.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/provider-trace.js"() {
     init_zod();
     providerTraceDirectionSchema = external_exports.enum([
       "client_to_provider",
@@ -24129,7 +27446,7 @@ var init_provider_trace = __esm({
 // node_modules/@paperclipai/shared/dist/validators/email.js
 var address, addresses, emailAddressCheckSchema, emailEndpointSetupSchema, emailSendSchema, emailConnectionSchema;
 var init_email2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/email.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/email.js"() {
     init_zod();
     address = external_exports.string().trim().email().max(320);
     addresses = external_exports.array(address).max(50);
@@ -24212,14 +27529,14 @@ function parseGitHubSkillRepositoryUrl(value) {
   }
 }
 var init_github_skill_repository = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/github-skill-repository.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/github-skill-repository.js"() {
   }
 });
 
 // node_modules/@paperclipai/shared/dist/validators/skill-source.js
 var repositoryUrl, repoPath, skillSourceDiscoverySchema, skillSourcePreviewSchema, skillSourceCreateSchema, skillSourceSelectionSchema, skillSourceSettingsSchema, skillSourceBranchesQuerySchema, projectSkillSourceAdoptSchema, skillSourceDisconnectSchema;
 var init_skill_source2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/skill-source.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/skill-source.js"() {
     init_zod();
     init_github_skill_repository();
     repositoryUrl = external_exports.string().trim().max(2048).refine((value) => parseGitHubSkillRepositoryUrl(value) !== null, "Enter an HTTPS GitHub repository or branch URL.");
@@ -24268,12 +27585,14 @@ var init_skill_source2 = __esm({
 // node_modules/@paperclipai/shared/dist/validators/agent-commentary.js
 var AGENT_COMMENTARY_MAX_LENGTH, AGENT_COMMENTARY_KINDS, agentCommentaryToolInputSchema, submitAgentCommentarySchema, agentCommentaryQuerySchema;
 var init_agent_commentary = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/agent-commentary.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/agent-commentary.js"() {
     init_zod();
+    init_text();
     AGENT_COMMENTARY_MAX_LENGTH = 524288;
     AGENT_COMMENTARY_KINDS = ["complaint", "suggestion"];
     agentCommentaryToolInputSchema = external_exports.object({
-      body: external_exports.string().max(AGENT_COMMENTARY_MAX_LENGTH).refine((body) => body.trim().length > 0, "Feedback must not be empty"),
+      // The ceiling is JavaScript string length, matching submit-agent-commentary.mjs.
+      body: maxStringLength(external_exports.string(), AGENT_COMMENTARY_MAX_LENGTH).refine((body) => body.trim().length > 0, "Feedback must not be empty"),
       idempotencyKey: external_exports.string().trim().min(1).max(240)
     }).strict();
     submitAgentCommentarySchema = agentCommentaryToolInputSchema.extend({
@@ -24291,14 +27610,14 @@ var init_agent_commentary = __esm({
 
 // node_modules/@paperclipai/shared/dist/types/voice-sessions.js
 var init_voice_sessions = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/types/voice-sessions.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/types/voice-sessions.js"() {
   }
 });
 
 // node_modules/@paperclipai/shared/dist/validators/voice-sessions.js
 var startVoiceSessionSchema, voiceCallbackPreferenceSchema, voiceSessionCursorSchema, voicePhoneConfigurationSchema, voiceInboundDecisionSchema;
 var init_voice_sessions2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/validators/voice-sessions.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/validators/voice-sessions.js"() {
     init_zod();
     startVoiceSessionSchema = external_exports.object({
       endpointId: external_exports.string().uuid(),
@@ -24319,14 +27638,14 @@ var init_voice_sessions2 = __esm({
 
 // node_modules/@paperclipai/shared/dist/ai-connection-usage.js
 var init_ai_connection_usage = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/ai-connection-usage.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/ai-connection-usage.js"() {
   }
 });
 
 // node_modules/@paperclipai/shared/dist/subscriptions.js
 var SUBSCRIPTION_CURRENCIES, subscriptionPriceSchema, mergeSubscriptionsSchema, SUBSCRIPTION_PLANS;
 var init_subscriptions = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/subscriptions.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/subscriptions.js"() {
     init_zod();
     init_accounting();
     SUBSCRIPTION_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "CHF"];
@@ -24352,9 +27671,9 @@ var init_subscriptions = __esm({
       ["anthropic", "max_20x", "Claude Max 20x", "20000", "https://claude.com/pricing"],
       ["xai", "supergrok", "SuperGrok", "3000", "https://x.ai/pricing"],
       ["xai", "supergrok_plus", "SuperGrok Plus", "10000", "https://x.ai/pricing"]
-    ].map(([provider, id2, name, monthlyCents, sourceUrl]) => ({
+    ].map(([provider, id3, name, monthlyCents, sourceUrl]) => ({
       provider,
-      id: id2,
+      id: id3,
       name,
       monthlyCents,
       sourceUrl,
@@ -24367,7 +27686,7 @@ var init_subscriptions = __esm({
 // node_modules/@paperclipai/shared/dist/announcements.js
 var ANNOUNCEMENT_MANIFEST_MAX_BYTES, ANNOUNCEMENT_IMAGE_MAX_BYTES, ANNOUNCEMENT_ANIMATION_MAX_BYTES, ANNOUNCEMENT_APP_ROUTES, announcementIdSchema, label, httpsUrl, announcementActionSchema, announcementSchema, announcementManifestSchema, dismissAnnouncementSchema;
 var init_announcements = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/announcements.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/announcements.js"() {
     init_zod();
     ANNOUNCEMENT_MANIFEST_MAX_BYTES = 64 * 1024;
     ANNOUNCEMENT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
@@ -24430,7 +27749,7 @@ var init_announcements = __esm({
 // node_modules/@paperclipai/shared/dist/composio-search-catalog.json
 var composio_search_catalog_default;
 var init_composio_search_catalog = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/composio-search-catalog.json"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/composio-search-catalog.json"() {
     composio_search_catalog_default = {
       source: "https://docs.composio.dev/toolkits",
       verifiedAt: "2026-09-30",
@@ -26026,7 +29345,7 @@ var init_composio_search_catalog = __esm({
 // node_modules/@paperclipai/shared/dist/arcade-app-catalog.json
 var arcade_app_catalog_default;
 var init_arcade_app_catalog = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/arcade-app-catalog.json"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/arcade-app-catalog.json"() {
     arcade_app_catalog_default = {
       source: "https://docs.arcade.dev/en/resources/integrations",
       verifiedAt: "2026-10-02",
@@ -27651,7 +30970,7 @@ function add(name, slug, aliases, route) {
 }
 var SERVICE_IDENTITY_ALIASES, entries, AGGREGATOR_APP_CATALOG, COMPOSIO_APP_TOOLKITS;
 var init_aggregator_app_catalog = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/aggregator-app-catalog.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/aggregator-app-catalog.js"() {
     init_composio_search_catalog();
     init_arcade_app_catalog();
     SERVICE_IDENTITY_ALIASES = /* @__PURE__ */ new Map([
@@ -27687,7 +31006,7 @@ var init_aggregator_app_catalog = __esm({
 // node_modules/@paperclipai/shared/dist/connection-search.js
 var STOP_WORDS, GENERIC_NAMES;
 var init_connection_search = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/connection-search.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/connection-search.js"() {
     STOP_WORDS = new Set("a an and are as at be by can connect connection connections do find for from get help i in is it me my need not of on or our please real service services so some that the their them there this to tool tools use want we with would you your".split(" "));
     GENERIC_NAMES = /* @__PURE__ */ new Set([...STOP_WORDS, "contacts", "email"]);
   }
@@ -27696,7 +31015,7 @@ var init_connection_search = __esm({
 // node_modules/@paperclipai/shared/dist/connection-routing.js
 var REVIEWED_AGGREGATOR_SUPPORT, AGGREGATOR_SUPPORT_INDEX;
 var init_connection_routing = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/connection-routing.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/connection-routing.js"() {
     init_composio_search_catalog();
     init_arcade_app_catalog();
     init_aggregator_app_catalog();
@@ -27918,7 +31237,7 @@ function tool2(name, description, properties, required2, read = false) {
 }
 var BROWSER_USE_IDLE_MS, browserUseViewportPresetSchema, browserUseViewerSchema, browserUseViewportSchema, browserUseSettingsSchema, browserUseControlSchema, session, task, BROWSER_USE_TOOLS;
 var init_browser_use = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/browser-use.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/browser-use.js"() {
     init_zod();
     BROWSER_USE_IDLE_MS = 10 * 60 * 1e3;
     browserUseViewportPresetSchema = external_exports.enum([
@@ -27984,7 +31303,7 @@ var init_browser_use = __esm({
 // node_modules/@paperclipai/shared/dist/public-mcp.js
 var mcpConsentSchema;
 var init_public_mcp = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/public-mcp.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/public-mcp.js"() {
     init_zod();
     mcpConsentSchema = external_exports.object({
       decision: external_exports.enum(["approve", "deny"]),
@@ -27997,14 +31316,14 @@ var init_public_mcp = __esm({
 
 // node_modules/@paperclipai/shared/dist/mcp-setup.js
 var init_mcp_setup = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/mcp-setup.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/mcp-setup.js"() {
   }
 });
 
 // node_modules/@paperclipai/shared/dist/customer-success.js
 var MAX_INSPECTION_BYTES;
 var init_customer_success = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/customer-success.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/customer-success.js"() {
     MAX_INSPECTION_BYTES = 1024 * 1024;
   }
 });
@@ -28012,7 +31331,7 @@ var init_customer_success = __esm({
 // node_modules/@paperclipai/shared/dist/decision-models.js
 var updateDecisionModelSchema, instructions, decisionQuestionSchema, decisionRequestSchema;
 var init_decision_models = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/decision-models.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/decision-models.js"() {
     init_zod();
     updateDecisionModelSchema = external_exports.object({
       enabled: external_exports.boolean(),
@@ -28038,7 +31357,7 @@ var init_decision_models = __esm({
 // node_modules/@paperclipai/shared/dist/agent-avatar-upload.js
 var MAX_AGENT_AVATAR_BYTES, setAgentAvatarSchema;
 var init_agent_avatar_upload = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/agent-avatar-upload.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/agent-avatar-upload.js"() {
     init_zod();
     MAX_AGENT_AVATAR_BYTES = 512 * 1024;
     setAgentAvatarSchema = external_exports.object({
@@ -28050,7 +31369,7 @@ var init_agent_avatar_upload = __esm({
 // node_modules/@paperclipai/shared/dist/muse-protocol.js
 var MUSE_PROTOCOL_VERSION, MUSE_CLIENT_VERSION, MUSE_MAX_BODY_BYTES, MUSE_TICKET_TTL_MS, MUSE_ACCESS_TTL_MS, MUSE_REFRESH_INACTIVITY_MS, MUSE_CLEANUP_TTL_MS, id, boundedId, nativeRequestId, utf8Encoder, nativeQuestionSet, progressText, envelope, operation, museCommandSchema, museQuerySchema, musePairSchema, museRefreshSchema, museStopBoundarySchema, museCleanupSchema, museDetectorCleanupSchema;
 var init_muse_protocol = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/muse-protocol.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/muse-protocol.js"() {
     init_zod();
     init_issue();
     MUSE_PROTOCOL_VERSION = 1;
@@ -28120,7 +31439,7 @@ var init_muse_protocol = __esm({
 // node_modules/@paperclipai/shared/dist/muse-invitations.js
 var museDetectorCleanupAttestationSchema;
 var init_muse_invitations = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/muse-invitations.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/muse-invitations.js"() {
     init_zod();
     museDetectorCleanupAttestationSchema = external_exports.object({
       bindingId: external_exports.uuid(),
@@ -28144,7 +31463,7 @@ var init_muse_invitations = __esm({
 // node_modules/@paperclipai/shared/dist/fast-response.js
 var updateFastResponseSchema;
 var init_fast_response = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/fast-response.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/fast-response.js"() {
     init_zod();
     updateFastResponseSchema = external_exports.object({
       enabled: external_exports.boolean(),
@@ -28161,7 +31480,7 @@ var init_fast_response = __esm({
 // node_modules/@paperclipai/shared/dist/grok-bot.js
 var createGrokInvitationSchema, configureGrokRoutineSchema, verifyGrokRoutineSchema, retryGrokDeliverySchema, pairGrokBindingSchema, stopGrokWorkSchema, recoverGrokRoutineSchema;
 var init_grok_bot = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/grok-bot.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/grok-bot.js"() {
     init_zod();
     init_constants();
     createGrokInvitationSchema = external_exports.object({
@@ -28199,7 +31518,7 @@ function normalizeOtlpBaseUrl(value) {
 }
 var DEFAULT_AGENT_OBSERVABILITY_CAPTURE, agentObservabilityCaptureSchema, baseUrl, agentObservabilityDestinationSchema, forbiddenHeaders, headerName, headerValue, agentObservabilityHeadersSchema, common, keep, updateAgentObservabilitySchema, agentObservabilityRevisionSchema;
 var init_agent_observability = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/agent-observability.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/agent-observability.js"() {
     init_zod();
     DEFAULT_AGENT_OBSERVABILITY_CAPTURE = {
       userPrompts: true,
@@ -28267,7 +31586,7 @@ var init_agent_observability = __esm({
 // node_modules/@paperclipai/shared/dist/prompt-injection-prevention.js
 var PROMPT_INJECTION_MAX_REQUEST_BYTES, promptInjectionFindingSchema, promptInjectionVerdictSchema, updatePromptInjectionPreventionSchema;
 var init_prompt_injection_prevention = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/prompt-injection-prevention.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/prompt-injection-prevention.js"() {
     init_zod();
     PROMPT_INJECTION_MAX_REQUEST_BYTES = 256 * 1024;
     promptInjectionFindingSchema = external_exports.enum([
@@ -28292,7 +31611,7 @@ var init_prompt_injection_prevention = __esm({
 // node_modules/@paperclipai/shared/dist/workspace-provider.js
 var workspaceProviderBindingSchema;
 var init_workspace_provider = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/workspace-provider.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/workspace-provider.js"() {
     init_zod();
     workspaceProviderBindingSchema = external_exports.object({
       pluginId: external_exports.string().uuid(),
@@ -28308,7 +31627,7 @@ var init_workspace_provider = __esm({
 // node_modules/@paperclipai/shared/dist/workflows.js
 var createWorkflowSchema, updateWorkflowSchema, listWorkflowsSchema, readWorkflowQuerySchema;
 var init_workflows = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/workflows.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/workflows.js"() {
     init_zod();
     init_case_handoffs();
     createWorkflowSchema = external_exports.object({
@@ -28326,9 +31645,139 @@ var init_workflows = __esm({
   }
 });
 
+// node_modules/@paperclipai/shared/dist/agent-configuration-resources.js
+var id2, filePath, agentConfigurationResourceShape, resources, tools, profileReferenceSchema, agentConfigurationInputResourceShape;
+var init_agent_configuration_resources = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/agent-configuration-resources.js"() {
+    init_zod();
+    init_agent();
+    init_adapter_skills();
+    init_tool_access();
+    init_chat_channels2();
+    init_secret();
+    id2 = external_exports.string().min(1);
+    filePath = external_exports.string().min(1).max(512).refine((value) => !value.startsWith("/") && !value.includes("\\") && !value.split("/").some((part) => part === ".." || part === "." || !part), "Use a relative file path without traversal.");
+    agentConfigurationResourceShape = {
+      permissions: updateAgentPermissionsSchema.extend({
+        canCreateSkills: external_exports.boolean(),
+        trustPreset: updateAgentPermissionsSchema.shape.trustPreset.unwrap()
+      }).strict().optional(),
+      instructions: external_exports.object({
+        mode: external_exports.enum(["managed", "external"]).nullable(),
+        rootPath: external_exports.string().nullable(),
+        entryFile: filePath,
+        files: external_exports.record(filePath, external_exports.string().max(1024 * 1024))
+      }).strict().optional(),
+      skills: external_exports.array(external_exports.union([agentDesiredSkillSelectionSchema.options[0], agentDesiredSkillEntrySchema.strict()])).optional(),
+      tools: external_exports.object({
+        connections: external_exports.array(external_exports.object({ connectionId: id2, installed: external_exports.boolean() }).strict()),
+        profiles: external_exports.array(external_exports.object({
+          profileId: id2.nullable(),
+          updateSharedDefinition: external_exports.boolean().optional(),
+          priority: external_exports.number().int().min(0).max(1e4),
+          metadata: external_exports.record(external_exports.string(), external_exports.unknown()).nullable(),
+          configuration: createToolProfileWithEntriesSchema.extend({
+            entries: external_exports.array(createToolProfileEntryForProfileSchema.strict()).max(250).optional()
+          }).strict()
+        }).strict()),
+        policies: external_exports.array(external_exports.object({ id: id2.nullable(), configuration: createToolPolicySchema.strict() }).strict())
+      }).strict().optional(),
+      channels: external_exports.array(external_exports.object({
+        id: id2,
+        provider: chatProviderSchema,
+        settings: updateChatEndpointSchema,
+        resources: external_exports.array(replaceChatEndpointResourcesSchema.shape.resources.element.strict())
+      }).strict()).optional(),
+      apiKeys: external_exports.object({ create: external_exports.array(createAgentKeySchema.strict()), revoke: external_exports.array(id2) }).strict().optional(),
+      revisions: external_exports.object({ restore: id2.nullable() }).strict().optional(),
+      secrets: external_exports.object({
+        create: external_exports.array(external_exports.object({
+          secret: createSecretSchema.strict(),
+          bind: external_exports.object({ env: external_exports.array(external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/)), api: external_exports.array(external_exports.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/)) }).strict()
+        }).strict()),
+        rotate: external_exports.array(external_exports.object({ id: id2, input: rotateSecretSchema.strict() }).strict()),
+        update: external_exports.array(external_exports.object({ id: id2, input: updateSecretSchema.strict() }).strict()),
+        proposals: external_exports.array(external_exports.object({ id: id2, decision: external_exports.enum(["approve", "reject"]), reason: external_exports.string().optional() }).strict())
+      }).strict().optional(),
+      channelOperations: external_exports.object({
+        create: external_exports.array(external_exports.object(createChatEndpointSchema.shape).omit({ assignedAgentId: true }).strict().refine((value) => !value.slackApp && !value.slackSetupMethod || value.provider === "slack", { message: "Slack app details only apply to Slack connections", path: ["slackApp"] })),
+        setup: external_exports.array(external_exports.object({ id: id2, input: configureChatEndpointSchema }).strict()),
+        revokeIdentityLinks: external_exports.array(external_exports.object({ endpointId: id2, principalId: id2 }).strict())
+      }).strict().optional()
+    };
+    resources = agentConfigurationResourceShape;
+    tools = resources.tools.unwrap().shape;
+    profileReferenceSchema = tools.profiles.element.partial().extend({
+      profileKey: id2.optional()
+    }).refine((value) => value.profileId || value.profileKey || value.configuration, {
+      message: "Specify profileKey, profileId, or a new profile configuration."
+    }).refine((value) => value.profileId !== null || !value.profileKey, {
+      message: "A new profile (profileId: null) cannot also reference an existing profileKey."
+    });
+    agentConfigurationInputResourceShape = {
+      permissions: resources.permissions.unwrap().partial().optional(),
+      instructions: resources.instructions.unwrap().partial().extend({
+        files: external_exports.record(filePath, external_exports.string().max(1024 * 1024).nullable()).optional()
+      }).optional(),
+      skills: resources.skills,
+      tools: external_exports.object({
+        connections: external_exports.array(tools.connections.element.partial({ installed: true })).optional(),
+        profiles: external_exports.array(profileReferenceSchema).optional(),
+        policies: tools.policies.optional()
+      }).strict().optional(),
+      channels: external_exports.array(resources.channels.unwrap().element.partial().required({ id: true })).optional(),
+      apiKeys: resources.apiKeys.unwrap().partial().optional(),
+      revisions: resources.revisions,
+      secrets: resources.secrets.unwrap().partial().optional(),
+      channelOperations: resources.channelOperations.unwrap().partial().optional()
+    };
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/agent-configuration.js
+var agentConfigurationSpecSchema, agentConfigurationDocumentSchema, agentConfigurationInputSchema;
+var init_agent_configuration = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/agent-configuration.js"() {
+    init_zod();
+    init_agent();
+    init_partial();
+    init_agent_configuration_resources();
+    agentConfigurationSpecSchema = objectWithoutDefaults(createAgentSchema.pick({
+      name: true,
+      role: true,
+      title: true,
+      icon: true,
+      appearance: true,
+      reportsTo: true,
+      capabilities: true,
+      adapterType: true,
+      adapterConfig: true,
+      runtimeConfig: true,
+      defaultEnvironmentId: true,
+      budgetMonthlyCents: true,
+      metadata: true
+    })).required().strict();
+    agentConfigurationDocumentSchema = external_exports.object({
+      apiVersion: external_exports.literal("paperclip/v1"),
+      kind: external_exports.literal("Agent"),
+      spec: agentConfigurationSpecSchema.extend(agentConfigurationResourceShape),
+      observed: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+    }).strict();
+    agentConfigurationInputSchema = agentConfigurationDocumentSchema.extend({
+      spec: agentConfigurationSpecSchema.partial().extend(agentConfigurationInputResourceShape)
+    });
+  }
+});
+
+// node_modules/@paperclipai/shared/dist/provider-rate-limits.js
+var init_provider_rate_limits = __esm({
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/provider-rate-limits.js"() {
+  }
+});
+
 // node_modules/@paperclipai/shared/dist/index.js
 var init_dist = __esm({
-  "../../node_modules/.pnpm/@paperclipai+shared@2026.1106.0/node_modules/@paperclipai/shared/dist/index.js"() {
+  "../../node_modules/.pnpm/@paperclipai+shared@2026.1117.0/node_modules/@paperclipai/shared/dist/index.js"() {
     init_slack_app_manifest();
     init_google_workspace_connectors();
     init_github_connectors();
@@ -28377,13 +31826,15 @@ var init_dist = __esm({
     init_prompt_injection_prevention();
     init_workspace_provider();
     init_workflows();
+    init_agent_configuration();
+    init_provider_rate_limits();
   }
 });
 
 // node_modules/@paperclipai/plugin-sdk/dist/workspace-provider.js
 function parseWorkspaceProviderResult(params, value) {
   const result = workspaceProviderResultSchema.parse(value);
-  const expected = params.operation.kind === "prepare" ? "prepared" : params.operation.kind === "inspect" ? "inspection" : "removed";
+  const expected = params.operation.kind === "prepare" ? "prepared" : params.operation.kind === "inspect" ? "inspection" : params.operation.kind === "finalize" ? "finalized" : "removed";
   if (result.kind !== expected)
     throw new Error("Workspace provider returned the wrong operation result");
   if (result.kind === "prepared" && (result.binding.pluginId !== params.pluginId || result.binding.executionWorkspaceId !== params.executionWorkspaceId || result.binding.projectId !== params.projectId || result.binding.projectWorkspaceId !== (params.operation.kind === "prepare" ? params.operation.source.id : void 0) || result.binding.sourceRevision !== (params.operation.kind === "prepare" ? params.operation.source.revision : void 0))) {
@@ -28394,9 +31845,9 @@ function parseWorkspaceProviderResult(params, value) {
   }
   return result;
 }
-var recoveryFile, freshWorkspaceSchema, sha, workspaceProviderOperationSchema, workspaceProviderResultSchema, pluginWorkspaceParamsSchema;
+var recoveryFile, freshWorkspaceSchema, sha, workspaceRecoveryPullRequestSchema, destinationRef, workspaceProviderOperationSchema, workspaceProviderResultSchema, pluginWorkspaceParamsSchema;
 var init_workspace_provider2 = __esm({
-  "../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.1106.0_react@19.3.1/node_modules/@paperclipai/plugin-sdk/dist/workspace-provider.js"() {
+  "../../node_modules/.pnpm/@paperclipai+plugin-sdk@2026.1117.0_react@19.3.1/node_modules/@paperclipai/plugin-sdk/dist/workspace-provider.js"() {
     init_zod();
     init_dist();
     recoveryFile = external_exports.object({
@@ -28416,6 +31867,11 @@ var init_workspace_provider2 = __esm({
       }).strict())
     }).strict();
     sha = external_exports.string().regex(/^[a-f0-9]{40,64}$/);
+    workspaceRecoveryPullRequestSchema = external_exports.object({
+      number: external_exports.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+      headSha: external_exports.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+    }).strict();
+    destinationRef = external_exports.string().max(266).regex(/^refs\/heads\/[^\x00-\x20\x7f~^:?*\[\]\\]+$/).refine((ref) => !ref.includes("..") && !ref.includes("@{") && !ref.endsWith(".") && !ref.endsWith("/") && ref.split("/").every((part) => part && !part.startsWith(".") && !part.endsWith(".lock")));
     workspaceProviderOperationSchema = external_exports.discriminatedUnion("kind", [
       external_exports.object({
         kind: external_exports.literal("prepare"),
@@ -28438,14 +31894,19 @@ var init_workspace_provider2 = __esm({
         existing: workspaceProviderBindingSchema.nullable(),
         fresh: freshWorkspaceSchema.optional()
       }).strict(),
+      // Verify the retained workspace and flush run writes. This does not certify
+      // remote recoverability or authorize removal; dirty work is valid output.
+      external_exports.object({ kind: external_exports.literal("finalize"), binding: workspaceProviderBindingSchema }).strict(),
       external_exports.object({
         kind: external_exports.literal("inspect"),
-        binding: workspaceProviderBindingSchema
+        binding: workspaceProviderBindingSchema,
+        recoveryPullRequest: workspaceRecoveryPullRequestSchema.optional()
       }).strict(),
       external_exports.object({
         kind: external_exports.literal("remove"),
-        binding: workspaceProviderBindingSchema,
-        expectedHeadSha: sha.nullable()
+        binding: workspaceProviderBindingSchema.nullable(),
+        expectedHeadSha: sha.nullable(),
+        recoveryPullRequest: workspaceRecoveryPullRequestSchema.optional()
       }).strict()
     ]);
     workspaceProviderResultSchema = external_exports.discriminatedUnion("kind", [
@@ -28454,6 +31915,7 @@ var init_workspace_provider2 = __esm({
         binding: workspaceProviderBindingSchema,
         branchName: external_exports.string().min(1).max(256).nullable(),
         baseSha: sha.nullable(),
+        destinationRef: destinationRef.nullable().optional(),
         created: external_exports.boolean(),
         branchCreatedByRuntime: external_exports.boolean()
       }).strict(),
@@ -28467,6 +31929,8 @@ var init_workspace_provider2 = __esm({
         isMergedIntoBase: external_exports.boolean().nullable(),
         remotelyRecoverable: external_exports.boolean().nullable()
       }).strict(),
+      // Return only after retained files are durable and their identity is verified.
+      external_exports.object({ kind: external_exports.literal("finalized"), headSha: sha.nullable(), branchName: external_exports.string().nullable() }).strict(),
       // Return only after removal is confirmed. Busy, failed and uncertain operations must throw.
       external_exports.object({ kind: external_exports.literal("removed") }).strict()
     ]);
@@ -28501,6 +31965,8 @@ init_workspace_provider2();
 
 // node_modules/@paperclipai/plugin-sdk/dist/environment-tasks.js
 init_zod();
+var MAX_ENVIRONMENT_TASK_FILE_BYTES = 10 * 1024 * 1024;
+var taskFilePath = external_exports.string().min(1).max(2e3).refine((value) => !/[\\\u0000-\u001f\u007f]/u.test(value) && !/^[a-z][a-z0-9+.-]*:/iu.test(value) && value.replace(/^\//u, "").split("/").every((part) => part !== "" && part !== "." && part !== ".."), "Expected a canonical task file path");
 var providerId = external_exports.string().min(1);
 var runnerIdentity = external_exports.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/);
 var durableIdentity = external_exports.object({
@@ -28517,6 +31983,14 @@ var secureUrl = external_exports.string().url().refine((value) => {
   return url2.protocol === "wss:" && !url2.username && !url2.password && !url2.search && !url2.hash;
 }, "Expected a credential-free WSS URL");
 var credentialValue = external_exports.string().min(1).max(65536).refine((value) => !value.includes("\0"));
+var githubBroker = external_exports.object({ url: external_exports.string().url().max(2e3).refine((value) => {
+  try {
+    const url2 = new URL(value);
+    return ["http:", "https:"].includes(url2.protocol) && !url2.username && !url2.password && !url2.search && !url2.hash;
+  } catch {
+    return false;
+  }
+}, "Expected a credential-free HTTP broker URL"), token: credentialValue }).strict();
 var environmentTaskCredentialSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({ type: external_exports.literal("codex-auth-json"), authJson: credentialValue }).strict(),
   external_exports.object({ type: external_exports.literal("claude-env"), environment: external_exports.object({
@@ -28539,6 +32013,8 @@ var environmentRunnerLaunchRequirementsSchema = external_exports.object({
     piThinkingLevel: external_exports.enum(["off", "low", "high", "max"]).optional(),
     claudeEffort: external_exports.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
     opencodePermissionMode: external_exports.enum(["allow", "ask", "deny"]).optional(),
+    disableCodexWebSearch: external_exports.literal(true).optional(),
+    disableCodexProjectInstructions: external_exports.literal(true).optional(),
     managedProfile: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
     agentCoreProfile: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
   }).strict(),
@@ -28558,8 +32034,11 @@ var environmentTaskOperationSchema = external_exports.discriminatedUnion("kind",
   external_exports.object({
     kind: external_exports.literal("prepare"),
     requirements: environmentRunnerLaunchRequirementsSchema,
+    githubBroker: githubBroker.optional(),
     recovery: preparedLaunch.optional(),
     resumeFrom: providerId.optional(),
+    priorIdentity: durableIdentity.optional(),
+    accountIdentity: external_exports.string().min(1).max(1024).optional(),
     projectIds: external_exports.array(external_exports.string().uuid()).max(64).refine((ids) => new Set(ids).size === ids.length, "Duplicate project IDs")
   }).strict(),
   external_exports.object({
@@ -28595,13 +32074,23 @@ var environmentTaskOperationSchema = external_exports.discriminatedUnion("kind",
       maxRuntimeMs: external_exports.number().int().nonnegative().optional(),
       maxLifetimeMs: external_exports.number().int().nonnegative().optional(),
       reconnectGraceMs: external_exports.number().int().nonnegative().optional(),
-      lifecyclePolicy: external_exports.object({ mode: external_exports.literal("per_turn"), idleTimeoutMs: external_exports.null() }).strict()
+      lifecyclePolicy: external_exports.discriminatedUnion("mode", [
+        external_exports.object({ mode: external_exports.literal("per_turn"), idleTimeoutMs: external_exports.null() }).strict(),
+        external_exports.object({ mode: external_exports.literal("warm"), idleTimeoutMs: external_exports.number().int().positive().max(864e5) }).strict()
+      ])
     }).strict().optional()
   }).strict(),
   external_exports.object({
     kind: external_exports.literal("check_project_auth"),
     configurationId: providerId.max(1024),
     provider: identifier,
+    projectIds: external_exports.array(external_exports.string().uuid()).max(64).refine((ids) => new Set(ids).size === ids.length, "Duplicate project IDs")
+  }).strict(),
+  external_exports.object({
+    kind: external_exports.literal("read_file"),
+    identity: durableIdentity,
+    path: taskFilePath,
+    maxBytes: external_exports.number().int().positive().max(MAX_ENVIRONMENT_TASK_FILE_BYTES),
     projectIds: external_exports.array(external_exports.string().uuid()).max(64).refine((ids) => new Set(ids).size === ids.length, "Duplicate project IDs")
   }).strict(),
   external_exports.object({ kind: external_exports.literal("read_state"), identity: durableIdentity, resumeFrom: providerId.optional() }).strict(),
@@ -28614,11 +32103,15 @@ var environmentTaskOperationSchema = external_exports.discriminatedUnion("kind",
   external_exports.object({ kind: external_exports.literal("credentials"), accountIdentity: external_exports.string().min(1).max(1024) }).strict(),
   external_exports.object({ kind: external_exports.literal("status") }).strict(),
   external_exports.object({ kind: external_exports.literal("connection") }).strict(),
+  external_exports.object({ kind: external_exports.literal("release"), identity: durableIdentity }).strict(),
+  external_exports.object({ kind: external_exports.literal("resume"), identity: durableIdentity, bootstrapTicket: credentialValue }).strict(),
   external_exports.object({ kind: external_exports.literal("complete") }).strict(),
   external_exports.object({ kind: external_exports.literal("stop") }).strict()
 ]);
 var environmentTaskResultSchema = external_exports.discriminatedUnion("kind", [
   external_exports.object({ kind: external_exports.literal("accepted"), taskId: providerId }).strict(),
+  external_exports.object({ kind: external_exports.literal("released"), taskId: providerId }).strict(),
+  external_exports.object({ kind: external_exports.literal("resume"), taskId: providerId, outcome: external_exports.enum(["resumed", "unavailable"]) }).strict(),
   external_exports.object({
     kind: external_exports.literal("copilot_metadata"),
     taskId: providerId,
@@ -28632,8 +32125,15 @@ var environmentTaskResultSchema = external_exports.discriminatedUnion("kind", [
     provider: identifier,
     allowed: external_exports.boolean()
   }).strict(),
+  external_exports.object({
+    kind: external_exports.literal("file"),
+    taskId: providerId,
+    base64: external_exports.string().max(4 * Math.ceil(MAX_ENVIRONMENT_TASK_FILE_BYTES / 3)),
+    byteSize: external_exports.number().int().nonnegative().max(MAX_ENVIRONMENT_TASK_FILE_BYTES),
+    sha256: external_exports.string().regex(/^[a-f0-9]{64}$/)
+  }).strict(),
   external_exports.object({ kind: external_exports.literal("state"), taskId: providerId, state: external_exports.record(external_exports.string(), external_exports.unknown()) }).strict(),
-  external_exports.object({ kind: external_exports.literal("prepared"), taskId: providerId, launch: preparedLaunch }).strict(),
+  external_exports.object({ kind: external_exports.literal("prepared"), taskId: providerId, launch: preparedLaunch, projectAuthCheckAtSubmit: external_exports.literal(true).optional() }).strict(),
   external_exports.object({
     kind: external_exports.literal("credentials"),
     taskId: providerId,
@@ -28644,9 +32144,17 @@ var environmentTaskResultSchema = external_exports.discriminatedUnion("kind", [
     kind: external_exports.literal("description"),
     taskId: providerId,
     runner: external_exports.object({ version: external_exports.string().min(1), digest: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/) }).strict(),
+    warmTaskVersion: external_exports.literal(1).optional(),
+    releaseResumeVersion: external_exports.literal(1).optional(),
     launchPreparationVersion: external_exports.literal(1).optional(),
+    executionContextVersion: external_exports.literal(1).optional(),
+    /** Each version attests stopped-source recovery for its provider independently. */
+    codexSourceRecoveryVersion: external_exports.literal(1).optional(),
+    acpxSourceRecoveryVersion: external_exports.literal(1).optional(),
     freshWorkspaceVersion: external_exports.literal(1).optional(),
-    projectAuthCheckVersion: external_exports.literal(1).optional()
+    projectAuthCheckVersion: external_exports.literal(1).optional(),
+    workspaceFileReadVersion: external_exports.literal(1).optional(),
+    githubCredentialBrokerVersion: external_exports.literal(1).optional()
   }).strict(),
   external_exports.object({
     kind: external_exports.literal("status"),
@@ -28655,6 +32163,7 @@ var environmentTaskResultSchema = external_exports.discriminatedUnion("kind", [
     exitCode: external_exports.number().int().optional(),
     /** Provider observed the task and all descendants stopped; terminal phase alone is insufficient. */
     executionStopped: external_exports.boolean().optional(),
+    preparationStopped: external_exports.boolean().optional(),
     /** The provider retains this task's recoverable session state for a later launch. */
     sessionStateAvailable: external_exports.boolean().optional()
   }).strict(),
@@ -28674,7 +32183,7 @@ var environmentTaskResultSchema = external_exports.discriminatedUnion("kind", [
 ]);
 function parseEnvironmentTaskResult(operation2, taskId, value) {
   const result = environmentTaskResultSchema.parse(value);
-  const expected = operation2.kind === "describe" ? "description" : operation2.kind === "prepare" ? "prepared" : operation2.kind === "check_project_auth" ? "project_auth" : ["read_state", "archive_state"].includes(operation2.kind) ? "state" : ["status", "connection", "credentials", "copilot_metadata"].includes(operation2.kind) ? operation2.kind : "accepted";
+  const expected = operation2.kind === "release" ? "released" : operation2.kind === "resume" ? "resume" : operation2.kind === "read_file" ? "file" : operation2.kind === "describe" ? "description" : operation2.kind === "prepare" ? "prepared" : operation2.kind === "check_project_auth" ? "project_auth" : ["read_state", "archive_state"].includes(operation2.kind) ? "state" : ["status", "connection", "credentials", "copilot_metadata"].includes(operation2.kind) ? operation2.kind : "accepted";
   if (result.taskId !== taskId || result.kind !== expected)
     throw new Error("Invalid plugin-provided Runner execution response");
   return result;
@@ -28816,6 +32325,7 @@ var ERROR_CODES = /* @__PURE__ */ new Set([
   "EXDEV",
   "ENOTDIR",
   "EISDIR",
+  "ENAMETOOLONG",
   "ECONNRESET",
   "ECONNREFUSED",
   "ETIMEDOUT",
@@ -28875,6 +32385,290 @@ function captureDiagnostic(error62) {
 function environmentSyncErrorData(error62) {
   const diagnostic = captureDiagnostic(error62);
   return diagnostic ? { schema: SCHEMA2, diagnostic } : void 0;
+}
+
+// node_modules/@paperclipai/plugin-sdk/dist/environment-runner-ingress-error.js
+var SCHEMA3 = "paperclip/environment-runner-ingress-error/v1";
+var PHASES = ["sandbox_lookup", "sandbox_start", "sandbox_refresh", "private_preview"];
+function field2(value, name) {
+  if (!value || typeof value !== "object")
+    return void 0;
+  try {
+    return Object.getOwnPropertyDescriptor(value, name)?.value;
+  } catch {
+    return void 0;
+  }
+}
+function validate2(value) {
+  const phase = field2(value, "phase"), httpStatus = field2(value, "httpStatus");
+  if (!PHASES.includes(phase) || typeof httpStatus !== "number" || !Number.isInteger(httpStatus) || httpStatus < 400 || httpStatus > 599)
+    return null;
+  return { phase, httpStatus };
+}
+var PluginEnvironmentRunnerIngressError = class extends Error {
+  failure;
+  constructor(failure2) {
+    const safe = validate2(failure2);
+    super(`Runner connection endpoint could not be acquired${safe ? ` (HTTP ${safe.httpStatus})` : ""}.`);
+    this.name = "PluginEnvironmentRunnerIngressError";
+    this.failure = safe;
+  }
+};
+function environmentRunnerIngressErrorData(error62) {
+  if (!(error62 instanceof PluginEnvironmentRunnerIngressError))
+    return void 0;
+  const failure2 = validate2(field2(error62, "failure"));
+  return failure2 ? { schema: SCHEMA3, failure: failure2 } : void 0;
+}
+
+// node_modules/@paperclipai/plugin-sdk/dist/environment-stop-error.js
+var SCHEMA4 = "paperclip/environment-stop-error/v1";
+var REASONS = ["resource_unrecoverable", "recovery_failed", "recovery_incomplete"];
+var TERMINAL_REASONS = /* @__PURE__ */ new Set(["resource_unrecoverable", "recovery_failed"]);
+var MESSAGES = {
+  resource_unrecoverable: "The provider reports that the environment resource cannot recover from its error state, so it cannot be stopped.",
+  recovery_failed: "The environment resource returned to an error state after a recovery attempt, so it cannot be stopped.",
+  recovery_incomplete: "The environment resource did not finish recovery from its error state before the stop deadline."
+};
+function field3(value, name) {
+  if (!value || typeof value !== "object")
+    return void 0;
+  try {
+    return Object.getOwnPropertyDescriptor(value, name)?.value;
+  } catch {
+    return void 0;
+  }
+}
+function validate3(value) {
+  const reason = field3(value, "reason");
+  if (!REASONS.includes(reason))
+    return null;
+  return { reason, terminal: TERMINAL_REASONS.has(reason) };
+}
+var PluginEnvironmentStopError = class extends Error {
+  failure;
+  constructor(reason) {
+    const failure2 = validate3({ reason });
+    super(failure2 ? MESSAGES[failure2.reason] : "The environment resource could not be stopped.");
+    this.name = "PluginEnvironmentStopError";
+    this.failure = failure2;
+  }
+};
+function environmentStopErrorData(error62) {
+  if (!(error62 instanceof PluginEnvironmentStopError))
+    return void 0;
+  const failure2 = validate3(field3(error62, "failure"));
+  return failure2 ? { schema: SCHEMA4, failure: { reason: failure2.reason } } : void 0;
+}
+
+// node_modules/@paperclipai/plugin-sdk/dist/environment-resume-error.js
+var SCHEMA5 = "paperclip/environment-resume-error/v1";
+var ERROR_CODES2 = /* @__PURE__ */ new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EPIPE",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ENETUNREACH",
+  "ABORT_ERR",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET"
+]);
+function field4(value, key) {
+  try {
+    return value && typeof value === "object" ? value[key] : void 0;
+  } catch {
+    return void 0;
+  }
+}
+function sanitizeProviderErrorDiagnostic(input2) {
+  const httpStatus = Number.isInteger(input2.httpStatus) && input2.httpStatus >= 100 && input2.httpStatus <= 599 ? input2.httpStatus : void 0;
+  const errorCode = typeof input2.errorCode === "string" && ERROR_CODES2.has(input2.errorCode) ? input2.errorCode : void 0;
+  if (httpStatus === void 0 && errorCode === void 0)
+    return null;
+  return { ...httpStatus !== void 0 ? { httpStatus } : {}, ...errorCode !== void 0 ? { errorCode } : {} };
+}
+function providerErrorDiagnostic(error62) {
+  let httpStatus;
+  let errorCode;
+  for (let cause = error62, depth = 0; cause && depth < 4; cause = field4(cause, "cause"), depth++) {
+    httpStatus ??= [field4(cause, "status"), field4(cause, "statusCode"), field4(field4(cause, "response"), "status")].find((value) => Number.isInteger(value));
+    const code = field4(cause, "code");
+    if (errorCode === void 0 && typeof code === "string" && ERROR_CODES2.has(code))
+      errorCode = code;
+  }
+  return sanitizeProviderErrorDiagnostic({ httpStatus, errorCode });
+}
+function environmentResumeErrorData(error62) {
+  const diagnostic = providerErrorDiagnostic(error62);
+  return diagnostic ? { schema: SCHEMA5, diagnostic } : void 0;
+}
+
+// node_modules/@paperclipai/plugin-sdk/dist/environment-acquire-error.js
+var SCHEMA6 = "paperclip/environment-acquire-error/v1";
+function environmentAcquireErrorData(error62) {
+  const createError = error62 instanceof PluginEnvironmentCreationCleanupError ? error62.errors[0] : error62;
+  const providerDiagnostic = providerErrorDiagnostic(createError);
+  const cleanup = environmentCreationCleanupErrorData(error62, true);
+  if (cleanup && typeof cleanup === "object") {
+    return providerDiagnostic ? { ...cleanup, providerDiagnostic } : cleanup;
+  }
+  return providerDiagnostic ? { schema: SCHEMA6, providerDiagnostic } : void 0;
+}
+
+// node_modules/@paperclipai/plugin-sdk/dist/environment-task-error.js
+var SCHEMA7 = "paperclip/environment-task-error/v1";
+function field5(value, key) {
+  try {
+    return value && typeof value === "object" ? value[key] : void 0;
+  } catch {
+    return void 0;
+  }
+}
+function sanitize2(httpStatus, errorCode, reason) {
+  if (httpStatus !== 409 || errorCode !== "SESSION_STATE_UNAVAILABLE" || reason !== "unresolved_operation" && reason !== "source_state_unverified")
+    return null;
+  return { httpStatus, errorCode, reason };
+}
+function environmentTaskErrorData(error62) {
+  const diagnostic = sanitize2(field5(error62, "status"), field5(error62, "code"), field5(error62, "reason"));
+  return diagnostic ? { schema: SCHEMA7, diagnostic } : void 0;
+}
+var ENVIRONMENT_TASK_ERROR_CODES = ["runner_revision_mismatch"];
+var CODE_SCHEMA = "paperclip/environment-task-error-code/v1";
+function ownField(value, name) {
+  if (!value || typeof value !== "object")
+    return void 0;
+  try {
+    return Object.getOwnPropertyDescriptor(value, name)?.value;
+  } catch {
+    return void 0;
+  }
+}
+function validateCode(value) {
+  return ENVIRONMENT_TASK_ERROR_CODES.includes(value) ? value : null;
+}
+var PluginEnvironmentTaskError = class extends Error {
+  errorCode;
+  constructor(errorCode) {
+    const safe = validateCode(errorCode);
+    if (!safe)
+      throw new TypeError("Unknown environment task error code");
+    super("The installed Runner does not match the expected revision");
+    this.name = "PluginEnvironmentTaskError";
+    this.errorCode = safe;
+  }
+};
+function environmentTaskErrorCodeData(error62) {
+  if (!(error62 instanceof PluginEnvironmentTaskError))
+    return void 0;
+  const errorCode = validateCode(ownField(error62, "errorCode"));
+  return errorCode ? { schema: CODE_SCHEMA, errorCode } : void 0;
+}
+
+// node_modules/@paperclipai/plugin-sdk/dist/workspace-operation-error.js
+var WORKSPACE_OPERATION_FAILURE_REASONS = [
+  /** The provider does not accept this operation or request shape. */
+  "unsupported_operation",
+  /** The provider's own settings are missing or invalid. */
+  "configuration_unavailable",
+  /** A credential the operation needs (for example the project's Git credential) is unusable. */
+  "credential_unavailable",
+  /** Saved storage access grants are missing or no longer match the project. */
+  "storage_grant_unavailable",
+  /** The saved workspace binding does not match this workspace or generation. */
+  "binding_mismatch",
+  /** Project storage is still being provisioned or reconciled. */
+  "storage_pending",
+  /** The selected runtime is not ready. */
+  "runtime_unavailable",
+  /** The selected runtime's saved connection is invalid. */
+  "runtime_connection_invalid",
+  /** A remote storage or runtime request failed or returned an unusable result. */
+  "remote_incomplete",
+  /** The runtime, grants or binding changed while the operation ran. */
+  "context_changed",
+  /** The operation deadline passed. */
+  "deadline_exceeded"
+];
+var SCHEMA8 = "paperclip/workspace-operation-error/v1";
+function ownField2(value, name) {
+  if (!value || typeof value !== "object")
+    return void 0;
+  try {
+    return Object.getOwnPropertyDescriptor(value, name)?.value;
+  } catch {
+    return void 0;
+  }
+}
+function validateReason(value) {
+  return WORKSPACE_OPERATION_FAILURE_REASONS.includes(value) ? value : null;
+}
+function workspaceOperationErrorData(error62) {
+  const reason = validateReason(ownField2(error62, "workspaceFailureReason"));
+  return reason ? { schema: SCHEMA8, reason } : void 0;
+}
+
+// node_modules/@paperclipai/plugin-sdk/dist/invocation-tracer.js
+import { AsyncLocalStorage as AsyncLocalStorage2 } from "node:async_hooks";
+function createInvocationTracer(enabled, record2) {
+  const active = new AsyncLocalStorage2();
+  async function withSpan(name, work, attributes) {
+    if (!enabled())
+      return work();
+    const parent = active.getStore();
+    if (parent?.closed)
+      return work();
+    const budget = parent?.budget ?? { remaining: 256 };
+    if (budget.remaining-- <= 0)
+      return work();
+    const clock = parent?.clock ?? { epoch: Date.now(), origin: performance.now() };
+    const startTimeMs = clock.epoch + performance.now() - clock.origin;
+    const span = { name, startTimeMs, attributes, children: [] };
+    const scope = { span, budget, closed: false, clock };
+    parent?.span.children?.push(span);
+    try {
+      return await active.run(scope, work);
+    } catch (error62) {
+      span.status = { code: 2 };
+      throw error62;
+    } finally {
+      scope.closed = true;
+      span.endTimeMs = clock.epoch + performance.now() - clock.origin;
+      if (!parent) {
+        try {
+          record2(span);
+        } catch {
+        }
+      }
+    }
+  }
+  function appendSpan(scope, span) {
+    if (!scope)
+      return false;
+    if (!enabled() || scope.closed || scope.budget.remaining-- <= 0)
+      return true;
+    scope.span.children?.push(span);
+    return true;
+  }
+  return {
+    withSpan,
+    clock: () => {
+      const clock = active.getStore()?.clock ?? { epoch: Date.now(), origin: performance.now() };
+      return () => clock.epoch + performance.now() - clock.origin;
+    },
+    now: () => {
+      const clock = active.getStore()?.clock;
+      return clock ? clock.epoch + performance.now() - clock.origin : Date.now();
+    },
+    isRecording: enabled,
+    recordSpan: (span) => appendSpan(active.getStore(), span),
+    captureRecorder: () => {
+      const scope = active.getStore();
+      return (span) => appendSpan(scope, span);
+    }
+  };
 }
 
 // node_modules/@paperclipai/plugin-sdk/dist/idle-drain.js
@@ -28949,7 +32743,7 @@ function createPluginIdleDrain() {
 
 // node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 import fs from "node:fs";
-import { AsyncLocalStorage as AsyncLocalStorage2 } from "node:async_hooks";
+import { AsyncLocalStorage as AsyncLocalStorage3 } from "node:async_hooks";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -29001,28 +32795,28 @@ var DUPLEX_CHANNEL_DATA_NOTIFICATION = "duplexChannel.data";
 var DUPLEX_CHANNEL_EXIT_NOTIFICATION = "duplexChannel.exit";
 var _nextId = 1;
 var MAX_SAFE_RPC_ID = Number.MAX_SAFE_INTEGER - 1;
-function createRequest(method, params, id2) {
+function createRequest(method, params, id3) {
   if (_nextId >= MAX_SAFE_RPC_ID) {
     _nextId = 1;
   }
   return {
     jsonrpc: JSONRPC_VERSION,
-    id: id2 ?? _nextId++,
+    id: id3 ?? _nextId++,
     method,
     params
   };
 }
-function createSuccessResponse(id2, result) {
+function createSuccessResponse(id3, result) {
   return {
     jsonrpc: JSONRPC_VERSION,
-    id: id2,
+    id: id3,
     result
   };
 }
-function createErrorResponse(id2, code, message2, data) {
+function createErrorResponse(id3, code, message2, data) {
   const response = {
     jsonrpc: JSONRPC_VERSION,
-    id: id2,
+    id: id3,
     error: data !== void 0 ? { code, message: message2, data } : { code, message: message2 }
   };
   return response;
@@ -29103,8 +32897,8 @@ var JsonRpcCallError = class extends Error {
 
 // node_modules/@paperclipai/plugin-sdk/dist/worker-rpc-host.js
 var DEFAULT_RPC_TIMEOUT_MS = 3e4;
-function realpathOrResolvedPath(filePath) {
-  const resolvedPath = path.resolve(filePath);
+function realpathOrResolvedPath(filePath2) {
+  const resolvedPath = path.resolve(filePath2);
   try {
     return fs.realpathSync.native(resolvedPath);
   } catch {
@@ -29157,7 +32951,12 @@ function startWorkerRpcHost(options) {
   let currentConfig = {};
   let configCompanyId = null;
   let databaseNamespace = null;
-  const invocationContextStorage = new AsyncLocalStorage2();
+  const invocationContextStorage = new AsyncLocalStorage3();
+  const canRecordSpans = () => Boolean(invocationContextStorage.getStore()?.traceparent) && (manifest2?.capabilities.includes("environment.drivers.register") === true || manifest2?.capabilities.includes("workspaces.manage") === true);
+  const invocationTracer = createInvocationTracer(canRecordSpans, (span) => {
+    void callHostRaw("span.record", span).catch(() => void 0);
+  });
+  const { withSpan } = invocationTracer;
   const eventHandlers = [];
   const jobHandlers = /* @__PURE__ */ new Map();
   const launcherRegistrations = /* @__PURE__ */ new Map();
@@ -29175,6 +32974,10 @@ function startWorkerRpcHost(options) {
     stdoutStream.write(serialized);
   }
   function callHost(method, params, timeoutMs) {
+    const operation2 = method === "agents.getRuntimeIdentity" || method === "agents.getRuntime" ? "identity.read" : method === "config.get" ? "config.read" : method === "entities.list" ? "progress.read" : method === "entities.upsert" ? "progress.write" : void 0;
+    return operation2 ? withSpan(`plugin.host.${operation2}`, () => callHostRaw(method, params, timeoutMs)) : callHostRaw(method, params, timeoutMs);
+  }
+  function callHostRaw(method, params, timeoutMs) {
     return new Promise((resolve, reject) => {
       if (!running) {
         reject(new Error(`Cannot call "${method}" \u2014 worker RPC host is not running`));
@@ -29183,8 +32986,8 @@ function startWorkerRpcHost(options) {
       if (nextOutboundId >= MAX_OUTBOUND_ID) {
         nextOutboundId = 1;
       }
-      const id2 = nextOutboundId++;
-      unsettledHostCalls.set(id2, idleDrain.begin());
+      const id3 = nextOutboundId++;
+      unsettledHostCalls.set(id3, idleDrain.begin());
       const timeout = timeoutMs ?? rpcTimeoutMs;
       let settled = false;
       const settle2 = (fn, value) => {
@@ -29192,7 +32995,7 @@ function startWorkerRpcHost(options) {
           return;
         settled = true;
         clearTimeout(timer);
-        pendingRequests.delete(id2);
+        pendingRequests.delete(id3);
         fn(value);
       };
       const timer = setTimeout(() => {
@@ -29201,7 +33004,7 @@ function startWorkerRpcHost(options) {
           message: `Worker\u2192host call "${method}" timed out after ${timeout}ms`
         }));
       }, timeout);
-      pendingRequests.set(id2, {
+      pendingRequests.set(id3, {
         resolve: (response) => {
           if (isJsonRpcSuccessResponse(response)) {
             settle2(resolve, response.result);
@@ -29216,13 +33019,13 @@ function startWorkerRpcHost(options) {
       try {
         const activeInvocation = invocationContextStorage.getStore();
         const request = {
-          ...createRequest(method, params, id2),
+          ...createRequest(method, params, id3),
           ...activeInvocation ? { paperclipInvocationId: activeInvocation.id } : {}
         };
         sendMessage(request);
       } catch (err) {
-        unsettledHostCalls.get(id2)?.();
-        unsettledHostCalls.delete(id2);
+        unsettledHostCalls.get(id3)?.();
+        unsettledHostCalls.delete(id3);
         settle2(reject, err instanceof Error ? err : new Error(String(err)));
       }
     });
@@ -29454,6 +33257,9 @@ function startWorkerRpcHost(options) {
         }
       },
       projects: {
+        async resolveGitCredential(projectId, workspaceId, companyId) {
+          return callHost("projects.resolveGitCredential", { projectId, workspaceId, companyId });
+        },
         async list(input2) {
           return callHost("projects.list", {
             companyId: input2.companyId,
@@ -29805,8 +33611,11 @@ function startWorkerRpcHost(options) {
         }
       },
       agents: {
-        async getRuntime(agentId, companyId) {
-          return callHost("agents.getRuntime", { agentId, companyId });
+        async getRuntimeIdentity(agentId, companyId) {
+          return callHost("agents.getRuntimeIdentity", { agentId, companyId });
+        },
+        async getRuntime(agentId, companyId, environmentId, installEnvironmentSkills) {
+          return callHost("agents.getRuntime", { agentId, companyId, ...environmentId ? { environmentId } : {}, ...installEnvironmentSkills ? { installEnvironmentSkills: true } : {} });
         },
         async list(input2) {
           return callHost("agents.list", {
@@ -30089,12 +33898,19 @@ function startWorkerRpcHost(options) {
         }
       },
       tracer: {
+        withSpan,
+        now: invocationTracer.now,
+        isRecording: invocationTracer.isRecording,
+        recordSpan: invocationTracer.recordSpan,
         startSpan(name, options2) {
-          const hasTraceContext = Boolean(invocationContextStorage.getStore()?.traceparent);
+          const recordSpan = invocationTracer.captureRecorder();
+          const spanInvocation = invocationContextStorage.getStore();
+          const hasTraceContext = canRecordSpans();
           const attributes = {
             ...options2?.attributes ?? {}
           };
-          const startTimeMs = Date.now();
+          const spanNow = invocationTracer.clock();
+          const startTimeMs = spanNow();
           let status;
           let ended = false;
           return {
@@ -30108,16 +33924,18 @@ function startWorkerRpcHost(options) {
               if (ended)
                 return;
               ended = true;
-              if (!hasTraceContext)
+              if (!hasTraceContext || invocationContextStorage.getStore()?.id !== spanInvocation?.id)
                 return;
-              const endTimeMs = Date.now();
-              void callHost("span.record", {
+              const endTimeMs = spanNow();
+              const receipt = {
                 name,
                 attributes,
                 ...status ? { status } : {},
                 startTimeMs,
                 endTimeMs
-              }).catch(() => void 0);
+              };
+              if (!recordSpan(receipt))
+                void callHost("span.record", receipt).catch(() => void 0);
             }
           };
         }
@@ -30132,19 +33950,21 @@ function startWorkerRpcHost(options) {
     return handleHostRequestInScope(request);
   }
   async function handleHostRequestInScope(request) {
-    const { id: id2, method, params } = request;
+    const { id: id3, method, params } = request;
     let done;
     try {
       if (method !== "prepareIdleSleep" && method !== "releaseIdleSleep" && method !== "shutdown") {
         done = idleDrain.begin();
       }
-      const invoke = () => dispatchMethod(method, params);
+      const invoke = () => withSpan("plugin.worker", () => dispatchMethod(method, params));
       const result = request.paperclipInvocation ? await invocationContextStorage.run(request.paperclipInvocation, invoke) : await invoke();
-      sendMessage(createSuccessResponse(id2, result ?? null));
+      sendMessage(createSuccessResponse(id3, result ?? null));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const input2 = params;
+      const taskError = method === "environmentTask" && input2?.operation?.kind === "submit" && input2.operation.resumeFrom ? environmentTaskErrorData(err) : void 0;
+      const errorMessage = taskError ? "Plugin Runner source state unavailable" : err instanceof Error ? err.message : String(err);
       const errorCode = typeof err?.code === "number" ? err.code : PLUGIN_RPC_ERROR_CODES.WORKER_ERROR;
-      sendMessage(createErrorResponse(id2, errorCode, errorMessage, method === "environmentAcquireLease" || method === "environmentDestroyLease" ? environmentCreationCleanupErrorData(err, method === "environmentAcquireLease") : method === "environmentSyncOut" ? environmentSyncErrorData(err) : void 0));
+      sendMessage(createErrorResponse(id3, errorCode, errorMessage, method === "environmentAcquireLease" ? environmentAcquireErrorData(err) : method === "environmentDestroyLease" ? environmentCreationCleanupErrorData(err) : method === "environmentSyncOut" ? environmentSyncErrorData(err) : method === "environmentRunnerIngressEndpoint" ? environmentRunnerIngressErrorData(err) : method === "environmentStopLease" ? environmentStopErrorData(err) : method === "environmentResumeLease" ? environmentResumeErrorData(err) : method === "environmentTask" ? taskError ?? environmentTaskErrorCodeData(err) : method === "workspaceOperation" ? workspaceOperationErrorData(err) : void 0));
     } finally {
       done?.();
     }
@@ -30686,16 +34506,16 @@ function startWorkerRpcHost(options) {
     return true;
   }
   function handleHostResponse(response) {
-    const id2 = response.id;
-    if (id2 === null || id2 === void 0)
+    const id3 = response.id;
+    if (id3 === null || id3 === void 0)
       return;
-    unsettledHostCalls.get(id2)?.();
-    unsettledHostCalls.delete(id2);
-    const pending = pendingRequests.get(id2);
+    unsettledHostCalls.get(id3)?.();
+    unsettledHostCalls.delete(id3);
+    const pending = pendingRequests.get(id3);
     if (!pending)
       return;
     clearTimeout(pending.timer);
-    pendingRequests.delete(id2);
+    pendingRequests.delete(id3);
     pending.resolve(response);
   }
   function handleLine(line) {
@@ -30760,9 +34580,9 @@ function startWorkerRpcHost(options) {
       readline.close();
       readline = null;
     }
-    for (const [id2, pending] of pendingRequests) {
+    for (const [id3, pending] of pendingRequests) {
       clearTimeout(pending.timer);
-      pending.resolve(createErrorResponse(id2, PLUGIN_RPC_ERROR_CODES.WORKER_UNAVAILABLE, "Worker RPC host is shutting down"));
+      pending.resolve(createErrorResponse(id3, PLUGIN_RPC_ERROR_CODES.WORKER_UNAVAILABLE, "Worker RPC host is shutting down"));
     }
     pendingRequests.clear();
     sessionEventCallbacks.clear();
@@ -31818,7 +35638,7 @@ function collectAuthorSignals(commits, prAuthorLogin) {
 function isSelfAuthored(reviewer, identities, authorSignals) {
   const ids = identities?.[reviewer];
   if (!ids || ids.length === 0) return false;
-  return ids.some((id2) => authorSignals.has(normalizeAuthorSignal(id2)));
+  return ids.some((id3) => authorSignals.has(normalizeAuthorSignal(id3)));
 }
 function filterSelfAuthoredReviewers(reviewers, isAuthor) {
   const requiredPresent = reviewers.some((r) => r.reviewer === REQUIRED_REVIEWER);
